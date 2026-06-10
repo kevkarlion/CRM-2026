@@ -1,4 +1,4 @@
-import { ClientModel, ContactModel, LocationModel, EquipmentModel } from '../models';
+import { ClientModel, ContactModel, LocationModel, EquipmentModel, TaskModel } from '../models';
 import { IClient, CreateClientInput, UpdateClientInput } from '../types/client';
 
 export class ClientService {
@@ -80,5 +80,13 @@ export class ClientService {
         { $set: { deletedAt: new Date(), deletedBy: userId } }
       );
     }
+
+    // Cascade soft-delete polymorphic Tasks linked to this client
+    await TaskModel.updateMany(
+      { entityType: 'client', entityId: id, tenantId, deletedAt: null },
+      { $set: { deletedAt: new Date(), deletedBy: userId } }
+    );
+    // Activity (append-only) and Attachment (immutable metadata) are NOT soft-deleted
+    // Activity entries remain as historical record; Attachments remain for audit trail
   }
 }

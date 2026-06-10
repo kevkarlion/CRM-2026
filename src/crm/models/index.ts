@@ -3,3 +3,6 @@ export { default as ContactModel } from './contact';
 export { default as LocationModel } from './location';
 export { default as EquipmentModel } from './equipment';
 export { default as ServiceHistoryModel } from './service-history';
+export { default as ActivityModel } from './activity';
+export { default as TaskModel } from './task';
+export { default as AttachmentModel } from './attachment';
