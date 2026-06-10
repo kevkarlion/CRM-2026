@@ -2,7 +2,15 @@ export { ClientService } from './services/client.service';
 export { ContactService } from './services/contact.service';
 export { LocationService } from './services/location.service';
 export { EquipmentService } from './services/equipment.service';
-export { ClientModel, ContactModel, LocationModel, EquipmentModel } from './models';
+export { ServiceHistoryService } from './services/service-history.service';
+export {
+  ClientModel,
+  ContactModel,
+  LocationModel,
+  EquipmentModel,
+  ServiceHistoryModel,
+} from './models';
+export { cursorPage } from './helpers/cursor-pagination';
 export {
   IClient,
   CreateClientInput,
@@ -16,6 +24,8 @@ export {
   IEquipment,
   CreateEquipmentInput,
   UpdateEquipmentInput,
+  IServiceHistory,
+  CreateServiceHistoryInput,
   IAuditFields,
   CursorPage,
   CursorOptions,
