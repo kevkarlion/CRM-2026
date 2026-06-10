@@ -1,5 +1,6 @@
-import { LocationModel } from '../models';
+import { LocationModel, EquipmentModel } from '../models';
 import { ILocation, CreateLocationInput, UpdateLocationInput } from '../types/location';
+import { Types } from 'mongoose';
 
 export class LocationService {
   async create(
@@ -34,10 +35,23 @@ export class LocationService {
 
   async update(
     id: string,
-    data: UpdateLocationInput,
+    data: UpdateLocationInput & { clientId?: string },
     tenantId: string,
     userId: string
   ): Promise<ILocation | null> {
+    // If clientId is changing, sync Equipment at this location
+    if (data.clientId) {
+      const current = await LocationModel.findOne({ _id: id, tenantId, deletedAt: null })
+        .lean()
+        .exec();
+      if (current && current.clientId.toString() !== data.clientId) {
+        await EquipmentModel.updateMany(
+          { locationId: id, deletedAt: null },
+          { $set: { clientId: new Types.ObjectId(data.clientId) } }
+        );
+      }
+    }
+
     return LocationModel.findOneAndUpdate(
       { _id: id, tenantId, deletedAt: null },
       { $set: { ...data, updatedBy: userId } },
@@ -52,7 +66,11 @@ export class LocationService {
       { _id: id, tenantId },
       { $set: { deletedAt: new Date(), deletedBy: userId } }
     );
-    // Equipment cascade (sync clientId on location re-parent + soft-delete)
-    // will be implemented in PR3 when Equipment model exists
+
+    // Cascade soft-delete to Equipment at this location
+    await EquipmentModel.updateMany(
+      { locationId: id, deletedAt: null },
+      { $set: { deletedAt: new Date(), deletedBy: userId } }
+    );
   }
 }

@@ -1,4 +1,4 @@
-import { ClientModel } from '../models';
+import { ClientModel, ContactModel, LocationModel, EquipmentModel } from '../models';
 import { IClient, CreateClientInput, UpdateClientInput } from '../types/client';
 
 export class ClientService {
@@ -52,7 +52,33 @@ export class ClientService {
       { _id: id, tenantId },
       { $set: { deletedAt: new Date(), deletedBy: userId } }
     );
-    // Cascade soft-delete to children (Contacts, Locations, Equipment, etc.)
-    // will be implemented in later PRs when those models exist
+
+    // Cascade soft-delete to Contacts
+    await ContactModel.updateMany(
+      { clientId: id, deletedAt: null },
+      { $set: { deletedAt: new Date(), deletedBy: userId } }
+    );
+
+    // Cascade soft-delete to Locations (and via Location cascade to Equipment)
+    const locations = await LocationModel.find({ clientId: id, deletedAt: null })
+      .select('_id')
+      .lean()
+      .exec();
+
+    const locationIds = locations.map((l) => l._id);
+
+    if (locationIds.length > 0) {
+      // Soft-delete Equipment at all locations
+      await EquipmentModel.updateMany(
+        { locationId: { $in: locationIds }, deletedAt: null },
+        { $set: { deletedAt: new Date(), deletedBy: userId } }
+      );
+
+      // Soft-delete locations
+      await LocationModel.updateMany(
+        { _id: { $in: locationIds } },
+        { $set: { deletedAt: new Date(), deletedBy: userId } }
+      );
+    }
   }
 }
