@@ -1,0 +1,59 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { WorkOrderService, ValidationError } from '@/src/operations/services/work-order.service';
+
+const service = new WorkOrderService();
+
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const tenantId = searchParams.get('tenantId') || request.headers.get('x-tenant-id') || '';
+    if (!tenantId) {
+      return NextResponse.json({ error: 'tenantId is required' }, { status: 400 });
+    }
+
+    const status = searchParams.get('status') || undefined;
+    const technicianId = searchParams.get('technicianId') || undefined;
+    const from = searchParams.get('from') || undefined;
+    const to = searchParams.get('to') || undefined;
+
+    const filters: Record<string, unknown> = {};
+    if (status) filters.status = status;
+    if (technicianId) filters.technicianId = technicianId;
+    if (from || to) {
+      filters.scheduledDateGte = from ? new Date(from) : undefined;
+      filters.scheduledDateLte = to ? new Date(to) : undefined;
+    }
+
+    const data = await service.findByTenant(tenantId, filters as any);
+
+    return NextResponse.json({ data, total: data.length });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { status: 500 },
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const tenantId = request.headers.get('x-tenant-id') || '';
+    const userId = request.headers.get('x-user-id') || '';
+    if (!tenantId || !userId) {
+      return NextResponse.json({ error: 'x-tenant-id and x-user-id headers are required' }, { status: 400 });
+    }
+
+    const body = await request.json();
+    const data = await service.create(body, tenantId, userId);
+
+    return NextResponse.json({ data }, { status: 201 });
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      return NextResponse.json({ error: error.message }, { status: 422 });
+    }
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { status: 500 },
+    );
+  }
+}
