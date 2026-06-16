@@ -12,8 +12,8 @@ export const preVisitChecklistSchema = new Schema<IPreVisitChecklist>(
     vehicleAssigned: { type: Boolean, default: false },
     safetyEquipmentChecked: { type: Boolean, default: false },
     notes: String,
-    completedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    completedAt: { type: Date, required: true },
+    completedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    completedAt: { type: Date },
   },
   { timestamps: true }
 );

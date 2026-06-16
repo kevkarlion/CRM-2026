@@ -41,19 +41,25 @@ export class VisitReportService {
 
   async updateVisitReport(
     workOrderId: string,
-    data: UpdateVisitReportInput,
+    data: UpdateVisitReportInput & { version: number },
     tenantId: string,
     userId: string,
   ): Promise<IVisitReport | null> {
+    const { version, ...fields } = data;
     const updated = await VisitReportModel.findOneAndUpdate(
       {
         tenantId: new Types.ObjectId(tenantId),
         workOrderId: new Types.ObjectId(workOrderId),
         deletedAt: null,
+        version,
       },
-      { $set: { ...data, updatedBy: new Types.ObjectId(userId) } },
+      { $set: { ...fields, updatedBy: new Types.ObjectId(userId) }, $inc: { version: 1 } },
       { new: true },
     ).lean().exec();
+
+    if (!updated) {
+      throw new Error('Version conflict: VisitReport was modified by another user.');
+    }
 
     return updated;
   }

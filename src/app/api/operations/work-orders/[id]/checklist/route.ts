@@ -3,6 +3,30 @@ import { ChecklistService } from '@/src/operations/services/checklist.service';
 
 const service = new ChecklistService();
 
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: { id: string } },
+) {
+  try {
+    const tenantId = _request.headers.get('x-tenant-id') || '';
+    if (!tenantId) {
+      return NextResponse.json({ error: 'x-tenant-id header is required' }, { status: 400 });
+    }
+
+    const data = await service.findByWorkOrder(params.id, tenantId);
+    if (!data) {
+      return NextResponse.json({ error: 'Checklist not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ data });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { status: 500 },
+    );
+  }
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } },

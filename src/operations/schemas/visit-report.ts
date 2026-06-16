@@ -18,6 +18,7 @@ export const visitReportSchema = new Schema<IVisitReport>(
     workPerformed: { type: String, required: true },
     observations: String,
     recommendations: String,
+    version: { type: Number, default: 0 },
     customerSignature: String,
     customerName: String,
     signedAt: Date,

@@ -11,6 +11,7 @@ export interface IVisitReport extends Document, IAuditFields {
   workPerformed: string;
   observations?: string;
   recommendations?: string;
+  version: number;
   customerSignature?: string;
   customerName?: string;
   signedAt?: Date;

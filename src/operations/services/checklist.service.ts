@@ -13,6 +13,16 @@ const CHECKLIST_BOOLEANS = [
 ] as const;
 
 export class ChecklistService {
+  async findByWorkOrder(
+    workOrderId: string,
+    tenantId: string,
+  ): Promise<IPreVisitChecklist | null> {
+    return PreVisitChecklistModel.findOne({
+      tenantId: new Types.ObjectId(tenantId),
+      workOrderId: new Types.ObjectId(workOrderId),
+    }).lean().exec();
+  }
+
   async createChecklist(
     workOrderId: string,
     tenantId: string,
@@ -36,8 +46,6 @@ export class ChecklistService {
       routeConfirmed: false,
       vehicleAssigned: false,
       safetyEquipmentChecked: false,
-      completedBy: new Types.ObjectId(userId),
-      completedAt: new Date(),
     });
 
     await logActivity({

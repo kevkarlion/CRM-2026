@@ -3,6 +3,26 @@ import { AssignmentService } from '@/src/operations/services/assignment.service'
 
 const service = new AssignmentService();
 
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: { id: string } },
+) {
+  try {
+    const tenantId = _request.headers.get('x-tenant-id') || '';
+    if (!tenantId) {
+      return NextResponse.json({ error: 'x-tenant-id header is required' }, { status: 400 });
+    }
+
+    const data = await service.getCurrentAssignments(params.id, tenantId);
+    return NextResponse.json({ data });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { status: 500 },
+    );
+  }
+}
+
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } },
