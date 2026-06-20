@@ -6,6 +6,7 @@
 > **Repo**: `main` (con merge de Fase 3)
 > **Tags**: `v0.1.0`, `v0.2.0`, `v0.3.0`
 > **TypeScript**: 140 archivos (~6.400 líneas), 133 fuente + 7 tests
+> **Tests**: 99 tests (7 suites) — vitest + mongoose
 > **Proyecto total**: 51 archivos en operations + CRM + Core = ~180+ archivos
 
 ---
@@ -329,8 +330,8 @@ feature/operations-complete (consumido)
 
 - **Feature-branch-chain**: PR#1 targetea tracker branch; PRs siguientes targetean PR anterior. Solo el tracker mergea a main con `--no-ff`.
 - **Commits**: conventional commits (`feat:`, `fix:`, `refactor:`, etc.)
-- **Tags**: Semánticos por hito (`v0.1.0`, `v0.2.0`, `v0.3.0-operations`)
-- **Estado actual**: `feature/operations-complete` está 3 commits ahead de `main`. Pendiente de merge.
+- **Tags**: Semánticos por hito (`v0.1.0`, `v0.2.0`, `v0.3.0`)
+- **Estado actual**: `main` con Fase 1-3 completas. Test runner configurado (vitest).
 
 ---
 
@@ -339,7 +340,7 @@ feature/operations-complete (consumido)
 ### Corto Plazo (previo a siguiente fase)
 
 - [x] Mergear `feature/operations-complete` a `main` ✅ (2026-06-20)
-- [ ] Configurar test runner (Vitest/Jest) — 5 test files de operations + tests existentes no pueden ejecutarse
+- [x] Configurar test runner ✅ — vitest + mongoose + TypeScript (99 tests, 7 suites)
 - [ ] CI/PR automation para flujo de PRs encadenados
 
 ### Fase 4 — Quotes, Facturación, Pipeline Comercial
