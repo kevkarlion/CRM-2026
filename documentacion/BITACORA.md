@@ -1,11 +1,12 @@
 # BITÁCORA DEL PROYECTO — CRM 2026
 
 > **Propósito**: Única fuente de verdad del estado del proyecto. Mantiene el historial completo de decisiones, arquitectura, fases completadas y pendientes.
-> **Actualización**: 2026-06-16
+> **Actualización**: 2026-06-20
 > **Stack**: Next.js, TypeScript, MongoDB (Mongoose)
-> **Repo**: `main` + `feature/operations-complete` (3 commits ahead)
-> **Tags**: `v0.1.0`, `v0.2.0`, `v0.3.0-operations`
-> **TypeScript**: 133 archivos, ~5.400 líneas de código fuente, ~1.000 líneas de tests
+> **Repo**: `main` (con merge de Fase 3)
+> **Tags**: `v0.1.0`, `v0.2.0`, `v0.3.0`
+> **TypeScript**: 140 archivos (~6.400 líneas), 133 fuente + 7 tests
+> **Proyecto total**: 51 archivos en operations + CRM + Core = ~180+ archivos
 
 ---
 
@@ -184,10 +185,10 @@ Client, Contact, Location, Equipment, ServiceHistory, Activity, Task, Attachment
 
 ## 5. Fase 3 — Operaciones, Work Orders y Dispatching (v0.3.0-operations)
 
-**Período**: 2026-06-12 al 2026-06-16
+**Período**: 2026-06-12 al 2026-06-20
 **SDD**: Dos ciclos completos
-**Branch**: `feature/operations-complete` (3 commits, NO mergeado a main)
-**Tag**: `v0.3.0-operations`
+**Merge**: `feature/operations-complete` → `main` (2026-06-20, `--no-ff`)
+**Tag**: `v0.3.0`
 
 ### Subfase 3.0 — Data Layer (archivada 2026-06-12)
 
@@ -301,15 +302,15 @@ PATCH  /api/operations/work-orders/:id/report   # Actualizar reporte (con OCC)
 ## 7. Git y Estrategia de Ramas
 
 ```
-main (v0.2.0)
+main (v0.3.0)
 ├── v0.1.0 ── Commit inicial (Fase 1)
 ├── v0.2.0 ── Merge feature/domain-model (Fase 2)
-│
-└── feature/operations-complete (3 commits ahead, NO mergeado)
-    ├── f672d83 feat(operations): add domain services layer and OCC
-    ├── 542f622 feat(operations): complete application and api layer
-    └── 50f88db fix(operations): address verify warnings
-    └── tag: v0.3.0-operations
+├── v0.3.0 ── Merge feature/operations-complete (Fase 3)
+│   Merge commit 120f1f5
+│   └── 9dec4cb docs: add project bitácora and SDD archive reports
+│   └── 50f88db fix(operations): address verify warnings
+│   └── 542f622 feat(operations): complete application and api layer
+│   └── f672d83 feat(operations): add domain services layer and OCC
 
 feature/domain-model (mergeado a main)
 ├── pr/1-client
@@ -317,6 +318,11 @@ feature/domain-model (mergeado a main)
 ├── pr/3-equipment
 ├── pr/4-service-history
 └── pr/5-activity-task-attachment
+
+feature/operations-complete (consumido)
+├── Data layer → types, schemas, models, helpers
+├── Application layer → services, APIs REST, tests
+└── Documentation → bitácora, SDD archive reports
 ```
 
 ### Convenciones
@@ -332,7 +338,7 @@ feature/domain-model (mergeado a main)
 
 ### Corto Plazo (previo a siguiente fase)
 
-- [ ] Mergear `feature/operations-complete` a `main`
+- [x] Mergear `feature/operations-complete` a `main` ✅ (2026-06-20)
 - [ ] Configurar test runner (Vitest/Jest) — 5 test files de operations + tests existentes no pueden ejecutarse
 - [ ] CI/PR automation para flujo de PRs encadenados
 
@@ -402,5 +408,5 @@ feature/domain-model (mergeado a main)
 
 ---
 
-> **Próxima actualización**: post-merge de `feature/operations-complete` a `main` y/o al inicio de Fase 4.
+> **Próxima actualización**: al inicio de Fase 4.
 > **Generado por**: gentle-ai orchestrator (sesión 2026-06-16)
