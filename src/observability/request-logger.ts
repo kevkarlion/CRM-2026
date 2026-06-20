@@ -1,5 +1,5 @@
 import { Types } from 'mongoose';
-import RequestLogModel from '../models/request-log';
+import RequestLogModel from '../core/models/request-log';
 
 export interface RequestLogEntry {
   method: string;

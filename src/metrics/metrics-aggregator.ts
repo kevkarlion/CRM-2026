@@ -1,6 +1,6 @@
 import { Types } from 'mongoose';
-import TenantMetricsModel from '../models/tenant-metrics';
-import UserModel from '../models/user';
+import TenantMetricsModel from '../core/models/tenant-metrics';
+import UserModel from '../core/models/user';
 import { MetricsPeriod } from '../types/tenant-metrics';
 
 export interface AggregateMetricsInput {

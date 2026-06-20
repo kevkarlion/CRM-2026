@@ -1,5 +1,5 @@
 import { Types } from 'mongoose';
-import ActivityLogModel from '../models/activity-log';
+import ActivityLogModel from '../core/models/activity-log';
 import { ActivityAction } from '../types/activity-log';
 
 export interface ActivityLogInput {

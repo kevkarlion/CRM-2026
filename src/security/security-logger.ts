@@ -1,5 +1,5 @@
 import { Types } from 'mongoose';
-import SecurityLogModel from '../models/security-log';
+import SecurityLogModel from '../core/models/security-log';
 import { SecurityEventType } from '../types/security-log';
 
 export interface SecurityLogInput {

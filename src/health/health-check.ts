@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import SystemHealthModel from '../models/system-health';
+import SystemHealthModel from '../core/models/system-health';
 import { HealthStatus } from '../types/system-health';
 
 export interface HealthCheckResult {

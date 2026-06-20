@@ -1,6 +1,33 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Types } from 'mongoose';
 
+const { mockQueryChain } = vi.hoisted(() => {
+  const exec = vi.fn();
+  const chain: any = {
+    lean: vi.fn(),
+    select: vi.fn(),
+    sort: vi.fn(),
+    exec,
+  };
+  chain.lean.mockReturnValue(chain);
+  chain.select.mockReturnValue(chain);
+  chain.sort.mockReturnValue(chain);
+  return { mockQueryChain: chain };
+});
+
+// Mock mongoose ObjectId to accept any string without validation
+vi.mock('mongoose', () => {
+  class MockObjectId {
+    constructor(_id?: string) { /* no-op — accept any string */ }
+  }
+  return {
+    Types: { ObjectId: MockObjectId as unknown as typeof import('mongoose').Types.ObjectId },
+    Schema: class {},
+    model: vi.fn(),
+    Document: class {},
+  };
+});
+
 const mockHasNoConflicts = vi.fn();
 const mockCheckMultiTechnicianConflicts = vi.fn();
 
@@ -11,8 +38,8 @@ vi.mock('../../src/operations/helpers/overlap-detection', () => ({
 
 vi.mock('../../src/operations/models', () => ({
   WorkOrderModel: {
-    findOne: vi.fn(),
-    findOneAndUpdate: vi.fn(),
+    findOne: vi.fn().mockReturnValue(mockQueryChain),
+    findOneAndUpdate: vi.fn().mockReturnValue(mockQueryChain),
   },
   WorkOrderEventModel: {
     create: vi.fn(),
@@ -173,9 +200,10 @@ describe('Scheduling — Conflict Detection', () => {
         version: 1,
       };
 
-      vi.mocked(WorkOrderModel.findOne).mockResolvedValue(currentWo as any);
+      mockQueryChain.exec
+        .mockResolvedValueOnce(currentWo as any)
+        .mockResolvedValueOnce(updatedWo as any);
       mockHasNoConflicts.mockResolvedValue(true);
-      vi.mocked(WorkOrderModel.findOneAndUpdate).mockResolvedValue(updatedWo as any);
 
       const result = await service.schedule(
         'wo1', makeSlot('2026-07-01'), 'tenant1', 'user1', 0,
@@ -194,7 +222,7 @@ describe('Scheduling — Conflict Detection', () => {
         version: 0,
       };
 
-      vi.mocked(WorkOrderModel.findOne).mockResolvedValue(currentWo as any);
+      mockQueryChain.exec.mockResolvedValueOnce(currentWo as any);
       mockHasNoConflicts.mockResolvedValue(false);
 
       await expect(

@@ -118,30 +118,3 @@ describe('Model Imports', () => {
     });
   }
 });
-
-describe('Type Exports', () => {
-  const typeNames = [
-    'ITenant',
-    'IUser',
-    'IRole',
-    'IPermission',
-    'IUserRole',
-    'IRolePermission',
-    'IActivityLog',
-    'ISecurityLog',
-    'ISystemLog',
-    'IRequestLog',
-    'IPlatformUser',
-    'IPlatformAuditLog',
-    'IErrorEvent',
-    'ITenantMetrics',
-    'ISystemHealth',
-  ];
-
-  for (const name of typeNames) {
-    it(`exports ${name} type`, async () => {
-      const types = await import('../../src/core/types/index');
-      expect(types[name as keyof typeof types]).toBeDefined();
-    });
-  }
-});

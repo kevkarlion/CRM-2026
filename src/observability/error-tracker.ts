@@ -1,5 +1,5 @@
 import { Types } from 'mongoose';
-import ErrorEventModel from '../models/error-event';
+import ErrorEventModel from '../core/models/error-event';
 import { ErrorSeverity, ErrorStatus } from '../types/error-event';
 
 export interface ErrorEventInput {

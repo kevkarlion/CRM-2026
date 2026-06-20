@@ -1,9 +1,46 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { Types } from 'mongoose';
+
+// Mock mongoose ObjectId to accept any string without validation
+vi.mock('mongoose', () => {
+  class MockObjectId {
+    constructor(_id?: string) { /* no-op — accept any string */ }
+  }
+  class MockSchema {
+    static Types = { ObjectId: MockObjectId as unknown as typeof import('mongoose').Types.ObjectId };
+    index = vi.fn().mockReturnThis();
+    plugin = vi.fn().mockReturnThis();
+    pre = vi.fn().mockReturnThis();
+    post = vi.fn().mockReturnThis();
+    virtual = vi.fn().mockReturnThis();
+    add = vi.fn().mockReturnThis();
+  }
+  const mockMongoose = {
+    Types: { ObjectId: MockObjectId as unknown as typeof import('mongoose').Types.ObjectId },
+    Schema: MockSchema as unknown as typeof import('mongoose').Schema,
+    model: vi.fn(),
+    Document: class {},
+  };
+  return { ...mockMongoose, default: mockMongoose };
+});
+
+const { mockQueryChain } = vi.hoisted(() => {
+  const exec = vi.fn();
+  const chain: any = {
+    lean: vi.fn(),
+    select: vi.fn(),
+    sort: vi.fn(),
+    exec,
+  };
+  chain.lean.mockReturnValue(chain);
+  chain.select.mockReturnValue(chain);
+  chain.sort.mockReturnValue(chain);
+  return { mockQueryChain: chain };
+});
 
 vi.mock('../../src/operations/models', () => ({
   WorkOrderModel: {
-    findOneAndUpdate: vi.fn(),
+    findOneAndUpdate: vi.fn().mockReturnValue(mockQueryChain),
+    findOne: vi.fn().mockReturnValue(mockQueryChain),
     exists: vi.fn(),
   },
   WorkOrderEventModel: {
@@ -18,6 +55,7 @@ vi.mock('../../src/audit/activity-logger', () => ({
   logActivity: vi.fn(),
 }));
 
+import { Types } from 'mongoose';
 import { WorkOrderService, ConflictError } from '../../src/operations/services/work-order.service';
 import { WorkOrderModel } from '../../src/operations/models';
 
@@ -37,7 +75,7 @@ describe('Optimistic Concurrency Control (OCC)', () => {
         title: 'Updated WO',
       };
 
-      vi.mocked(WorkOrderModel.findOneAndUpdate).mockResolvedValue(mockUpdated as any);
+      mockQueryChain.exec.mockResolvedValue(mockUpdated as any);
 
       const result = await service.update('abc123', { title: 'Updated WO' }, 'tenant1', 'user1', 0);
 
@@ -51,7 +89,7 @@ describe('Optimistic Concurrency Control (OCC)', () => {
     });
 
     it('returns null when WorkOrder does not exist', async () => {
-      vi.mocked(WorkOrderModel.findOneAndUpdate).mockResolvedValue(null);
+      mockQueryChain.exec.mockResolvedValue(null);
       vi.mocked(WorkOrderModel.exists).mockResolvedValue(null);
 
       const result = await service.update('nonexistent', { title: 'Nope' }, 'tenant1', 'user1', 0);
@@ -60,7 +98,7 @@ describe('Optimistic Concurrency Control (OCC)', () => {
     });
 
     it('throws ConflictError (409) when version is stale', async () => {
-      vi.mocked(WorkOrderModel.findOneAndUpdate).mockResolvedValue(null);
+      mockQueryChain.exec.mockResolvedValue(null);
       vi.mocked(WorkOrderModel.exists).mockResolvedValue({} as any);
 
       await expect(
@@ -69,7 +107,7 @@ describe('Optimistic Concurrency Control (OCC)', () => {
     });
 
     it('throws ConflictError with descriptive message on stale version', async () => {
-      vi.mocked(WorkOrderModel.findOneAndUpdate).mockResolvedValue(null);
+      mockQueryChain.exec.mockResolvedValue(null);
       vi.mocked(WorkOrderModel.exists).mockResolvedValue({} as any);
 
       try {
@@ -86,8 +124,9 @@ describe('Optimistic Concurrency Control (OCC)', () => {
       const currentDoc = { _id: 'abc123', status: 'draft', version: 0 };
       const updatedDoc = { _id: 'abc123', status: 'scheduled', version: 1 };
 
-      vi.mocked(WorkOrderModel.findOne).mockResolvedValue(currentDoc as any);
-      vi.mocked(WorkOrderModel.findOneAndUpdate).mockResolvedValue(updatedDoc as any);
+      mockQueryChain.exec
+        .mockResolvedValueOnce(currentDoc as any)
+        .mockResolvedValueOnce(updatedDoc as any);
 
       const result = await service.changeStatus(
         'abc123', 'scheduled', { hasSchedule: true }, 'tenant1', 'user1', 0,
@@ -100,8 +139,9 @@ describe('Optimistic Concurrency Control (OCC)', () => {
     it('throws ConflictError when version is stale during status change', async () => {
       const currentDoc = { _id: 'abc123', status: 'draft', version: 0 };
 
-      vi.mocked(WorkOrderModel.findOne).mockResolvedValue(currentDoc as any);
-      vi.mocked(WorkOrderModel.findOneAndUpdate).mockResolvedValue(null);
+      mockQueryChain.exec
+        .mockResolvedValueOnce(currentDoc as any)
+        .mockResolvedValueOnce(null);
 
       await expect(
         service.changeStatus('abc123', 'scheduled', { hasSchedule: true }, 'tenant1', 'user1', 5),

@@ -1,20 +1,46 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+const { mockQueryChain } = vi.hoisted(() => {
+  const exec = vi.fn();
+  const chain: any = {
+    lean: vi.fn(),
+    select: vi.fn(),
+    sort: vi.fn(),
+    exec,
+  };
+  chain.lean.mockReturnValue(chain);
+  chain.select.mockReturnValue(chain);
+  chain.sort.mockReturnValue(chain);
+  return { mockQueryChain: chain };
+});
+
+// Mock mongoose ObjectId to accept any string without validation
+vi.mock('mongoose', () => {
+  class MockObjectId {
+    constructor(_id?: string) { /* no-op — accept any string */ }
+  }
+  return {
+    Types: { ObjectId: MockObjectId as unknown as typeof import('mongoose').Types.ObjectId },
+    Schema: class {},
+    model: vi.fn(),
+    Document: class {},
+  };
+});
+
 import { Types } from 'mongoose';
 
-const mockFindOne = vi.fn();
-const mockFindOneAndUpdate = vi.fn();
 const mockCreate = vi.fn();
 const mockFind = vi.fn();
 
 vi.mock('../../src/operations/models', () => ({
   WorkOrderModel: {
-    findOne: (...args: unknown[]) => mockFindOne(...args),
-    findOneAndUpdate: (...args: unknown[]) => mockFindOneAndUpdate(...args),
+    findOne: vi.fn().mockReturnValue(mockQueryChain),
+    findOneAndUpdate: vi.fn().mockReturnValue(mockQueryChain),
   },
   WorkOrderAssignmentModel: {
-    findOne: (...args: unknown[]) => mockFindOne(...args),
+    findOne: vi.fn().mockReturnValue(mockQueryChain),
     create: (...args: unknown[]) => mockCreate(...args),
-    findOneAndUpdate: (...args: unknown[]) => mockFindOneAndUpdate(...args),
+    findOneAndUpdate: vi.fn().mockReturnValue(mockQueryChain),
     updateOne: vi.fn().mockResolvedValue({}),
     find: (...args: unknown[]) => ({
       sort: () => ({ lean: () => ({ exec: () => Promise.resolve(mockFind(...args)) }) }),
@@ -26,6 +52,7 @@ vi.mock('../../src/audit/activity-logger', () => ({
   logActivity: vi.fn(),
 }));
 
+import { WorkOrderModel, WorkOrderAssignmentModel } from '../../src/operations/models';
 import { AssignmentService } from '../../src/operations/services/assignment.service';
 
 describe('Assignment Service', () => {
@@ -38,7 +65,7 @@ describe('Assignment Service', () => {
 
   describe('assignTechnician', () => {
     it('creates assignment record and syncs denormalized array', async () => {
-      mockFindOne
+      mockQueryChain.exec
         .mockResolvedValueOnce(null)  // no existing active assignment
         .mockResolvedValueOnce({ _id: 'wo1', tenantId: 'tenant1', deletedAt: null });  // WO exists
 
@@ -49,13 +76,13 @@ describe('Assignment Service', () => {
       mockCreate.mockResolvedValue(createdAssignment);
 
       const updatedWorkOrder = { _id: 'wo1', assignedTechnicians: [new Types.ObjectId('tech1')] };
-      mockFindOneAndUpdate.mockResolvedValue(updatedWorkOrder);
+      mockQueryChain.exec.mockResolvedValue(updatedWorkOrder);
 
       const result = await service.assignTechnician('wo1', 'tech1', 'tenant1', 'user1');
 
       expect(result.assignment._id).toBe('assign1');
       expect(result.workOrder.assignedTechnicians).toHaveLength(1);
-      expect(mockFindOneAndUpdate).toHaveBeenCalledWith(
+      expect(WorkOrderModel.findOneAndUpdate).toHaveBeenCalledWith(
         { _id: 'wo1', tenantId: 'tenant1', deletedAt: null },
         { $addToSet: { assignedTechnicians: expect.any(Types.ObjectId) } },
         { new: true },
@@ -63,7 +90,7 @@ describe('Assignment Service', () => {
     });
 
     it('throws error when technician already assigned', async () => {
-      mockFindOne.mockResolvedValueOnce({ _id: 'existing1', status: 'assigned' });
+      mockQueryChain.exec.mockResolvedValueOnce({ _id: 'existing1', status: 'assigned' });
 
       await expect(
         service.assignTechnician('wo1', 'tech1', 'tenant1', 'user1'),
@@ -71,7 +98,7 @@ describe('Assignment Service', () => {
     });
 
     it('throws error when WorkOrder not found', async () => {
-      mockFindOne
+      mockQueryChain.exec
         .mockResolvedValueOnce(null)  // no existing assignment
         .mockResolvedValueOnce(null);  // WO not found
 
@@ -88,18 +115,19 @@ describe('Assignment Service', () => {
         status: 'declined',
         declinedAt: new Date(),
       };
-      mockFindOneAndUpdate
+      mockQueryChain.exec
         .mockResolvedValueOnce(updatedAssignment)  // find and mark declined
         .mockResolvedValueOnce({ _id: 'wo1', assignedTechnicians: [] });  // sync array
 
       const result = await service.unassignTechnician('wo1', 'tech1', 'tenant1', 'user1');
 
       expect(result.workOrder).toBeDefined();
-      expect(mockFindOneAndUpdate).toHaveBeenCalledTimes(2);
+      expect(WorkOrderAssignmentModel.findOneAndUpdate).toHaveBeenCalledTimes(1);
+      expect(WorkOrderModel.findOneAndUpdate).toHaveBeenCalledTimes(1);
     });
 
     it('throws error when no active assignment found', async () => {
-      mockFindOneAndUpdate.mockResolvedValueOnce(null);
+      mockQueryChain.exec.mockResolvedValueOnce(null);
 
       await expect(
         service.unassignTechnician('wo1', 'tech1', 'tenant1', 'user1'),
@@ -115,7 +143,7 @@ describe('Assignment Service', () => {
         toObject: () => ({ _id: 'new1', technicianId: 'tech2' }),
       };
 
-      mockFindOneAndUpdate
+      mockQueryChain.exec
         .mockResolvedValueOnce(oldAssignment)  // mark old replaced
         .mockResolvedValueOnce({ _id: 'wo1', assignedTechnicians: [new Types.ObjectId('tech2')] });  // sync array
 
@@ -128,7 +156,7 @@ describe('Assignment Service', () => {
     });
 
     it('throws error when old technician has no active assignment', async () => {
-      mockFindOneAndUpdate.mockResolvedValueOnce(null);
+      mockQueryChain.exec.mockResolvedValueOnce(null);
 
       await expect(
         service.reassignTechnician('wo1', 'tech1', 'tech2', 'tenant1', 'user1'),
@@ -138,7 +166,7 @@ describe('Assignment Service', () => {
     it('creates new assignment with correct technician ID', async () => {
       const oldAssignment = { _id: 'old1', status: 'replaced' };
 
-      mockFindOneAndUpdate
+      mockQueryChain.exec
         .mockResolvedValueOnce(oldAssignment)
         .mockResolvedValueOnce({ _id: 'wo1', assignedTechnicians: [new Types.ObjectId('tech2')] });
 

@@ -1,5 +1,5 @@
 import { Types } from 'mongoose';
-import SystemLogModel from '../models/system-log';
+import SystemLogModel from '../core/models/system-log';
 import { LogLevel } from '../types/system-log';
 
 export interface SystemLogEntry {

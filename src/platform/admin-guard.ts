@@ -1,6 +1,6 @@
 import { Types } from 'mongoose';
 import { PlatformRole } from '../types/platform-user';
-import PlatformUserModel from '../models/platform-user';
+import PlatformUserModel from '../core/models/platform-user';
 
 export interface AdminSession {
   userId: string | Types.ObjectId;
