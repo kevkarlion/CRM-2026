@@ -45,6 +45,7 @@ export const Permissions = {
   LEADS_EDIT: 'leads.edit',
   LEADS_DELETE: 'leads.delete',
   LEADS_ASSIGN: 'leads.assign',
+  LEADS_STATUS_CHANGE: 'leads.statusChange',
 
   // ── Users (within tenant) ──────────────────────────────────
   USERS_CREATE: 'users.create',
@@ -108,6 +109,7 @@ export const PermissionGroups: Record<string, PermissionKey[]> = {
     Permissions.LEADS_EDIT,
     Permissions.LEADS_DELETE,
     Permissions.LEADS_ASSIGN,
+    Permissions.LEADS_STATUS_CHANGE,
   ],
   users: [
     Permissions.USERS_CREATE,
