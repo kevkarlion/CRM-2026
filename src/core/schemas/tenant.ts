@@ -24,6 +24,7 @@ export const tenantSchema = new Schema<ITenant>(
       timezone: { type: String, required: true },
       language: { type: String, required: true },
     },
+    quoteNumberPrefix: { type: String, default: 'COT', trim: true },
     deletedAt: { type: Date, default: null },
   },
   { timestamps: true }
