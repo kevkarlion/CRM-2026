@@ -184,7 +184,7 @@ export class LeadService {
     userId: string,
     tenantId: string,
   ): Promise<ILead | null> {
-    if (data.status) {
+    if ((data as Record<string, unknown>).status) {
       throw new ValidationError('Cannot change status via update. Use changeStatus instead.');
     }
 

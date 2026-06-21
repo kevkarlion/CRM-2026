@@ -148,6 +148,16 @@ describe('PipelineService', () => {
       expect(result).toHaveLength(1);
       expect(mockPipelineCreate).toHaveBeenCalled();
     });
+
+    it('handles pipeline with no stages gracefully', async () => {
+      const emptyPipeline = makePipeline({ stages: [] });
+      mockQueryChain.exec.mockResolvedValue([emptyPipeline]);
+
+      const result = await service.getPipelines('tenant1');
+
+      expect(result).toHaveLength(1);
+      expect(result[0].stages).toHaveLength(0);
+    });
   });
 
   describe('getDefaultPipeline', () => {
@@ -172,6 +182,32 @@ describe('PipelineService', () => {
 
       expect(result).toBeDefined();
       expect(mockPipelineCreate).toHaveBeenCalled();
+    });
+
+    it('creates pipeline default per tenant independently', async () => {
+      // Tenant A gets its own default
+      const pipelineA = makePipeline({ isDefault: true, name: 'Pipeline Default', tenantId: 'tenantA' });
+      mockQueryChain.exec
+        .mockResolvedValueOnce(null)   // tenantA: no default yet
+        .mockResolvedValueOnce(null);  // seedDefaultPipeline findOne → null
+      mockPipelineCreate.mockResolvedValue(pipelineA);
+
+      const resultA = await service.getDefaultPipeline('tenantA');
+      expect(resultA).toBeDefined();
+      expect(resultA!.tenantId).toBe('tenantA');
+
+      vi.clearAllMocks();
+
+      // Tenant B also gets its own default (independent from A)
+      const pipelineB = makePipeline({ isDefault: true, name: 'Pipeline Default', tenantId: 'tenantB' });
+      mockQueryChain.exec
+        .mockResolvedValueOnce(null)   // tenantB: no default yet
+        .mockResolvedValueOnce(null);  // seedDefaultPipeline findOne → null
+      mockPipelineCreate.mockResolvedValue(pipelineB);
+
+      const resultB = await service.getDefaultPipeline('tenantB');
+      expect(resultB).toBeDefined();
+      expect(resultB!.tenantId).toBe('tenantB');
     });
   });
 

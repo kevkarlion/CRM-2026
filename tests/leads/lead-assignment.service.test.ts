@@ -180,6 +180,53 @@ describe('LeadAssignmentService', () => {
 
       expect(result.assignment).toBeDefined();
     });
+
+    it('handles multiple sequential reassignments correctly', async () => {
+      // Simulate: assign to user2 → reassign to user3 → reassign to user4
+      const leadData = makeLead();
+
+      // First reassign: user1 → user2
+      const assignment1 = makeAssignment({ _id: 'a1', userId: 'user2' });
+      const updatedLead1 = makeLead({ assignedTo: 'user2' });
+      mockQueryChain.exec
+        .mockResolvedValueOnce(leadData)  // find lead
+        .mockResolvedValueOnce(null)       // no previous active assignment
+        .mockResolvedValueOnce(updatedLead1);
+      mockLeadAssignmentCreate.mockResolvedValue(assignment1);
+
+      const result1 = await service.assign('lead1', 'user2', 'user1', 'tenant1');
+      expect(result1.lead.assignedTo).toBe('user2');
+
+      vi.clearAllMocks();
+
+      // Second reassign: user2 → user3
+      const oldActive1 = makeAssignment({ _id: 'a1', userId: 'user2', unassignedAt: null });
+      const assignment2 = makeAssignment({ _id: 'a2', userId: 'user3' });
+      const updatedLead2 = makeLead({ assignedTo: 'user3' });
+      mockQueryChain.exec
+        .mockResolvedValueOnce(leadData)
+        .mockResolvedValueOnce(oldActive1)
+        .mockResolvedValueOnce(updatedLead2);
+      mockLeadAssignmentCreate.mockResolvedValue(assignment2);
+
+      const result2 = await service.reassign('lead1', 'user3', 'user1', 'tenant1');
+      expect(result2.lead.assignedTo).toBe('user3');
+
+      vi.clearAllMocks();
+
+      // Third reassign: user3 → user4
+      const oldActive2 = makeAssignment({ _id: 'a2', userId: 'user3', unassignedAt: null });
+      const assignment3 = makeAssignment({ _id: 'a3', userId: 'user4' });
+      const updatedLead3 = makeLead({ assignedTo: 'user4' });
+      mockQueryChain.exec
+        .mockResolvedValueOnce(leadData)
+        .mockResolvedValueOnce(oldActive2)
+        .mockResolvedValueOnce(updatedLead3);
+      mockLeadAssignmentCreate.mockResolvedValue(assignment3);
+
+      const result3 = await service.reassign('lead1', 'user4', 'user1', 'tenant1');
+      expect(result3.lead.assignedTo).toBe('user4');
+    });
   });
 
   describe('getAssignmentHistory', () => {
