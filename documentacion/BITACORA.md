@@ -1,13 +1,13 @@
 # BITÁCORA DEL PROYECTO — CRM 2026
 
 > **Propósito**: Única fuente de verdad del estado del proyecto. Mantiene el historial completo de decisiones, arquitectura, fases completadas y pendientes.
-> **Actualización**: 2026-06-21
+> **Actualización**: 2026-06-22
 > **Stack**: Next.js, TypeScript, MongoDB (Mongoose)
-> **Repo**: `feature/leads-pipeline` (Fase 4 en curso)
-> **Tags**: `v0.1.0`, `v0.2.0`, `v0.3.0`, `v0.4.0-leads-pipeline`
-> **TypeScript**: 168 archivos (~8.150 líneas), 148 fuente + 13 tests
-> **Tests**: 192 tests (13 suites) — vitest + mongoose
-> **Proyecto total**: +38 archivos en leads + API routes = ~220+ archivos
+> **Repo**: `feature/fase-5-quotes` (Fase 5 completa, tracker listo para merge)
+> **Tags**: `v0.1.0`, `v0.2.0`, `v0.3.0`, `v0.4.0`, `v0.5.0-quotes`
+> **TypeScript**: 180+ archivos (~10.200 líneas)
+> **Tests**: 295 tests (18 suites) — vitest + mongoose
+> **Proyecto total**: +38 archivos en leads + ~34 en quotes = ~260+ archivos
 
 ---
 
@@ -415,6 +415,13 @@ feature/operations-complete (consumido)
 ├── Data layer → types, schemas, models, helpers
 ├── Application layer → services, APIs REST, tests
 └── Documentation → bitácora, SDD archive reports
+
+feature/fase-5-quotes (tracker, sin merge a main)
+├── feature/fase-5-quotes-pr1-foundation (7 commits)
+├── feature/fase-5-quotes-pr2-services (2 commits)
+├── feature/fase-5-quotes-pr3-routes (4 commits)
+└── feature/fase-5-quotes-pr4-tests (2 commits)
+Total: 34 archivos, 3.073 líneas
 ```
 
 ### Convenciones
@@ -422,7 +429,7 @@ feature/operations-complete (consumido)
 - **Feature-branch-chain**: PR#1 targetea tracker branch; PRs siguientes targetean PR anterior. Solo el tracker mergea a main con `--no-ff`.
 - **Commits**: conventional commits (`feat:`, `fix:`, `refactor:`, etc.)
 - **Tags**: Semánticos por hito (`v0.1.0`, `v0.2.0`, `v0.3.0`, `v0.4.0-leads-pipeline`)
-- **Estado actual**: `feature/leads-pipeline` con Fase 4 completa. `main` en v0.3.0. 192 tests (13 suites).
+- **Estado actual**: `feature/fase-5-quotes` con Fase 5 completa. `main` en v0.4.0. 295 tests (18 suites).
 
 ---
 
@@ -440,7 +447,7 @@ feature/operations-complete (consumido)
 - [x] Pipeline comercial + stages management — incluido en v0.4.0
 - [x] Asignación con historial (LeadAssignment) — 93 tests
 - [x] Conversión transaccional Lead → Client — con rollback
-- [ ] Quotes/Cotizaciones (próximo hito)
+- [x] Quotes/Cotizaciones — Fase 5 completa (98 tests)
 - [ ] Facturación (invoices)
 - [ ] Contratos
 
@@ -508,6 +515,13 @@ feature/operations-complete (consumido)
 | LeadAssignment | Business | Historial de asignaciones (canonical) |
 | Pipeline | Business | Configuración de etapas comerciales |
 
+### Quotes (2) — Fase 5
+
+| Colección | Tipo | Propósito |
+|-----------|------|-----------|
+| Quote | Business | Cotizaciones comerciales (5 estados, state machine, versionado inmutable) |
+| QuoteVersion | Business | Snapshots inmutables (append-only, cada cambio comercial crea nueva versión) |
+
 ---
 
 ## Fase 4.1 — Consolidación y Cierre (v0.4.0)
@@ -572,3 +586,134 @@ feature/operations-complete (consumido)
 
 > **Última actualización**: 2026-06-21 (Fase 4.1 consolidación completa, 197 tests, 13 suites, mergeado a main).
 > **Generado por**: gentle-ai orchestrator (sesión 2026-06-21)
+
+---
+
+## Fase 5 — Cotizaciones Comerciales / Quotes (v0.5.0-quotes)
+
+**Período**: 2026-06-22
+**Branch tracker**: `feature/fase-5-quotes` (sin merge a main)
+**Tag**: `v0.5.0-quotes` (pendiente de merge)
+**SDD**: Proposal → Spec (1.634 líneas) → Design (2.486 líneas, 12 secciones) → Tasks (38 tareas, 4 PRs) → Apply (4 PRs) → Verify (98 tests PASS) → Archive ✅
+
+### Feature-Branch-Chain (4 PRs)
+
+| PR | Branch | Commits | Archivos | +/- líneas |
+|----|--------|---------|----------|-----------|
+| PR 1 | Foundation (types/schemas/models/helpers) | 7 | 15 | +359 |
+| PR 2 | Core Services (QuoteService + ConversionService) | 2 | 3 | +1.001 |
+| PR 3 | API Routes + external modifications | 4 | 11 | +331 |
+| PR 4 | Tests (5 archivos, 98 tests) + fixes | 2 | 9 | +1.382 |
+| **Total** | | **15** | **34** | **+3.073** |
+
+### Arquitectura
+
+```
+src/quotes/
+├── types/            # IQuote, IQuoteVersion, QuoteStatus, QuoteItem
+├── schemas/          # quoteSchema, quoteVersionSchema + índices
+├── models/           # QuoteModel, QuoteVersionModel
+├── helpers/          # state-machine (5 estados), counter (tenant $inc), calculator
+├── services/         # QuoteService, ConversionService
+└── index.ts          # barrel export
+
+src/app/api/crm/quotes/
+├── route.ts                   # GET (list cursor) / POST (create)
+├── [id]/route.ts              # GET / PATCH / DELETE
+├── [id]/status/route.ts       # PATCH (cambiar estado)
+├── [id]/send/route.ts         # POST (draft → sent)
+├── [id]/approve/route.ts      # POST (sent → approved)
+├── [id]/convert/route.ts      # POST (approved → WorkOrder)
+├── [id]/versions/route.ts     # GET (historial de versiones)
+
+Modificaciones externas:
+├── src/core/types/activity-log.ts     # status_changed, converted, version_created
+├── src/core/schemas/tenant.ts          # quoteNumberPrefix field
+├── src/operations/types/work-order.ts  # quoteId field
+├── src/operations/schemas/work-order.ts
+└── src/rbac/permissions.ts             # QUOTES_STATUS_CHANGE
+```
+
+### State Machine — 5 Estados
+
+```
+draft ──────► sent ──────► approved (terminal)
+  │              │
+  ├──► cancelled └──► rejected ──────► cancelled
+  │                              │
+  └──► expired                   └──► expired
+```
+
+**Guards:**
+1. `draft → sent`: requiere al menos un item + subtotal > 0
+2. `sent → approved`: quote no expirada
+3. `* → cancelled`: solo desde draft o rejected
+
+### QuoteVersion — Versionado Inmutable
+
+| Trigger | ¿Nueva versión? | Ejemplos |
+|---------|----------------|----------|
+| **Comercial** | ✅ Sí | items, subtotal, discount, tax, total |
+| **Metadata** | ✅ Sí | title, description, notes, validUntil |
+| **Administrativo** | ❌ No | status, assignedTo, tags |
+
+- `updatedAt: false` — inmutabilidad total
+- `version` auto-increment por quoteId
+- ActivityLog registra `version_created` en cada nueva versión
+
+### Conversión a WorkOrder
+
+**POST /api/crm/quotes/:id/convert → WorkOrder**
+- Cierra estado de Quote (`approved`)
+- Crea WorkOrder con `quoteId` + `quoteSnapshot`
+- Transaccional (MongoDB transaction)
+- No auto-crea Equipment (requiere visita técnica)
+- ActivityLog: `converted`
+
+### Decisiones de Implementación Clave
+
+| Decisión | Elección | Razón |
+|----------|----------|-------|
+| QuoteVersion inmutable | `updatedAt: false` | Audit trail completo sin puntos de mutación |
+| Contador por tenant | `Counter` con `$inc` + `quoteNumberPrefix` | Números secuenciales por tenant (default "COT-") |
+| Conversión | Service directo + MongoDB transaction | Consistencia sin MQ; rollback automático |
+| State machine | Función pura con tabla de VALID_TRANSITIONS | Mismo patrón que Operations y Leads |
+| Paginación | Cursor-based via `cursorPage()` | Consistencia con CRM existente |
+| Optimistic locking | `findOneAndUpdate` con `__v` filter | Mismo patrón OCC que Operations |
+
+### Tests Creados (5 archivos, 98 tests)
+
+| Archivo | Tests | Escenarios |
+|---------|-------|------------|
+| `quote-state-machine.test.ts` | 34 | 5 estados, todas las transiciones, terminales, guards |
+| `calculator.test.ts` | 6 | Subtotal, discount, tax, total, rounding |
+| `counter.test.ts` | 5 | $inc por tenant, prefijo configurable, reset |
+| `quote.service.test.ts` | 48 | CRUD, versionado, status transitions, OCC, multi-tenant |
+| `conversion.service.test.ts` | 5 | Conversión exitosa, ya convertido, rollback |
+
+### Post-Verify Fixes
+
+| Fix | Detalle |
+|-----|---------|
+| 1 | Version trigger expandido a title, description, notes, validUntil |
+| 2 | ActivityLog: `statusChanged` → `status_changed`, agregados `converted` y `version_created` |
+| 3 | Índices agregados: `{tenantId, createdBy, status}` + `{tenantId, validUntil, status}` |
+| 4 | Tests actualizados para reflejar nuevo comportamiento de versiones |
+
+### Estado Final (Fase 5)
+
+| Métrica | Valor |
+|---------|-------|
+| Archivos nuevos | 34 (quotes + tests + modificaciones externas) |
+| Líneas agregadas | +3.073 |
+| Tests quotes | 98 (5 archivos) |
+| Tests total proyecto | 295 (18 suites) |
+| Fallas | 0 |
+| Colecciones Quotes | 2 (Quote, QuoteVersion) |
+| Rama tracker | `feature/fase-5-quotes` (15 commits ahead de main) |
+| SDD Cycle | ✅ Completo (Proposal → Spec → Design → Tasks → Apply → Verify → Archive) |
+
+---
+
+> **Última actualización**: 2026-06-22 (Fase 5 Quotes completa, 295 tests, 18 suites, tracker sin merge).
+> **Generado por**: gentle-ai orchestrator (sesión 2026-06-22)
