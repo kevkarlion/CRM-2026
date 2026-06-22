@@ -37,6 +37,7 @@ export interface IWorkOrder extends Document, IAuditFields {
   clientId: Types.ObjectId;
   locationId: Types.ObjectId;
   equipmentId: Types.ObjectId | null;
+  quoteId?: Types.ObjectId;
   clientSnapshot: IClientSnapshot;
   locationSnapshot: ILocationSnapshot;
   equipmentSnapshot: IEquipmentSnapshot | null;

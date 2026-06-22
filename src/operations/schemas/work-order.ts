@@ -40,6 +40,7 @@ export const workOrderSchema = new Schema<IWorkOrder>(
     clientId: { type: Schema.Types.ObjectId, ref: 'Client', required: true },
     locationId: { type: Schema.Types.ObjectId, ref: 'Location', required: true },
     equipmentId: { type: Schema.Types.ObjectId, ref: 'Equipment', default: null },
+    quoteId: { type: Schema.Types.ObjectId, ref: 'Quote', default: null },
     clientSnapshot: { type: clientSnapshotSchema, required: true },
     locationSnapshot: { type: locationSnapshotSchema, required: true },
     equipmentSnapshot: { type: equipmentSnapshotSchema, default: null },
