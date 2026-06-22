@@ -42,3 +42,5 @@ quoteSchema.index({ tenantId: 1, status: 1 });
 quoteSchema.index({ tenantId: 1, deletedAt: 1 });
 quoteSchema.index({ tenantId: 1, convertedToWorkOrder: 1 }, { sparse: true });
 quoteSchema.index({ tenantId: 1, createdAt: -1 });
+quoteSchema.index({ tenantId: 1, createdBy: 1, status: 1 });
+quoteSchema.index({ tenantId: 1, validUntil: 1, status: 1 });

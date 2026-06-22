@@ -1,6 +1,6 @@
 import { Document, Types } from 'mongoose';
 
-export type ActivityAction = 'created' | 'updated' | 'deleted' | 'assigned' | 'statusChanged' | 'rejected';
+export type ActivityAction = 'created' | 'updated' | 'deleted' | 'assigned' | 'status_changed' | 'rejected' | 'converted' | 'version_created';
 
 export interface IActivityLog extends Document {
   _id: Types.ObjectId;

@@ -254,12 +254,16 @@ export class QuoteService {
       .lean()
       .exec();
 
-    const hasCommercialChanges =
+    const hasVersionedChanges =
       data.items !== undefined ||
       data.discountAmount !== undefined ||
-      data.taxAmount !== undefined;
+      data.taxAmount !== undefined ||
+      data.title !== undefined ||
+      data.description !== undefined ||
+      data.notes !== undefined ||
+      data.validUntil !== undefined;
 
-    if (hasCommercialChanges) {
+    if (hasVersionedChanges) {
       const existingItems = currentVersionDoc?.items || [];
       const processedItems = data.items
         ? processItems(data.items)
@@ -326,9 +330,9 @@ export class QuoteService {
           tenantId,
           entityType: 'quote',
           entityId: quoteId,
-          action: 'updated',
+          action: 'version_created',
           actorId: userId,
-          metadata: { newVersion: nextVersion, commercial: true },
+          metadata: { newVersion: nextVersion, versioned: true },
           changes: {
             before: { currentVersion: quote.currentVersion },
             after: { currentVersion: nextVersion },
@@ -449,7 +453,7 @@ export class QuoteService {
       tenantId,
       entityType: 'quote',
       entityId: quoteId,
-      action: 'statusChanged',
+      action: 'status_changed',
       actorId: userId,
       changes: {
         before: { status: currentStatus },
@@ -522,7 +526,7 @@ export class QuoteService {
       tenantId,
       entityType: 'quote',
       entityId: quoteId,
-      action: 'statusChanged',
+      action: 'status_changed',
       actorId: userId,
       changes: {
         before: { status: currentStatus },
@@ -596,7 +600,7 @@ export class QuoteService {
       tenantId,
       entityType: 'quote',
       entityId: quoteId,
-      action: 'statusChanged',
+      action: 'status_changed',
       actorId: userId,
       metadata: { reason },
       changes: {
@@ -661,7 +665,7 @@ export class QuoteService {
       tenantId,
       entityType: 'quote',
       entityId: quoteId,
-      action: 'statusChanged',
+      action: 'status_changed',
       actorId: userId,
       changes: {
         before: { status: currentStatus },
@@ -732,7 +736,7 @@ export class QuoteService {
       tenantId,
       entityType: 'quote',
       entityId: quoteId,
-      action: 'statusChanged',
+      action: 'status_changed',
       actorId: userId,
       changes: {
         before: { status: currentStatus },

@@ -129,7 +129,7 @@ export class ConversionService {
         tenantId,
         entityType: 'quote',
         entityId: quoteId,
-        action: 'updated',
+        action: 'converted',
         actorId: userId,
         metadata: {
           convertedToWorkOrder: String(workOrder._id),

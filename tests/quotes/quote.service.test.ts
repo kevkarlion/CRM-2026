@@ -462,12 +462,14 @@ describe('QuoteService', () => {
       expect(result.newVersion).toBe(true);
     });
 
-    it('updates in-place on non-commercial changes (title)', async () => {
+    it('creates new version on title change', async () => {
       const quoteDoc = makeQuote({ title: 'Updated Title' });
+      const versionDoc = makeVersion({ version: 2 });
       hoisted.chain.exec
         .mockResolvedValueOnce(makeQuote())
         .mockResolvedValueOnce(makeVersion())
         .mockResolvedValueOnce(quoteDoc);
+      hoisted.mockQuoteVersionCreate.mockResolvedValue([versionDoc]);
 
       const result = await service.updateQuote(
         'quote1',
@@ -476,16 +478,18 @@ describe('QuoteService', () => {
         'tenant1',
       );
 
-      expect(result.newVersion).toBe(false);
-      expect(result.quote.title).toBe('Updated Title');
+      expect(result.newVersion).toBe(true);
+      expect(hoisted.mockQuoteVersionCreate).toHaveBeenCalled();
     });
 
-    it('updates in-place on description change', async () => {
+    it('creates new version on description change', async () => {
       const quoteDoc = makeQuote({ description: 'New desc' });
+      const versionDoc = makeVersion({ version: 2 });
       hoisted.chain.exec
         .mockResolvedValueOnce(makeQuote())
         .mockResolvedValueOnce(makeVersion())
         .mockResolvedValueOnce(quoteDoc);
+      hoisted.mockQuoteVersionCreate.mockResolvedValue([versionDoc]);
 
       const result = await service.updateQuote(
         'quote1',
@@ -494,15 +498,17 @@ describe('QuoteService', () => {
         'tenant1',
       );
 
-      expect(result.newVersion).toBe(false);
+      expect(result.newVersion).toBe(true);
     });
 
-    it('updates in-place on notes change', async () => {
+    it('creates new version on notes change', async () => {
       const quoteDoc = makeQuote({ notes: 'New notes' });
+      const versionDoc = makeVersion({ version: 2 });
       hoisted.chain.exec
         .mockResolvedValueOnce(makeQuote())
         .mockResolvedValueOnce(makeVersion())
         .mockResolvedValueOnce(quoteDoc);
+      hoisted.mockQuoteVersionCreate.mockResolvedValue([versionDoc]);
 
       const result = await service.updateQuote(
         'quote1',
@@ -511,7 +517,7 @@ describe('QuoteService', () => {
         'tenant1',
       );
 
-      expect(result.newVersion).toBe(false);
+      expect(result.newVersion).toBe(true);
     });
 
     it('throws NotFoundError if quote not found', async () => {
