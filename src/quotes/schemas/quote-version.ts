@@ -9,7 +9,7 @@ const quoteItemSchema = new Schema(
       enum: ['product', 'service', 'labor', 'material', 'part'] satisfies QuoteItemType[],
       required: true,
     },
-    quantity: { type: Number, required: true, min: 0, validate: (v: number) => v > 0 },
+    quantity: { type: Number, required: true, min: 1 },
     unitPrice: { type: Number, required: true, min: 0 },
     subtotal: { type: Number, required: true, min: 0 },
   },

@@ -55,7 +55,7 @@ export function validateSendRequirements(quote: {
   if (!quote.items?.length) missing.push('items');
   if (!quote.clientId) missing.push('clientId');
   if (quote.validUntil && quote.validUntil <= new Date()) {
-    missing.push('validUntil no vencido');
+    missing.push('validUntil vencido');
   }
   if (missing.length > 0) {
     throw new TransitionError(
