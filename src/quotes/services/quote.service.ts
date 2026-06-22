@@ -6,6 +6,7 @@ import { getNextQuoteNumber } from '../helpers/counter';
 import { processItems, calculateSubtotal, calculateTotal } from '../helpers/calculator';
 import { logActivity } from '../../audit/activity-logger';
 import { cursorPage } from '../../crm/helpers/cursor-pagination';
+import TenantModel from '../../core/models/tenant';
 import type { IQuote, QuoteStatus, CreateQuoteInput, UpdateQuoteInput } from '../types/quote';
 import type { IQuoteVersion } from '../types/quote-version';
 
@@ -74,8 +75,8 @@ export class QuoteService {
       throw new ValidationError('La cotización debe tener al menos un ítem');
     }
 
-    const tenantPrefix = tenantId.toString().slice(-6);
-    const number = await getNextQuoteNumber(tenantPrefix);
+    const prefix = await this.getTenantQuotePrefix(tenantId);
+    const number = await getNextQuoteNumber(tenantId, prefix);
 
     const processedItems = processItems(data.items);
     const subtotal = calculateSubtotal(processedItems);
@@ -829,5 +830,17 @@ export class QuoteService {
     ).exec();
 
     return result.modifiedCount;
+  }
+
+  private async getTenantQuotePrefix(tenantId: string): Promise<string> {
+    try {
+      const tenant = await TenantModel.findById(tenantId)
+        .select('quoteNumberPrefix')
+        .lean()
+        .exec();
+      return tenant?.quoteNumberPrefix || 'COT';
+    } catch {
+      return 'COT';
+    }
   }
 }

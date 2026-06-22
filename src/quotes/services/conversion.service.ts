@@ -84,8 +84,7 @@ export class ConversionService {
         ? await LocationModel.findById(quote.locationId).lean().exec()
         : null;
 
-      const tenantPrefix = tenantId.toString().slice(-6);
-      const workOrderNumber = await getNextWorkOrderNumber(tenantPrefix);
+      const workOrderNumber = await getNextWorkOrderNumber(tenantId);
 
       const workOrderTitle = `${quote.number} v${quote.currentVersion}: ${currentVersion?.title || quote.title}`;
 
