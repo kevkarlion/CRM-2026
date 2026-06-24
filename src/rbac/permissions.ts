@@ -38,6 +38,7 @@ export const Permissions = {
   QUOTES_EDIT: 'quotes.edit',
   QUOTES_DELETE: 'quotes.delete',
   QUOTES_APPROVE: 'quotes.approve',
+  QUOTES_STATUS_CHANGE: 'quotes.statusChange',
 
   // ── Leads ──────────────────────────────────────────────────
   LEADS_CREATE: 'leads.create',
@@ -102,6 +103,7 @@ export const PermissionGroups: Record<string, PermissionKey[]> = {
     Permissions.QUOTES_EDIT,
     Permissions.QUOTES_DELETE,
     Permissions.QUOTES_APPROVE,
+    Permissions.QUOTES_STATUS_CHANGE,
   ],
   leads: [
     Permissions.LEADS_CREATE,

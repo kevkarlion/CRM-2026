@@ -15,6 +15,7 @@ export interface ITenant extends Document {
     timezone: string;
     language: string;
   };
+  quoteNumberPrefix: string;
   deletedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
