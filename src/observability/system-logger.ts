@@ -1,6 +1,7 @@
 import { Types } from 'mongoose';
 import SystemLogModel from '../core/models/system-log';
 import { LogLevel } from '../types/system-log';
+import type { ErrorContext } from './types';
 
 export interface SystemLogEntry {
   level: LogLevel;
@@ -79,6 +80,37 @@ export function logWarn(
 /**
  * Logs an info-level system event.
  */
+// ── Context-aware wrappers ─────────────────────────────────
+// These are additive — they do NOT modify existing functions.
+
+/**
+ * Log a system event with full ErrorContext.
+ *
+ * This is the context-aware version of `logSystemEvent()`.
+ * It extracts tenantId and userId from the ErrorContext and
+ * enriches metadata with requestId and action.
+ */
+export function logEventWithContext(
+  level: LogLevel,
+  service: string,
+  message: string,
+  context: ErrorContext,
+  extraMetadata?: Record<string, unknown>,
+): Promise<void> {
+  return logSystemEvent({
+    level,
+    service,
+    message,
+    tenantId: context.tenantId,
+    metadata: {
+      requestId: context.requestId,
+      action: context.action,
+      userId: context.userId,
+      ...extraMetadata,
+    },
+  });
+}
+
 export function logInfo(
   service: string,
   message: string,

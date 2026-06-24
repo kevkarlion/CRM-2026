@@ -1,6 +1,7 @@
 import { Types } from 'mongoose';
 import ErrorEventModel from '../core/models/error-event';
 import { ErrorSeverity, ErrorStatus } from '../types/error-event';
+import type { ErrorContext } from './types';
 
 export interface ErrorEventInput {
   service: string;
@@ -118,4 +119,29 @@ export async function getOpenErrors(
     .limit(options?.limit || 20)
     .lean()
     .exec();
+}
+
+// ── Context-aware wrapper ──────────────────────────────────
+
+/**
+ * Track an error with full ErrorContext.
+ *
+ * This is the context-aware version of `trackError()`.
+ * It extracts tenantId and action from the ErrorContext and
+ * enriches metadata with requestId and action information.
+ */
+export async function trackErrorWithContext(
+  input: Omit<ErrorEventInput, 'tenantId'>,
+  context: ErrorContext,
+): Promise<void> {
+  return trackError({
+    ...input,
+    tenantId: context.tenantId,
+    metadata: {
+      ...input.metadata,
+      requestId: context.requestId,
+      action: context.action,
+      userId: context.userId,
+    },
+  });
 }
