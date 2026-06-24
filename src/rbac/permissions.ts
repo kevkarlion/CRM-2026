@@ -61,6 +61,13 @@ export const Permissions = {
   REPORTS_VIEW: 'reports.view',
   REPORTS_EXPORT: 'reports.export',
 
+  // ── Contracts (maintenance contracts) ──────────────────────
+  CONTRACTS_CREATE: 'contracts.create',
+  CONTRACTS_READ: 'contracts.read',
+  CONTRACTS_EDIT: 'contracts.edit',
+  CONTRACTS_DELETE: 'contracts.delete',
+  CONTRACTS_STATUS_CHANGE: 'contracts.statusChange',
+
   // ── Settings (tenant configuration) ────────────────────────
   SETTINGS_MANAGE: 'settings.manage',
 } as const;
@@ -120,6 +127,13 @@ export const PermissionGroups: Record<string, PermissionKey[]> = {
     Permissions.USERS_DELETE,
   ],
   roles: [Permissions.ROLES_MANAGE],
+  contracts: [
+    Permissions.CONTRACTS_CREATE,
+    Permissions.CONTRACTS_READ,
+    Permissions.CONTRACTS_EDIT,
+    Permissions.CONTRACTS_DELETE,
+    Permissions.CONTRACTS_STATUS_CHANGE,
+  ],
   reports: [Permissions.REPORTS_VIEW, Permissions.REPORTS_EXPORT],
   settings: [Permissions.SETTINGS_MANAGE],
 };
@@ -147,6 +161,7 @@ export const RoleDefaultPermissions: Record<TenantRoleName, PermissionKey[]> = {
     ...PermissionGroups.workorders,
     ...PermissionGroups.quotes,
     ...PermissionGroups.leads,
+    ...PermissionGroups.contracts,
     ...PermissionGroups.users,
     ...PermissionGroups.roles,
     ...PermissionGroups.reports,
@@ -165,6 +180,7 @@ export const RoleDefaultPermissions: Record<TenantRoleName, PermissionKey[]> = {
     Permissions.QUOTES_READ,
     Permissions.QUOTES_APPROVE,
     ...PermissionGroups.leads,
+    ...PermissionGroups.contracts,
     Permissions.USERS_READ,
     Permissions.REPORTS_VIEW,
   ],
@@ -207,12 +223,14 @@ export const RoleDefaultPermissions: Record<TenantRoleName, PermissionKey[]> = {
     Permissions.QUOTES_CREATE,
     Permissions.QUOTES_READ,
     Permissions.QUOTES_EDIT,
+    ...PermissionGroups.contracts,
     Permissions.REPORTS_VIEW,
   ],
 
   Accounting: [
     Permissions.CLIENTS_READ,
     Permissions.WORKORDERS_READ,
+    Permissions.CONTRACTS_READ,
     Permissions.QUOTES_READ,
     Permissions.REPORTS_VIEW,
     Permissions.REPORTS_EXPORT,
