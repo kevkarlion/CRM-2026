@@ -1,13 +1,16 @@
 # BITÁCORA DEL PROYECTO — CRM 2026
 
 > **Propósito**: Única fuente de verdad del estado del proyecto. Mantiene el historial completo de decisiones, arquitectura, fases completadas y pendientes.
-> **Actualización**: 2026-06-22
-> **Stack**: Next.js, TypeScript, MongoDB (Mongoose)
-> **Repo**: `feature/fase-5-quotes` (Fase 5 completa, tracker listo para merge)
-> **Tags**: `v0.1.0`, `v0.2.0`, `v0.3.0`, `v0.4.0`, `v0.5.0-quotes`
-> **TypeScript**: 180+ archivos (~10.200 líneas)
-> **Tests**: 295 tests (18 suites) — vitest + mongoose
-> **Proyecto total**: +38 archivos en leads + ~34 en quotes = ~260+ archivos
+> **Actualización**: 2026-06-24
+> **Stack**: Next.js (App Router), TypeScript, MongoDB (Mongoose)
+> **Repo**: `main` (Consolidación post-v0.5.0 completa)
+> **Tags**: `v0.1.0`, `v0.2.0`, `v0.3.0`, `v0.4.0`, `v0.5.0`
+> **TypeScript**: 190+ archivos (~10.900 líneas)
+> **Tests**: 317 tests (20 suites) — vitest + mongoose
+> **Proyecto total**: ~270+ archivos
+> **CI**: GitHub Actions (`.github/workflows/ci.yml`)
+> **Auth**: Capa de abstracción con provider pattern (`src/core/auth/`)
+> **Arquitectura**: Multitenant, soft-delete, OCC, cursor pagination, state machines, snapshots embebidos
 
 ---
 
@@ -394,15 +397,21 @@ POST   /api/crm/pipelines/:id/stages       # Agregar etapa
 ## 8. Git y Estrategia de Ramas
 
 ```
-main (v0.3.0)
+main (v0.5.0)
 ├── v0.1.0 ── Commit inicial (Fase 1)
 ├── v0.2.0 ── Merge feature/domain-model (Fase 2)
 ├── v0.3.0 ── Merge feature/operations-complete (Fase 3)
 │   Merge commit 120f1f5
-│   └── 9dec4cb docs: add project bitácora and SDD archive reports
-│   └── 50f88db fix(operations): address verify warnings
-│   └── 542f622 feat(operations): complete application and api layer
-│   └── f672d83 feat(operations): add domain services layer and OCC
+├── v0.4.0 ── Merge feature/leads-pipeline (Fase 4)
+├── v0.5.0 ── Merge feature/fase-5-quotes (Fase 5 — Quotes)
+│   Merge commit 3c1d165 — 35 archivos, 3.226 líneas
+│   Tag: v0.5.0
+├── Consolidación Plataforma (Post-v0.5.0)
+│   ├── fe8c7e8 chore: update skill-registry with SDD skills
+│   ├── 38e1021 feat(ci): add GitHub Actions CI pipeline and docs
+│   ├── 9c28031 docs: add CONTRIBUTING.md with development workflow
+│   ├── 057ceaf feat(auth): add auth middleware abstraction layer
+│   └── c066e36 feat(observability): add structured error context
 
 feature/domain-model (mergeado a main)
 ├── pr/1-client
@@ -416,7 +425,7 @@ feature/operations-complete (consumido)
 ├── Application layer → services, APIs REST, tests
 └── Documentation → bitácora, SDD archive reports
 
-feature/fase-5-quotes (tracker, sin merge a main)
+feature/fase-5-quotes (MERGEADO a main via 3c1d165)
 ├── feature/fase-5-quotes-pr1-foundation (7 commits)
 ├── feature/fase-5-quotes-pr2-services (2 commits)
 ├── feature/fase-5-quotes-pr3-routes (4 commits)
@@ -429,7 +438,8 @@ Total: 34 archivos, 3.073 líneas
 - **Feature-branch-chain**: PR#1 targetea tracker branch; PRs siguientes targetean PR anterior. Solo el tracker mergea a main con `--no-ff`.
 - **Commits**: conventional commits (`feat:`, `fix:`, `refactor:`, etc.)
 - **Tags**: Semánticos por hito (`v0.1.0`, `v0.2.0`, `v0.3.0`, `v0.4.0-leads-pipeline`)
-- **Estado actual**: `feature/fase-5-quotes` con Fase 5 completa. `main` en v0.4.0. 295 tests (18 suites).
+- **Stacked PRs**: Cada PR mergea directo a `main` (stacked-to-main). Usado en Consolidación.
+- **Estado actual**: `main` en v0.5.0 con Consolidación completa. 317 tests (20 suites). CI via GitHub Actions.
 
 ---
 
@@ -439,7 +449,11 @@ Total: 34 archivos, 3.073 líneas
 
 - [x] Mergear `feature/operations-complete` a `main` ✅ (2026-06-20)
 - [x] Configurar test runner ✅ — vitest + mongoose + TypeScript (99 tests, 7 suites)
-- [ ] CI/PR automation para flujo de PRs encadenados
+- [x] CI/PR automation ✅ — GitHub Actions pipeline (`.github/workflows/ci.yml`)
+- [x] Mergear Fase 5 a main ✅ — `v0.5.0` tag (2026-06-24)
+- [x] Auth middleware abstraction ✅ — `src/core/auth/` con provider pattern
+- [x] Observabilidad mejorada ✅ — `ErrorContext`, `handleRouteError()`, wrappers
+- [ ] Migrar route handlers a `getCurrentUser()` / `getCurrentTenant()` (progresivo)
 
 ### Fase 4 — Leads y Pipeline (v0.4.0-leads-pipeline) ✅
 
@@ -450,15 +464,18 @@ Total: 34 archivos, 3.073 líneas
 - [x] Quotes/Cotizaciones — Fase 5 completa (98 tests)
 - [ ] Facturación (invoices)
 - [ ] Contratos
+- [ ] Fase 6 — Contratos + Mantenimiento Preventivo
 
 ### Mejoras Técnicas
 
 - [ ] Background jobs para cascade (Bull/Kafka reemplazando service-layer inline)
 - [ ] Dispatcher queue — vistas de dispatch (órdenes sin asignar, programadas, urgentes, vencidas, conflictos)
-- [ ] Auth middleware — reemplazar headers `x-tenant-id`/`x-user-id` por autenticación real
+- [ ] Auth real (JWT/Session) — reemplazar `HeaderAuthProvider` + migrar routes
 - [ ] Geolocalización — migrar Location a índice `2dsphere`
 - [ ] Firma digital — implementar captura en VisitReport
 - [ ] Índices — monitorear performance de `{tenantId, entityType, entityId, -createdAt}`
+- [ ] Fix barrel exports (`export type` vs `export`) — ~50+ archivos
+- [ ] Lint config (ESLint)
 
 ---
 
@@ -717,3 +734,121 @@ draft ──────► sent ──────► approved (terminal)
 
 > **Última actualización**: 2026-06-22 (Fase 5 Quotes completa, 295 tests, 18 suites, tracker sin merge).
 > **Generado por**: gentle-ai orchestrator (sesión 2026-06-22)
+
+---
+
+## Consolidación de Plataforma Post-v0.5.0
+
+**Período**: 2026-06-24
+**Rama**: `main` (stacked PRs directo a main)
+**Tags**: `v0.5.0` (Fase 5), commits de consolidación sobre main
+**SDD**: Proposal → Spec (23 reqs) → Design (3 partes) → Tasks (24 tareas, 3 PRs) → Apply → Verify (PASS)
+
+### Objetivo
+
+NO agregar funcionalidad de negocio. Consolidar técnicamente antes de Fase 6 (Contratos + Mantenimiento Preventivo).
+
+### Parte 1 — Merge Fase 5 ✅
+
+| Acción | Resultado |
+|--------|-----------|
+| Merge `feature/fase-5-quotes` → `main` | ✅ `--no-ff` merge, commit `3c1d165` |
+| Tag `v0.5.0` | ✅ Creado |
+| Tests pre-merge | ✅ 295/295 pass |
+| Tests post-merge | ✅ 295/295 pass (sin regresiones) |
+| TypeScript | ⚠️ Errores pre-existentes (180 en main también) |
+
+### Parte 2 — Revisión Arquitectónica General ✅
+
+| Módulo | Separación capas | tenantId | Soft-delete | Error handling | Estado |
+|--------|-----------------|----------|-------------|---------------|--------|
+| core/types/ | ✅ barrel exports | ✅ | ✅ | N/A | ⚠️ TS1205 en barriles |
+| crm/ | ✅ types/schemas/models/services/helpers | ✅ | ✅ | ✅ | ✅ |
+| operations/ | ✅ types/schemas/models/services/helpers | ✅ | ✅ | ✅ OCC | ✅ |
+| leads/ | ✅ types/schemas/models/services/helpers | ✅ | ✅ | ✅ | ✅ |
+| quotes/ | ✅ types/schemas/models/services/helpers | ✅ | ✅ | ✅ | ✅ |
+
+**Hallazgos**:
+- ✅ Todos los módulos respetan la separación types/schemas/models/services
+- ✅ tenantId en toda colección business
+- ✅ Soft-delete con deletedAt
+- ✅ Error handling consistente
+- ✅ Audit logger en acciones relevantes
+- ⚠️ Inconsistencia menor: leads/quotes usan 401, operations/pipelines usan 400 para auth faltante
+- ⚠️ Barrel exports con `export { X }` en vez de `export type { X }` (TS1205 con isolatedModules) — **pre-existente**
+
+### Parte 3 — CI / PR Automation ✅
+
+| Archivo | Propósito |
+|---------|-----------|
+| `.github/workflows/ci.yml` | Pipeline GitHub Actions |
+| `documentacion/CI.md` | Documentación del pipeline |
+| `documentacion/CONTRIBUTING.md` | Guía de desarrollo |
+
+**Pipeline steps**: `npm ci` → `npx tsc --noEmit` → `npm test` → `npx tsc`
+**Trigger**: push/PR a main, feature/*, pr/*
+
+### Parte 4 — Auth Middleware ✅
+
+| Archivo | Propósito |
+|---------|-----------|
+| `src/core/auth/types.ts` | `RequestLike`, `CurrentUser`, `CurrentTenant`, `AuthProvider` |
+| `src/core/auth/errors.ts` | `AuthenticationError` (statusCode 401) |
+| `src/core/auth/provider.ts` | `HeaderAuthProvider` + `setAuthProvider()` registry |
+| `src/core/auth/request-context.ts` | `getCurrentUser()` y `getCurrentTenant()` |
+| `src/core/auth/with-auth.ts` | `withAuth(handler)` wrapper |
+| `src/core/auth/index.ts` | Barrel export |
+| `tests/auth/request-context.test.ts` | 12 tests |
+
+**Decisiones de diseño**:
+- **Provider pattern**: `AuthProvider` interface → `HeaderAuthProvider` (default) → futuro `JwtAuthProvider`
+- **Framework-agnostic**: usa `RequestLike` (compatible con `NextRequest` y `Request`)
+- **Migración progresiva**: servicios no cambian, handlers viejos siguen funcionando
+- **Zero nuevas dependencias**
+
+### Parte 5 — Seguridad y Permisos ✅
+
+- Revisadas 21 rutas API — **todas validan auth headers**
+- Inconsistencia menor: 401 vs 400 — se estandarizará al migrar a `getCurrentUser()`
+- Sin nuevos permisos agregados (solo validación de existentes)
+
+### Parte 6 — Observabilidad ✅
+
+| Archivo | Propósito |
+|---------|-----------|
+| `src/observability/types.ts` | `ErrorContext`, `RequestEnrichment` interfaces |
+| `src/observability/request-context.ts` | `createRequestContext(request)` con `crypto.randomUUID()` |
+| `src/observability/error-handler.ts` | `handleRouteError(error, context)` unificado |
+| `src/observability/system-logger.ts` | +`logEventWithContext()` (wrapper aditivo) |
+| `src/observability/error-tracker.ts` | +`trackErrorWithContext()` (wrapper aditivo) |
+| `tests/observability/request-context.test.ts` | 10 tests |
+
+**Características**:
+- Structured context: `{ action, userId, tenantId, requestId, timestamp }`
+- Wrappers aditivos — NO rompen funciones existentes
+- `handleRouteError()` con soporte para errores conocidos (400/401/404/409 mapping)
+
+### Parte 7 — Documentación ✅
+
+- BITACORA.md actualizada (este documento)
+- Estado refleja v0.5.0 + consolidación completa
+- Pendientes y roadmap actualizados
+
+### Estado Final (Consolidación)
+
+| Métrica | Pre | Post |
+|---------|-----|------|
+| Archivos | ~260 | ~270+ |
+| Líneas TypeScript | ~10.200 | ~10.900 |
+| Tests | 295 (18 suites) | 317 (20 suites) |
+| CI | ❌ No | ✅ GitHub Actions |
+| Auth | ❌ Headers directos | ✅ Capa de abstracción |
+| Observabilidad | ❌ Sin contexto | ✅ ErrorContext tipado |
+| Módulos | 9 | 10 (+ `core/auth/`) |
+
+**Tags**: `v0.1.0`, `v0.2.0`, `v0.3.0`, `v0.4.0`, `v0.5.0`
+
+---
+
+> **Última actualización**: 2026-06-24 (Consolidación de plataforma completa, 317 tests, 20 suites, CI, auth, observabilidad).
+> **Generado por**: gentle-ai orchestrator (sesión 2026-06-24)
