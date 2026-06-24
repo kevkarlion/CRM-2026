@@ -34,6 +34,14 @@ const equipmentSnapshotSchema = new Schema({
   status: String,
 }, { _id: false });
 
+const contractSnapshotSchema = new Schema({
+  contractId: { type: Schema.Types.ObjectId, ref: 'Contract', required: true },
+  contractName: { type: String, required: true },
+  maintenanceScheduleId: { type: Schema.Types.ObjectId, ref: 'MaintenanceSchedule', required: true },
+  planName: { type: String, required: true },
+  equipmentIds: [{ type: Schema.Types.ObjectId, ref: 'Equipment' }],
+}, { _id: false });
+
 export const workOrderSchema = new Schema<IWorkOrder>(
   {
     tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
@@ -44,6 +52,8 @@ export const workOrderSchema = new Schema<IWorkOrder>(
     clientSnapshot: { type: clientSnapshotSchema, required: true },
     locationSnapshot: { type: locationSnapshotSchema, required: true },
     equipmentSnapshot: { type: equipmentSnapshotSchema, default: null },
+    contractSnapshot: { type: contractSnapshotSchema, default: null },
+    source: { type: String, enum: ['manual', 'maintenance_contract'], required: true, default: 'manual' },
     workOrderNumber: { type: String, required: true },
     title: { type: String, required: true },
     description: String,

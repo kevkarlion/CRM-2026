@@ -31,6 +31,16 @@ export interface IEquipmentSnapshot {
   status?: string;
 }
 
+export interface IContractSnapshot {
+  contractId: Types.ObjectId;
+  contractName: string;
+  maintenanceScheduleId: Types.ObjectId;
+  planName: string;
+  equipmentIds: Types.ObjectId[];
+}
+
+export type WorkOrderSource = 'manual' | 'maintenance_contract';
+
 export interface IWorkOrder extends Document, IAuditFields {
   _id: Types.ObjectId;
   tenantId: Types.ObjectId;
@@ -41,6 +51,8 @@ export interface IWorkOrder extends Document, IAuditFields {
   clientSnapshot: IClientSnapshot;
   locationSnapshot: ILocationSnapshot;
   equipmentSnapshot: IEquipmentSnapshot | null;
+  contractSnapshot?: IContractSnapshot;
+  source: WorkOrderSource;
   workOrderNumber: string;
   title: string;
   description?: string;

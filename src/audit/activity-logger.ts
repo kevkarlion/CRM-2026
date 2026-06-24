@@ -1,6 +1,6 @@
 import { Types } from 'mongoose';
 import ActivityLogModel from '../core/models/activity-log';
-import { ActivityAction } from '../types/activity-log';
+import { ActivityAction } from '../core/types/activity-log';
 
 export interface ActivityLogInput {
   tenantId: string | Types.ObjectId;
