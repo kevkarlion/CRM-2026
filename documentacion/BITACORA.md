@@ -3,11 +3,11 @@
 > **Propósito**: Única fuente de verdad del estado del proyecto. Mantiene el historial completo de decisiones, arquitectura, fases completadas y pendientes.
 > **Actualización**: 2026-06-24
 > **Stack**: Next.js (App Router), TypeScript, MongoDB (Mongoose)
-> **Repo**: `main` (Consolidación post-v0.5.0 completa)
-> **Tags**: `v0.1.0`, `v0.2.0`, `v0.3.0`, `v0.4.0`, `v0.5.0`
-> **TypeScript**: 190+ archivos (~10.900 líneas)
-> **Tests**: 317 tests (20 suites) — vitest + mongoose
-> **Proyecto total**: ~270+ archivos
+> **Repo**: `main` (Fase 6 contratos completa)
+> **Tags**: `v0.1.0`, `v0.2.0`, `v0.3.0`, `v0.4.0`, `v0.5.0`, `v0.6.0`
+> **TypeScript**: ~220+ archivos (~12.500+ líneas)
+> **Tests**: 367 tests (25 suites) — vitest + mongoose
+> **Proyecto total**: ~300+ archivos
 > **CI**: GitHub Actions (`.github/workflows/ci.yml`)
 > **Auth**: Capa de abstracción con provider pattern (`src/core/auth/`)
 > **Arquitectura**: Multitenant, soft-delete, OCC, cursor pagination, state machines, snapshots embebidos
@@ -93,13 +93,20 @@ src/
 │   ├── models/                    # 5 modelos
 │   ├── helpers/                   # state-machine, counter, overlap-detection
 │   └── services/                  # 5 servicios
+├── contracts/                     # 22 archivos — Contratos y Mantenimiento
+│   ├── types/                     # 4 interfaces
+│   ├── schemas/                   # 4 schemas, 8 índices
+│   ├── models/                    # 4 modelos
+│   ├── helpers/                   # state-machine, scheduler
+│   └── services/                  # 3 servicios
 ├── app/api/operations/            # 6 rutas REST (App Router)
-└── ...
+└── app/api/crm/contracts/         # 11 rutas REST (App Router)
 tests/
 ├── multitenancy/                  # tenant-scope.test.ts
 ├── rbac/                          # guards.test.ts
 ├── integration/                   # schemas.test.ts
-└── operations/                    # 5 archivos (state-machine, guards, OCC, scheduling, assignments)
+├── operations/                    # 5 archivos (state-machine, guards, OCC, scheduling, assignments)
+└── contracts/                     # 5 archivos (state-machine, scheduler, services)
 ```
 
 ---
@@ -463,8 +470,8 @@ Total: 34 archivos, 3.073 líneas
 - [x] Conversión transaccional Lead → Client — con rollback
 - [x] Quotes/Cotizaciones — Fase 5 completa (98 tests)
 - [ ] Facturación (invoices)
-- [ ] Contratos
-- [ ] Fase 6 — Contratos + Mantenimiento Preventivo
+- [x] Contratos — Fase 6 completa ✅
+- [x] Fase 6 — Contratos + Mantenimiento Preventivo ✅
 
 ### Mejoras Técnicas
 
@@ -850,5 +857,130 @@ NO agregar funcionalidad de negocio. Consolidar técnicamente antes de Fase 6 (C
 
 ---
 
-> **Última actualización**: 2026-06-24 (Consolidación de plataforma completa, 317 tests, 20 suites, CI, auth, observabilidad).
+## Fase 6 — Contratos y Mantenimiento Preventivo (v0.6.0)
+
+**Período**: 2026-06-24
+**Rama**: `main` (stacked PRs directo a main)
+**Tag**: `v0.6.0`
+**SDD**: Preflight → Spec → Design → Tasks → Apply → Verify (PASS) → Archive
+
+### Resumen
+
+Módulo de gestión de contratos de servicio recurrente y mantenimiento preventivo, integrado con el sistema de WorkOrders existente.
+
+### Entregado
+
+| Módulo | Archivos | Propósito |
+|--------|----------|-----------|
+| `contracts/types/` | 5 archivos | IContract, IContractEquipment, IMaintenancePlan, IMaintenanceSchedule + barrel |
+| `contracts/schemas/` | 5 archivos | Schemas con índices compuestos + barrel |
+| `contracts/models/` | 5 archivos | Mongoose models + barrel |
+| `contracts/helpers/` | 2 archivos | State machine (5 estados), scheduler (interval+unit dates) |
+| `contracts/services/` | 4 archivos | ContractService, MaintenancePlanService, MaintenanceSchedulerService + barrel |
+| `api/crm/contracts/` | 11 rutas | CRUD + lifecycle + equipment + plans + schedules + generate |
+| `tests/contracts/` | 5 archivos | 50 tests |
+
+### Colecciones Creadas (4)
+
+| Colección | Tipo | Propósito |
+|-----------|------|-----------|
+| Contract | Business | Contratos de servicio (5 estados: draft/active/paused/expired/cancelled) |
+| ContractEquipment | Business | Equipos asignados por contrato (append-only) |
+| MaintenancePlan | Business | Planes de mantenimiento (interval + unit) |
+| MaintenanceSchedule | Business | Programación de mantenimientos (generados al activar contrato) |
+
+### Arquitectura del Módulo
+
+```
+src/contracts/
+├── types/              # 4 interfaces + barrel
+├── schemas/            # 4 schemas + índices
+├── models/             # 4 modelos Mongoose
+├── helpers/            # state-machine, scheduler
+├── services/           # ContractService, MaintenancePlanService, MaintenanceSchedulerService
+└── index.ts            # barrel
+
+src/app/api/crm/contracts/
+├── route.ts                        # GET list / POST create
+├── [id]/route.ts                   # GET / PATCH / DELETE
+├── [id]/activate/route.ts          # POST → active + auto-generar schedules
+├── [id]/pause/route.ts             # POST → paused
+├── [id]/cancel/route.ts            # POST → cancelled + cancelar schedules futuras
+├── [id]/equipment/route.ts         # POST add equipment
+├── [id]/equipment/[equipmentId]/   # DELETE remove equipment
+├── [id]/plans/route.ts             # POST create / GET list plans
+├── [id]/plans/[planId]/route.ts    # PATCH update plan
+├── [id]/schedules/route.ts         # GET list schedules
+└── [id]/generate/route.ts          # POST generate WorkOrders
+```
+
+### State Machine — 5 Estados
+
+```
+draft ──────► active ──────► expired (terminal)
+  │              │
+  │              ├──► paused ──────► active
+  │              │       │
+  │              │       └──► cancelled (terminal)
+  │              │
+  │              └──► cancelled (terminal)
+```
+
+### Integración con WorkOrders
+
+- `source: 'maintenance_contract'` en WorkOrder identifica origen
+- `contractSnapshot` embebido { contractId, contractName, maintenanceScheduleId, planName, equipmentIds }
+- MaintenanceSchedulerService.generateWorkOrders() llama a WorkOrderService.create()
+- Schedules tienen workOrderId para evitar duplicados
+
+### Decisiones de Implementación
+
+| Decisión | Elección | Razón |
+|----------|----------|-------|
+| ContractEquipment | Colección separada (no embebida) | Historial append-only, queries eficientes por equipo |
+| Frecuencia | `interval: number` + `unit: 'days'|'months'|'years'` | Flexible, sin cambiar schema para diferentes frecuencias |
+| Schedules | Generados al activar contrato | Visibilidad completa del calendario |
+| contractSnapshot | Subdocumento embebido en WorkOrder | Mismo patrón que quoteSnapshot, preserva evidencia histórica |
+| Sin cron real | Trigger manual / endpoint API | Consistente con fases anteriores, preparado para Bull/Kafka futuro |
+
+### Tests Creados (5 archivos, 50 tests)
+
+| Archivo | Tests | Escenarios |
+|---------|-------|------------|
+| `contract-state-machine.test.ts` | 19 | 5 estados, transiciones, terminales, validStatus |
+| `scheduler.test.ts` | 15 | Intervalos por days/months/years, generateScheduleDates, plan conversion |
+| `contract.service.test.ts` | 8 | CRUD, changeStatus, softDelete, equipment mgmt |
+| `maintenance-plan.service.test.ts` | 4 | Create, schedule generation, validaciones |
+| `maintenance-scheduler.service.test.ts` | 4 | WorkOrder creation, zero schedules, cancel future |
+
+### Permisos Agregados
+
+- `CONTRACTS_CREATE`, `CONTRACTS_READ`, `CONTRACTS_EDIT`, `CONTRACTS_DELETE`, `CONTRACTS_STATUS_CHANGE`
+- Asignados a: Administrator (full), Supervisor (full), Sales (full), Accounting (read-only)
+
+### Modificaciones Externas
+
+| Archivo | Cambio |
+|---------|--------|
+| `src/operations/types/work-order.ts` | +source, +contractSnapshot field |
+| `src/operations/schemas/work-order.ts` | +contractSnapshotSchema, +source |
+| `src/rbac/permissions.ts` | +CONTRACTS_* permissions, +contracts group |
+| `src/core/types/activity-log.ts` | +activated, paused, cancelled, expired, equipment_added, equipment_removed, work_order_generated |
+| `src/audit/activity-logger.ts` | Fix import path |
+
+### Post-Apply Status
+
+| Métrica | Valor |
+|---------|-------|
+| Archivos nuevos | ~45 (contracts + routes + tests) |
+| Líneas agregadas | ~2.288 (+624 PR1, +1.216 PR2, +448 PR3) |
+| Tests contracts | 50 (5 archivos) |
+| Tests total proyecto | 367 (25 suites) |
+| Fallas | 0 |
+| Colecciones nuevas | 4 (Contract, ContractEquipment, MaintenancePlan, MaintenanceSchedule) |
+| Tags | `v0.6.0` |
+
+---
+
+> **Última actualización**: 2026-06-24 (Fase 6 Contratos completa, 367 tests, 25 suites, v0.6.0).
 > **Generado por**: gentle-ai orchestrator (sesión 2026-06-24)
