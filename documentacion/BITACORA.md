@@ -1,13 +1,13 @@
 # BITÁCORA DEL PROYECTO — CRM 2026
 
 > **Propósito**: Única fuente de verdad del estado del proyecto. Mantiene el historial completo de decisiones, arquitectura, fases completadas y pendientes.
-> **Actualización**: 2026-06-24
-> **Stack**: Next.js (App Router), TypeScript, MongoDB (Mongoose)
-> **Repo**: `main` (Fase 6 contratos completa)
-> **Tags**: `v0.1.0`, `v0.2.0`, `v0.3.0`, `v0.4.0`, `v0.5.0`, `v0.6.0`
-> **TypeScript**: ~220+ archivos (~12.500+ líneas)
-> **Tests**: 367 tests (25 suites) — vitest + mongoose
-> **Proyecto total**: ~300+ archivos
+> **Actualización**: 2026-06-25
+> **Stack**: Next.js (App Router), TypeScript, MongoDB (Mongoose), Tailwind CSS
+> **Repo**: `main` (Fase 7 dashboards completa)
+> **Tags**: `v0.1.0`, `v0.2.0`, `v0.3.0`, `v0.4.0`, `v0.5.0`, `v0.6.0`, `v0.7.0`
+> **TypeScript**: ~250+ archivos (~14.000+ líneas)
+> **Tests**: 377 tests (27 suites) — vitest + mongoose
+> **Proyecto total**: ~320+ archivos
 > **CI**: GitHub Actions (`.github/workflows/ci.yml`)
 > **Auth**: Capa de abstracción con provider pattern (`src/core/auth/`)
 > **Arquitectura**: Multitenant, soft-delete, OCC, cursor pagination, state machines, snapshots embebidos
@@ -982,5 +982,161 @@ draft ──────► active ──────► expired (terminal)
 
 ---
 
-> **Última actualización**: 2026-06-24 (Fase 6 Contratos completa, 367 tests, 25 suites, v0.6.0).
-> **Generado por**: gentle-ai orchestrator (sesión 2026-06-24)
+## Fase 7 — Dashboards, Métricas y Reportes Mobile-First (v0.7.0)
+
+**Período**: 2026-06-25
+**Rama**: `main` (stacked PRs directo a main)
+**Tags**: `v0.7.0`
+**SDD**: Preflight → Explore → Proposal → Spec → Design → Tasks → Apply (3 PRs) → Verify (PASS) → Archive
+
+### Objetivo
+
+Capa de dashboards operativos, KPIs y reportes mobile-first, sin chart libraries externas. Integrada con módulos existentes: WorkOrders, Quotes, Leads, Contracts y Employees.
+
+### Entregado
+
+| Módulo | Archivos | Propósito |
+|--------|----------|-----------|
+| `dashboard/types/` | 1 archivo | SummaryResponse, OperationsResponse, CommercialResponse, ContractsResponse + subtipos |
+| `dashboard/services/` | 5 archivos | 4 servicios + barrel + client fetch wrappers |
+| `dashboard/components/` | 8 archivos | MetricCard, KpiGrid, StatusBadge, ProgressWidget, ListCard, SectionHeader, DateRangePicker, Sidebar |
+| `dashboard/hooks/` | 1 archivo | useDashboardData con polling opcional |
+| `dashboard/context/` | 1 archivo | RoleContext con permisos RBAC |
+| `dashboard/components/` | 1 archivo | DashboardShell (layout cliente) |
+| `api/dashboard/` | 4 rutas | summary, operations, commercial, contracts |
+| `app/(dashboard)/` | 6 páginas | overview + admin + supervisor + commercial + technician |
+| `tests/dashboard/` | 2 archivos | 10 tests (6 unit + 4 integración) |
+| Infraestructura | `tailwind.config.ts`, `postcss.config.mjs`, `globals.css`, `layout.tsx` | Tailwind v3 + Design System |
+
+### Stack Frontend
+
+| Herramienta | Versión | Propósito |
+|-------------|---------|-----------|
+| Tailwind CSS | 3.4.19 | Estilos utility-first + component layer |
+| PostCSS | Última | Post-procesador Tailwind |
+| Next.js | 14.2.35 | App Router con layout groups |
+| React | 18.3.1 | UI components |
+| Autoprefixer | Última | Vendor prefixes |
+
+### Servicios Dashboard
+
+| Servicio | Endpoint API | Datos que expone |
+|----------|-------------|------------------|
+| **DashboardMetricsService** | `GET /api/dashboard/summary` | Clientes totales/nuevos, WO pendientes/en progreso, leads nuevos/calificados, quotes enviadas/aprobadas, contratos activos/próximos a vencer, empleados |
+| **DashboardOperationsService** | `GET /api/dashboard/operations` | WO completadas hoy/en progreso/próximos 7 días, SLA on-time/delayed, carga de técnicos |
+| **DashboardCommercialService** | `GET /api/dashboard/commercial` | Leads por etapa, quotes por estado, top clientes por facturación, tasa de conversión |
+| **DashboardContractsService** | `GET /api/dashboard/contracts` | Contratos activos/próximos a vencer, mantenciones programadas, equipos bajo contrato |
+
+### PRs (Stacked-to-main)
+
+| PR | Contenido | Archivos | Estado |
+|----|-----------|----------|--------|
+| PR 1 | Backend: Metric Services + API Routes | 9 | ✅ 6 tests |
+| PR 2 | Frontend: Tailwind + Widget System + Pages | 16 | ✅ 373 tests (6 nuevos) |
+| PR 3 | Role Pages: Sidebar + DateRangePicker + Admin/Supervisor/Commercial/Technician | 6 | ✅ 377 tests (4 nuevos integración) |
+| **Total** | **3 PRs** | **~31 archivos** | **377 tests, 0 fallas** |
+
+### Componentes UI
+
+| Componente | Ruta | Responsive | Props clave |
+|-----------|------|-----------|-------------|
+| MetricCard | `src/dashboard/components/MetricCard.tsx` | ✅ grid adaptable | label, value, trend?, loading? |
+| KpiGrid | `src/dashboard/components/KpiGrid.tsx` | ✅ 1-2-3-4 cols | children |
+| StatusBadge | `src/dashboard/components/StatusBadge.tsx` | ✅ inline | status, label, variant |
+| ProgressWidget | `src/dashboard/components/ProgressWidget.tsx` | ✅ full width | label, value, variant |
+| ListCard | `src/dashboard/components/ListCard.tsx` | ✅ scroll | title, items, renderItem |
+| SectionHeader | `src/dashboard/components/SectionHeader.tsx` | ✅ stack | title, subtitle? |
+| DateRangePicker | `src/dashboard/components/DateRangePicker.tsx` | ✅ mobile overlay | value, onChange |
+| Sidebar | `src/dashboard/components/Sidebar.tsx` | ✅ FAB mobile + drawer | currentRole |
+| DashboardShell | `src/dashboard/components/DashboardShell.tsx` | ✅ flex sidebar | children |
+
+### Diseño System (globals.css)
+
+```css
+@layer components {
+  .kpi-card { ... }        /* Tarjeta base: bg-white, rounded-xl, shadow-sm, p-6 */
+  .metric-grid { ... }     /* Grid responsivo: 1 col mobile, 3 col desktop */
+  .badge { ... }           /* Badge semántico con variantes */
+  .progress-bar { ... }    /* Barra de progreso animada */
+  .skeleton { ... }        /* Skeleton loading */
+  .list-card { ... }       /* Tarjeta con scroll interno */
+  .section-header { ... }  /* Encabezado de sección */
+}
+```
+
+### Paleta de Colores
+
+| Token | Uso | Hex |
+|-------|-----|-----|
+| brand-50..900 | Primario CRM | `#eff6ff` → `#1e3a5f` |
+| success-500 | Éxito / on-time | `#22c55e` |
+| warning-500 | Advertencia / media carga | `#f59e0b` |
+| danger-500 | Peligro / retrasos / sobrecarga | `#ef4444` |
+| info-500 | Informativo | `#3b82f6` |
+
+### Role Pages
+
+| Ruta | Rol | KPIs Destacados |
+|------|-----|-----------------|
+| `/dashboard` | Todos | Resumen ejecutivo: clientes, WO, leads, contratos |
+| `/dashboard/admin` | Owner/Admin | Visión CEO: todos los KPIs + empleados + SLA + pipeline |
+| `/dashboard/supervisor` | Supervisor | Operaciones: WO, SLA, carga técnicos, contratos próximos |
+| `/dashboard/commercial` | Sales | Pipeline: leads, cotizaciones, aprobación, contratos |
+| `/dashboard/technician` | Technician | Mi carga: WO asignadas, progreso, SLA personal |
+
+### Sidebar Navigation
+
+- Mobile: FAB (Fixed Action Button) + overlay
+- Desktop: Sidebar fija de 224px
+- Items filtrados por rol (vía `RoleDefaultPermissions`)
+- Roles: Owner, Administrator, Supervisor, Dispatcher, Technician, Sales, Accounting
+
+### RoleContext (RBAC)
+
+```
+src/dashboard/context/role-context.tsx
+
+Valores expuestos via useRole():
+  user, role, permissions
+  hasPermission(perm)        → boolean
+  hasAnyPermission(perms)    → boolean
+  isAdmin, isSupervisor, isCommercial, isTechnician
+  setRole(newRole)           → cambia rol dinámicamente
+```
+
+### Decisiones de Implementación
+
+| Decisión | Elección | Razón |
+|----------|----------|-------|
+| Sin chart library | CSS-only (colores, progress bars, badges) | Scope v1, sin dependencias pesadas |
+| Sin Redis/cache | Mongo queries directas | Consistente con fases anteriores |
+| Mobile-first | Tailwind responsive: `sm:`, `lg:` breakpoints | Obligatorio por diseño |
+| Sin WebSockets | Polling opcional en hook via `refetchInterval` | Scope v1 |
+| Servicios sin HTTP | Capa separada de API Routes | Testeable, reutilizable |
+| Sidebar asíncrona | useState + transform | Sin dependencias de animación |
+
+### Tests Creados (10 nuevos)
+
+| Archivo | Tests | Escenarios |
+|---------|-------|------------|
+| `dashboard-services.test.ts` | 6 | Summary, Operations, Commercial, Contracts (unitarios) |
+| `dashboard-integration.test.ts` | 4 | Full flow, empty system, JSON serialization, cross-service consistency |
+
+### Estado Final (Fase 7)
+
+| Métrica | Valor |
+|---------|-------|
+| Archivos nuevos | ~31 (dashboard + tests + infra frontend) |
+| Líneas agregadas | ~1.950 |
+| Tests dashboard | 10 (2 archivos) |
+| Tests total proyecto | 377 (27 suites) |
+| Fallas | 0 |
+| Colecciones nuevas | 0 (solo proyecciones/agregaciones) |
+| Tags | `v0.7.0` |
+| Dev server | 5/5 pages HTTP 200 |
+| Build | ⚠️ Pre-existing: 30+ API routes legacy usan `@/src/` alias que `@/* → ./src/*` resuelve a `./src/src/...` |
+
+---
+
+> **Última actualización**: 2026-06-25 (Fase 7 Dashboards completa, 377 tests, 27 suites, v0.7.0).
+> **Generado por**: gentle-ai orchestrator (sesión 2026-06-25)

@@ -1,0 +1,178 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-bg-primary: #ffffff;
+    --color-bg-secondary: #f9fafb;
+    --color-bg-tertiary: #f3f4f6;
+    --color-text-primary: #111827;
+    --color-text-secondary: #6b7280;
+    --color-text-muted: #9ca3af;
+    --color-border: #e5e7eb;
+    --color-border-light: #f3f4f6;
+  }
+
+  html {
+    @apply antialiased;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    @apply bg-gray-50 text-gray-900 font-sans;
+    min-height: 100dvh;
+  }
+
+  * {
+    @apply border-gray-200;
+  }
+}
+
+@layer components {
+  /* ── KPI Card ───────────────────────────────── */
+  .kpi-card {
+    @apply bg-white rounded-xl border border-gray-100 p-4 sm:p-5
+           transition-shadow duration-200;
+  }
+
+  .kpi-card:hover {
+    @apply shadow-sm;
+  }
+
+  .kpi-label {
+    @apply text-xs sm:text-sm text-gray-500 font-medium uppercase tracking-wide;
+  }
+
+  .kpi-value {
+    @apply text-xl sm:text-2xl font-bold text-gray-900 mt-1;
+  }
+
+  .kpi-trend-up {
+    @apply text-success-700 bg-success-50;
+  }
+
+  .kpi-trend-down {
+    @apply text-danger-700 bg-danger-50;
+  }
+
+  /* ── Metric Card ────────────────────────────── */
+  .metric-card {
+    @apply bg-white rounded-xl border border-gray-100 p-4 sm:p-5;
+  }
+
+  .metric-card-header {
+    @apply flex items-center justify-between mb-3;
+  }
+
+  .metric-card-title {
+    @apply text-sm font-medium text-gray-700;
+  }
+
+  /* ── Status Badge ───────────────────────────── */
+  .badge {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full
+           text-xs font-medium leading-5;
+  }
+
+  .badge-success {
+    @apply bg-success-50 text-success-700;
+  }
+
+  .badge-warning {
+    @apply bg-warning-50 text-warning-700;
+  }
+
+  .badge-danger {
+    @apply bg-danger-50 text-danger-700;
+  }
+
+  .badge-info {
+    @apply bg-info-50 text-info-700;
+  }
+
+  .badge-neutral {
+    @apply bg-gray-100 text-gray-700;
+  }
+
+  /* ── Progress Bar ───────────────────────────── */
+  .progress-bar {
+    @apply w-full bg-gray-100 rounded-full overflow-hidden;
+    height: 8px;
+  }
+
+  .progress-bar-fill {
+    @apply h-full rounded-full transition-all duration-500 ease-out;
+  }
+
+  .progress-bar-fill-success {
+    @apply bg-success-500;
+  }
+
+  .progress-bar-fill-warning {
+    @apply bg-warning-500;
+  }
+
+  .progress-bar-fill-danger {
+    @apply bg-danger-500;
+  }
+
+  .progress-bar-fill-info {
+    @apply bg-info-500;
+  }
+
+  /* ── List Card ──────────────────────────────── */
+  .list-card {
+    @apply bg-white rounded-xl border border-gray-100 divide-y divide-gray-50;
+  }
+
+  .list-card-item {
+    @apply flex items-center justify-between px-4 py-3 sm:px-5
+           hover:bg-gray-50 transition-colors duration-150;
+  }
+
+  /* ── Section ────────────────────────────────── */
+  .section-header {
+    @apply flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4;
+  }
+
+  .section-title {
+    @apply text-base sm:text-lg font-semibold text-gray-900;
+  }
+
+  .section-subtitle {
+    @apply text-sm text-gray-500;
+  }
+
+  /* ── Grid ───────────────────────────────────── */
+  .kpi-grid {
+    @apply grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:gap-4;
+  }
+
+  .metric-grid {
+    @apply grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3;
+  }
+
+  /* ── Skeleton loading ───────────────────────── */
+  .skeleton {
+    @apply bg-gray-200 rounded animate-pulse;
+  }
+
+  .skeleton-text {
+    @apply skeleton h-4 w-3/4;
+  }
+
+  .skeleton-title {
+    @apply skeleton h-5 w-1/2 mb-2;
+  }
+
+  .skeleton-card {
+    @apply skeleton h-24 w-full;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
