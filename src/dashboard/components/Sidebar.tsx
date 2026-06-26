@@ -17,6 +17,7 @@ const navItems: NavItem[] = [
   { label: 'Resumen', href: '/dashboard', icon: '⊟', roles: ['Owner', 'Administrator', 'Supervisor', 'Sales', 'Accounting', 'Dispatcher', 'Technician'] },
   { label: 'Operaciones', href: '/dashboard/supervisor', icon: '⚙', roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher'] },
   { label: 'Comercial', href: '/dashboard/commercial', icon: '📊', roles: ['Owner', 'Administrator', 'Sales', 'Supervisor'] },
+  { label: 'Pipeline', href: '/leads/pipeline', icon: '📋', roles: ['Owner', 'Administrator', 'Supervisor', 'Sales'] },
   { label: 'Técnicos', href: '/dashboard/technician', icon: '🔧', roles: ['Technician', 'Supervisor', 'Dispatcher'] },
   { label: 'Admin', href: '/dashboard/admin', icon: '⚙', roles: ['Owner', 'Administrator'] },
 ];

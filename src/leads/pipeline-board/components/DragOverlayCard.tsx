@@ -1,3 +1,4 @@
+import React from 'react';
 import type { ILead } from '../../types/lead';
 
 function formatCurrency(value?: number): string {
