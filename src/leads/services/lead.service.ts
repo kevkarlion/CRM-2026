@@ -9,6 +9,10 @@ import ClientModel from '../../crm/models/client';
 import ContactModel from '../../crm/models/contact';
 import { cursorPage } from '../../crm/helpers/cursor-pagination';
 import type { ILead, LeadStatus, CreateLeadInput, UpdateLeadInput } from '../types/lead';
+import type { IPipeline, IPipelineStage } from '../types/pipeline';
+import PipelineModel from '../models/pipeline';
+import UserModel from '../../core/models/user';
+import { TERMINAL_STATUSES } from '../helpers/lead-state-machine';
 
 const assignmentService = new LeadAssignmentService();
 
@@ -38,6 +42,20 @@ export interface LeadListResult {
   data: ILead[];
   cursor?: string;
   total: number;
+}
+
+export interface GroupedFilters {
+  assignedTo?: string;
+  search?: string;
+  createdAtGte?: string;
+  createdAtLte?: string;
+}
+
+export interface GroupedResult {
+  pipeline: IPipeline;
+  groups: Record<string, { stage: IPipelineStage; leads: ILead[] }>;
+  unmatched: ILead[];
+  truncated: Record<string, boolean>;
 }
 
 export class ConflictError extends Error {
@@ -432,6 +450,89 @@ export class LeadService {
     }
   }
 
+  async getLeadsGroupedByStage(
+    pipelineId: string,
+    tenantId: string,
+    userId: string,
+    role: string,
+    filters: GroupedFilters,
+  ): Promise<GroupedResult> {
+    const pipeline = await PipelineModel.findOne({
+      _id: new Types.ObjectId(pipelineId),
+      tenantId: new Types.ObjectId(tenantId),
+      deletedAt: null,
+    }).lean().exec() as unknown as IPipeline | null;
+
+    if (!pipeline) {
+      throw new ValidationError('Pipeline not found');
+    }
+
+    const filter: Record<string, unknown> = {
+      tenantId: new Types.ObjectId(tenantId),
+      deletedAt: null,
+      status: { $nin: TERMINAL_STATUSES },
+    };
+
+    if (filters.assignedTo) {
+      filter.assignedTo = new Types.ObjectId(filters.assignedTo);
+    }
+
+    if (filters.search) {
+      const escaped = filters.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      filter.$or = [
+        { name: { $regex: escaped, $options: 'i' } },
+        { companyName: { $regex: escaped, $options: 'i' } },
+      ];
+    }
+
+    if (filters.createdAtGte || filters.createdAtLte) {
+      const dateFilter: Record<string, unknown> = {};
+      if (filters.createdAtGte) dateFilter.$gte = new Date(filters.createdAtGte);
+      if (filters.createdAtLte) dateFilter.$lte = new Date(filters.createdAtLte);
+      filter.createdAt = dateFilter;
+    }
+
+    await applyRoleScope(filter, role, userId, tenantId);
+
+    const leads = await LeadModel.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(500)
+      .populate('assignedTo', 'name email')
+      .lean()
+      .exec() as unknown as ILead[];
+
+    const activeStages = pipeline.stages.filter(s => s.isActive);
+    const statusToStage = new Map<string, IPipelineStage>();
+    for (const stage of activeStages) {
+      if (stage.mapsToStatus && !statusToStage.has(stage.mapsToStatus)) {
+        statusToStage.set(stage.mapsToStatus, stage);
+      }
+    }
+
+    const groups: Record<string, { stage: IPipelineStage; leads: ILead[] }> = {};
+    const unmatched: ILead[] = [];
+    const truncated: Record<string, boolean> = {};
+
+    for (const stage of activeStages) {
+      groups[stage.name] = { stage, leads: [] };
+    }
+
+    for (const lead of leads) {
+      const matchedStage = statusToStage.get(lead.status);
+      if (matchedStage && groups[matchedStage.name]) {
+        if (groups[matchedStage.name].leads.length < 500) {
+          groups[matchedStage.name].leads.push(lead);
+        } else {
+          truncated[matchedStage.name] = true;
+        }
+      } else {
+        unmatched.push(lead);
+      }
+    }
+
+    return { pipeline, groups, unmatched, truncated };
+  }
+
   async softDelete(
     leadId: string,
     userId: string,
@@ -474,5 +575,29 @@ export class LeadService {
     });
 
     return updatedLead as unknown as ILead;
+  }
+}
+
+async function applyRoleScope(
+  filter: Record<string, unknown>,
+  role: string,
+  userId: string,
+  tenantId: string,
+): Promise<void> {
+  switch (role) {
+    case 'Owner':
+    case 'Administrator':
+      break;
+    case 'Supervisor': {
+      // TODO: supervisorId does not exist on UserModel yet.
+      // When added, query: UserModel.find({ tenantId, supervisorId: userId }).select('_id').lean()
+      // and build $in array with userId + supervisee IDs.
+      // For now, supervisor sees own leads only.
+      filter.assignedTo = new Types.ObjectId(userId);
+      break;
+    }
+    default:
+      filter.assignedTo = new Types.ObjectId(userId);
+      break;
   }
 }
