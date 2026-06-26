@@ -7,6 +7,12 @@ const pipelineStageSchema = new Schema<IPipelineStage>(
     position: { type: Number, required: true },
     probability: { type: Number, required: true, min: 0, max: 100 },
     isActive: { type: Boolean, default: true },
+    mapsToStatus: {
+      type: String,
+      enum: ['new', 'contacted', 'qualified', 'won', 'lost', 'disqualified'],
+      required: false,
+      default: undefined,
+    },
   },
   { _id: true }
 );

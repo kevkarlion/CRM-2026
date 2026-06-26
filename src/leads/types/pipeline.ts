@@ -1,10 +1,12 @@
 import { Document, Types } from 'mongoose';
+import { LeadStatus } from './lead';
 
 export interface IPipelineStage {
   name: string;
   position: number;
   probability: number;
   isActive: boolean;
+  mapsToStatus?: LeadStatus;
 }
 
 export interface IPipeline extends Document {
