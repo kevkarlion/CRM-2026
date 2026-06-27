@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { LeadService } from '@/src/leads/services/lead.service';
+import { LeadService } from '@/leads/services/lead.service';
 
 const service = new LeadService();
 

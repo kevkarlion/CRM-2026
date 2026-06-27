@@ -1,3 +1,4 @@
+import React from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import type { ILead } from '../../types/lead';
 import type { IPipelineStage } from '../../types/pipeline';
