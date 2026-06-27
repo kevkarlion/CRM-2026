@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ChecklistService } from '@/src/operations/services/checklist.service';
+import { ChecklistService } from '@/operations/services/checklist.service';
 
 const service = new ChecklistService();
 
@@ -59,7 +59,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'x-tenant-id and x-user-id headers are required' }, { status: 400 });
     }
 
-    const body = await request.json();
+    const body = await request.json() as { action?: string; [key: string]: unknown };
     const { action, ...fields } = body;
 
     let data;

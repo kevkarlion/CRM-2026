@@ -18,8 +18,8 @@ export class ClientService {
 
   async findById(id: string, tenantId: string): Promise<IClient | null> {
     return ClientModel.findOne({ _id: id, tenantId, deletedAt: null })
-      .lean()
-      .exec();
+      
+      .exec() as unknown as Promise<IClient | null>;
   }
 
   async findByTenant(
@@ -28,8 +28,8 @@ export class ClientService {
   ): Promise<IClient[]> {
     return ClientModel.find({ ...filter, tenantId, deletedAt: null })
       .sort({ createdAt: -1 })
-      .lean()
-      .exec();
+      
+      .exec() as unknown as Promise<IClient[]>;
   }
 
   async update(
@@ -43,8 +43,8 @@ export class ClientService {
       { $set: { ...data, updatedBy: userId } },
       { new: true }
     )
-      .lean()
-      .exec();
+      
+      .exec() as unknown as Promise<IClient | null>;
   }
 
   async softDelete(id: string, tenantId: string, userId: string): Promise<void> {
@@ -62,7 +62,7 @@ export class ClientService {
     // Cascade soft-delete to Locations (and via Location cascade to Equipment)
     const locations = await LocationModel.find({ clientId: id, deletedAt: null })
       .select('_id')
-      .lean()
+      
       .exec();
 
     const locationIds = locations.map((l) => l._id);

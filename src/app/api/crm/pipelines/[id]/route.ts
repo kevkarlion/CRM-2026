@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PipelineService, PipelineValidationError } from '@/src/leads/services/pipeline.service';
+import { PipelineService, PipelineValidationError } from '@/leads/services';
+import type { CreatePipelineInput } from '@/leads/types/pipeline';
 
 const service = new PipelineService();
 
@@ -14,7 +15,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'x-tenant-id and x-user-id headers are required' }, { status: 400 });
     }
 
-    const body = await request.json();
+    const body = await request.json() as Partial<CreatePipelineInput>;
     const updated = await service.updatePipeline(params.id, body, userId, tenantId);
 
     if (!updated) {

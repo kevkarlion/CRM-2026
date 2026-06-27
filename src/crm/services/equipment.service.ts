@@ -14,7 +14,7 @@ export class EquipmentService {
       deletedAt: null,
     })
       .select('clientId')
-      .lean()
+      
       .exec();
 
     if (!location) {
@@ -33,8 +33,8 @@ export class EquipmentService {
 
   async findById(id: string, tenantId: string): Promise<IEquipment | null> {
     return EquipmentModel.findOne({ _id: id, tenantId, deletedAt: null })
-      .lean()
-      .exec();
+      
+      .exec() as unknown as Promise<IEquipment | null>;
   }
 
   async findByClient(
@@ -43,8 +43,8 @@ export class EquipmentService {
   ): Promise<IEquipment[]> {
     return EquipmentModel.find({ clientId, tenantId, deletedAt: null })
       .sort({ createdAt: -1 })
-      .lean()
-      .exec();
+      
+      .exec() as unknown as Promise<IEquipment[]>;
   }
 
   async findByLocation(
@@ -53,8 +53,8 @@ export class EquipmentService {
   ): Promise<IEquipment[]> {
     return EquipmentModel.find({ locationId, tenantId, deletedAt: null })
       .sort({ createdAt: -1 })
-      .lean()
-      .exec();
+      
+      .exec() as unknown as Promise<IEquipment[]>;
   }
 
   async update(
@@ -71,7 +71,7 @@ export class EquipmentService {
         deletedAt: null,
       })
         .select('clientId')
-        .lean()
+        
         .exec();
 
       if (!location) {
@@ -86,8 +86,8 @@ export class EquipmentService {
       { $set: { ...data, updatedBy: userId } },
       { new: true }
     )
-      .lean()
-      .exec();
+      
+      .exec() as unknown as Promise<IEquipment | null>;
   }
 
   async softDelete(id: string, tenantId: string, userId: string): Promise<void> {

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { QuoteService, ValidationError } from '@/src/quotes/services';
+import { QuoteService, ValidationError } from '@/quotes/services';
+import type { CreateQuoteInput, QuoteStatus } from '@/quotes/types/quote';
 
 const service = new QuoteService();
 
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
     const cursor = searchParams.get('cursor') || undefined;
     const limit = parseInt(searchParams.get('limit') || '20', 10);
 
-    const result = await service.listQuotes({ status, clientId, search, cursor, limit }, tenantId);
+    const result = await service.listQuotes({ status: status as QuoteStatus | undefined, clientId, search, cursor, limit }, tenantId);
 
     return NextResponse.json(result);
   } catch (error) {
@@ -36,7 +37,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
+    const body = await request.json() as CreateQuoteInput;
     const result = await service.createQuote(body, userId, tenantId);
 
     return NextResponse.json(result, { status: 201 });

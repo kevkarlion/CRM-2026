@@ -26,19 +26,19 @@ export class WorkOrderService {
     tenantId: string,
     userId: string,
   ): Promise<IWorkOrder> {
-    const client = await ClientModel.findById(data.clientId).lean().exec();
+    const client = await ClientModel.findById(data.clientId).exec();
     if (!client) {
       throw new ValidationError(`Client ${data.clientId} not found`);
     }
 
-    const location = await LocationModel.findById(data.locationId).lean().exec();
+    const location = await LocationModel.findById(data.locationId).exec();
     if (!location) {
       throw new ValidationError(`Location ${data.locationId} not found`);
     }
 
     let equipmentSnapshot: Record<string, unknown> | null = null;
     if (data.equipmentId) {
-      const equipment = await EquipmentModel.findById(data.equipmentId).lean().exec();
+      const equipment = await EquipmentModel.findById(data.equipmentId).exec();
       if (!equipment) {
         throw new ValidationError(`Equipment ${data.equipmentId} not found`);
       }
@@ -94,7 +94,7 @@ export class WorkOrderService {
 
   async findById(id: string, tenantId: string): Promise<IWorkOrder | null> {
     return WorkOrderModel.findOne({ _id: id, tenantId, deletedAt: null })
-      .lean()
+      
       .exec();
   }
 
@@ -118,14 +118,15 @@ export class WorkOrderService {
     }
 
     if (filters.scheduledDateGte || filters.scheduledDateLte) {
-      query.scheduledDate = {};
-      if (filters.scheduledDateGte) query.scheduledDate.$gte = filters.scheduledDateGte;
-      if (filters.scheduledDateLte) query.scheduledDate.$lte = filters.scheduledDateLte;
+      const dateFilter: Record<string, unknown> = {};
+      if (filters.scheduledDateGte) dateFilter.$gte = filters.scheduledDateGte;
+      if (filters.scheduledDateLte) dateFilter.$lte = filters.scheduledDateLte;
+      query.scheduledDate = dateFilter;
     }
 
     return WorkOrderModel.find(query)
       .sort({ createdAt: -1 })
-      .lean()
+      
       .exec();
   }
 
@@ -141,7 +142,7 @@ export class WorkOrderService {
       { $set: { ...data, updatedBy: userId }, $inc: { version: 1 } },
       { new: true },
     )
-      .lean()
+      
       .exec();
 
     if (!updated) {
@@ -165,7 +166,7 @@ export class WorkOrderService {
   ): Promise<IWorkOrder | null> {
     const current = await WorkOrderModel.findOne({ _id: id, tenantId, deletedAt: null })
       .select('status version')
-      .lean()
+      
       .exec();
 
     if (!current) {
@@ -181,7 +182,7 @@ export class WorkOrderService {
       { $set: { status: targetStatus, updatedBy: userId }, $inc: { version: 1 } },
       { new: true },
     )
-      .lean()
+      
       .exec();
 
     if (!updated) {
@@ -231,7 +232,7 @@ export class WorkOrderService {
   ): Promise<IWorkOrder | null> {
     const current = await WorkOrderModel.findOne({ _id: id, tenantId, deletedAt: null })
       .select('status version')
-      .lean()
+      
       .exec();
 
     if (!current) {
@@ -261,7 +262,7 @@ export class WorkOrderService {
       },
       { new: true },
     )
-      .lean()
+      
       .exec();
 
     if (!updated) {
@@ -300,7 +301,7 @@ export class WorkOrderService {
     userId: string,
   ): Promise<boolean> {
     const workOrder = await WorkOrderModel.findOne({ _id: id, tenantId, deletedAt: null })
-      .lean()
+      
       .exec();
 
     if (!workOrder) {

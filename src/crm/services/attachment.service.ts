@@ -20,8 +20,8 @@ export class AttachmentService {
   ): Promise<IAttachment[]> {
     return AttachmentModel.find({ entityType, entityId, tenantId })
       .sort({ createdAt: -1 })
-      .lean()
-      .exec();
+      
+      .exec() as unknown as Promise<IAttachment[]>;
   }
 
   async delete(id: string, tenantId: string): Promise<boolean> {

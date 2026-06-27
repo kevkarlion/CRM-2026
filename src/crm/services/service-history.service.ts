@@ -20,8 +20,8 @@ export class ServiceHistoryService {
 
   async findById(id: string, tenantId: string): Promise<IServiceHistory | null> {
     return ServiceHistoryModel.findOne({ _id: id, tenantId, deletedAt: null })
-      .lean()
-      .exec();
+      
+      .exec() as unknown as Promise<IServiceHistory | null>;
   }
 
   async findByEquipment(

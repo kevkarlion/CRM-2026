@@ -1,4 +1,4 @@
-export {
+export type {
   WorkOrderPriority,
   WorkOrderCategory,
   WorkOrderStatus,
@@ -10,24 +10,24 @@ export {
   UpdateWorkOrderInput,
 } from './work-order';
 
-export {
+export type {
   AssignmentStatus,
   IWorkOrderAssignment,
   CreateWorkOrderAssignmentInput,
 } from './work-order-assignment';
 
-export {
+export type {
   IPreVisitChecklist,
   CreatePreVisitChecklistInput,
 } from './pre-visit-checklist';
 
-export {
+export type {
   WorkOrderEventType,
   IWorkOrderEvent,
   CreateWorkOrderEventInput,
 } from './work-order-event';
 
-export {
+export type {
   IVisitReport,
   CreateVisitReportInput,
   UpdateVisitReportInput,

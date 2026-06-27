@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PipelineService } from '@/src/leads/services/pipeline.service';
+import { PipelineService } from '@/leads/services';
+import type { CreatePipelineInput } from '@/leads/types/pipeline';
 
 const service = new PipelineService();
 
@@ -28,7 +29,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'x-tenant-id and x-user-id headers are required' }, { status: 400 });
     }
 
-    const body = await request.json();
+    const body = await request.json() as CreatePipelineInput;
     const data = await service.createPipeline(body, userId, tenantId);
 
     return NextResponse.json({ data }, { status: 201 });

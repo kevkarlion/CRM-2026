@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ContractService, ContractValidationError } from '@/src/contracts/services/contract.service';
+import { ContractService, ContractValidationError } from '@/contracts/services';
 
 const service = new ContractService();
 

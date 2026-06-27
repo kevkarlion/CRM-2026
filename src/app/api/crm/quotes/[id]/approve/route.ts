@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { QuoteService, NotFoundError, ConflictError, ValidationError } from '@/src/quotes/services';
-import { TransitionError } from '@/src/quotes/helpers/state-machine';
+import { QuoteService, NotFoundError, ConflictError, ValidationError } from '@/quotes/services';
+import { TransitionError } from '@/quotes/helpers/state-machine';
 
 const service = new QuoteService();
 

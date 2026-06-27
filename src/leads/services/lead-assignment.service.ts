@@ -17,7 +17,7 @@ export class LeadAssignmentService {
       _id: new Types.ObjectId(leadId),
       tenantId: new Types.ObjectId(tenantId),
       deletedAt: null,
-    }).lean().exec();
+    }).exec();
 
     if (!lead) {
       throw new Error(`Lead ${leadId} not found in tenant ${tenantId}.`);
@@ -30,7 +30,7 @@ export class LeadAssignmentService {
         unassignedAt: null,
       },
       { $set: { unassignedAt: new Date() } },
-    ).lean().exec();
+    ).exec();
 
     const assignment = await LeadAssignmentModel.create({
       tenantId: new Types.ObjectId(tenantId),
@@ -49,7 +49,7 @@ export class LeadAssignmentService {
       },
       { $set: { assignedTo: new Types.ObjectId(userId) } },
       { new: true },
-    ).lean().exec();
+    ).exec();
 
     if (!updatedLead) {
       throw new Error(`Lead ${leadId} not found after assignment.`);
@@ -87,7 +87,7 @@ export class LeadAssignmentService {
       },
       { $set: { unassignedAt: new Date() } },
       { new: true },
-    ).lean().exec();
+    ).exec();
 
     if (!assignment) {
       throw new Error(`No active assignment found for Lead ${leadId}.`);
@@ -101,7 +101,7 @@ export class LeadAssignmentService {
       },
       { $set: { assignedTo: null } },
       { new: true },
-    ).lean().exec();
+    ).exec();
 
     if (!updatedLead) {
       throw new Error(`Lead ${leadId} not found.`);
@@ -143,7 +143,7 @@ export class LeadAssignmentService {
       leadId: new Types.ObjectId(leadId),
     })
       .sort({ assignedAt: -1 })
-      .lean()
+      
       .exec() as unknown as ILeadAssignment[];
   }
 
@@ -156,7 +156,7 @@ export class LeadAssignmentService {
       userId: new Types.ObjectId(userId),
       unassignedAt: null,
     })
-      .lean()
+      
       .exec() as unknown as ILeadAssignment[];
   }
 }

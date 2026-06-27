@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ConversionService, ConversionError } from '@/src/quotes/services';
+import { ConversionService, ConversionError } from '@/quotes/services';
 
 const service = new ConversionService();
 
@@ -14,8 +14,8 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { priority, category } = body || {};
+    const body = await request.json() as { priority?: string; category?: string };
+    const { priority, category } = body;
     const options = { priority, category };
 
     const result = await service.convertToWorkOrder(params.id, userId, tenantId, options);

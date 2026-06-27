@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { WorkOrderService, ConflictError } from '@/src/operations/services/work-order.service';
-import { TransitionError } from '@/src/operations/helpers/state-machine';
+import { WorkOrderService, ConflictError } from '@/operations/services/work-order.service';
+import type { WorkOrderStatus } from '@/operations/types/work-order';
+import { TransitionError } from '@/operations/helpers/state-machine';
 
 const service = new WorkOrderService();
 
@@ -15,7 +16,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'x-tenant-id and x-user-id headers are required' }, { status: 400 });
     }
 
-    const body = await request.json();
+    const body = await request.json() as { status: string; version: number; context?: Record<string, unknown> };
     const { status: targetStatus, version, context } = body;
 
     if (!targetStatus || version === undefined || version === null) {
@@ -24,7 +25,7 @@ export async function PATCH(
 
     const updated = await service.changeStatus(
       params.id,
-      targetStatus,
+      targetStatus as WorkOrderStatus,
       context || {},
       tenantId,
       userId,

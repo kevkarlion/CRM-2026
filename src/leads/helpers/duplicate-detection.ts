@@ -40,5 +40,5 @@ export async function findDuplicates(
     $or: conditions,
   };
 
-  return LeadModel.find(query).lean().exec();
+  return LeadModel.find(query).exec();
 }

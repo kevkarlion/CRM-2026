@@ -44,7 +44,7 @@ export class ConversionService {
         tenantId: new Types.ObjectId(tenantId),
         deletedAt: null,
       })
-        .lean()
+        
         .exec();
 
       if (!existing) {
@@ -69,7 +69,7 @@ export class ConversionService {
       quoteId: quote._id,
       version: quote.currentVersion,
     })
-      .lean()
+      
       .exec() as IQuoteVersion | null;
 
     const session = await mongoose.startSession();
@@ -79,9 +79,9 @@ export class ConversionService {
       const ClientModel = (await import('../../crm/models/client')).default;
       const LocationModel = (await import('../../crm/models/location')).default;
 
-      const client = await ClientModel.findById(quote.clientId).lean().exec();
+      const client = await ClientModel.findById(quote.clientId).exec();
       const location = quote.locationId
-        ? await LocationModel.findById(quote.locationId).lean().exec()
+        ? await LocationModel.findById(quote.locationId).exec()
         : null;
 
       const workOrderNumber = await getNextWorkOrderNumber(tenantId);

@@ -4,6 +4,7 @@
 
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
+import { useRole } from '@/dashboard/context/role-context';
 import type { TenantRoleName } from '@/rbac/permissions';
 
 interface NavItem {
@@ -20,17 +21,18 @@ const navItems: NavItem[] = [
   { label: 'Pipeline', href: '/leads/pipeline', icon: '📋', roles: ['Owner', 'Administrator', 'Supervisor', 'Sales'] },
   { label: 'Técnicos', href: '/dashboard/technician', icon: '🔧', roles: ['Technician', 'Supervisor', 'Dispatcher'] },
   { label: 'Admin', href: '/dashboard/admin', icon: '⚙', roles: ['Owner', 'Administrator'] },
+  { label: 'Leads', href: '/leads', icon: '📋', roles: ['Sales', 'Administrator', 'Owner', 'Supervisor'] },
+  { label: 'Quotes', href: '/quotes', icon: '📄', roles: ['Sales', 'Administrator', 'Owner', 'Supervisor'] },
+  { label: 'Contracts', href: '/contracts', icon: '📝', roles: ['Administrator', 'Supervisor', 'Owner', 'Sales', 'Accounting', 'Dispatcher'] },
+  { label: 'Work Orders', href: '/work-orders', icon: '🔧', roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Technician', 'Sales', 'Accounting'] },
 ];
 
-interface SidebarProps {
-  currentRole: TenantRoleName;
-}
-
-export function Sidebar({ currentRole }: SidebarProps) {
+export function Sidebar() {
   const pathname = usePathname();
+  const { role } = useRole();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const visibleItems = navItems.filter((item) => item.roles.includes(currentRole));
+  const visibleItems = navItems.filter((item) => item.roles.includes(role));
 
   return (
     <>
@@ -57,7 +59,7 @@ export function Sidebar({ currentRole }: SidebarProps) {
             </div>
             <span className="font-semibold text-gray-900 text-sm">CRM 2026</span>
           </div>
-          <span className="text-xs text-gray-400 mt-1 block capitalize">{currentRole}</span>
+          <span className="text-xs text-gray-400 mt-1 block capitalize">{role}</span>
         </div>
 
         <nav className="p-3 space-y-1">

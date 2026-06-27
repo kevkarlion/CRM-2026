@@ -28,7 +28,7 @@ export async function checkTechnicianConflict(
     filter._id = { $ne: excludeWorkOrderId };
   }
 
-  return WorkOrderModel.findOne(filter).lean();
+  return WorkOrderModel.findOne(filter) as unknown as Promise<IWorkOrder | null>;
 }
 
 export async function checkMultiTechnicianConflicts(

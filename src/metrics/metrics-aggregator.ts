@@ -1,7 +1,7 @@
 import { Types } from 'mongoose';
 import TenantMetricsModel from '../core/models/tenant-metrics';
 import UserModel from '../core/models/user';
-import { MetricsPeriod } from '../types/tenant-metrics';
+import { MetricsPeriod } from '../core/types/tenant-metrics';
 
 export interface AggregateMetricsInput {
   tenantId: string | Types.ObjectId;
@@ -74,7 +74,7 @@ export async function getLatestMetrics(
 ) {
   return TenantMetricsModel.findOne({ tenantId })
     .sort({ calculatedAt: -1 })
-    .lean()
+    
     .exec();
 }
 
@@ -94,6 +94,6 @@ export async function getMetricsHistory(
     periodEnd: { $lte: to },
   })
     .sort({ periodStart: -1 })
-    .lean()
+    
     .exec();
 }

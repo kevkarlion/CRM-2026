@@ -190,7 +190,7 @@ export class LeadService {
       deletedAt: null,
     })
       .populate('assignedTo', 'name email')
-      .lean()
+      
       .exec();
 
     return lead as unknown as ILead | null;
@@ -221,7 +221,7 @@ export class LeadService {
       { $set: { ...updateData, updatedBy: userId } },
       { new: true },
     )
-      .lean()
+      
       .exec();
 
     if (!updatedLead) return null;
@@ -249,7 +249,7 @@ export class LeadService {
       tenantId: new Types.ObjectId(tenantId),
       deletedAt: null,
     })
-      .lean()
+      
       .exec();
 
     if (!lead) {
@@ -295,7 +295,7 @@ export class LeadService {
       { $set: { status: newStatus, updatedBy: userId } },
       { new: true },
     )
-      .lean()
+      
       .exec();
 
     if (!updatedLead) {
@@ -306,7 +306,7 @@ export class LeadService {
       tenantId,
       entityType: 'lead',
       entityId: leadId,
-      action: 'statusChanged',
+      action: 'status_changed',
       actorId: userId,
       changes: {
         before: { status: currentStatus },
@@ -335,7 +335,7 @@ export class LeadService {
         _id: new Types.ObjectId(leadId),
         tenantId: new Types.ObjectId(tenantId),
         deletedAt: null,
-      }).lean().exec();
+      }).exec();
 
       if (!existing) {
         throw new Error('Lead not found');
@@ -543,7 +543,7 @@ export class LeadService {
       tenantId: new Types.ObjectId(tenantId),
       deletedAt: null,
     })
-      .lean()
+      
       .exec();
 
     if (!lead) return null;
@@ -561,7 +561,7 @@ export class LeadService {
       { $set: { deletedAt: new Date(), deletedBy: userId } },
       { new: true },
     )
-      .lean()
+      
       .exec();
 
     if (!updatedLead) return null;

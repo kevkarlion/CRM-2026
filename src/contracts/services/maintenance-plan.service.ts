@@ -28,7 +28,7 @@ export class MaintenancePlanService {
     tenantId: string,
   ): Promise<IMaintenancePlan> {
     const contract = await ContractModel.findOne({ _id: contractId, tenantId, deletedAt: null })
-      .lean()
+      
       .exec();
 
     if (!contract) {
@@ -53,7 +53,7 @@ export class MaintenancePlanService {
       metadata: { maintenancePlanCreated: plan._id.toString(), planName: data.name },
     });
 
-    return plan.toObject();
+    return plan.toObject() as IMaintenancePlan;
   }
 
   async findByContract(
@@ -66,8 +66,8 @@ export class MaintenancePlanService {
       deletedAt: null,
     })
       .sort({ createdAt: -1 })
-      .lean()
-      .exec();
+      
+      .exec() as unknown as Promise<IMaintenancePlan[]>;
   }
 
   async findById(
@@ -75,8 +75,8 @@ export class MaintenancePlanService {
     tenantId: string,
   ): Promise<IMaintenancePlan | null> {
     return MaintenancePlanModel.findOne({ _id: id, tenantId, deletedAt: null })
-      .lean()
-      .exec();
+      
+      .exec() as unknown as Promise<IMaintenancePlan | null>;
   }
 
   async update(
@@ -90,7 +90,7 @@ export class MaintenancePlanService {
       { $set: { ...data, updatedBy: userId } },
       { new: true },
     )
-      .lean()
+      
       .exec();
 
     if (plan) {
@@ -104,7 +104,7 @@ export class MaintenancePlanService {
       });
     }
 
-    return plan;
+    return plan as unknown as IMaintenancePlan | null;
   }
 
   async generateSchedules(
@@ -113,7 +113,7 @@ export class MaintenancePlanService {
     userId: string,
   ): Promise<number> {
     const contract = await ContractModel.findOne({ _id: contractId, tenantId, deletedAt: null })
-      .lean()
+      
       .exec();
 
     if (!contract) {
@@ -130,7 +130,7 @@ export class MaintenancePlanService {
       active: true,
       deletedAt: null,
     })
-      .lean()
+      
       .exec();
 
     if (plans.length === 0) {
@@ -154,7 +154,7 @@ export class MaintenancePlanService {
           maintenancePlanId: plan._id,
           scheduledDate,
         })
-          .lean()
+          
           .exec();
 
         if (existing) continue;

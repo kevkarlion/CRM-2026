@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ContractService, ContractValidationError } from '@/src/contracts/services/contract.service';
+import { ContractService, ContractValidationError } from '@/contracts/services';
 
 const service = new ContractService();
 
@@ -14,7 +14,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
+    const body = (await request.json()) as { equipmentId: string };
     await service.addEquipment(params.id, body.equipmentId, tenantId);
 
     return NextResponse.json({ message: 'Equipment added' }, { status: 201 });

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ContractService, ContractValidationError } from '@/src/contracts/services/contract.service';
-import { MaintenanceSchedulerService } from '@/src/contracts/services/maintenance-scheduler.service';
+import { ContractService, ContractValidationError } from '@/contracts/services';
+import { MaintenanceSchedulerService } from '@/contracts/services/maintenance-scheduler.service';
 
 const contractService = new ContractService();
 const schedulerService = new MaintenanceSchedulerService();

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { LeadService, ConflictError } from '@/src/leads/services/lead.service';
-import { TransitionError } from '@/src/leads/helpers/lead-state-machine';
+import { LeadService, ConflictError } from '@/leads/services/lead.service';
+import type { LeadStatus } from '@/leads/types/lead';
+import { TransitionError } from '@/leads/helpers/lead-state-machine';
 
 const service = new LeadService();
 
@@ -15,14 +16,14 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
+    const body = await request.json() as { status: string };
     const { status: targetStatus } = body;
 
     if (!targetStatus) {
       return NextResponse.json({ error: 'status is required' }, { status: 400 });
     }
 
-    const updated = await service.changeStatus(params.id, targetStatus, userId, tenantId);
+    const updated = await service.changeStatus(params.id, targetStatus as LeadStatus, userId, tenantId);
 
     return NextResponse.json(updated);
   } catch (error) {

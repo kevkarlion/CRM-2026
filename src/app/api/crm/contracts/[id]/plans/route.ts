@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { MaintenancePlanService, PlanValidationError } from '@/src/contracts/services/maintenance-plan.service';
+import { MaintenancePlanService, PlanValidationError } from '@/contracts/services';
+import type { CreateMaintenancePlanInput } from '@/contracts/types/maintenance-plan';
 
 const service = new MaintenancePlanService();
 
@@ -34,7 +35,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
+    const body = await request.json() as CreateMaintenancePlanInput;
     const plan = await service.create(params.id, body, userId, tenantId);
 
     return NextResponse.json(plan, { status: 201 });

@@ -152,7 +152,7 @@ export class QuoteService {
       deletedAt: null,
     })
       .populate('clientId', 'fullName companyName email phone')
-      .lean()
+      
       .exec();
 
     if (!quote) {
@@ -163,7 +163,7 @@ export class QuoteService {
       quoteId: new Types.ObjectId(quoteId),
       version: quote.currentVersion,
     })
-      .lean()
+      
       .exec();
 
     return {
@@ -234,7 +234,7 @@ export class QuoteService {
       tenantId: new Types.ObjectId(tenantId),
       deletedAt: null,
     })
-      .lean()
+      
       .exec();
 
     if (!quote) {
@@ -251,7 +251,7 @@ export class QuoteService {
       quoteId: new Types.ObjectId(quoteId),
       version: quote.currentVersion,
     })
-      .lean()
+      
       .exec();
 
     const hasVersionedChanges =
@@ -317,7 +317,7 @@ export class QuoteService {
           },
           { new: true, session },
         )
-          .lean()
+          
           .exec();
 
         if (!updatedQuote) {
@@ -370,7 +370,7 @@ export class QuoteService {
       },
       { new: true },
     )
-      .lean()
+      
       .exec();
 
     if (!updatedQuote) {
@@ -402,7 +402,7 @@ export class QuoteService {
       tenantId: new Types.ObjectId(tenantId),
       deletedAt: null,
     })
-      .lean()
+      
       .exec();
 
     if (!quote) {
@@ -416,7 +416,7 @@ export class QuoteService {
       quoteId: new Types.ObjectId(quoteId),
       version: quote.currentVersion,
     })
-      .lean()
+      
       .exec();
 
     const versionItems = currentVersion?.items || [];
@@ -442,7 +442,7 @@ export class QuoteService {
       },
       { new: true },
     )
-      .lean()
+      
       .exec();
 
     if (!updated) {
@@ -475,7 +475,7 @@ export class QuoteService {
       status: 'sent',
       deletedAt: null,
     })
-      .lean()
+      
       .exec();
 
     if (!quote) {
@@ -484,7 +484,7 @@ export class QuoteService {
         tenantId: new Types.ObjectId(tenantId),
         deletedAt: null,
       })
-        .lean()
+        
         .exec();
 
       if (!existing) {
@@ -515,7 +515,7 @@ export class QuoteService {
       },
       { new: true },
     )
-      .lean()
+      
       .exec();
 
     if (!updated) {
@@ -549,7 +549,7 @@ export class QuoteService {
       status: 'sent',
       deletedAt: null,
     })
-      .lean()
+      
       .exec();
 
     if (!quote) {
@@ -558,7 +558,7 @@ export class QuoteService {
         tenantId: new Types.ObjectId(tenantId),
         deletedAt: null,
       })
-        .lean()
+        
         .exec();
 
       if (!existing) {
@@ -589,7 +589,7 @@ export class QuoteService {
       },
       { new: true },
     )
-      .lean()
+      
       .exec();
 
     if (!updated) {
@@ -622,7 +622,7 @@ export class QuoteService {
       tenantId: new Types.ObjectId(tenantId),
       deletedAt: null,
     })
-      .lean()
+      
       .exec();
 
     if (!quote) {
@@ -654,7 +654,7 @@ export class QuoteService {
       },
       { new: true },
     )
-      .lean()
+      
       .exec();
 
     if (!updated) {
@@ -687,7 +687,7 @@ export class QuoteService {
       status: 'sent',
       deletedAt: null,
     })
-      .lean()
+      
       .exec();
 
     if (!quote) {
@@ -696,7 +696,7 @@ export class QuoteService {
         tenantId: new Types.ObjectId(tenantId),
         deletedAt: null,
       })
-        .lean()
+        
         .exec();
 
       if (!existing) {
@@ -725,7 +725,7 @@ export class QuoteService {
       },
       { new: true },
     )
-      .lean()
+      
       .exec();
 
     if (!updated) {
@@ -757,7 +757,7 @@ export class QuoteService {
       tenantId: new Types.ObjectId(tenantId),
       deletedAt: null,
     })
-      .lean()
+      
       .exec();
 
     if (!quote) {
@@ -785,7 +785,7 @@ export class QuoteService {
       },
       { new: true },
     )
-      .lean()
+      
       .exec();
 
     if (!updated) {
@@ -812,7 +812,7 @@ export class QuoteService {
       tenantId: new Types.ObjectId(tenantId),
     })
       .sort({ version: -1 })
-      .lean()
+      
       .exec();
 
     return versions as unknown as IQuoteVersion[];
@@ -840,7 +840,7 @@ export class QuoteService {
     try {
       const tenant = await TenantModel.findById(tenantId)
         .select('quoteNumberPrefix')
-        .lean()
+        
         .exec();
       return tenant?.quoteNumberPrefix || 'COT';
     } catch {

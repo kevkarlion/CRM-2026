@@ -16,7 +16,7 @@ export class AssignmentService {
       workOrderId: new Types.ObjectId(workOrderId),
       technicianId: new Types.ObjectId(technicianId),
       status: { $in: ['assigned', 'acknowledged'] },
-    }).lean().exec();
+    }).exec();
 
     if (existingAssignment) {
       throw new Error('Technician is already assigned to this WorkOrder.');
@@ -24,7 +24,7 @@ export class AssignmentService {
 
     const workOrder = await WorkOrderModel.findOne({
       _id: workOrderId, tenantId, deletedAt: null,
-    }).lean().exec();
+    }).exec();
 
     if (!workOrder) {
       throw new Error(`WorkOrder ${workOrderId} not found.`);
@@ -42,7 +42,7 @@ export class AssignmentService {
       { _id: workOrderId, tenantId, deletedAt: null },
       { $addToSet: { assignedTechnicians: new Types.ObjectId(technicianId) } },
       { new: true },
-    ).lean().exec();
+    ).exec();
 
     await logActivity({
       tenantId,
@@ -82,7 +82,7 @@ export class AssignmentService {
         },
       },
       { new: true },
-    ).lean().exec();
+    ).exec();
 
     if (!assignment) {
       throw new Error(`Active assignment not found for technician ${technicianId}.`);
@@ -92,7 +92,7 @@ export class AssignmentService {
       { _id: workOrderId, tenantId, deletedAt: null },
       { $pull: { assignedTechnicians: new Types.ObjectId(technicianId) } },
       { new: true },
-    ).lean().exec();
+    ).exec();
 
     if (!updatedWorkOrder) {
       throw new Error(`WorkOrder ${workOrderId} not found.`);
@@ -131,7 +131,7 @@ export class AssignmentService {
         },
       },
       { new: true },
-    ).lean().exec();
+    ).exec();
 
     if (!oldAssignment) {
       throw new Error(`Active assignment not found for technician ${oldTechnicianId}.`);
@@ -157,7 +157,7 @@ export class AssignmentService {
         $addToSet: { assignedTechnicians: new Types.ObjectId(newTechnicianId) },
       },
       { new: true },
-    ).lean().exec();
+    ).exec();
 
     if (!updatedWorkOrder) {
       throw new Error(`WorkOrder ${workOrderId} not found.`);
@@ -193,7 +193,7 @@ export class AssignmentService {
       status: { $in: ['assigned', 'acknowledged'] },
     })
       .sort({ assignedAt: -1 })
-      .lean()
+      
       .exec();
   }
 }

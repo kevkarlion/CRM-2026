@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ContractService, ContractValidationError } from '@/src/contracts/services/contract.service';
+import { ContractService, ContractValidationError } from '@/contracts/services';
+import type { UpdateContractInput } from '@/contracts/types/contract';
 
 const service = new ContractService();
 
@@ -38,7 +39,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
+    const body = await request.json() as UpdateContractInput;
     const contract = await service.update(params.id, body, tenantId, userId);
 
     if (!contract) {

@@ -10,11 +10,7 @@ import { ListCard } from '@/dashboard/components/ListCard';
 import { fetchSummary, fetchOperations, fetchContracts } from '@/dashboard/services/client-index';
 import type { SummaryResponse, OperationsResponse, ContractsResponse } from '@/dashboard/types/metrics';
 
-export default function OverviewRoute() {
-  return <OverviewPage />;
-}
-
-export function OverviewPage() {
+export default function OverviewPage() {
   const [summary, setSummary] = useState<SummaryResponse | null>(null);
   const [operations, setOperations] = useState<OperationsResponse | null>(null);
   const [contracts, setContracts] = useState<ContractsResponse | null>(null);

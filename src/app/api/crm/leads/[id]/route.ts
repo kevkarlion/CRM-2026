@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { LeadService, ValidationError } from '@/src/leads/services/lead.service';
+import { LeadService, ValidationError } from '@/leads/services/lead.service';
+import type { UpdateLeadInput } from '@/leads/types/lead';
 
 const service = new LeadService();
 
@@ -38,7 +39,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
+    const body = await request.json() as UpdateLeadInput;
     const updated = await service.updateLead(params.id, body, userId, tenantId);
 
     if (!updated) {

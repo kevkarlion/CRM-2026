@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { MaintenanceSchedulerService } from '@/src/contracts/services/maintenance-scheduler.service';
+import { MaintenanceSchedulerService } from '@/contracts/services/maintenance-scheduler.service';
 
 const service = new MaintenanceSchedulerService();
 

@@ -26,6 +26,11 @@ export interface QuoteMetrics {
   totalEstimatedValue: number;
 }
 
+export interface EmployeeMetrics {
+  total: number;
+  active: number;
+}
+
 export interface ContractMetrics {
   active: number;
   expiringSoon: number;
@@ -38,6 +43,7 @@ export interface SummaryResponse {
   leads: LeadMetrics;
   quotes: QuoteMetrics;
   contracts: ContractMetrics;
+  employees: EmployeeMetrics;
   generatedAt: string;
 }
 
@@ -86,6 +92,8 @@ export interface TopClient {
 export interface CommercialResponse {
   leadsByStage: LeadByStage[];
   newLeadsThisMonth: number;
+  totalActiveLeads: number;
+  convertedThisMonth: number;
   conversionRate: number;
   quotesByStatus: QuoteByStatus[];
   topClients: TopClient[];

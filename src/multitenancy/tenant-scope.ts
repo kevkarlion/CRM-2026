@@ -14,7 +14,7 @@ export function tenantScope<T>(
   const scope: FilterQuery<T> = { tenantId } as unknown as FilterQuery<T>;
 
   if (!includeDeleted) {
-    scope.deletedAt = null;
+    (scope as Record<string, unknown>).deletedAt = null;
   }
 
   return scope;

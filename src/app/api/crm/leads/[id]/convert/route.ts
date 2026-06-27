@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { LeadService, ValidationError, ConflictError } from '@/src/leads/services/lead.service';
+import { LeadService, ValidationError, ConflictError } from '@/leads/services/lead.service';
 
 const service = new LeadService();
 

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PipelineService } from '@/src/leads/services/pipeline.service';
+import { PipelineService } from '@/leads/services';
 
 const service = new PipelineService();
 
@@ -14,7 +14,7 @@ export async function POST(
       return NextResponse.json({ error: 'x-tenant-id and x-user-id headers are required' }, { status: 400 });
     }
 
-    const body = await request.json();
+    const body = await request.json() as { name: string; probability: number; position?: number };
     if (!body.name || body.probability === undefined) {
       return NextResponse.json(
         { error: 'name and probability are required' },

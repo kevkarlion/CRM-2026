@@ -1,5 +1,5 @@
 import { Types } from 'mongoose';
-import { PlatformRole } from '../types/platform-user';
+import { PlatformRole } from '../core/types/platform-user';
 import PlatformUserModel from '../core/models/platform-user';
 
 export interface AdminSession {
@@ -20,7 +20,7 @@ export async function verifyPlatformUser(
   try {
     const user = await PlatformUserModel.findById(userId)
       .select('email role status deletedAt')
-      .lean()
+      
       .exec();
 
     if (!user || user.status !== 'active' || user.deletedAt) {

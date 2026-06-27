@@ -64,7 +64,7 @@ export async function getEntityHistory(
   })
     .sort({ timestamp: -1 })
     .limit(options?.limit || 50)
-    .lean()
+    
     .exec();
 }
 
@@ -84,6 +84,6 @@ export async function getTenantActivityFeed(
   return ActivityLogModel.find(filter)
     .sort({ timestamp: -1 })
     .limit(options?.limit || 20)
-    .lean()
+    
     .exec();
 }

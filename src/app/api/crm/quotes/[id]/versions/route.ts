@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { QuoteService } from '@/src/quotes/services';
+import { QuoteService } from '@/quotes/services';
 
 const service = new QuoteService();
 

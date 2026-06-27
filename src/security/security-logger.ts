@@ -1,6 +1,6 @@
 import { Types } from 'mongoose';
 import SecurityLogModel from '../core/models/security-log';
-import { SecurityEventType } from '../types/security-log';
+import { SecurityEventType } from '../core/types/security-log';
 
 export interface SecurityLogInput {
   tenantId?: string | Types.ObjectId;
@@ -56,15 +56,16 @@ export async function getTenantSecurityLog(
   }
 
   if (options?.from || options?.to) {
-    filter.timestamp = {};
-    if (options.from) filter.timestamp.$gte = options.from;
-    if (options.to) filter.timestamp.$lte = options.to;
+    const timestampFilter: Record<string, unknown> = {};
+    if (options.from) timestampFilter.$gte = options.from;
+    if (options.to) timestampFilter.$lte = options.to;
+    filter.timestamp = timestampFilter;
   }
 
   return SecurityLogModel.find(filter)
     .sort({ timestamp: -1 })
     .limit(options?.limit || 50)
-    .lean()
+    
     .exec();
 }
 
@@ -78,7 +79,7 @@ export async function getUserSecurityLog(
   return SecurityLogModel.find({ userId })
     .sort({ timestamp: -1 })
     .limit(options?.limit || 20)
-    .lean()
+    
     .exec();
 }
 

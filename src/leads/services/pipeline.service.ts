@@ -55,7 +55,7 @@ export class PipelineService {
       tenantId: new Types.ObjectId(tenantId),
       deletedAt: null,
     })
-      .lean()
+      
       .exec() as unknown as IPipeline[];
 
     if (pipelines.length === 0) {
@@ -72,7 +72,7 @@ export class PipelineService {
       isDefault: true,
       deletedAt: null,
     })
-      .lean()
+      
       .exec() as unknown as IPipeline | null;
 
     if (!pipeline) {
@@ -101,7 +101,7 @@ export class PipelineService {
       { $set: setData },
       { new: true },
     )
-      .lean()
+      
       .exec() as unknown as IPipeline | null;
 
     if (pipeline) {
@@ -129,7 +129,7 @@ export class PipelineService {
       tenantId: new Types.ObjectId(tenantId),
       deletedAt: null,
     })
-      .lean()
+      
       .exec() as unknown as IPipeline | null;
 
     if (!pipeline) return null;
@@ -157,7 +157,7 @@ export class PipelineService {
       },
       { new: true },
     )
-      .lean()
+      
       .exec() as unknown as IPipeline | null;
 
     if (updated) {
@@ -197,7 +197,7 @@ export class PipelineService {
       { $set: setFields },
       { new: true },
     )
-      .lean()
+      
       .exec() as unknown as IPipeline | null;
 
     if (updated) {
@@ -234,7 +234,7 @@ export class PipelineService {
       },
       { new: true },
     )
-      .lean()
+      
       .exec() as unknown as IPipeline | null;
 
     if (updated) {
@@ -262,7 +262,7 @@ export class PipelineService {
       tenantId: new Types.ObjectId(tenantId),
       deletedAt: null,
     })
-      .lean()
+      
       .exec() as unknown as IPipeline | null;
 
     if (!pipeline) return null;
@@ -292,7 +292,7 @@ export class PipelineService {
       { $set: { stages: reorderedStages, updatedBy: userId } },
       { new: true },
     )
-      .lean()
+      
       .exec() as unknown as IPipeline | null;
 
     if (updated) {
@@ -319,7 +319,7 @@ export class PipelineService {
       tenantId: new Types.ObjectId(tenantId),
       deletedAt: null,
     })
-      .lean()
+      
       .exec() as unknown as IPipeline | null;
 
     if (!pipeline) return null;
@@ -337,7 +337,7 @@ export class PipelineService {
       { $set: { deletedAt: new Date(), deletedBy: userId } },
       { new: true },
     )
-      .lean()
+      
       .exec() as unknown as IPipeline | null;
 
     if (updated) {

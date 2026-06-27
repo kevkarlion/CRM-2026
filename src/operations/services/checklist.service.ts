@@ -20,7 +20,7 @@ export class ChecklistService {
     return PreVisitChecklistModel.findOne({
       tenantId: new Types.ObjectId(tenantId),
       workOrderId: new Types.ObjectId(workOrderId),
-    }).lean().exec();
+    }).exec();
   }
 
   async createChecklist(
@@ -31,7 +31,7 @@ export class ChecklistService {
     const existing = await PreVisitChecklistModel.findOne({
       tenantId: new Types.ObjectId(tenantId),
       workOrderId: new Types.ObjectId(workOrderId),
-    }).lean().exec();
+    }).exec();
 
     if (existing) {
       throw new Error('Checklist already exists for this WorkOrder.');
@@ -69,7 +69,7 @@ export class ChecklistService {
       { tenantId: new Types.ObjectId(tenantId), workOrderId: new Types.ObjectId(workOrderId) },
       { $set: { ...data, completedBy: new Types.ObjectId(userId) } },
       { new: true },
-    ).lean().exec();
+    ).exec();
 
     return updated;
   }
@@ -94,7 +94,7 @@ export class ChecklistService {
         },
       },
       { new: true },
-    ).lean().exec();
+    ).exec();
 
     if (updated) {
       await logActivity({
@@ -116,7 +116,7 @@ export class ChecklistService {
     const checklist = await PreVisitChecklistModel.findOne({
       tenantId: new Types.ObjectId(tenantId),
       workOrderId: new Types.ObjectId(workOrderId),
-    }).lean().exec();
+    }).exec();
 
     if (!checklist) return false;
 

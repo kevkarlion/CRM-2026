@@ -20,8 +20,8 @@ export class TaskService {
 
   async findById(id: string, tenantId: string): Promise<ITask | null> {
     return TaskModel.findOne({ _id: id, tenantId, deletedAt: null })
-      .lean()
-      .exec();
+      
+      .exec() as unknown as Promise<ITask | null>;
   }
 
   async findByAssignedTo(
@@ -48,8 +48,8 @@ export class TaskService {
   ): Promise<ITask[]> {
     return TaskModel.find({ entityType, entityId, tenantId, deletedAt: null })
       .sort({ createdAt: -1 })
-      .lean()
-      .exec();
+      
+      .exec() as unknown as Promise<ITask[]>;
   }
 
   async update(
@@ -70,8 +70,8 @@ export class TaskService {
       { $set: setData },
       { new: true }
     )
-      .lean()
-      .exec();
+      
+      .exec() as unknown as Promise<ITask | null>;
   }
 
   async softDelete(id: string, tenantId: string, userId: string): Promise<void> {

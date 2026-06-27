@@ -73,7 +73,7 @@ export interface IWorkOrder extends Document, IAuditFields {
 
 export type CreateWorkOrderInput = Omit<
   IWorkOrder,
-  keyof Document | '_id' | 'createdAt' | 'updatedAt' | 'createdBy' | 'updatedBy' | 'deletedBy' | 'deletedAt' | 'workOrderNumber' | 'assignedTechnicians' | 'status' | 'version'
+  keyof Document | '_id' | 'tenantId' | 'createdAt' | 'updatedAt' | 'createdBy' | 'updatedBy' | 'deletedBy' | 'deletedAt' | 'workOrderNumber' | 'assignedTechnicians' | 'status' | 'version'
 >;
 
 export type UpdateWorkOrderInput = Partial<

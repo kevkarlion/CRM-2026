@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 import SystemHealthModel from '../core/models/system-health';
-import { HealthStatus } from '../types/system-health';
+import { HealthStatus } from '../core/types/system-health';
 
 export interface HealthCheckResult {
   serviceName: string;
@@ -118,7 +118,7 @@ export async function getLatestHealthStatus(): Promise<HealthCheckResult[]> {
   for (const serviceName of services) {
     const latest = await SystemHealthModel.findOne({ serviceName })
       .sort({ createdAt: -1 })
-      .lean()
+      
       .exec();
 
     if (latest) {

@@ -2,7 +2,7 @@
 
 'use client';
 
-import { createContext, useContext, useState, useMemo, type ReactNode } from 'react';
+import { createContext, useContext, useState, useMemo, useEffect, type ReactNode } from 'react';
 import { RoleDefaultPermissions, type TenantRoleName, type PermissionKey } from '@/rbac/permissions';
 
 interface UserInfo {
@@ -24,6 +24,22 @@ interface RoleContextValue {
   isTechnician: boolean;
 }
 
+function decodeToken(token: string): { userId?: string; tenantId?: string; roles?: string[]; name?: string; email?: string } {
+  try {
+    const payload = token.split('.')[1];
+    const decoded = JSON.parse(atob(payload));
+    return {
+      userId: decoded.userId ?? decoded.sub,
+      tenantId: decoded.tenantId,
+      roles: decoded.roles ?? [],
+      name: decoded.name ?? decoded.given_name ?? 'Admin',
+      email: decoded.email ?? '',
+    };
+  } catch {
+    return {};
+  }
+}
+
 const defaultUser: UserInfo = {
   name: 'Admin',
   email: 'admin@crm.local',
@@ -34,6 +50,19 @@ const RoleContext = createContext<RoleContextValue | null>(null);
 
 export function RoleProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserInfo>(defaultUser);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      const data = decodeToken(token);
+      const role: TenantRoleName = (data.roles?.[0] as TenantRoleName) ?? 'Administrator';
+      setUser({
+        name: data.name ?? 'Admin',
+        email: data.email ?? '',
+        role,
+      });
+    }
+  }, []);
 
   const value = useMemo<RoleContextValue>(() => {
     const role = user.role;

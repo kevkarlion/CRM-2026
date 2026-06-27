@@ -37,7 +37,7 @@ export async function cursorPage<T>(
   if (options.cursor) {
     const decoded = decodeCursor(options.cursor);
     const operator = sortOrder === -1 ? '$lt' : '$gt';
-    queryFilter[sortField] = { [operator]: decoded.sortValue };
+    (queryFilter as Record<string, unknown>)[sortField] = { [operator]: decoded.sortValue };
   }
 
   // Fetch one extra to determine hasMore
@@ -45,7 +45,7 @@ export async function cursorPage<T>(
     .find(queryFilter)
     .sort({ [sortField]: sortOrder, _id: sortOrder as 1 | -1 })
     .limit(limit + 1)
-    .lean()
+    
     .exec();
 
   const hasMore = docs.length > limit;
@@ -54,8 +54,8 @@ export async function cursorPage<T>(
   const cursor =
     data.length > 0
       ? encodeCursor(
-          (data[data.length - 1] as Record<string, unknown>)[sortField],
-          String((data[data.length - 1] as Record<string, unknown>)._id)
+          (data[data.length - 1] as unknown as Record<string, unknown>)[sortField],
+          String((data[data.length - 1] as unknown as Record<string, unknown>)._id)
         )
       : null;
 

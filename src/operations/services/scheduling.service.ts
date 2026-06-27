@@ -82,7 +82,7 @@ export class SchedulingService {
 
     const current = await WorkOrderModel.findOne({
       _id: workOrderId, tenantId, deletedAt: null,
-    }).select('assignedTechnicians status version').lean().exec();
+    }).select('assignedTechnicians status version').exec();
 
     if (!current) return null;
 
@@ -109,7 +109,7 @@ export class SchedulingService {
         $inc: { version: 1 },
       },
       { new: true },
-    ).lean().exec();
+    ).exec();
 
     if (!updated) {
       throw new Error('WorkOrder was modified by another user. Please refresh and retry.');
@@ -131,7 +131,7 @@ export class SchedulingService {
   ): Promise<Record<string, unknown> | null> {
     const current = await WorkOrderModel.findOne({
       _id: workOrderId, tenantId, deletedAt: null,
-    }).lean().exec();
+    }).exec();
 
     if (!current) return null;
 
@@ -171,7 +171,7 @@ export class SchedulingService {
         $inc: { version: 1 },
       },
       { new: true },
-    ).lean().exec();
+    ).exec();
 
     if (!updated) {
       throw new Error('WorkOrder was modified by another user. Please refresh and retry.');

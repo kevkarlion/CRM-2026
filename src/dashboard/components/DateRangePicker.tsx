@@ -39,7 +39,7 @@ export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
                 <input
                   type="date"
                   value={value.from}
-                  onChange={(e) => onChange({ ...value, from: e.target.value })}
+                   onChange={(e) => onChange({ ...value, from: (e.target as any).value })}
                   className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
               </div>
@@ -48,7 +48,7 @@ export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
                 <input
                   type="date"
                   value={value.to}
-                  onChange={(e) => onChange({ ...value, to: e.target.value })}
+                   onChange={(e) => onChange({ ...value, to: (e.target as any).value })}
                   className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
                 />
               </div>

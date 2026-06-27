@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { WorkOrderService, ValidationError } from '@/src/operations/services/work-order.service';
+import { WorkOrderService, ValidationError } from '@/operations/services/work-order.service';
+import type { CreateWorkOrderInput } from '@/operations/types/work-order';
 
 const service = new WorkOrderService();
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const tenantId = searchParams.get('tenantId') || request.headers.get('x-tenant-id') || '';
+    const tenantId = request.headers.get('x-tenant-id');
     if (!tenantId) {
-      return NextResponse.json({ error: 'tenantId is required' }, { status: 400 });
+      return NextResponse.json({ error: 'x-tenant-id header is required' }, { status: 401 });
     }
 
     const status = searchParams.get('status') || undefined;
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'x-tenant-id and x-user-id headers are required' }, { status: 400 });
     }
 
-    const body = await request.json();
+    const body = await request.json() as CreateWorkOrderInput;
     const data = await service.create(body, tenantId, userId);
 
     return NextResponse.json({ data }, { status: 201 });

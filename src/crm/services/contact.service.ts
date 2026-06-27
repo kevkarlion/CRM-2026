@@ -18,8 +18,8 @@ export class ContactService {
 
   async findById(id: string, tenantId: string): Promise<IContact | null> {
     return ContactModel.findOne({ _id: id, tenantId, deletedAt: null })
-      .lean()
-      .exec();
+      
+      .exec() as unknown as Promise<IContact | null>;
   }
 
   async findByClient(
@@ -28,8 +28,8 @@ export class ContactService {
   ): Promise<IContact[]> {
     return ContactModel.find({ clientId, tenantId, deletedAt: null })
       .sort({ isPrimary: -1, createdAt: -1 })
-      .lean()
-      .exec();
+      
+      .exec() as unknown as Promise<IContact[]>;
   }
 
   async update(
@@ -43,8 +43,8 @@ export class ContactService {
       { $set: { ...data, updatedBy: userId } },
       { new: true }
     )
-      .lean()
-      .exec();
+      
+      .exec() as unknown as Promise<IContact | null>;
   }
 
   async setPrimary(
@@ -65,8 +65,8 @@ export class ContactService {
       { $set: { isPrimary: true, updatedBy: userId } },
       { new: true }
     )
-      .lean()
-      .exec();
+      
+      .exec() as unknown as Promise<IContact | null>;
   }
 
   async softDelete(id: string, tenantId: string, userId: string): Promise<void> {

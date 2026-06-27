@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { MaintenanceScheduleModel } from '@/src/contracts/models';
+import { MaintenanceScheduleModel } from '@/contracts/models';
 
 export async function GET(
   request: NextRequest,
@@ -26,7 +26,7 @@ export async function GET(
     const schedules = await MaintenanceScheduleModel.find(filter)
       .sort({ scheduledDate: 1 })
       .populate('maintenancePlanId')
-      .lean()
+      
       .exec();
 
     return NextResponse.json(schedules);

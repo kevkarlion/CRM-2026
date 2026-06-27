@@ -17,7 +17,7 @@ export {
   AttachmentModel,
 } from './models';
 export { cursorPage } from './helpers/cursor-pagination';
-export {
+export type {
   IClient,
   CreateClientInput,
   UpdateClientInput,

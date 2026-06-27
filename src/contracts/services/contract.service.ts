@@ -26,7 +26,7 @@ export class ContractService {
     userId: string,
     tenantId: string,
   ): Promise<IContract> {
-    const client = await ClientModel.findById(data.clientId).lean().exec();
+    const client = await ClientModel.findById(data.clientId).exec();
     if (!client) {
       throw new ValidationError(`Client ${data.clientId} not found`);
     }
@@ -53,13 +53,13 @@ export class ContractService {
       metadata: { contractName: data.name },
     });
 
-    return contract.toObject();
+    return contract.toObject() as unknown as IContract;
   }
 
   async findById(id: string, tenantId: string): Promise<IContract | null> {
     return ContractModel.findOne({ _id: id, tenantId, deletedAt: null })
-      .lean()
-      .exec();
+      
+      .exec() as unknown as Promise<IContract | null>;
   }
 
   async findByTenant(
@@ -81,8 +81,8 @@ export class ContractService {
 
     return ContractModel.find(query)
       .sort({ createdAt: -1 })
-      .lean()
-      .exec();
+      
+      .exec() as unknown as Promise<IContract[]>;
   }
 
   async update(
@@ -96,7 +96,7 @@ export class ContractService {
       { $set: { ...data, updatedBy: userId } },
       { new: true },
     )
-      .lean()
+      
       .exec();
 
     if (!contract) {
@@ -109,10 +109,10 @@ export class ContractService {
       entityId: id,
       action: 'updated',
       actorId: userId,
-      changes: { before: {}, after: data },
+      changes: { before: {}, after: data as Record<string, unknown> },
     });
 
-    return contract;
+    return contract as unknown as IContract;
   }
 
   async changeStatus(
@@ -123,7 +123,7 @@ export class ContractService {
   ): Promise<IContract | null> {
     const current = await ContractModel.findOne({ _id: id, tenantId, deletedAt: null })
       .select('status')
-      .lean()
+      
       .exec();
 
     if (!current) {
@@ -143,7 +143,7 @@ export class ContractService {
       { $set: { status: targetStatus, updatedBy: userId } },
       { new: true },
     )
-      .lean()
+      
       .exec();
 
     if (!updated) {
@@ -170,7 +170,7 @@ export class ContractService {
       },
     });
 
-    return updated;
+    return updated as unknown as IContract;
   }
 
   async softDelete(
@@ -179,7 +179,7 @@ export class ContractService {
     userId: string,
   ): Promise<boolean> {
     const contract = await ContractModel.findOne({ _id: id, tenantId, deletedAt: null })
-      .lean()
+      
       .exec();
 
     if (!contract) {
@@ -217,7 +217,7 @@ export class ContractService {
     tenantId: string,
   ): Promise<void> {
     const contract = await ContractModel.findOne({ _id: contractId, tenantId, deletedAt: null })
-      .lean()
+      
       .exec();
 
     if (!contract) {
@@ -230,7 +230,7 @@ export class ContractService {
       equipmentId,
       removedAt: null,
     })
-      .lean()
+      
       .exec();
 
     if (existing) {
@@ -265,7 +265,7 @@ export class ContractService {
       equipmentId,
       removedAt: null,
     })
-      .lean()
+      
       .exec();
 
     if (!record) {
@@ -297,7 +297,7 @@ export class ContractService {
       removedAt: null,
     })
       .populate('equipmentId')
-      .lean()
+      
       .exec();
   }
 }

@@ -9,6 +9,8 @@ export interface CursorPage<T> {
 export interface CursorOptions {
   limit: number;
   cursor?: string;
+  sortField?: string;
+  sortOrder?: 1 | -1;
   sort?: Record<string, 1 | -1>;
 }
 

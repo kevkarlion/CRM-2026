@@ -1,4 +1,4 @@
-import type { PermissionKey } from '@/src/rbac/permissions';
+import type { PermissionKey } from '@/rbac/permissions';
 
 /**
  * Minimal request interface compatible with NextRequest (Next.js) and

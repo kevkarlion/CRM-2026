@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { WorkOrderService, ValidationError, ConflictError } from '@/src/operations/services/work-order.service';
+import { WorkOrderService, ValidationError, ConflictError } from '@/operations/services/work-order.service';
 
 const service = new WorkOrderService();
 
@@ -38,7 +38,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'x-tenant-id and x-user-id headers are required' }, { status: 400 });
     }
 
-    const body = await request.json();
+    const body = await request.json() as { version: number; [key: string]: unknown };
     const { version, ...data } = body;
 
     if (version === undefined || version === null) {

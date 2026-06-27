@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { VisitReportService } from '@/src/operations/services/visit-report.service';
+import { VisitReportService } from '@/operations/services/visit-report.service';
+import type { CreateVisitReportInput, UpdateVisitReportInput } from '@/operations/types/visit-report';
 
 const service = new VisitReportService();
 
@@ -38,7 +39,7 @@ export async function POST(
       return NextResponse.json({ error: 'x-tenant-id and x-user-id headers are required' }, { status: 400 });
     }
 
-    const body = await request.json();
+    const body = await request.json() as CreateVisitReportInput;
     const data = await service.createVisitReport(params.id, body, tenantId, userId);
 
     return NextResponse.json({ data }, { status: 201 });
@@ -61,7 +62,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'x-tenant-id and x-user-id headers are required' }, { status: 400 });
     }
 
-    const body = await request.json();
+    const body = await request.json() as UpdateVisitReportInput & { version: number };
     const data = await service.updateVisitReport(params.id, body, tenantId, userId);
 
     if (!data) {

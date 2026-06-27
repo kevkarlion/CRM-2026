@@ -1,5 +1,8 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { initAuth } from '@/lib/auth-config';
+
+initAuth();
 
 export const metadata: Metadata = {
   title: 'CRM 2026',

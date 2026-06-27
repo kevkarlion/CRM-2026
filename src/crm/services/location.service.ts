@@ -19,8 +19,8 @@ export class LocationService {
 
   async findById(id: string, tenantId: string): Promise<ILocation | null> {
     return LocationModel.findOne({ _id: id, tenantId, deletedAt: null })
-      .lean()
-      .exec();
+      
+      .exec() as unknown as Promise<ILocation | null>;
   }
 
   async findByClient(
@@ -29,8 +29,8 @@ export class LocationService {
   ): Promise<ILocation[]> {
     return LocationModel.find({ clientId, tenantId, deletedAt: null })
       .sort({ createdAt: -1 })
-      .lean()
-      .exec();
+      
+      .exec() as unknown as Promise<ILocation[]>;
   }
 
   async update(
@@ -42,7 +42,7 @@ export class LocationService {
     // If clientId is changing, sync Equipment at this location
     if (data.clientId) {
       const current = await LocationModel.findOne({ _id: id, tenantId, deletedAt: null })
-        .lean()
+        
         .exec();
       if (current && current.clientId.toString() !== data.clientId) {
         await EquipmentModel.updateMany(
@@ -57,8 +57,8 @@ export class LocationService {
       { $set: { ...data, updatedBy: userId } },
       { new: true }
     )
-      .lean()
-      .exec();
+      
+      .exec() as unknown as Promise<ILocation | null>;
   }
 
   async softDelete(id: string, tenantId: string, userId: string): Promise<void> {

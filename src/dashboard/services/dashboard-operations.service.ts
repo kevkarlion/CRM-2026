@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { WorkOrderModel, WorkOrderAssignmentModel } from '../../operations/models';
 import {
   OperationsResponse,
@@ -66,7 +67,7 @@ export class DashboardOperationsService {
       updatedAt: { $gte: thirtyDaysAgo },
     })
       .select('createdAt updatedAt')
-      .lean()
+      
       .exec();
 
     let onTime = 0;
@@ -90,24 +91,32 @@ export class DashboardOperationsService {
   }
 
   private async getTechnicianLoad(tenantId: string): Promise<TechnicianLoad[]> {
+    const tid = new mongoose.Types.ObjectId(tenantId);
     const assignments = await WorkOrderAssignmentModel.aggregate([
+      { $match: { tenantId: tid, unassignedAt: null } },
       {
-        $match: { tenantId, unassignedAt: null },
+        $lookup: {
+          from: 'users',
+          localField: 'technicianId',
+          foreignField: '_id',
+          as: 'technician',
+        },
       },
+      { $unwind: '$technician' },
       {
         $group: {
           _id: '$technicianId',
           assignedCount: { $sum: 1 },
-          technicianName: { $first: '$technicianName' },
+          technicianName: { $first: '$technician.firstName' },
+          technicianLastName: { $first: '$technician.lastName' },
         },
       },
       { $sort: { assignedCount: -1 } },
       { $limit: 10 },
     ]);
-
     return assignments.map((a) => ({
       techId: a._id.toString(),
-      name: a.technicianName || 'Unknown',
+      name: `${a.technicianName || ''} ${a.technicianLastName || ''}`.trim() || 'Unknown',
       assignedCount: a.assignedCount,
     }));
   }

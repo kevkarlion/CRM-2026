@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { QuoteModel } from '../../quotes/models';
 import { LeadModel } from '../../leads/models';
 import { CommercialResponse, LeadByStage, QuoteByStatus, TopClient } from '../types/metrics';
@@ -10,7 +11,8 @@ export class DashboardCommercialService {
     const [
       leadsByStage,
       newLeadsThisMonth,
-      totalLeads,
+      totalActiveLeads,
+      convertedThisMonth,
       qualifiedLeads,
       quotesByStatus,
       topClients,
@@ -18,18 +20,21 @@ export class DashboardCommercialService {
       this.getLeadsByStage(tenantId),
       this.countNewLeads(tenantId, startOfMonth),
       this.countAllLeads(tenantId),
+      this.countConvertedThisMonth(tenantId, startOfMonth),
       this.countQualifiedLeads(tenantId),
       this.getQuotesByStatus(tenantId),
       this.getTopClients(tenantId),
     ]);
 
-    const conversionRate = totalLeads > 0
-      ? Math.round((qualifiedLeads / totalLeads) * 100)
+    const conversionRate = totalActiveLeads > 0
+      ? Math.round((qualifiedLeads / totalActiveLeads) * 100)
       : 0;
 
     return {
       leadsByStage,
       newLeadsThisMonth,
+      totalActiveLeads,
+      convertedThisMonth,
       conversionRate,
       quotesByStatus,
       topClients,
@@ -38,8 +43,9 @@ export class DashboardCommercialService {
   }
 
   private async getLeadsByStage(tenantId: string): Promise<LeadByStage[]> {
+    const tid = new mongoose.Types.ObjectId(tenantId);
     const stages = await LeadModel.aggregate([
-      { $match: { tenantId, deletedAt: null } },
+      { $match: { tenantId: tid, deletedAt: null } },
       { $group: { _id: '$status', count: { $sum: 1 } } },
       { $sort: { count: -1 } },
     ]);
@@ -58,13 +64,22 @@ export class DashboardCommercialService {
     return LeadModel.countDocuments({ tenantId, deletedAt: null });
   }
 
+  private async countConvertedThisMonth(tenantId: string, since: Date): Promise<number> {
+    return LeadModel.countDocuments({
+      tenantId, deletedAt: null,
+      status: 'won',
+      createdAt: { $gte: since },
+    });
+  }
+
   private async countQualifiedLeads(tenantId: string): Promise<number> {
     return LeadModel.countDocuments({ tenantId, deletedAt: null, status: 'won' });
   }
 
   private async getQuotesByStatus(tenantId: string): Promise<QuoteByStatus[]> {
+    const tid = new mongoose.Types.ObjectId(tenantId);
     const quotes = await QuoteModel.aggregate([
-      { $match: { tenantId, deletedAt: null } },
+      { $match: { tenantId: tid, deletedAt: null } },
       { $group: { _id: '$status', count: { $sum: 1 } } },
       { $sort: { count: -1 } },
     ]);
@@ -72,9 +87,25 @@ export class DashboardCommercialService {
   }
 
   private async getTopClients(tenantId: string): Promise<TopClient[]> {
+    const tid = new mongoose.Types.ObjectId(tenantId);
     const clients = await QuoteModel.aggregate([
-      { $match: { tenantId, deletedAt: null, status: { $in: ['sent', 'approved'] } } },
-      { $group: { _id: '$clientId', totalQuoted: { $sum: '$total' }, name: { $first: '$clientSnapshot.name' } } },
+      { $match: { tenantId: tid, deletedAt: null, status: { $in: ['sent', 'approved'] } } },
+      {
+        $lookup: {
+          from: 'clients',
+          localField: 'clientId',
+          foreignField: '_id',
+          as: 'client',
+        },
+      },
+      { $unwind: { path: '$client', preserveNullAndEmptyArrays: true } },
+      {
+        $group: {
+          _id: '$clientId',
+          totalQuoted: { $sum: '$total' },
+          name: { $first: { $ifNull: ['$client.companyName', { $ifNull: ['$client.fullName', 'Unknown'] }] } },
+        },
+      },
       { $sort: { totalQuoted: -1 } },
       { $limit: 5 },
     ]);

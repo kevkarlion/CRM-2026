@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { LeadAssignmentService } from '@/src/leads/services/lead-assignment.service';
+import { LeadAssignmentService } from '@/leads/services/lead-assignment.service';
 
 const service = new LeadAssignmentService();
 
@@ -14,7 +14,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
+    const body = await request.json() as { userId: string; reason?: string };
     const { userId: targetUserId, reason } = body;
 
     if (!targetUserId) {

@@ -1,7 +1,7 @@
 import { Document, Types } from 'mongoose';
 import { IAuditFields } from './audit-fields';
 
-export interface IEquipment extends Document, IAuditFields {
+export interface IEquipment extends Omit<Document, 'model'>, IAuditFields {
   _id: Types.ObjectId;
   tenantId: Types.ObjectId;
   clientId: Types.ObjectId;

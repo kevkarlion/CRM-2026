@@ -35,7 +35,7 @@ export class MaintenanceSchedulerService {
     userId: string,
   ): Promise<{ created: number; skipped: number }> {
     const contract = await ContractModel.findOne({ _id: contractId, tenantId, deletedAt: null })
-      .lean()
+      
       .exec();
 
     if (!contract) {
@@ -49,7 +49,7 @@ export class MaintenanceSchedulerService {
       workOrderId: null,
     })
       .sort({ scheduledDate: 1 })
-      .lean()
+      
       .exec();
 
     if (pendingSchedules.length === 0) {
@@ -62,13 +62,13 @@ export class MaintenanceSchedulerService {
       contractId,
       removedAt: null,
     })
-      .lean()
+      
       .exec();
 
     // Default to first client location for WorkOrder
     const [location] = await LocationModel.find({ clientId: contract.clientId, tenantId })
       .limit(1)
-      .lean()
+      
       .exec();
 
     if (!location) {
@@ -86,7 +86,7 @@ export class MaintenanceSchedulerService {
         tenantId,
         deletedAt: null,
       })
-        .lean()
+        
         .exec();
 
       const planName = plan?.name ?? 'Unnamed Plan';
@@ -171,7 +171,7 @@ export class MaintenanceSchedulerService {
       scheduledDate: { $gte: startDate, $lte: endDate },
     })
       .sort({ scheduledDate: 1 })
-      .lean()
+      
       .exec();
 
     const contractIds = [...new Set(schedules.map((s) => s.contractId.toString()))];

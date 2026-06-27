@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { LeadService, ValidationError } from '@/src/leads/services/lead.service';
+import { LeadService, ValidationError } from '@/leads/services/lead.service';
+import type { CreateLeadInput } from '@/leads/types/lead';
 
 const service = new LeadService();
 
@@ -40,7 +41,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
+    const body = await request.json() as CreateLeadInput;
     const result = await service.createLead(body, userId, tenantId);
 
     return NextResponse.json(result, { status: 201 });

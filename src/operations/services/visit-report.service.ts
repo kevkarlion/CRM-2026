@@ -14,7 +14,7 @@ export class VisitReportService {
       tenantId: new Types.ObjectId(tenantId),
       workOrderId: new Types.ObjectId(workOrderId),
       deletedAt: null,
-    }).lean().exec();
+    }).exec();
 
     if (existing) {
       throw new Error('VisitReport already exists for this WorkOrder.');
@@ -55,7 +55,7 @@ export class VisitReportService {
       },
       { $set: { ...fields, updatedBy: new Types.ObjectId(userId) }, $inc: { version: 1 } },
       { new: true },
-    ).lean().exec();
+    ).exec();
 
     if (!updated) {
       throw new Error('Version conflict: VisitReport was modified by another user.');
@@ -72,7 +72,7 @@ export class VisitReportService {
       tenantId: new Types.ObjectId(tenantId),
       workOrderId: new Types.ObjectId(workOrderId),
       deletedAt: null,
-    }).lean().exec();
+    }).exec();
   }
 
   async existsForWorkOrder(

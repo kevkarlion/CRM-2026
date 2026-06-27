@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { AssignmentService } from '@/src/operations/services/assignment.service';
+import { AssignmentService } from '@/operations/services/assignment.service';
 
 const service = new AssignmentService();
 
@@ -34,7 +34,7 @@ export async function POST(
       return NextResponse.json({ error: 'x-tenant-id and x-user-id headers are required' }, { status: 400 });
     }
 
-    const body = await request.json();
+    const body = await request.json() as { action: string; technicianId?: string; oldTechnicianId?: string; newTechnicianId?: string };
     const { action } = body;
 
     if (!action) {

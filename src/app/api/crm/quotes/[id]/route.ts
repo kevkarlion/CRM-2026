@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { QuoteService, NotFoundError, ValidationError } from '@/src/quotes/services';
+import { QuoteService, NotFoundError, ValidationError } from '@/quotes/services';
+import type { UpdateQuoteInput } from '@/quotes/types/quote';
 
 const service = new QuoteService();
 
@@ -38,7 +39,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const body = await request.json();
+    const body = await request.json() as UpdateQuoteInput;
     const result = await service.updateQuote(params.id, body, userId, tenantId);
 
     return NextResponse.json(result);

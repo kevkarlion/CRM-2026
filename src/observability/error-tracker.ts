@@ -1,6 +1,6 @@
 import { Types } from 'mongoose';
 import ErrorEventModel from '../core/models/error-event';
-import { ErrorSeverity, ErrorStatus } from '../types/error-event';
+import { ErrorSeverity, ErrorStatus } from '../core/types/error-event';
 import type { ErrorContext } from './types';
 
 export interface ErrorEventInput {
@@ -117,7 +117,7 @@ export async function getOpenErrors(
   return ErrorEventModel.find(filter)
     .sort({ severity: 1, timestamp: -1 })
     .limit(options?.limit || 20)
-    .lean()
+    
     .exec();
 }
 

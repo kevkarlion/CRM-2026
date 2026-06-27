@@ -21,7 +21,7 @@ export type AuthenticatedHandler<T = unknown> = (
  *
  * @example
  * ```ts
- * import { withAuth } from '@/src/core/auth';
+ * import { withAuth } from '@/core/auth';
  * import { NextResponse } from 'next/server';
  *
  * export const GET = withAuth(async (request, { params, user }) => {

@@ -5,16 +5,21 @@ import type {
   OperationsResponse,
   CommercialResponse,
   ContractsResponse,
-} from '../../types/metrics';
+} from '../types/metrics';
 
 const BASE = '/api/dashboard';
 
 async function fetchJson<T>(url: string): Promise<T> {
-  const res = await fetch(url, { headers: { 'x-tenant-id': 'default' } });
+  const headers: Record<string, string> = {};
+  const token = localStorage.getItem('token');
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  const res = await fetch(url, { headers });
   if (!res.ok) {
     throw new Error(`Dashboard API error: ${res.status} ${res.statusText}`);
   }
-  return res.json();
+  return res.json() as Promise<T>;
 }
 
 export async function fetchSummary(): Promise<SummaryResponse> {

@@ -1,8 +1,10 @@
+import mongoose from 'mongoose';
 import { ClientModel } from '../../crm/models';
 import { WorkOrderModel } from '../../operations/models';
 import { QuoteModel } from '../../quotes/models';
 import { ContractModel, MaintenanceScheduleModel } from '../../contracts/models';
 import { LeadModel } from '../../leads/models';
+import { UserModel } from '../../core/models';
 import {
   SummaryResponse,
   ClientMetrics,
@@ -10,12 +12,14 @@ import {
   LeadMetrics,
   QuoteMetrics,
   ContractMetrics,
+  EmployeeMetrics,
 } from '../types/metrics';
 
 export class DashboardMetricsService {
   async getSummary(tenantId: string): Promise<SummaryResponse> {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
     const [
       totalClients,
@@ -31,27 +35,88 @@ export class DashboardMetricsService {
       rejectedQuotes,
       quoteValueResult,
       activeContracts,
-      expiringContracts,
+      expiringSoon,
       upcomingMaintenance,
+      totalEmployees,
+      activeEmployees,
+      avgCompletionTime,
     ] = await Promise.all([
+      // Clients
       ClientModel.countDocuments({ tenantId, deletedAt: null }),
       ClientModel.countDocuments({ tenantId, deletedAt: null, createdAt: { $gte: startOfMonth } }),
-      this.countClientsWithContracts(tenantId),
-      WorkOrderModel.countDocuments({ tenantId, deletedAt: null, status: { $in: ['draft', 'scheduled', 'confirmed'] } }),
-      WorkOrderModel.countDocuments({ tenantId, deletedAt: null, status: { $in: ['assigned', 'en_route', 'on_site', 'paused'] } }),
-      WorkOrderModel.countDocuments({ tenantId, deletedAt: null, status: 'completed', updatedAt: { $gte: startOfMonth } }),
-      this.countLeadsByStatus(tenantId, 'new', startOfMonth),
-      this.countLeadsByStatus(tenantId, 'qualified'),
-      QuoteModel.countDocuments({ tenantId, deletedAt: null, status: 'sent' }),
-      QuoteModel.countDocuments({ tenantId, deletedAt: null, status: 'approved' }),
-      QuoteModel.countDocuments({ tenantId, deletedAt: null, status: 'rejected' }),
-      this.sumQuoteValues(tenantId),
-      this.countContractsByStatus(tenantId, 'active'),
-      this.countExpiringContracts(tenantId),
-      this.countUpcomingSchedules(tenantId),
+      ContractModel.countDocuments({ tenantId, status: 'active', deletedAt: null }),
+
+      // Work Orders
+      WorkOrderModel.countDocuments({ tenantId, status: 'scheduled', deletedAt: null }),
+      WorkOrderModel.countDocuments({
+        tenantId,
+        status: { $in: ['assigned', 'en_route', 'on_site', 'paused'] },
+        deletedAt: null,
+      }),
+      WorkOrderModel.countDocuments({
+        tenantId,
+        status: { $in: ['completed', 'closed'] },
+        updatedAt: { $gte: startOfMonth },
+        deletedAt: null,
+      }),
+
+      // Leads
+      LeadModel.countDocuments({ tenantId, status: 'new', deletedAt: null }),
+      LeadModel.countDocuments({ tenantId, status: 'qualified', deletedAt: null }),
+
+      // Quotes
+      QuoteModel.countDocuments({ tenantId, status: 'sent', deletedAt: null }),
+      QuoteModel.countDocuments({ tenantId, status: 'approved', deletedAt: null }),
+      QuoteModel.countDocuments({ tenantId, status: 'rejected', deletedAt: null }),
+      QuoteModel.aggregate([
+        { $match: { tenantId: new mongoose.Types.ObjectId(tenantId), status: 'approved', deletedAt: null } },
+        { $group: { _id: null, total: { $sum: '$total' } } },
+      ]).then((r) => (r[0]?.total ?? 0)),
+
+      // Contracts
+      ContractModel.countDocuments({ tenantId, status: 'active', deletedAt: null }),
+      ContractModel.countDocuments({
+        tenantId,
+        status: 'active',
+        endDate: { $lte: thirtyDaysFromNow, $gte: now },
+        deletedAt: null,
+      }),
+      MaintenanceScheduleModel.countDocuments({
+        tenantId,
+        nextDate: { $gte: now },
+        deletedAt: null,
+      }),
+
+      // Employees
+      UserModel.countDocuments({ tenantId, deletedAt: null }),
+      UserModel.countDocuments({ tenantId, status: 'active', deletedAt: null }),
+
+      // Average completion time (hours between creation and completion)
+      WorkOrderModel.aggregate([
+        {
+          $match: {
+            tenantId: new mongoose.Types.ObjectId(tenantId),
+            status: { $in: ['completed', 'closed'] },
+            deletedAt: null,
+            updatedAt: { $ne: null },
+            createdAt: { $ne: null },
+          },
+        },
+        {
+          $project: {
+            durationHours: {
+              $divide: [
+                { $subtract: ['$updatedAt', '$createdAt'] },
+                1000 * 60 * 60,
+              ],
+            },
+          },
+        },
+        { $group: { _id: null, avg: { $avg: '$durationHours' } } },
+      ]).then((r) => (r[0]?.avg !== undefined ? Math.round(r[0].avg * 10) / 10 : null)),
     ]);
 
-    const totalLeadsConverted = newLeads > 0
+    const conversionRate = newLeads > 0
       ? Math.round((qualifiedLeads / Math.max(newLeads + qualifiedLeads, 1)) * 100)
       : 0;
 
@@ -65,13 +130,13 @@ export class DashboardMetricsService {
       pending: pendingWO,
       inProgress: inProgressWO,
       completedThisMonth: completedWOMonth,
-      avgCompletionTimeHours: null, // Requires more complex aggregation
+      avgCompletionTimeHours: avgCompletionTime,
     };
 
     const leadMetrics: LeadMetrics = {
       new: newLeads,
       qualified: qualifiedLeads,
-      conversionRate: totalLeadsConverted,
+      conversionRate,
     };
 
     const quoteMetrics: QuoteMetrics = {
@@ -83,8 +148,13 @@ export class DashboardMetricsService {
 
     const contractMetrics: ContractMetrics = {
       active: activeContracts,
-      expiringSoon: expiringContracts,
-      upcomingMaintenance: upcomingMaintenance,
+      expiringSoon,
+      upcomingMaintenance,
+    };
+
+    const employeeMetrics: EmployeeMetrics = {
+      total: totalEmployees,
+      active: activeEmployees,
     };
 
     return {
@@ -93,61 +163,8 @@ export class DashboardMetricsService {
       leads: leadMetrics,
       quotes: quoteMetrics,
       contracts: contractMetrics,
+      employees: employeeMetrics,
       generatedAt: now.toISOString(),
     };
-  }
-
-  private async countClientsWithContracts(tenantId: string): Promise<number> {
-    const result = await ContractModel.distinct('clientId', {
-      tenantId,
-      status: 'active',
-      deletedAt: null,
-    });
-    return result.length;
-  }
-
-  private async countLeadsByStatus(
-    tenantId: string,
-    status: string,
-    createdAtGte?: Date,
-  ): Promise<number> {
-    const filter: Record<string, unknown> = { tenantId, deletedAt: null, status };
-    if (createdAtGte) {
-      filter.createdAt = { $gte: createdAtGte };
-    }
-    return LeadModel.countDocuments(filter);
-  }
-
-  private async sumQuoteValues(tenantId: string): Promise<number> {
-    const result = await QuoteModel.aggregate([
-      { $match: { tenantId, deletedAt: null, status: { $in: ['sent', 'approved'] } } },
-      { $group: { _id: null, total: { $sum: '$total' } } },
-    ]);
-    return result[0]?.total ?? 0;
-  }
-
-  private async countContractsByStatus(tenantId: string, status: string): Promise<number> {
-    return ContractModel.countDocuments({ tenantId, deletedAt: null, status });
-  }
-
-  private async countExpiringContracts(tenantId: string): Promise<number> {
-    const nextMonth = new Date();
-    nextMonth.setMonth(nextMonth.getMonth() + 1);
-    return ContractModel.countDocuments({
-      tenantId,
-      deletedAt: null,
-      status: 'active',
-      endDate: { $lte: nextMonth },
-    });
-  }
-
-  private async countUpcomingSchedules(tenantId: string): Promise<number> {
-    const nextWeek = new Date();
-    nextWeek.setDate(nextWeek.getDate() + 7);
-    return MaintenanceScheduleModel.countDocuments({
-      tenantId,
-      status: 'scheduled',
-      scheduledDate: { $gte: new Date(), $lte: nextWeek },
-    });
   }
 }
