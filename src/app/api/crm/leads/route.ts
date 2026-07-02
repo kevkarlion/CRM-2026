@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { LeadService, ValidationError } from '@/leads/services/lead.service';
+import { LeadService, ValidationError, ConflictError } from '@/leads/services/lead.service';
 import type { CreateLeadInput } from '@/leads/types/lead';
 
 const service = new LeadService();
@@ -44,8 +44,15 @@ export async function POST(request: NextRequest) {
     const body = await request.json() as CreateLeadInput;
     const result = await service.createLead(body, userId, tenantId);
 
-    return NextResponse.json(result, { status: 201 });
+    return NextResponse.json({
+      lead: result.lead,
+      warnings: result.warnings,
+      nextAction: result.nextAction,
+    }, { status: 201 });
   } catch (error) {
+    if (error instanceof ConflictError) {
+      return NextResponse.json({ error: error.message }, { status: 409 });
+    }
     if (error instanceof ValidationError) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
