@@ -3,6 +3,8 @@ import { LeadStatus } from '../types/lead';
 export const VALID_TRANSITIONS: Record<LeadStatus, LeadStatus[]> = {
   new: ['contacted', 'lost'],
   contacted: ['qualified', 'lost'],
+  quote_sent: [],
+  technical_visit: [],
   qualified: ['won', 'lost'],
   won: [],
   lost: [],

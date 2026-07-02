@@ -1,5 +1,5 @@
 import { Schema } from 'mongoose';
-import { ILead, LeadStatus, LeadSource } from '../types/lead';
+import { ILead, LeadStatus, LeadSource, QualificationStatus, LostReason } from '../types/lead';
 
 export const leadSchema = new Schema<ILead>(
   {
@@ -15,11 +15,22 @@ export const leadSchema = new Schema<ILead>(
     },
     status: {
       type: String,
-      enum: ['new', 'contacted', 'qualified', 'won', 'lost', 'disqualified'] satisfies LeadStatus[],
+      enum: ['new', 'contacted', 'quote_sent', 'technical_visit', 'qualified', 'won', 'lost', 'disqualified'] satisfies LeadStatus[],
       required: true,
       default: 'new',
     },
+    qualificationStatus: {
+      type: String,
+      enum: ['qualified', 'not_qualified', 'pending'] satisfies QualificationStatus[],
+      default: 'pending',
+      required: true,
+    },
     assignedTo: { type: Schema.Types.ObjectId, ref: 'User' },
+    lostReason: {
+      type: String,
+      enum: ['price', 'competitor', 'budget', 'not_interested', 'timing', 'no_response', 'other'] satisfies LostReason[],
+    },
+    lostDescription: { type: String, trim: true },
     previousLeadId: { type: Schema.Types.ObjectId, ref: 'Lead' },
     estimatedValue: { type: Number, min: 0 },
     notes: { type: String },
