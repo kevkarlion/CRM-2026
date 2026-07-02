@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { mockQueryChain, mockLeadCreate, mockActivityExists, mockFindDuplicates, mockAssign, mockUnassign, mockCursorPage } = vi.hoisted(() => {
+const { mockQueryChain, mockLeadCreate, mockActivityExists, mockFindDuplicates, mockAssign, mockUnassign, mockCursorPage, mockClientCreate, mockContactCreate } = vi.hoisted(() => {
   const exec = vi.fn();
   const chain: any = {
     lean: vi.fn(),
@@ -21,6 +21,8 @@ const { mockQueryChain, mockLeadCreate, mockActivityExists, mockFindDuplicates, 
     mockAssign: vi.fn(),
     mockUnassign: vi.fn(),
     mockCursorPage: vi.fn(),
+    mockClientCreate: vi.fn(),
+    mockContactCreate: vi.fn(),
   };
 });
 
@@ -29,6 +31,12 @@ vi.mock('mongoose', () => {
     constructor(_id?: string) {}
     toString() { return 'mock-id'; }
   }
+  const mockSession = {
+    startTransaction: vi.fn(),
+    commitTransaction: vi.fn().mockResolvedValue(undefined),
+    abortTransaction: vi.fn().mockResolvedValue(undefined),
+    endSession: vi.fn(),
+  };
   return {
     Types: { ObjectId: MockObjectId as any },
       Schema: class {
@@ -37,6 +45,8 @@ vi.mock('mongoose', () => {
       },
     model: vi.fn(),
     Document: class {},
+    ClientSession: class {},
+    startSession: vi.fn().mockResolvedValue(mockSession),
     default: {
       Types: { ObjectId: MockObjectId as any },
       Schema: class {
@@ -44,6 +54,8 @@ vi.mock('mongoose', () => {
         index(...args: any[]) { return this; }
       },
       model: vi.fn(),
+      ClientSession: class {},
+      startSession: vi.fn().mockResolvedValue(mockSession),
     },
   };
 });
@@ -68,6 +80,18 @@ vi.mock('../../src/leads/helpers/duplicate-detection', () => ({
   findDuplicates: mockFindDuplicates,
 }));
 
+vi.mock('../../src/crm/models/client', () => ({
+  default: {
+    create: mockClientCreate,
+  },
+}));
+
+vi.mock('../../src/crm/models/contact', () => ({
+  default: {
+    create: mockContactCreate,
+  },
+}));
+
 vi.mock('../../src/audit/activity-logger', () => ({
   logActivity: vi.fn(),
 }));
@@ -80,6 +104,16 @@ vi.mock('../../src/leads/services/lead-assignment.service', () => ({
     getAssignmentHistory: vi.fn(),
     getActiveAssignments: vi.fn(),
   })),
+}));
+
+vi.mock('../../src/leads/models/pipeline', () => ({
+  default: {
+    findOne: vi.fn().mockReturnValue(mockQueryChain),
+  },
+}));
+
+vi.mock('../../src/core/models/user', () => ({
+  default: {},
 }));
 
 vi.mock('../../src/crm/helpers/cursor-pagination', () => ({
@@ -97,6 +131,7 @@ function makeLead(overrides: Record<string, unknown> = {}) {
     phone: '+5491112345678',
     source: 'whatsapp',
     status: 'new',
+    qualificationStatus: 'pending',
     assignedTo: null,
     companyName: 'ACME',
     notes: 'interesado',
@@ -121,10 +156,11 @@ describe('LeadService', () => {
   });
 
   describe('createLead', () => {
-    it('creates a lead successfully', async () => {
+    it('creates a lead with default status new and nextAction none', async () => {
       const leadData = makeLead();
       mockLeadCreate.mockResolvedValue(leadData);
       mockFindDuplicates.mockResolvedValue([]);
+      mockQueryChain.exec.mockResolvedValue(leadData);
 
       const result = await service.createLead(
         { name: 'Juan Pérez', email: 'juan@test.com', phone: '+5491112345678', source: 'whatsapp' },
@@ -133,6 +169,8 @@ describe('LeadService', () => {
       );
 
       expect(result.lead).toBeDefined();
+      expect(result.lead.status).toBe('new');
+      expect(result.nextAction).toBe('none');
       expect(result.warnings).toBeUndefined();
     });
 
@@ -141,6 +179,7 @@ describe('LeadService', () => {
       mockLeadCreate.mockResolvedValue(leadData);
       mockFindDuplicates.mockResolvedValue([]);
       mockAssign.mockResolvedValue({});
+      mockQueryChain.exec.mockResolvedValue(leadData);
 
       await service.createLead(
         { name: 'Juan Pérez', email: 'juan@test.com', source: 'whatsapp', assignedTo: 'user2' },
@@ -157,6 +196,7 @@ describe('LeadService', () => {
       mockFindDuplicates.mockResolvedValue([
         { _id: 'dup1', email: 'juan@test.com', phone: 'other', companyName: 'Other' },
       ]);
+      mockQueryChain.exec.mockResolvedValue(leadData);
 
       const result = await service.createLead(
         { name: 'Juan Pérez', email: 'juan@test.com', source: 'whatsapp' },
@@ -167,6 +207,200 @@ describe('LeadService', () => {
       expect(result.warnings).toBeDefined();
       expect(result.warnings).toHaveLength(1);
       expect(result.warnings![0].matchedField).toBe('email');
+      expect(result.nextAction).toBe('none');
+    });
+
+    it('creates lead with default status new when status is omitted', async () => {
+      const leadData = makeLead();
+      mockLeadCreate.mockResolvedValue(leadData);
+      mockFindDuplicates.mockResolvedValue([]);
+      mockQueryChain.exec.mockResolvedValue(leadData);
+
+      const result = await service.createLead(
+        { name: 'Juan Pérez', email: 'juan@test.com', source: 'whatsapp' },
+        'user1',
+        'tenant1',
+      );
+
+      expect(result.lead.status).toBe('new');
+      expect(result.nextAction).toBe('none');
+    });
+
+    it('creates lead with status quote_sent and returns nextAction create_quote', async () => {
+      const leadData = makeLead({ status: 'quote_sent' });
+      const refreshedLead = makeLead({ status: 'quote_sent', qualificationStatus: 'qualified' });
+      mockLeadCreate.mockResolvedValue(leadData);
+      mockFindDuplicates.mockResolvedValue([]);
+      mockQueryChain.exec
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(refreshedLead);
+
+      const result = await service.createLead(
+        { name: 'Juan Pérez', email: 'juan@test.com', source: 'whatsapp', status: 'quote_sent' },
+        'user1',
+        'tenant1',
+      );
+
+      expect(result.lead.status).toBe('quote_sent');
+      expect(result.nextAction).toBe('create_quote');
+    });
+
+    it('creates lead with status technical_visit and returns nextAction schedule_visit', async () => {
+      const leadData = makeLead({ status: 'technical_visit' });
+      const refreshedLead = makeLead({ status: 'technical_visit', qualificationStatus: 'qualified' });
+      mockLeadCreate.mockResolvedValue(leadData);
+      mockFindDuplicates.mockResolvedValue([]);
+      mockQueryChain.exec
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(refreshedLead);
+
+      const result = await service.createLead(
+        { name: 'Juan Pérez', email: 'juan@test.com', source: 'whatsapp', status: 'technical_visit' },
+        'user1',
+        'tenant1',
+      );
+
+      expect(result.lead.status).toBe('technical_visit');
+      expect(result.nextAction).toBe('schedule_visit');
+    });
+
+    it('creates lead as won and converts to client in transaction', async () => {
+      const leadData = makeLead({ status: 'won' });
+      const wonLead = makeLead({
+        status: 'won',
+        qualificationStatus: 'qualified',
+        convertedToClient: 'client1',
+        convertedAt: new Date(),
+      });
+      mockLeadCreate.mockResolvedValue(leadData);
+      mockFindDuplicates.mockResolvedValue([]);
+      mockClientCreate.mockResolvedValue([{ _id: 'client1' }]);
+      mockContactCreate.mockResolvedValue([{}]);
+      mockQueryChain.exec
+        .mockResolvedValueOnce(wonLead)
+        .mockResolvedValueOnce(wonLead);
+
+      const result = await service.createLead(
+        { name: 'Juan Pérez', email: 'juan@test.com', source: 'whatsapp', status: 'won' },
+        'user1',
+        'tenant1',
+      );
+
+      expect(result.lead.status).toBe('won');
+      expect(result.lead.convertedToClient).toBe('client1');
+      expect(result.nextAction).toBe('none');
+      expect(mockClientCreate).toHaveBeenCalledTimes(1);
+      expect(mockContactCreate).toHaveBeenCalledTimes(1);
+    });
+
+    it('creates lead as lost and sets qualificationStatus not_qualified', async () => {
+      const leadData = makeLead({ status: 'lost' });
+      const lostLead = makeLead({
+        status: 'lost',
+        qualificationStatus: 'not_qualified',
+        lostReason: 'price',
+      });
+      mockLeadCreate.mockResolvedValue(leadData);
+      mockFindDuplicates.mockResolvedValue([]);
+      mockQueryChain.exec
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(lostLead);
+
+      const result = await service.createLead(
+        { name: 'Juan Pérez', email: 'juan@test.com', source: 'whatsapp', status: 'lost', lostReason: 'price' },
+        'user1',
+        'tenant1',
+      );
+
+      expect(result.lead.status).toBe('lost');
+      expect(result.lead.lostReason).toBe('price');
+      expect(result.lead.qualificationStatus).toBe('not_qualified');
+      expect(result.nextAction).toBe('none');
+    });
+
+    it('throws ValidationError when status is lost without lostReason', async () => {
+      mockFindDuplicates.mockResolvedValue([]);
+
+      await expect(
+        service.createLead(
+          { name: 'Juan Pérez', email: 'juan@test.com', source: 'whatsapp', status: 'lost' },
+          'user1',
+          'tenant1',
+        ),
+      ).rejects.toThrow(ValidationError);
+
+      expect(mockLeadCreate).not.toHaveBeenCalled();
+    });
+
+    it('throws ValidationError when lostReason is invalid', async () => {
+      mockFindDuplicates.mockResolvedValue([]);
+
+      await expect(
+        service.createLead(
+          { name: 'Juan Pérez', source: 'whatsapp', status: 'lost', lostReason: 'invalid_reason' as any },
+          'user1',
+          'tenant1',
+        ),
+      ).rejects.toThrow(ValidationError);
+
+      expect(mockLeadCreate).not.toHaveBeenCalled();
+    });
+
+    it('runs duplicate detection for all statuses including won', async () => {
+      const leadData = makeLead({ status: 'won' });
+      const wonLead = makeLead({
+        status: 'won',
+        qualificationStatus: 'qualified',
+        convertedToClient: 'client1',
+        convertedAt: new Date(),
+      });
+      mockLeadCreate.mockResolvedValue(leadData);
+      mockFindDuplicates.mockResolvedValue([
+        { _id: 'dup1', email: 'juan@test.com', phone: 'other', companyName: 'Other' },
+      ]);
+      mockClientCreate.mockResolvedValue([{ _id: 'client1' }]);
+      mockContactCreate.mockResolvedValue([{}]);
+      mockQueryChain.exec
+        .mockResolvedValueOnce(wonLead)
+        .mockResolvedValueOnce(wonLead);
+
+      const result = await service.createLead(
+        { name: 'Juan Pérez', email: 'juan@test.com', source: 'whatsapp', status: 'won' },
+        'user1',
+        'tenant1',
+      );
+
+      expect(mockFindDuplicates).toHaveBeenCalledTimes(1);
+      expect(result.warnings).toBeDefined();
+    });
+
+    it('returns warnings alongside nextAction for won with duplicates', async () => {
+      const leadData = makeLead({ status: 'won' });
+      const wonLead = makeLead({
+        status: 'won',
+        qualificationStatus: 'qualified',
+        convertedToClient: 'client1',
+        convertedAt: new Date(),
+      });
+      mockLeadCreate.mockResolvedValue(leadData);
+      mockFindDuplicates.mockResolvedValue([
+        { _id: 'dup1', email: 'juan@test.com', phone: 'other', companyName: 'Other' },
+      ]);
+      mockClientCreate.mockResolvedValue([{ _id: 'client1' }]);
+      mockContactCreate.mockResolvedValue([{}]);
+      mockQueryChain.exec
+        .mockResolvedValueOnce(wonLead)
+        .mockResolvedValueOnce(wonLead);
+
+      const result = await service.createLead(
+        { name: 'Juan Pérez', email: 'juan@test.com', source: 'whatsapp', status: 'won' },
+        'user1',
+        'tenant1',
+      );
+
+      expect(result.warnings).toBeDefined();
+      expect(result.warnings).toHaveLength(1);
+      expect(result.nextAction).toBe('none');
     });
   });
 
