@@ -8,7 +8,7 @@ import ActivityModel from '../../crm/models/activity';
 import ClientModel from '../../crm/models/client';
 import ContactModel from '../../crm/models/contact';
 import { cursorPage } from '../../crm/helpers/cursor-pagination';
-import type { ILead, LeadStatus, CreateLeadInput, UpdateLeadInput } from '../types/lead';
+import type { ILead, LeadStatus, CreateLeadInput, UpdateLeadInput, LostReason } from '../types/lead';
 import type { IPipeline, IPipelineStage } from '../types/pipeline';
 import PipelineModel from '../models/pipeline';
 import UserModel from '../../core/models/user';
@@ -25,6 +25,7 @@ export interface DuplicateWarning {
 export interface CreateLeadResult {
   lead: ILead;
   warnings?: DuplicateWarning[];
+  nextAction: 'none' | 'create_quote' | 'schedule_visit';
 }
 
 export interface LeadListFilters {
@@ -96,11 +97,20 @@ export class LeadService {
       }
     }
 
-    const { assignedTo, ...leadData } = data;
+    const { assignedTo, status, lostReason, lostDescription, ...leadData } = data;
+    const resolvedStatus: LeadStatus = status || 'new';
+
+    const validLostReasons: LostReason[] = ['price', 'competitor', 'budget', 'not_interested', 'timing', 'no_response', 'other'];
+    if (resolvedStatus === 'lost' && !lostReason) {
+      throw new ValidationError('lostReason is required when status is lost');
+    }
+    if (lostReason && !validLostReasons.includes(lostReason)) {
+      throw new ValidationError('Invalid lostReason value');
+    }
 
     const lead = await LeadModel.create({
       ...leadData,
-      status: 'new',
+      status: resolvedStatus,
       createdBy: userId,
       updatedBy: userId,
       tenantId: new Types.ObjectId(tenantId),
@@ -118,11 +128,140 @@ export class LeadService {
       actorId: userId,
     });
 
-    const result: CreateLeadResult = { lead: lead.toObject() as unknown as ILead };
+    let nextAction: CreateLeadResult['nextAction'] = 'none';
+
+    switch (resolvedStatus) {
+      case 'won':
+        await this.createClientFromLeadAndMarkWon(lead, userId, tenantId);
+        nextAction = 'none';
+        break;
+
+      case 'lost':
+        await LeadModel.findOneAndUpdate(
+          { _id: lead._id },
+          {
+            $set: {
+              lostReason,
+              ...(lostDescription && { lostDescription }),
+              qualificationStatus: 'not_qualified',
+            },
+          },
+        ).exec();
+        nextAction = 'none';
+        break;
+
+      case 'quote_sent':
+        await LeadModel.findOneAndUpdate(
+          { _id: lead._id },
+          { $set: { qualificationStatus: 'qualified' } },
+        ).exec();
+        nextAction = 'create_quote';
+        break;
+
+      case 'technical_visit':
+        await LeadModel.findOneAndUpdate(
+          { _id: lead._id },
+          { $set: { qualificationStatus: 'qualified' } },
+        ).exec();
+        nextAction = 'schedule_visit';
+        break;
+
+      default:
+        break;
+    }
+
+    const refreshedLead = await LeadModel.findOne({ _id: lead._id }).exec();
+    const result: CreateLeadResult = {
+      lead: (refreshedLead || lead).toObject() as unknown as ILead,
+      nextAction,
+    };
     if (warnings.length > 0) {
       result.warnings = warnings;
     }
     return result;
+  }
+
+  private async createClientFromLead(
+    lead: ILead,
+    userId: string,
+    session: mongoose.ClientSession,
+  ): Promise<Types.ObjectId> {
+    const nameParts = lead.name.split(' ');
+    const firstName = nameParts[0];
+    const lastName = nameParts.slice(1).join(' ') || firstName;
+
+    const [newClient] = await ClientModel.create([{
+      tenantId: lead.tenantId,
+      customerType: 'residential',
+      status: 'active',
+      fullName: lead.name,
+      companyName: lead.companyName || undefined,
+      createdBy: new Types.ObjectId(userId),
+      updatedBy: new Types.ObjectId(userId),
+    }], { session });
+
+    await ContactModel.create([{
+      tenantId: lead.tenantId,
+      clientId: newClient._id,
+      firstName,
+      lastName,
+      email: lead.email || undefined,
+      phone: lead.phone || undefined,
+      isPrimary: true,
+      createdBy: new Types.ObjectId(userId),
+      updatedBy: new Types.ObjectId(userId),
+    }], { session });
+
+    return newClient._id;
+  }
+
+  private async createClientFromLeadAndMarkWon(
+    lead: ILead,
+    userId: string,
+    tenantId: string,
+  ): Promise<void> {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+      const clientId = await this.createClientFromLead(lead, userId, session);
+
+      const updatedLead = await LeadModel.findOneAndUpdate(
+        { _id: lead._id, tenantId: lead.tenantId, deletedAt: null },
+        {
+          $set: {
+            status: 'won',
+            convertedToClient: clientId,
+            convertedAt: new Date(),
+            qualificationStatus: 'qualified',
+            updatedBy: userId,
+          },
+        },
+        { new: true, session },
+      ).exec();
+
+      if (!updatedLead) {
+        throw new ConflictError('Failed to update lead after conversion');
+      }
+
+      await session.commitTransaction();
+      session.endSession();
+
+      await logActivity({
+        tenantId,
+        entityType: 'lead',
+        entityId: String(lead._id),
+        action: 'status_changed',
+        actorId: userId,
+        metadata: {
+          clientId: String(clientId),
+          trigger: 'create_lead_as_won',
+        },
+      });
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      throw error;
+    }
   }
 
   async listLeads(
