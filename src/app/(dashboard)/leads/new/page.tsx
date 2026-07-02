@@ -3,6 +3,9 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api-client';
+import { LeadStatus, type ILead } from '@/leads/types/lead';
+import { CreateQuoteModal } from '@/quotes/components/CreateQuoteModal';
+import { ScheduleVisitModal } from '@/operations/components/ScheduleVisitModal';
 
 const SOURCE_OPTIONS = [
   { value: 'whatsapp', label: 'WhatsApp' },
@@ -26,6 +29,12 @@ export default function NewLeadPage() {
     notes: '',
     assignedTo: '',
   });
+  const [status, setStatus] = useState<LeadStatus>('new');
+  const [lostReason, setLostReason] = useState('');
+  const [lostDescription, setLostDescription] = useState('');
+  const [showQuoteModal, setShowQuoteModal] = useState(false);
+  const [showVisitModal, setShowVisitModal] = useState(false);
+  const [createdLead, setCreatedLead] = useState<ILead | null>(null);
 
   function update(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -40,8 +49,10 @@ export default function NewLeadPage() {
     setError(null);
 
     if (!form.name.trim()) { setError('El nombre es obligatorio'); return; }
-    if (!form.companyName.trim()) { setError('La empresa es obligatoria'); return; }
-    if (!form.email.trim()) { setError('El email es obligatorio'); return; }
+    if (status !== 'lost') {
+      if (!form.companyName.trim()) { setError('La empresa es obligatoria'); return; }
+      if (!form.email.trim()) { setError('El email es obligatorio'); return; }
+    }
     if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
       setError('Email inválido'); return;
     }
@@ -53,13 +64,32 @@ export default function NewLeadPage() {
         companyName: form.companyName.trim(),
         email: form.email.trim(),
         source: form.source,
+        status,
       };
       if (form.phone) body.phone = form.phone;
       if (form.notes) body.notes = form.notes;
       if (form.assignedTo) body.assignedTo = form.assignedTo;
+      if (status === 'lost') {
+        body.lostReason = lostReason;
+        if (lostDescription) body.lostDescription = lostDescription;
+      }
 
-      const result = await api.post<{ lead: { _id: string } }>('/api/crm/leads', body);
-      router.push(`/leads/${result.lead._id}`);
+      const result = await api.post<{ lead: ILead; nextAction: string; warnings?: unknown[] }>('/api/crm/leads', body);
+
+      switch (result.nextAction) {
+        case 'create_quote':
+          setCreatedLead(result.lead);
+          setShowQuoteModal(true);
+          break;
+        case 'schedule_visit':
+          setCreatedLead(result.lead);
+          setShowVisitModal(true);
+          break;
+        case 'none':
+        default:
+          router.push(`/leads/${result.lead._id}`);
+          break;
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al crear lead');
     } finally {
@@ -124,6 +154,48 @@ export default function NewLeadPage() {
           </div>
         </div>
         <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Estado inicial</label>
+          <select value={status} onChange={(e) => {
+            const val = e.target.value as LeadStatus;
+            setStatus(val);
+            if (val !== 'lost') {
+              setLostReason('');
+              setLostDescription('');
+            }
+          }} className={inputClass}>
+            <option value="new">Nuevo Lead</option>
+            <option value="contacted">Contactado</option>
+            <option value="quote_sent">Presupuesto enviado</option>
+            <option value="technical_visit">Visita técnica</option>
+            <option value="won">Lead ganado</option>
+            <option value="lost">Lead perdido</option>
+          </select>
+        </div>
+        {status === 'lost' && (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Motivo de pérdida <span className="text-danger-500">*</span>
+              </label>
+              <select value={lostReason} onChange={(e) => setLostReason(e.target.value)} className={inputClass}>
+                <option value="">Seleccionar motivo</option>
+                <option value="price">Precio</option>
+                <option value="competitor">Competencia</option>
+                <option value="budget">Presupuesto</option>
+                <option value="not_interested">No interesado</option>
+                <option value="timing">Tiempo</option>
+                <option value="no_response">Sin respuesta</option>
+                <option value="other">Otro</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Comentarios</label>
+              <textarea value={lostDescription} onChange={(e) => setLostDescription(e.target.value)}
+                className={`${inputClass} min-h-[80px] resize-y`} placeholder="Detalles adicionales..." />
+            </div>
+          </>
+        )}
+        <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Notas</label>
           <textarea value={form.notes} onChange={(e) => handleChange('notes', e)}
             className={`${inputClass} min-h-[100px] resize-y`} placeholder="Comentarios adicionales..." />
@@ -139,6 +211,22 @@ export default function NewLeadPage() {
           </button>
         </div>
       </form>
+      {createdLead && (
+        <>
+          <CreateQuoteModal
+            lead={createdLead}
+            isOpen={showQuoteModal}
+            onClose={() => { setShowQuoteModal(false); router.push(`/leads/${createdLead._id}`); }}
+            onSuccess={() => router.push(`/leads/${createdLead._id}`)}
+          />
+          <ScheduleVisitModal
+            lead={createdLead}
+            isOpen={showVisitModal}
+            onClose={() => { setShowVisitModal(false); router.push(`/leads/${createdLead._id}`); }}
+            onSuccess={() => router.push(`/leads/${createdLead._id}`)}
+          />
+        </>
+      )}
     </div>
   );
 }
