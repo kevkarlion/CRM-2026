@@ -10,7 +10,7 @@ import {
 import type { LeadStatus } from '../../src/leads/types/lead';
 
 const ALL_STATUSES: LeadStatus[] = [
-  'new', 'contacted', 'qualified', 'won', 'lost', 'disqualified',
+  'new', 'contacted', 'technical_visit', 'quote_sent', 'negotiation', 'won', 'lost', 'disqualified',
 ];
 
 describe('Lead State Machine', () => {
@@ -23,24 +23,36 @@ describe('Lead State Machine', () => {
       expect(canTransition('new', 'lost')).toBe(true);
     });
 
-    it('allows contacted → qualified', () => {
-      expect(canTransition('contacted', 'qualified')).toBe(true);
+    it('allows contacted → quote_sent', () => {
+      expect(canTransition('contacted', 'quote_sent')).toBe(true);
+    });
+
+    it('allows contacted → technical_visit', () => {
+      expect(canTransition('contacted', 'technical_visit')).toBe(true);
     });
 
     it('allows contacted → lost', () => {
       expect(canTransition('contacted', 'lost')).toBe(true);
     });
 
-    it('allows qualified → won', () => {
-      expect(canTransition('qualified', 'won')).toBe(true);
+    it('allows quote_sent → won', () => {
+      expect(canTransition('quote_sent', 'won')).toBe(true);
     });
 
-    it('allows qualified → lost', () => {
-      expect(canTransition('qualified', 'lost')).toBe(true);
+    it('allows negotiation → won', () => {
+      expect(canTransition('negotiation', 'won')).toBe(true);
     });
 
-    it('blocks new → qualified (skips contacted)', () => {
-      expect(canTransition('new', 'qualified')).toBe(false);
+    it('allows quote_sent → lost', () => {
+      expect(canTransition('quote_sent', 'lost')).toBe(true);
+    });
+
+    it('allows negotiation → lost', () => {
+      expect(canTransition('negotiation', 'lost')).toBe(true);
+    });
+
+    it('blocks new → quote_sent (skips contacted)', () => {
+      expect(canTransition('new', 'quote_sent')).toBe(false);
     });
 
     it('blocks new → won (skips contacted + qualified)', () => {
@@ -73,14 +85,17 @@ describe('Lead State Machine', () => {
     it('passes valid transitions without throwing', () => {
       expect(() => validateTransition('new', 'contacted')).not.toThrow();
       expect(() => validateTransition('new', 'lost')).not.toThrow();
-      expect(() => validateTransition('contacted', 'qualified')).not.toThrow();
+      expect(() => validateTransition('contacted', 'quote_sent')).not.toThrow();
+      expect(() => validateTransition('contacted', 'technical_visit')).not.toThrow();
       expect(() => validateTransition('contacted', 'lost')).not.toThrow();
-      expect(() => validateTransition('qualified', 'won')).not.toThrow();
-      expect(() => validateTransition('qualified', 'lost')).not.toThrow();
+      expect(() => validateTransition('quote_sent', 'won')).not.toThrow();
+      expect(() => validateTransition('negotiation', 'won')).not.toThrow();
+      expect(() => validateTransition('quote_sent', 'lost')).not.toThrow();
+      expect(() => validateTransition('negotiation', 'lost')).not.toThrow();
     });
 
     it('throws TransitionError on invalid transition', () => {
-      expect(() => validateTransition('new', 'qualified')).toThrow(TransitionError);
+      expect(() => validateTransition('new', 'quote_sent')).toThrow(TransitionError);
     });
 
     it('throws TransitionError from terminal won', () => {
@@ -88,7 +103,7 @@ describe('Lead State Machine', () => {
     });
 
     it('throws TransitionError from terminal lost', () => {
-      expect(() => validateTransition('lost', 'qualified')).toThrow(TransitionError);
+      expect(() => validateTransition('lost', 'quote_sent')).toThrow(TransitionError);
     });
 
     it('throws TransitionError from terminal disqualified', () => {
@@ -101,14 +116,24 @@ describe('Lead State Machine', () => {
         expect(() => validateTransition('new', 'contacted', { hasActivity: false })).toThrow(TransitionError);
       });
 
-      it('contacted → qualified requires hasRequiredFields', () => {
-        expect(() => validateTransition('contacted', 'qualified', { hasRequiredFields: true })).not.toThrow();
-        expect(() => validateTransition('contacted', 'qualified', { hasRequiredFields: false })).toThrow(TransitionError);
+      it('contacted → quote_sent requires hasRequiredFields', () => {
+        expect(() => validateTransition('contacted', 'quote_sent', { hasRequiredFields: true })).not.toThrow();
+        expect(() => validateTransition('contacted', 'quote_sent', { hasRequiredFields: false })).toThrow(TransitionError);
       });
 
-      it('qualified → won requires hasClient', () => {
-        expect(() => validateTransition('qualified', 'won', { hasClient: true })).not.toThrow();
-        expect(() => validateTransition('qualified', 'won', { hasClient: false })).toThrow(TransitionError);
+      it('contacted → technical_visit requires hasRequiredFields', () => {
+        expect(() => validateTransition('contacted', 'technical_visit', { hasRequiredFields: true })).not.toThrow();
+        expect(() => validateTransition('contacted', 'technical_visit', { hasRequiredFields: false })).toThrow(TransitionError);
+      });
+
+      it('quote_sent → won requires hasClient', () => {
+        expect(() => validateTransition('quote_sent', 'won', { hasClient: true })).not.toThrow();
+        expect(() => validateTransition('quote_sent', 'won', { hasClient: false })).toThrow(TransitionError);
+      });
+
+      it('negotiation → won requires hasClient', () => {
+        expect(() => validateTransition('negotiation', 'won', { hasClient: true })).not.toThrow();
+        expect(() => validateTransition('negotiation', 'won', { hasClient: false })).toThrow(TransitionError);
       });
 
       it('throws specific guard message for missing activity', () => {
@@ -121,7 +146,7 @@ describe('Lead State Machine', () => {
 
       it('throws specific guard message for missing required fields', () => {
         try {
-          validateTransition('contacted', 'qualified', { hasRequiredFields: false });
+          validateTransition('contacted', 'quote_sent', { hasRequiredFields: false });
         } catch (e) {
           expect((e as TransitionError).message).toContain('Requires complete minimum information');
         }
@@ -129,7 +154,7 @@ describe('Lead State Machine', () => {
 
       it('throws specific guard message for missing client conversion', () => {
         try {
-          validateTransition('qualified', 'won', { hasClient: false });
+          validateTransition('quote_sent', 'won', { hasClient: false });
         } catch (e) {
           expect((e as TransitionError).message).toContain('Cannot mark as won without converting to Client first');
         }
@@ -172,7 +197,7 @@ describe('Lead State Machine', () => {
     it('does not contain non-terminal statuses', () => {
       expect(TERMINAL_STATUSES).not.toContain('new');
       expect(TERMINAL_STATUSES).not.toContain('contacted');
-      expect(TERMINAL_STATUSES).not.toContain('qualified');
+      expect(TERMINAL_STATUSES).not.toContain('negotiation');
     });
   });
 });

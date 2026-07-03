@@ -1,6 +1,5 @@
 import React from 'react';
-import { useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import { useDraggable } from '@dnd-kit/core';
 import type { ILead } from '../../types/lead';
 
 function relativeTime(date: Date): string {
@@ -42,13 +41,11 @@ export const LeadCard = React.memo(function LeadCard({ lead, onClick }: LeadCard
     listeners,
     setNodeRef,
     transform,
-    transition,
     isDragging,
-  } = useSortable({ id: String(lead._id) });
+  } = useDraggable({ id: String(lead._id) });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
+    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
     opacity: isDragging ? 0.5 : 1,
   };
 

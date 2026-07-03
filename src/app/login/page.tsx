@@ -1,12 +1,16 @@
 'use client';
 
-import { FormEvent, Suspense, useState } from 'react';
+import { FormEvent, Suspense, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirect') || '/dashboard';
+
+  useEffect(() => {
+    localStorage.removeItem('token');
+  }, []);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

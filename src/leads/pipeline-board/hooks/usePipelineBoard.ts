@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import type { DragStartEvent, DragEndEvent } from '@dnd-kit/core';
 import type { ILead, LeadStatus } from '../../types/lead';
 import type { IPipelineStage } from '../../types/pipeline';
@@ -24,10 +24,22 @@ function findLeadById(leadId: string, columns: Record<string, ILead[]>): ILead |
 
 export function usePipelineBoard(
   pipelineStages: IPipelineStage[],
+  groups: Record<string, { stage: IPipelineStage; leads: ILead[] }>,
   onRefetch?: () => void,
 ): UsePipelineBoardReturn {
   const [columns, setColumns] = useState<Record<string, ILead[]>>({});
   const [activeId, setActiveId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const mapped: Record<string, ILead[]> = {};
+    for (const [key, group] of Object.entries(groups)) {
+      mapped[key] = group.leads;
+    }
+    setColumns(mapped);
+  }, [groups]);
+
+  const columnsRef = useRef(columns);
+  columnsRef.current = columns;
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     setActiveId(String(event.active.id));
@@ -41,10 +53,11 @@ export function usePipelineBoard(
         return;
       }
 
+      const currentColumns = columnsRef.current;
       const leadId = String(active.id);
       const targetStageName = String(over.id);
 
-      const lead = findLeadById(leadId, columns);
+      const lead = findLeadById(leadId, currentColumns);
       if (!lead) {
         setActiveId(null);
         return;
@@ -62,10 +75,10 @@ export function usePipelineBoard(
         return;
       }
 
-      const previousColumns = structuredClone(columns);
+      const previousColumns = structuredClone(currentColumns);
 
       let sourceStageName: string | null = null;
-      for (const [stageName, leads] of Object.entries(columns)) {
+      for (const [stageName, leads] of Object.entries(currentColumns)) {
         if (leads.some((l) => String(l._id) === leadId)) {
           sourceStageName = stageName;
           break;
@@ -77,22 +90,41 @@ export function usePipelineBoard(
         return;
       }
 
-      const newColumns = { ...columns };
-      newColumns[sourceStageName] = columns[sourceStageName].filter(
+      const newColumns = { ...currentColumns };
+      newColumns[sourceStageName] = currentColumns[sourceStageName].filter(
         (l) => String(l._id) !== leadId,
       );
       newColumns[targetStageName] = [
-        ...columns[targetStageName],
+        ...currentColumns[targetStageName],
         lead,
       ];
       setColumns(newColumns);
 
       try {
+        let auth: Record<string, string> = {};
+        if (typeof window !== 'undefined') {
+          const token = localStorage.getItem('token');
+          if (token) {
+            try {
+              const payload = JSON.parse(atob(token.split('.')[1]));
+              auth = {
+                Authorization: `Bearer ${token}`,
+                'x-tenant-id': payload.tenantId || 'default',
+                'x-user-id': payload.userId || '',
+              };
+              if (Array.isArray(payload.roles) && payload.roles.length > 0) {
+                auth['x-user-roles'] = payload.roles.join(',');
+              }
+            } catch {
+              auth = { Authorization: `Bearer ${token}` };
+            }
+          }
+        }
         const res = await fetch(`/api/crm/leads/${leadId}/status`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
-            'x-tenant-id': 'default',
+            ...auth,
           },
           body: JSON.stringify({ status: targetStage.mapsToStatus }),
         });
@@ -115,7 +147,7 @@ export function usePipelineBoard(
         setActiveId(null);
       }
     },
-    [columns, pipelineStages, onRefetch],
+    [pipelineStages, onRefetch],
   );
 
   const handleDragCancel = useCallback(() => {

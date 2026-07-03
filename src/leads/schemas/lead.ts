@@ -15,7 +15,7 @@ export const leadSchema = new Schema<ILead>(
     },
     status: {
       type: String,
-      enum: ['new', 'contacted', 'quote_sent', 'technical_visit', 'qualified', 'won', 'lost', 'disqualified'] satisfies LeadStatus[],
+      enum: ['new', 'contacted', 'quote_sent', 'technical_visit', 'negotiation', 'won', 'lost', 'disqualified'] satisfies LeadStatus[],
       required: true,
       default: 'new',
     },

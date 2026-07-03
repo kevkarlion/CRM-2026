@@ -7,9 +7,10 @@ const service = new WorkOrderService();
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const tenantId = request.headers.get('x-tenant-id') || '';
     const userId = request.headers.get('x-user-id') || '';
     if (!tenantId || !userId) {
@@ -24,7 +25,7 @@ export async function PATCH(
     }
 
     const updated = await service.changeStatus(
-      params.id,
+      id,
       targetStatus as WorkOrderStatus,
       context || {},
       tenantId,

@@ -62,7 +62,7 @@ export class DashboardMetricsService {
 
       // Leads
       LeadModel.countDocuments({ tenantId, status: 'new', deletedAt: null }),
-      LeadModel.countDocuments({ tenantId, status: 'qualified', deletedAt: null }),
+      LeadModel.countDocuments({ tenantId, status: { $in: ['technical_visit', 'quote_sent', 'negotiation'] }, deletedAt: null }),
 
       // Quotes
       QuoteModel.countDocuments({ tenantId, status: 'sent', deletedAt: null }),

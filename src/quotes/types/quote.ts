@@ -6,7 +6,8 @@ export type QuoteStatus = 'draft' | 'sent' | 'approved' | 'rejected' | 'expired'
 export interface IQuote extends Document {
   _id: Types.ObjectId;
   tenantId: Types.ObjectId;
-  clientId: Types.ObjectId;
+  leadId: Types.ObjectId | null;
+  clientId: Types.ObjectId | null;
   locationId: Types.ObjectId | null;
   number: string;
   status: QuoteStatus;
@@ -34,7 +35,8 @@ export interface IQuote extends Document {
 }
 
 export interface CreateQuoteInput {
-  clientId: string;
+  leadId?: string;
+  clientId?: string;
   locationId?: string;
   validUntil?: string;
   title: string;

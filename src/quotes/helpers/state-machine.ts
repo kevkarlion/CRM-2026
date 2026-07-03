@@ -49,11 +49,13 @@ export function validateTransition(from: QuoteStatus, to: QuoteStatus): void {
 export function validateSendRequirements(quote: {
   items: unknown[];
   clientId: unknown;
+  leadId: unknown;
   validUntil: Date | null;
 }): void {
   const missing: string[] = [];
   if (!quote.items?.length) missing.push('items');
-  if (!quote.clientId) missing.push('clientId');
+  // Allow sending if there's either a client OR a lead
+  if (!quote.clientId && !quote.leadId) missing.push('clientId o leadId');
   if (quote.validUntil && quote.validUntil <= new Date()) {
     missing.push('validUntil vencido');
   }

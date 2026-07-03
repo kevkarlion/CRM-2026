@@ -552,7 +552,7 @@ describe('LeadService', () => {
       mockQueryChain.exec.mockResolvedValueOnce(currentLead);
 
       await expect(
-        service.changeStatus('lead1', 'qualified', 'user1', 'tenant1'),
+        service.changeStatus('lead1', 'quote_sent', 'user1', 'tenant1'),
       ).rejects.toThrow();
     });
 

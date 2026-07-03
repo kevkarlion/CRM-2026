@@ -5,15 +5,16 @@ const service = new ChecklistService();
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const tenantId = _request.headers.get('x-tenant-id') || '';
     if (!tenantId) {
       return NextResponse.json({ error: 'x-tenant-id header is required' }, { status: 400 });
     }
 
-    const data = await service.findByWorkOrder(params.id, tenantId);
+    const data = await service.findByWorkOrder(id, tenantId);
     if (!data) {
       return NextResponse.json({ error: 'Checklist not found' }, { status: 404 });
     }
@@ -29,16 +30,17 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const tenantId = request.headers.get('x-tenant-id') || '';
     const userId = request.headers.get('x-user-id') || '';
     if (!tenantId || !userId) {
       return NextResponse.json({ error: 'x-tenant-id and x-user-id headers are required' }, { status: 400 });
     }
 
-    const data = await service.createChecklist(params.id, tenantId, userId);
+    const data = await service.createChecklist(id, tenantId, userId);
     return NextResponse.json({ data }, { status: 201 });
   } catch (error) {
     return NextResponse.json(
@@ -50,9 +52,10 @@ export async function POST(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const tenantId = request.headers.get('x-tenant-id') || '';
     const userId = request.headers.get('x-user-id') || '';
     if (!tenantId || !userId) {
@@ -64,9 +67,9 @@ export async function PATCH(
 
     let data;
     if (action === 'complete') {
-      data = await service.completeChecklist(params.id, tenantId, userId);
+      data = await service.completeChecklist(id, tenantId, userId);
     } else {
-      data = await service.updateChecklist(params.id, fields, tenantId, userId);
+      data = await service.updateChecklist(id, fields, tenantId, userId);
     }
 
     if (!data) {

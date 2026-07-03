@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connectDB } from '@/core/db';
 import { MaintenanceScheduleModel } from '@/contracts/models';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await connectDB();
+    const { id } = await params;
     const tenantId = request.headers.get('x-tenant-id');
     if (!tenantId) {
       return NextResponse.json({ error: 'x-tenant-id header is required' }, { status: 401 });
@@ -16,7 +19,7 @@ export async function GET(
 
     const filter: Record<string, unknown> = {
       tenantId,
-      contractId: params.id,
+      contractId: id,
     };
 
     if (status) {

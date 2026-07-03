@@ -1,20 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connectDB } from '@/core/db';
 import { LeadService, ValidationError, ConflictError } from '@/leads/services/lead.service';
 
 const service = new LeadService();
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await connectDB();
+    const { id } = await params;
     const tenantId = request.headers.get('x-tenant-id');
     const userId = request.headers.get('x-user-id');
     if (!tenantId || !userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const result = await service.convertToClient(params.id, userId, tenantId);
+    const result = await service.convertToClient(id, userId, tenantId);
 
     return NextResponse.json(result);
   } catch (error) {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connectDB } from '@/core/db';
 import { PipelineService } from '@/leads/services';
 import type { CreatePipelineInput } from '@/leads/types/pipeline';
 
@@ -6,6 +7,7 @@ const service = new PipelineService();
 
 export async function GET(request: NextRequest) {
   try {
+    await connectDB();
     const tenantId = request.headers.get('x-tenant-id') || '';
     if (!tenantId) {
       return NextResponse.json({ error: 'x-tenant-id header is required' }, { status: 400 });
@@ -23,6 +25,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    await connectDB();
     const tenantId = request.headers.get('x-tenant-id') || '';
     const userId = request.headers.get('x-user-id') || '';
     if (!tenantId || !userId) {

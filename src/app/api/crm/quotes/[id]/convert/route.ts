@@ -5,9 +5,10 @@ const service = new ConversionService();
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const tenantId = request.headers.get('x-tenant-id');
     const userId = request.headers.get('x-user-id');
     if (!tenantId || !userId) {
@@ -18,7 +19,7 @@ export async function POST(
     const { priority, category } = body;
     const options = { priority, category };
 
-    const result = await service.convertToWorkOrder(params.id, userId, tenantId, options);
+    const result = await service.convertToWorkOrder(id, userId, tenantId, options);
 
     return NextResponse.json(result);
   } catch (error) {

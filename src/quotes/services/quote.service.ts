@@ -1,6 +1,7 @@
 import mongoose, { Types } from 'mongoose';
 import QuoteModel from '../models/quote';
 import QuoteVersionModel from '../models/quote-version';
+import LeadModel from '@/leads/models/lead';
 import { validateTransition, validateSendRequirements, validateApproveRequirements } from '../helpers/state-machine';
 import { getNextQuoteNumber } from '../helpers/counter';
 import { processItems, calculateSubtotal, calculateTotal } from '../helpers/calculator';
@@ -90,7 +91,8 @@ export class QuoteService {
     try {
       const [quote] = await QuoteModel.create([{
         tenantId: new Types.ObjectId(tenantId),
-        clientId: new Types.ObjectId(data.clientId),
+        leadId: data.leadId ? new Types.ObjectId(data.leadId) : null,
+        clientId: data.clientId ? new Types.ObjectId(data.clientId) : null,
         locationId: data.locationId ? new Types.ObjectId(data.locationId) : null,
         number,
         status: 'draft',
@@ -121,6 +123,9 @@ export class QuoteService {
         notes: data.notes,
         createdBy: new Types.ObjectId(userId),
       }], { session });
+
+      // Note: Lead status is NOT updated here. 
+      // It will be updated when the quote is sent.
 
       await session.commitTransaction();
 
@@ -423,6 +428,7 @@ export class QuoteService {
     validateSendRequirements({
       items: versionItems as unknown[],
       clientId: quote.clientId,
+      leadId: quote.leadId,
       validUntil: quote.validUntil,
     });
 
@@ -447,6 +453,32 @@ export class QuoteService {
 
     if (!updated) {
       throw new ConflictError('La cotización ya fue modificada por otro usuario');
+    }
+
+    // If quote is associated with a lead, update lead status
+    // First check if there are other sent quotes for this lead
+    if (quote.leadId) {
+      const sentQuotesCount = await QuoteModel.countDocuments({
+        leadId: quote.leadId,
+        tenantId: new Types.ObjectId(tenantId),
+        status: 'sent',
+        deletedAt: null,
+        _id: { $ne: quote._id }, // exclude current quote
+      });
+
+      // Only update lead if this is the first sent quote
+      if (sentQuotesCount === 0) {
+        await LeadModel.updateOne(
+          { _id: quote.leadId, tenantId: new Types.ObjectId(tenantId) },
+          { 
+            $set: { 
+              status: 'quote_sent',
+              qualificationStatus: 'qualified',
+              updatedBy: new Types.ObjectId(userId),
+            } 
+          }
+        );
+      }
     }
 
     await logActivity({

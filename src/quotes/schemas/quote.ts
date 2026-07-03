@@ -4,7 +4,8 @@ import { IQuote, QuoteStatus } from '../types/quote';
 export const quoteSchema = new Schema<IQuote>(
   {
     tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true },
-    clientId: { type: Schema.Types.ObjectId, ref: 'Client', required: true },
+    leadId: { type: Schema.Types.ObjectId, ref: 'Lead', default: null },
+    clientId: { type: Schema.Types.ObjectId, ref: 'Client', default: null },
     locationId: { type: Schema.Types.ObjectId, ref: 'Location', default: null },
     number: { type: String, required: true },
     status: {
@@ -37,6 +38,7 @@ export const quoteSchema = new Schema<IQuote>(
 );
 
 quoteSchema.index({ tenantId: 1, number: 1 }, { unique: true });
+quoteSchema.index({ tenantId: 1, leadId: 1 });
 quoteSchema.index({ tenantId: 1, clientId: 1 });
 quoteSchema.index({ tenantId: 1, status: 1 });
 quoteSchema.index({ tenantId: 1, deletedAt: 1 });

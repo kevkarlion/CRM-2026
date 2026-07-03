@@ -3,6 +3,8 @@ import bcrypt from 'bcryptjs';
 import { generateToken } from '@/core/auth/jwt-provider';
 import { connectDB } from '@/core/db';
 import UserModel from '@/core/models/user';
+import UserRoleModel from '@/core/models/user-role';
+import RoleModel from '@/core/models/role';
 
 export async function POST(request: NextRequest) {
   try {
@@ -40,11 +42,16 @@ export async function POST(request: NextRequest) {
       { $set: { lastLoginAt: new Date(), failedLoginAttempts: 0 } },
     );
 
+    const userRoles = await UserRoleModel.find({ userId: user._id, tenantId: user.tenantId, deletedAt: null }).lean();
+    const roleIds = userRoles.map(ur => ur.roleId);
+    const roles = await RoleModel.find({ _id: { $in: roleIds } }).lean();
+    const roleNames = roles.map(r => r.name);
+
     const token = generateToken(
       {
         userId: user._id.toString(),
         tenantId: user.tenantId.toString(),
-        roles: [],
+        roles: roleNames,
       },
       secret,
     );
@@ -56,7 +63,7 @@ export async function POST(request: NextRequest) {
         email: user.email,
         firstName: user.firstName,
         lastName: user.lastName,
-        roles: [],
+        roles: roleNames,
       },
     });
 

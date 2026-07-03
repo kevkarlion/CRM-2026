@@ -5,15 +5,16 @@ const service = new AssignmentService();
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const tenantId = _request.headers.get('x-tenant-id') || '';
     if (!tenantId) {
       return NextResponse.json({ error: 'x-tenant-id header is required' }, { status: 400 });
     }
 
-    const data = await service.getCurrentAssignments(params.id, tenantId);
+    const data = await service.getCurrentAssignments(id, tenantId);
     return NextResponse.json({ data });
   } catch (error) {
     return NextResponse.json(
@@ -25,9 +26,10 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const tenantId = request.headers.get('x-tenant-id') || '';
     const userId = request.headers.get('x-user-id') || '';
     if (!tenantId || !userId) {
@@ -47,7 +49,7 @@ export async function POST(
         if (!technicianId) {
           return NextResponse.json({ error: 'technicianId is required for assign' }, { status: 400 });
         }
-        const result = await service.assignTechnician(params.id, technicianId, tenantId, userId);
+        const result = await service.assignTechnician(id, technicianId, tenantId, userId);
         return NextResponse.json({ data: result.assignment }, { status: 201 });
       }
 
@@ -56,7 +58,7 @@ export async function POST(
         if (!oldTechnicianId || !newTechnicianId) {
           return NextResponse.json({ error: 'oldTechnicianId and newTechnicianId are required for reassign' }, { status: 400 });
         }
-        const result = await service.reassignTechnician(params.id, oldTechnicianId, newTechnicianId, tenantId, userId);
+        const result = await service.reassignTechnician(id, oldTechnicianId, newTechnicianId, tenantId, userId);
         return NextResponse.json({ data: result.newAssignment });
       }
 
@@ -65,7 +67,7 @@ export async function POST(
         if (!technicianId) {
           return NextResponse.json({ error: 'technicianId is required for unassign' }, { status: 400 });
         }
-        const result = await service.unassignTechnician(params.id, technicianId, tenantId, userId);
+        const result = await service.unassignTechnician(id, technicianId, tenantId, userId);
         return NextResponse.json({ data: result.workOrder });
       }
 

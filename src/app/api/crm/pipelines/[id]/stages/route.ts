@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connectDB } from '@/core/db';
 import { PipelineService } from '@/leads/services';
 
 const service = new PipelineService();
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await connectDB();
+    const { id } = await params;
     const tenantId = request.headers.get('x-tenant-id') || '';
     const userId = request.headers.get('x-user-id') || '';
     if (!tenantId || !userId) {
@@ -22,7 +25,7 @@ export async function POST(
       );
     }
 
-    const updated = await service.addStage(params.id, { name: body.name, probability: body.probability }, userId, tenantId);
+    const updated = await service.addStage(id, { name: body.name, probability: body.probability }, userId, tenantId);
 
     if (!updated) {
       return NextResponse.json({ error: 'Pipeline not found' }, { status: 404 });

@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { api } from '@/lib/api-client';
+import { CreateQuoteDrawer } from '@/leads/components/CreateQuoteDrawer';
+import { CreateVisitDrawer } from '@/leads/components/CreateVisitDrawer';
+import { QuoteDetailDrawer } from '@/leads/components/QuoteDetailDrawer';
 
 interface Lead {
   _id: string;
@@ -22,9 +25,31 @@ interface Lead {
   createdBy: string;
 }
 
+interface Quote {
+  _id: string;
+  number: string;
+  title: string;
+  status: 'draft' | 'sent' | 'approved' | 'rejected' | 'expired' | 'cancelled';
+  total: number;
+  validUntil: string | null;
+  createdAt: string;
+}
+
+interface WorkOrder {
+  _id: string;
+  workOrderNumber: string;
+  title: string;
+  status: string;
+  scheduledDate?: string;
+  scheduledStart?: string;
+}
+
 const STATUS_OPTIONS = [
   { value: 'new', label: 'Nuevo' },
   { value: 'contacted', label: 'Contactado' },
+  { value: 'quote_sent', label: 'Presupuesto enviado' },
+  { value: 'technical_visit', label: 'Visita técnica' },
+  { value: 'negotiation', label: 'Negociación' },
   { value: 'qualified', label: 'Calificado' },
   { value: 'won', label: 'Ganado' },
   { value: 'lost', label: 'Perdido' },
@@ -34,16 +59,95 @@ const STATUS_OPTIONS = [
 const STATUS_VARIANT: Record<string, string> = {
   new: 'bg-info-50 text-info-700',
   contacted: 'bg-brand-50 text-brand-700',
+  quote_sent: 'bg-purple-50 text-purple-700',
+  technical_visit: 'bg-orange-50 text-orange-700',
+  negotiation: 'bg-yellow-50 text-yellow-700',
   qualified: 'bg-warning-50 text-warning-700',
   won: 'bg-success-50 text-success-700',
   lost: 'bg-danger-50 text-danger-700',
   disqualified: 'bg-gray-100 text-gray-700',
 };
 
+const QUOTE_STATUS_LABELS: Record<string, string> = {
+  draft: 'Borrador',
+  sent: 'Enviado',
+  approved: 'Aprobado',
+  rejected: 'Rechazado',
+  expired: 'Expirado',
+  cancelled: 'Cancelado',
+};
+
+const QUOTE_STATUS_VARIANT: Record<string, string> = {
+  draft: 'bg-gray-100 text-gray-700',
+  sent: 'bg-blue-50 text-blue-700',
+  approved: 'bg-success-50 text-success-700',
+  rejected: 'bg-danger-50 text-danger-700',
+  expired: 'bg-warning-50 text-warning-700',
+  cancelled: 'bg-gray-100 text-gray-500',
+};
+
 const SOURCE_LABELS: Record<string, string> = {
   whatsapp: 'WhatsApp', call: 'Llamada', form: 'Formulario',
   referral: 'Referido', walk_in: 'Presencial', other: 'Otro',
 };
+
+function getDaysUntilExpiry(validUntil: string | null): number | null {
+  if (!validUntil) return null;
+  const expiryDate = new Date(validUntil);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  expiryDate.setHours(0, 0, 0, 0);
+  const diffTime = expiryDate.getTime() - today.getTime();
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+}
+
+function QuoteExpiryAlert({ validUntil }: { validUntil: string | null }) {
+  const daysLeft = getDaysUntilExpiry(validUntil);
+  
+  if (daysLeft === null) return null;
+  
+  if (daysLeft < 0) {
+    return (
+      <div className="mt-2 p-2 bg-danger-50 border border-danger-200 rounded-lg">
+        <p className="text-xs text-danger-700 font-medium">
+          ⚠️ Vencido hace {Math.abs(daysLeft)} días
+        </p>
+      </div>
+    );
+  }
+  
+  if (daysLeft === 0) {
+    return (
+      <div className="mt-2 p-2 bg-danger-50 border border-danger-200 rounded-lg">
+        <p className="text-xs text-danger-700 font-medium">
+          ⚠️ Vence hoy
+        </p>
+      </div>
+    );
+  }
+  
+  if (daysLeft <= 3) {
+    return (
+      <div className="mt-2 p-2 bg-danger-50 border border-danger-200 rounded-lg">
+        <p className="text-xs text-danger-700 font-medium">
+          ⏰ Vence en {daysLeft} día{daysLeft !== 1 ? 's' : ''}
+        </p>
+      </div>
+    );
+  }
+  
+  if (daysLeft <= 7) {
+    return (
+      <div className="mt-2 p-2 bg-warning-50 border border-warning-200 rounded-lg">
+        <p className="text-xs text-warning-700 font-medium">
+          ⏰ Vence en {daysLeft} días
+        </p>
+      </div>
+    );
+  }
+  
+  return null;
+}
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
@@ -70,12 +174,29 @@ export default function LeadDetailPage() {
   const [assignUserId, setAssignUserId] = useState('');
   const [showAssignInput, setShowAssignInput] = useState(false);
 
+  // Drawer states
+  const [showQuoteDrawer, setShowQuoteDrawer] = useState(false);
+  const [showVisitDrawer, setShowVisitDrawer] = useState(false);
+  const [showQuoteDetail, setShowQuoteDetail] = useState(false);
+  const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null);
+
+  // Quote sending state
+  const [sendingQuoteId, setSendingQuoteId] = useState<string | null>(null);
+
+  // Lists
+  const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [visits, setVisits] = useState<WorkOrder[]>([]);
+  const [loadingRelated, setLoadingRelated] = useState(false);
+
   useEffect(() => {
     async function load() {
       try {
         setLoading(true);
         const data = await api.get<Lead>(`/api/crm/leads/${id}`);
         setLead(data);
+        if (data.status === 'contacted' || data.status === 'quote_sent' || data.status === 'technical_visit') {
+          loadRelatedData();
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error al cargar lead');
       } finally {
@@ -84,6 +205,22 @@ export default function LeadDetailPage() {
     }
     load();
   }, [id]);
+
+  async function loadRelatedData() {
+    setLoadingRelated(true);
+    try {
+      const [quotesData, visitsData] = await Promise.all([
+        api.get<{ data: Quote[] }>(`/api/crm/leads/${id}/quotes`),
+        api.get<WorkOrder[]>(`/api/crm/leads/${id}/visits`).catch(() => []),
+      ]);
+      setQuotes(quotesData.data || quotesData);
+      setVisits(visitsData);
+    } catch (err) {
+      console.error('Error loading related data:', err);
+    } finally {
+      setLoadingRelated(false);
+    }
+  }
 
   async function handleDelete() {
     setDeleting(true);
@@ -136,6 +273,26 @@ export default function LeadDetailPage() {
     }
   }
 
+  async function handleSendQuote(quoteId: string) {
+    setSendingQuoteId(quoteId);
+    try {
+      await api.post(`/api/crm/quotes/${quoteId}/send`);
+      // Refresh quotes and lead
+      await loadRelatedData();
+      const refreshed = await api.get<Lead>(`/api/crm/leads/${id}`);
+      setLead(refreshed);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al enviar presupuesto');
+    } finally {
+      setSendingQuoteId(null);
+    }
+  }
+
+  function handleViewQuoteDetail(quoteId: string) {
+    setSelectedQuoteId(quoteId);
+    setShowQuoteDetail(true);
+  }
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -163,6 +320,7 @@ export default function LeadDetailPage() {
   }
 
   const isConverted = !!lead.convertedToClient;
+  const isContacted = lead?.status === 'contacted' || lead?.status === 'quote_sent' || lead?.status === 'technical_visit';
 
   return (
     <div className="space-y-6">
@@ -300,8 +458,138 @@ export default function LeadDetailPage() {
               </div>
             )}
           </div>
+
+          {/* Acciones de Lead Contactado */}
+          {isContacted && !isConverted && (
+            <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">Gestión Comercial</h3>
+              
+              <button 
+                onClick={() => setShowQuoteDrawer(true)}
+                className="w-full rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 transition-colors">
+                Enviar Presupuesto
+              </button>
+              
+              <button 
+                onClick={() => setShowVisitDrawer(true)}
+                className="w-full rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600 transition-colors">
+                Programar Visita Técnica
+              </button>
+            </div>
+          )}
+
+          {/* Lista de Presupuestos */}
+          {quotes.length > 0 && (
+            <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">Presupuestos</h3>
+              <div className="space-y-2">
+                {quotes.map((quote) => (
+                  <div key={quote._id} className="p-3 bg-gray-50 rounded-lg">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <button
+                          onClick={() => handleViewQuoteDetail(quote._id)}
+                          className="text-sm font-medium text-gray-900 hover:text-brand-600 transition-colors text-left"
+                        >
+                          {quote.title}
+                        </button>
+                        <p className="text-xs text-gray-500">#{quote.number}</p>
+                      </div>
+                      <div className="text-right ml-3">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${QUOTE_STATUS_VARIANT[quote.status]}`}>
+                          {QUOTE_STATUS_LABELS[quote.status]}
+                        </span>
+                        <p className="text-sm font-medium text-gray-900 mt-1">${quote.total.toLocaleString()}</p>
+                      </div>
+                    </div>
+                    
+                    {/* Alerta de caducidad para presupuestos enviados */}
+                    {quote.status === 'sent' && <QuoteExpiryAlert validUntil={quote.validUntil} />}
+                    
+                    {/* Botones de acción */}
+                    <div className="mt-2 pt-2 border-t border-gray-200 flex gap-2">
+                      <button
+                        onClick={() => handleViewQuoteDetail(quote._id)}
+                        className="flex-1 text-sm border border-gray-200 text-gray-700 px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors font-medium"
+                      >
+                        Ver Detalle
+                      </button>
+                      {quote.status === 'draft' && (
+                        <button
+                          onClick={() => handleSendQuote(quote._id)}
+                          disabled={sendingQuoteId === quote._id}
+                          className="flex-1 text-sm bg-purple-600 text-white px-3 py-1.5 rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors font-medium"
+                        >
+                          {sendingQuoteId === quote._id ? 'Enviando...' : 'Enviar'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Lista de Visitas Técnicas */}
+          {visits.length > 0 && (
+            <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">Visitas Técnicas</h3>
+              <div className="space-y-2">
+                {visits.map((visit) => (
+                  <div key={visit._id} className="p-3 bg-gray-50 rounded-lg flex justify-between items-center">
+                    <div>
+                      <p className="text-sm font-medium text-gray-900">{visit.title}</p>
+                      <p className="text-xs text-gray-500">#{visit.workOrderNumber}</p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-xs text-gray-500">
+                        {visit.scheduledDate ? new Date(visit.scheduledDate).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' }) : '—'}
+                      </span>
+                      <p className="text-xs text-gray-400 capitalize">{visit.status}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Drawers */}
+      <CreateQuoteDrawer
+        isOpen={showQuoteDrawer}
+        onClose={() => setShowQuoteDrawer(false)}
+        leadId={id}
+        leadName={lead?.name || ''}
+        onSuccess={() => {
+          loadRelatedData();
+          // Refresh lead status
+          api.get<Lead>(`/api/crm/leads/${id}`).then(setLead);
+        }}
+      />
+
+      <CreateVisitDrawer
+        isOpen={showVisitDrawer}
+        onClose={() => setShowVisitDrawer(false)}
+        leadId={id}
+        leadName={lead?.name || ''}
+        leadPhone={lead?.phone}
+        leadEmail={lead?.email}
+        onSuccess={() => {
+          loadRelatedData();
+          // Refresh lead status
+          api.get<Lead>(`/api/crm/leads/${id}`).then(setLead);
+        }}
+      />
+
+      <QuoteDetailDrawer
+        isOpen={showQuoteDetail}
+        onClose={() => {
+          setShowQuoteDetail(false);
+          setSelectedQuoteId(null);
+        }}
+        quoteId={selectedQuoteId || ''}
+      />
     </div>
   );
 }

@@ -410,7 +410,7 @@ export class LeadService {
       hasActivity = !!exists;
     }
 
-    if (currentStatus === 'contacted' && newStatus === 'qualified') {
+    if ((currentStatus === 'contacted' && newStatus === 'quote_sent') || (currentStatus === 'contacted' && newStatus === 'technical_visit')) {
       hasRequiredFields = !!(
         lead.name?.trim() &&
         (lead.email?.trim() || lead.phone?.trim()) &&
@@ -418,7 +418,7 @@ export class LeadService {
       );
     }
 
-    if (currentStatus === 'qualified' && newStatus === 'won') {
+    if ((currentStatus === 'quote_sent' && newStatus === 'won') || (currentStatus === 'negotiation' && newStatus === 'won')) {
       hasClient = !!lead.convertedToClient;
     }
 
@@ -465,7 +465,7 @@ export class LeadService {
       _id: new Types.ObjectId(leadId),
       tenantId: new Types.ObjectId(tenantId),
       deletedAt: null,
-      status: 'qualified',
+      status: { $in: ['technical_visit', 'quote_sent', 'negotiation'] },
       convertedToClient: null,
     }).exec();
 
@@ -479,9 +479,9 @@ export class LeadService {
       if (!existing) {
         throw new Error('Lead not found');
       }
-      if (existing.status !== 'qualified') {
+      if (!['technical_visit', 'quote_sent', 'negotiation'].includes(existing.status)) {
         throw new ValidationError(
-          `Lead must be in 'qualified' status to convert. Current status: '${existing.status}'`,
+          `Lead must be in 'technical_visit', 'quote_sent', or 'negotiation' status to convert. Current status: '${existing.status}'`,
         );
       }
       if (existing.convertedToClient) {
@@ -547,7 +547,7 @@ export class LeadService {
       const updatedLead = await LeadModel.findOneAndUpdate(
         {
           _id: lead._id,
-          status: 'qualified',
+          status: { $in: ['technical_visit', 'quote_sent', 'negotiation'] },
           convertedToClient: null,
         },
         {
@@ -631,7 +631,8 @@ export class LeadService {
       filter.createdAt = dateFilter;
     }
 
-    await applyRoleScope(filter, role, userId, tenantId);
+    // Pipeline is a team view — no role-based scope filter.
+    // All non-terminal leads are visible regardless of assignment.
 
     const leads = await LeadModel.find(filter)
       .sort({ createdAt: -1 })
@@ -641,10 +642,12 @@ export class LeadService {
       .exec() as unknown as ILead[];
 
     const activeStages = pipeline.stages.filter(s => s.isActive);
-    const statusToStage = new Map<string, IPipelineStage>();
+    const statusToStages = new Map<string, IPipelineStage[]>();
     for (const stage of activeStages) {
-      if (stage.mapsToStatus && !statusToStage.has(stage.mapsToStatus)) {
-        statusToStage.set(stage.mapsToStatus, stage);
+      if (stage.mapsToStatus) {
+        const list = statusToStages.get(stage.mapsToStatus) || [];
+        list.push(stage);
+        statusToStages.set(stage.mapsToStatus, list);
       }
     }
 
@@ -657,12 +660,14 @@ export class LeadService {
     }
 
     for (const lead of leads) {
-      const matchedStage = statusToStage.get(lead.status);
-      if (matchedStage && groups[matchedStage.name]) {
-        if (groups[matchedStage.name].leads.length < 500) {
-          groups[matchedStage.name].leads.push(lead);
-        } else {
-          truncated[matchedStage.name] = true;
+      const matchedStages = statusToStages.get(lead.status);
+      if (matchedStages && matchedStages.length > 0) {
+        for (const matchedStage of matchedStages) {
+          if (groups[matchedStage.name] && groups[matchedStage.name].leads.length < 500) {
+            groups[matchedStage.name].leads.push(lead);
+          } else if (groups[matchedStage.name]) {
+            truncated[matchedStage.name] = true;
+          }
         }
       } else {
         unmatched.push(lead);
@@ -724,6 +729,7 @@ async function applyRoleScope(
   tenantId: string,
 ): Promise<void> {
   switch (role) {
+    case 'admin':
     case 'Owner':
     case 'Administrator':
       break;

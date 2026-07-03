@@ -6,16 +6,17 @@ const service = new QuoteService();
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const tenantId = request.headers.get('x-tenant-id');
     const userId = request.headers.get('x-user-id');
     if (!tenantId || !userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const result = await service.sendQuote(params.id, userId, tenantId);
+    const result = await service.sendQuote(id, userId, tenantId);
 
     return NextResponse.json(result);
   } catch (error) {

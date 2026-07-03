@@ -6,15 +6,16 @@ const service = new QuoteService();
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const tenantId = _request.headers.get('x-tenant-id');
     if (!tenantId) {
       return NextResponse.json({ error: 'x-tenant-id header is required' }, { status: 401 });
     }
 
-    const result = await service.getQuote(params.id, tenantId);
+    const result = await service.getQuote(id, tenantId);
 
     return NextResponse.json(result);
   } catch (error) {
@@ -30,9 +31,10 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const tenantId = request.headers.get('x-tenant-id');
     const userId = request.headers.get('x-user-id');
     if (!tenantId || !userId) {
@@ -40,7 +42,7 @@ export async function PATCH(
     }
 
     const body = await request.json() as UpdateQuoteInput;
-    const result = await service.updateQuote(params.id, body, userId, tenantId);
+    const result = await service.updateQuote(id, body, userId, tenantId);
 
     return NextResponse.json(result);
   } catch (error) {
@@ -59,16 +61,17 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const tenantId = request.headers.get('x-tenant-id');
     const userId = request.headers.get('x-user-id');
     if (!tenantId || !userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const result = await service.softDelete(params.id, userId, tenantId);
+    const result = await service.softDelete(id, userId, tenantId);
 
     return NextResponse.json(result);
   } catch (error) {

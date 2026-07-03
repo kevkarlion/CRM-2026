@@ -1,20 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connectDB } from '@/core/db';
 import { ContractService, ContractValidationError } from '@/contracts/services';
 
 const service = new ContractService();
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await connectDB();
+    const { id } = await params;
     const tenantId = request.headers.get('x-tenant-id');
     const userId = request.headers.get('x-user-id');
     if (!tenantId || !userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const contract = await service.changeStatus(params.id, 'paused', tenantId, userId);
+    const contract = await service.changeStatus(id, 'paused', tenantId, userId);
     if (!contract) {
       return NextResponse.json({ error: 'Contract not found' }, { status: 404 });
     }

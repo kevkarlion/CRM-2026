@@ -12,6 +12,7 @@ export function LeadFilters({ stages }: LeadFiltersProps) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const searchParamsKey = searchParams.toString();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const [search, setSearch] = useState(searchParams.get('search') || '');
@@ -29,7 +30,7 @@ export function LeadFilters({ stages }: LeadFiltersProps) {
 
   const pushParams = useCallback(
     (overrides: Record<string, string | null>) => {
-      const params = new URLSearchParams(searchParams.toString());
+      const params = new URLSearchParams(searchParamsKey);
       for (const [key, value] of Object.entries(overrides)) {
         if (value) {
           params.set(key, value);
@@ -40,7 +41,7 @@ export function LeadFilters({ stages }: LeadFiltersProps) {
       const qs = params.toString();
       router.push(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     },
-    [router, pathname, searchParams],
+    [router, pathname, searchParamsKey],
   );
 
   const handleSearchChange = useCallback(

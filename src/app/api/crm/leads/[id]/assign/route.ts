@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connectDB } from '@/core/db';
 import { LeadAssignmentService } from '@/leads/services/lead-assignment.service';
 
 const service = new LeadAssignmentService();
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await connectDB();
+    const { id } = await params;
     const tenantId = request.headers.get('x-tenant-id');
     const userId = request.headers.get('x-user-id');
     if (!tenantId || !userId) {
@@ -21,7 +24,7 @@ export async function POST(
       return NextResponse.json({ error: 'userId is required' }, { status: 400 });
     }
 
-    const result = await service.assign(params.id, targetUserId, userId, tenantId, reason);
+    const result = await service.assign(id, targetUserId, userId, tenantId, reason);
 
     return NextResponse.json(result);
   } catch (error) {

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { useDroppable } from '@dnd-kit/core';
 import type { ILead } from '../../types/lead';
 import type { IPipelineStage } from '../../types/pipeline';
@@ -24,7 +24,7 @@ function SkeletonCard() {
   );
 }
 
-export function PipelineColumn({ stage, leads, isLoading, onLeadClick }: PipelineColumnProps) {
+export const PipelineColumn = memo(function PipelineColumn({ stage, leads, isLoading, onLeadClick }: PipelineColumnProps) {
   const { isOver, setNodeRef } = useDroppable({
     id: stage.name,
   });
@@ -57,4 +57,4 @@ export function PipelineColumn({ stage, leads, isLoading, onLeadClick }: Pipelin
       </div>
     </div>
   );
-}
+});

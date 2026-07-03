@@ -9,7 +9,7 @@ const pipelineStageSchema = new Schema<IPipelineStage>(
     isActive: { type: Boolean, default: true },
     mapsToStatus: {
       type: String,
-      enum: ['new', 'contacted', 'qualified', 'won', 'lost', 'disqualified'],
+      enum: ['new', 'contacted', 'quote_sent', 'technical_visit', 'negotiation', 'won', 'lost', 'disqualified'],
       required: false,
       default: undefined,
     },

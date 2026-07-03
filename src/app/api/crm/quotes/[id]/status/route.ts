@@ -6,9 +6,10 @@ const service = new QuoteService();
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const tenantId = request.headers.get('x-tenant-id');
     const userId = request.headers.get('x-user-id');
     if (!tenantId || !userId) {
@@ -24,9 +25,9 @@ export async function PATCH(
 
     let result;
     if (targetStatus === 'rejected') {
-      result = await service.rejectQuote(params.id, userId, tenantId, reason);
+      result = await service.rejectQuote(id, userId, tenantId, reason);
     } else if (targetStatus === 'cancelled') {
-      result = await service.cancelQuote(params.id, userId, tenantId);
+      result = await service.cancelQuote(id, userId, tenantId);
     } else {
       return NextResponse.json(
         { error: `Invalid target status '${targetStatus}'. Allowed: rejected, cancelled` },

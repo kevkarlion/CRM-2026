@@ -5,15 +5,16 @@ const service = new WorkOrderService();
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const tenantId = _request.headers.get('x-tenant-id') || '';
     if (!tenantId) {
       return NextResponse.json({ error: 'x-tenant-id header is required' }, { status: 400 });
     }
 
-    const data = await service.findById(params.id, tenantId);
+    const data = await service.findById(id, tenantId);
     if (!data) {
       return NextResponse.json({ error: 'WorkOrder not found' }, { status: 404 });
     }
@@ -29,9 +30,10 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const tenantId = request.headers.get('x-tenant-id') || '';
     const userId = request.headers.get('x-user-id') || '';
     if (!tenantId || !userId) {
@@ -45,7 +47,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'version is required for OCC' }, { status: 400 });
     }
 
-    const updated = await service.update(params.id, data, tenantId, userId, version);
+    const updated = await service.update(id, data, tenantId, userId, version);
     if (!updated) {
       return NextResponse.json({ error: 'WorkOrder not found' }, { status: 404 });
     }
@@ -67,16 +69,17 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const tenantId = request.headers.get('x-tenant-id') || '';
     const userId = request.headers.get('x-user-id') || '';
     if (!tenantId || !userId) {
       return NextResponse.json({ error: 'x-tenant-id and x-user-id headers are required' }, { status: 400 });
     }
 
-    const deleted = await service.softDelete(params.id, tenantId, userId);
+    const deleted = await service.softDelete(id, tenantId, userId);
     if (!deleted) {
       return NextResponse.json({ error: 'WorkOrder not found' }, { status: 404 });
     }

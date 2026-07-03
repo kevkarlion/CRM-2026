@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connectDB } from '@/core/db';
 import { ContractService, ContractValidationError } from '@/contracts/services';
 import type { UpdateContractInput } from '@/contracts/types/contract';
 
@@ -6,15 +7,17 @@ const service = new ContractService();
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await connectDB();
+    const { id } = await params;
     const tenantId = request.headers.get('x-tenant-id');
     if (!tenantId) {
       return NextResponse.json({ error: 'x-tenant-id header is required' }, { status: 401 });
     }
 
-    const contract = await service.findById(params.id, tenantId);
+    const contract = await service.findById(id, tenantId);
     if (!contract) {
       return NextResponse.json({ error: 'Contract not found' }, { status: 404 });
     }
@@ -30,9 +33,11 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await connectDB();
+    const { id } = await params;
     const tenantId = request.headers.get('x-tenant-id');
     const userId = request.headers.get('x-user-id');
     if (!tenantId || !userId) {
@@ -40,7 +45,7 @@ export async function PATCH(
     }
 
     const body = await request.json() as UpdateContractInput;
-    const contract = await service.update(params.id, body, tenantId, userId);
+    const contract = await service.update(id, body, tenantId, userId);
 
     if (!contract) {
       return NextResponse.json({ error: 'Contract not found' }, { status: 404 });
@@ -60,16 +65,18 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await connectDB();
+    const { id } = await params;
     const tenantId = request.headers.get('x-tenant-id');
     const userId = request.headers.get('x-user-id');
     if (!tenantId || !userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const deleted = await service.softDelete(params.id, tenantId, userId);
+    const deleted = await service.softDelete(id, tenantId, userId);
     if (!deleted) {
       return NextResponse.json({ error: 'Contract not found' }, { status: 404 });
     }

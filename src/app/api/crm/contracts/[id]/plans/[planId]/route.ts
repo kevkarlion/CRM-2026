@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connectDB } from '@/core/db';
 import { MaintenancePlanService } from '@/contracts/services/maintenance-plan.service';
 import type { UpdateMaintenancePlanInput } from '@/contracts/types/maintenance-plan';
 
@@ -6,9 +7,11 @@ const service = new MaintenancePlanService();
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string; planId: string } },
+  { params }: { params: Promise<{ id: string; planId: string }> },
 ) {
   try {
+    await connectDB();
+    const { planId } = await params;
     const tenantId = request.headers.get('x-tenant-id');
     const userId = request.headers.get('x-user-id');
     if (!tenantId || !userId) {
@@ -16,7 +19,7 @@ export async function PATCH(
     }
 
     const body = await request.json() as UpdateMaintenancePlanInput;
-    const plan = await service.update(params.planId, body, tenantId, userId);
+    const plan = await service.update(planId, body, tenantId, userId);
 
     if (!plan) {
       return NextResponse.json({ error: 'Maintenance plan not found' }, { status: 404 });

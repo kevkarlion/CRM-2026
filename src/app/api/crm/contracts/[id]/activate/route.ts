@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connectDB } from '@/core/db';
 import { ContractService, ContractValidationError } from '@/contracts/services';
 import { MaintenancePlanService } from '@/contracts/services/maintenance-plan.service';
 
@@ -7,23 +8,25 @@ const planService = new MaintenancePlanService();
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await connectDB();
+    const { id } = await params;
     const tenantId = request.headers.get('x-tenant-id');
     const userId = request.headers.get('x-user-id');
     if (!tenantId || !userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const contract = await contractService.changeStatus(params.id, 'active', tenantId, userId);
+    const contract = await contractService.changeStatus(id, 'active', tenantId, userId);
     if (!contract) {
       return NextResponse.json({ error: 'Contract not found' }, { status: 404 });
     }
 
     // Auto-generate schedules from active maintenance plans
     try {
-      const schedulesCreated = await planService.generateSchedules(params.id, tenantId, userId);
+      const schedulesCreated = await planService.generateSchedules(id, tenantId, userId);
       return NextResponse.json({ ...contract, schedulesCreated }, { status: 200 });
     } catch {
       // Schedules are best-effort on activation

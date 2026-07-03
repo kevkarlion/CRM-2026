@@ -27,6 +27,7 @@ export class PipelineService {
       position: s.position ?? i,
       probability: s.probability,
       isActive: s.isActive !== undefined ? s.isActive : true,
+      mapsToStatus: s.mapsToStatus,
     }));
 
     const pipeline = await PipelineModel.create({
@@ -377,6 +378,7 @@ export async function seedDefaultPipeline(
       position: s.position,
       probability: s.probability,
       isActive: s.isActive,
+      mapsToStatus: s.mapsToStatus,
     })),
     createdBy: userId || 'system',
     updatedBy: userId || 'system',

@@ -1,13 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connectDB } from '@/core/db';
 import { ContractService, ContractValidationError } from '@/contracts/services';
 
 const service = new ContractService();
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await connectDB();
+    const { id } = await params;
     const tenantId = request.headers.get('x-tenant-id');
     const userId = request.headers.get('x-user-id');
     if (!tenantId || !userId) {
@@ -15,7 +18,7 @@ export async function POST(
     }
 
     const body = (await request.json()) as { equipmentId: string };
-    await service.addEquipment(params.id, body.equipmentId, tenantId);
+    await service.addEquipment(id, body.equipmentId, tenantId);
 
     return NextResponse.json({ message: 'Equipment added' }, { status: 201 });
   } catch (error) {

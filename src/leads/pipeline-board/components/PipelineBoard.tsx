@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -83,14 +83,9 @@ export function PipelineBoard() {
     handleDragEnd,
     handleDragCancel,
     setColumns,
-  } = usePipelineBoard(stages, refetch);
+  } = usePipelineBoard(stages, groups, refetch);
 
   const [reFetching, setReFetching] = useState(false);
-
-  const prevGroupsRef = useMemo(() => groups, [groups]);
-  if (loading && !error) {
-    const columns = groups && Object.keys(groups).length > 0;
-  }
 
   const hasData = Object.keys(groups).length > 0;
 
@@ -103,10 +98,7 @@ export function PipelineBoard() {
     return null;
   }, [activeId, columns]);
 
-  const visibleColumns = useMemo(() => {
-    if (Object.keys(columns).length > 0) return columns;
-    return groups;
-  }, [columns, groups]);
+  const visibleColumns = columns;
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -114,6 +106,10 @@ export function PipelineBoard() {
     }),
     useSensor(KeyboardSensor),
   );
+
+  const handleLeadClick = useCallback((leadId: string) => {
+    console.log('Lead clicked:', leadId);
+  }, []);
 
   if (error && !hasData) {
     return (
@@ -131,8 +127,8 @@ export function PipelineBoard() {
     );
   }
 
-  const allEmpty = Object.values(visibleColumns).every(
-    (col) => col.length === 0,
+  const allEmpty = Object.values(groups).every(
+    (g) => g.leads.length === 0,
   );
 
   return (
@@ -153,7 +149,7 @@ export function PipelineBoard() {
             <SkeletonColumn />
             <SkeletonColumn />
           </div>
-        ) : allEmpty && !loading ? (
+        ) : allEmpty && !loading && unmatched.length === 0 ? (
           <EmptyBoard />
         ) : (
           <div className="flex gap-4 p-4 overflow-x-auto scroll-snap-x-mandatory flex-1">
@@ -165,9 +161,7 @@ export function PipelineBoard() {
                   stage={stage}
                   leads={stageLeads}
                   isLoading={false}
-                  onLeadClick={(leadId) => {
-                    console.log('Lead clicked:', leadId);
-                  }}
+                  onLeadClick={handleLeadClick}
                 />
               );
             })}

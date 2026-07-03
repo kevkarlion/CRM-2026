@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connectDB } from '@/core/db';
 import { LeadService, ConflictError } from '@/leads/services/lead.service';
 import type { LeadStatus } from '@/leads/types/lead';
 import { TransitionError } from '@/leads/helpers/lead-state-machine';
@@ -7,9 +8,11 @@ const service = new LeadService();
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await connectDB();
+    const { id } = await params;
     const tenantId = request.headers.get('x-tenant-id');
     const userId = request.headers.get('x-user-id');
     if (!tenantId || !userId) {
@@ -23,7 +26,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'status is required' }, { status: 400 });
     }
 
-    const updated = await service.changeStatus(params.id, targetStatus as LeadStatus, userId, tenantId);
+    const updated = await service.changeStatus(id, targetStatus as LeadStatus, userId, tenantId);
 
     return NextResponse.json(updated);
   } catch (error) {

@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connectDB } from '@/core/db';
 import { LeadService } from '@/leads/services/lead.service';
 
 const service = new LeadService();
 
 export async function GET(request: NextRequest) {
   try {
+    await connectDB();
     const tenantId = request.headers.get('x-tenant-id');
     const userId = request.headers.get('x-user-id');
     const rolesHeader = request.headers.get('x-user-roles');

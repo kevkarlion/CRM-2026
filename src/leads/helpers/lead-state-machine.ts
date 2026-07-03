@@ -2,10 +2,10 @@ import { LeadStatus } from '../types/lead';
 
 export const VALID_TRANSITIONS: Record<LeadStatus, LeadStatus[]> = {
   new: ['contacted', 'lost'],
-  contacted: ['qualified', 'lost'],
-  quote_sent: [],
-  technical_visit: [],
-  qualified: ['won', 'lost'],
+  contacted: ['quote_sent', 'technical_visit', 'lost'],
+  technical_visit: ['quote_sent', 'negotiation', 'lost'],
+  quote_sent: ['negotiation', 'won', 'lost'],
+  negotiation: ['won', 'lost'],
   won: [],
   lost: [],
   disqualified: [],
@@ -39,11 +39,11 @@ export function validateTransition(from: LeadStatus, to: LeadStatus, context?: T
     throw new TransitionError(from, to, 'Requires at least one activity record');
   }
 
-  if (from === 'contacted' && to === 'qualified' && context && !context.hasRequiredFields) {
-    throw new TransitionError(from, to, 'Requires complete minimum information (name, email/phone, source)');
+  if ((from === 'contacted' && to === 'quote_sent' || from === 'contacted' && to === 'technical_visit') && context && !context.hasRequiredFields) {
+    throw new TransitionError(from, to, 'Requires complete minimum information (name, email/phone, company name)');
   }
 
-  if (from === 'qualified' && to === 'won' && context && !context.hasClient) {
+  if ((from === 'quote_sent' && to === 'won' || from === 'negotiation' && to === 'won') && context && !context.hasClient) {
     throw new TransitionError(from, to, 'Cannot mark as won without converting to Client first');
   }
 }

@@ -5,15 +5,16 @@ const service = new QuoteService();
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const tenantId = _request.headers.get('x-tenant-id');
     if (!tenantId) {
       return NextResponse.json({ error: 'x-tenant-id header is required' }, { status: 401 });
     }
 
-    const versions = await service.getVersions(params.id, tenantId);
+    const versions = await service.getVersions(id, tenantId);
 
     return NextResponse.json(versions);
   } catch (error) {

@@ -6,15 +6,16 @@ const service = new VisitReportService();
 
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const tenantId = _request.headers.get('x-tenant-id') || '';
     if (!tenantId) {
       return NextResponse.json({ error: 'x-tenant-id header is required' }, { status: 400 });
     }
 
-    const data = await service.getVisitReport(params.id, tenantId);
+    const data = await service.getVisitReport(id, tenantId);
     if (!data) {
       return NextResponse.json({ error: 'VisitReport not found' }, { status: 404 });
     }
@@ -30,9 +31,10 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const tenantId = request.headers.get('x-tenant-id') || '';
     const userId = request.headers.get('x-user-id') || '';
     if (!tenantId || !userId) {
@@ -40,7 +42,7 @@ export async function POST(
     }
 
     const body = await request.json() as CreateVisitReportInput;
-    const data = await service.createVisitReport(params.id, body, tenantId, userId);
+    const data = await service.createVisitReport(id, body, tenantId, userId);
 
     return NextResponse.json({ data }, { status: 201 });
   } catch (error) {

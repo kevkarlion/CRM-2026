@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connectDB } from '@/core/db';
 import { MaintenancePlanService, PlanValidationError } from '@/contracts/services';
 import type { CreateMaintenancePlanInput } from '@/contracts/types/maintenance-plan';
 
@@ -6,15 +7,17 @@ const service = new MaintenancePlanService();
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await connectDB();
+    const { id } = await params;
     const tenantId = request.headers.get('x-tenant-id');
     if (!tenantId) {
       return NextResponse.json({ error: 'x-tenant-id header is required' }, { status: 401 });
     }
 
-    const plans = await service.findByContract(params.id, tenantId);
+    const plans = await service.findByContract(id, tenantId);
     return NextResponse.json(plans);
   } catch (error) {
     return NextResponse.json(
@@ -26,9 +29,11 @@ export async function GET(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await connectDB();
+    const { id } = await params;
     const tenantId = request.headers.get('x-tenant-id');
     const userId = request.headers.get('x-user-id');
     if (!tenantId || !userId) {
@@ -36,7 +41,7 @@ export async function POST(
     }
 
     const body = await request.json() as CreateMaintenancePlanInput;
-    const plan = await service.create(params.id, body, userId, tenantId);
+    const plan = await service.create(id, body, userId, tenantId);
 
     return NextResponse.json(plan, { status: 201 });
   } catch (error) {
