@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
-import { TechnicianModel } from '@/operations/schemas/technician';
+import { TechnicianModel } from '@/operations/models/technician';
 import { Types } from 'mongoose';
 
 export async function GET(request: NextRequest) {

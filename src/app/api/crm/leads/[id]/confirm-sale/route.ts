@@ -67,7 +67,7 @@ export async function POST(
     }
 
     let totalAmount = 0;
-    let quotes: Array<{ total: number }> = [];
+    let quotes: Array<{ _id: Types.ObjectId; total: number; locationId?: Types.ObjectId }> = [];
     let quotesApproved = 0;
 
     // Procesar según el modo
@@ -81,7 +81,7 @@ export async function POST(
         deletedAt: null,
       }).lean();
 
-      quotes = foundQuotes as unknown as Array<{ total: number }>;
+      quotes = foundQuotes as unknown as Array<{ _id: Types.ObjectId; total: number; locationId?: Types.ObjectId }>;
 
       if (quotes.length !== quoteIds.length) {
         return NextResponse.json({ error: 'Algunos presupuestos no son válidos' }, { status: 400 });
@@ -194,7 +194,7 @@ export async function POST(
         if (firstQuote.locationId) {
           locationId = firstQuote.locationId;
           // Get location snapshot if available
-          const LocationModel = (await import('@/locations/models/location')).default;
+          const LocationModel = (await import('@/crm/models/location')).default;
           const location = await LocationModel.findById(locationId).lean();
           if (location) {
             locationSnapshot = {

@@ -1,7 +1,8 @@
 import { Types } from 'mongoose';
-import { WorkOrderAssignmentModel, IWorkOrderAssignment } from '../models/work-order-assignment';
-import { WorkOrderModel } from '../models/work-order';
-import { TechnicianModel } from '../schemas/technician';
+import WorkOrderAssignmentModel from '../models/work-order-assignment';
+import { IWorkOrderAssignment } from '../models/work-order-assignment';
+import WorkOrderModel from '../models/work-order';
+import { TechnicianModel } from '../models/technician';
 import { NotFoundError, ValidationError } from '@/core/errors';
 
 export class WorkAssignmentService {
@@ -20,7 +21,7 @@ export class WorkAssignmentService {
       notes?: string;
       previousTechnicianId?: string;
     }
-  ): Promise<IWorkOrderAssignment> {
+  ): Promise<any> {
     // Verify work order exists
     const workOrder = await WorkOrderModel.findOne({
       _id: new Types.ObjectId(workOrderId),
@@ -108,7 +109,7 @@ export class WorkAssignmentService {
   async getAssignmentHistory(
     workOrderId: string,
     tenantId: string
-  ): Promise<IWorkOrderAssignment[]> {
+  ): Promise<any[]> {
     return WorkOrderAssignmentModel.find({
       workOrderId: new Types.ObjectId(workOrderId),
       tenantId: new Types.ObjectId(tenantId),
@@ -127,7 +128,7 @@ export class WorkAssignmentService {
   async getCurrentAssignment(
     workOrderId: string,
     tenantId: string
-  ): Promise<IWorkOrderAssignment | null> {
+  ): Promise<any | null> {
     return WorkOrderAssignmentModel.findOne({
       workOrderId: new Types.ObjectId(workOrderId),
       tenantId: new Types.ObjectId(tenantId),
@@ -149,7 +150,7 @@ export class WorkAssignmentService {
     reason: string,
     reasonDetail?: string,
     notes?: string
-  ): Promise<IWorkOrderAssignment> {
+  ): Promise<any> {
     const currentAssignment = await this.getCurrentAssignment(workOrderId, tenantId);
     
     if (!currentAssignment) {
@@ -176,7 +177,7 @@ export class WorkAssignmentService {
       dateFrom?: Date;
       dateFromLte?: Date;
     } = {}
-  ): Promise<IWorkOrderAssignment[]> {
+  ): Promise<any[]> {
     const query: Record<string, unknown> = {
       technicianId: new Types.ObjectId(technicianId),
       tenantId: new Types.ObjectId(tenantId),

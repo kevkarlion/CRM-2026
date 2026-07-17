@@ -1,8 +1,8 @@
 import { Types } from 'mongoose';
-import { WorkOrderModel } from '../models/work-order';
-import { WorkOrderAssignmentModel } from '../models/work-order-assignment';
+import WorkOrderModel from '../models/work-order';
+import WorkOrderAssignmentModel from '../models/work-order-assignment';
 import { TechnicianModel } from '../models/technician';
-import { VisitReportModel } from '../models/visit-report';
+import VisitReportModel from '../models/visit-report';
 
 export interface OperativeDashboardMetrics {
   summary: {
@@ -127,10 +127,10 @@ export class OperativeDashboardService {
       byPriority: priorityMap,
       todayStarts,
       technicians: {
-        total: Object.values(techMap).reduce((a, b) => a + b, 0),
-        available: techMap.available || 0,
-        busy: techMap.busy || 0,
-        unavailable: techMap.unavailable || 0,
+        total: Object.values(techMap).reduce((a, b) => (a as number) + (b as number), 0) as number,
+        available: (techMap.available as number) || 0,
+        busy: (techMap.busy as number) || 0,
+        unavailable: (techMap.unavailable as number) || 0,
       },
       nextActions,
     };

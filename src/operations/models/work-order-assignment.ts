@@ -6,3 +6,4 @@ const WorkOrderAssignmentModel: Model<IWorkOrderAssignment> =
   mongoose.models.WorkOrderAssignment || mongoose.model<IWorkOrderAssignment>('WorkOrderAssignment', workOrderAssignmentSchema);
 
 export default WorkOrderAssignmentModel;
+export type { IWorkOrderAssignment };
