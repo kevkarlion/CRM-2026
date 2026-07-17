@@ -63,7 +63,7 @@ export async function PATCH(
       await service.changeStatus(id, targetStatus as WorkOrderStatus, context, tenantId, userId, updated.version);
     }
 
-    const refreshed = await service.getWorkOrderDetail(id, tenantId);
+    const refreshed = await service.findById(id, tenantId);
     return NextResponse.json({ data: refreshed });
   } catch (error) {
     if (error instanceof ConflictError) {

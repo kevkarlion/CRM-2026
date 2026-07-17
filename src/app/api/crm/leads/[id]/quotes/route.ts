@@ -21,9 +21,7 @@ export async function GET(
     const result = await cursorPage<IQuote>(
       QuoteModel,
       { tenantId, leadId: id, deletedAt: null },
-      { createdAt: -1 },
-      cursor,
-      limit
+      { sortField: 'createdAt', sortOrder: -1, cursor, limit }
     );
 
     return NextResponse.json(result);

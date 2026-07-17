@@ -6,12 +6,7 @@ import { api } from '@/lib/api-client';
 import { CreateQuoteDrawer } from '@/leads/components/CreateQuoteDrawer';
 import { CreateVisitDrawer } from '@/leads/components/CreateVisitDrawer';
 import { QuoteDetailDrawer } from '@/leads/components/QuoteDetailDrawer';
-import { WorkOrderDetailDrawer } from '@/operations/components/WorkOrderDetailDrawer';
-import { CreateWorkOrderDrawer } from '@/operations/components/CreateWorkOrderDrawer';
-import { ConfirmSaleDrawer } from '@/leads/components/ConfirmSaleDrawer';
-import { useLeadStatuses } from '@/leads/hooks/useLeadStatuses';
 import { getDaysUntilExpiry } from '@/lib/format-date';
-import { LeadTimeline } from '@/activity/components/LeadTimeline';
 
 interface Lead {
   _id: string;
@@ -272,7 +267,7 @@ export default function LeadDetailPage() {
   async function handleSendQuote(quoteId: string) {
     setSendingQuoteId(quoteId);
     try {
-      await api.post(`/api/crm/quotes/${quoteId}/send`);
+      await api.post(`/api/crm/quotes/${quoteId}/send`, {});
       // Refresh quotes and lead
       await loadRelatedData();
       const refreshed = await api.get<Lead>(`/api/crm/leads/${id}`);

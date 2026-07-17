@@ -9,6 +9,7 @@ interface ApprovedQuote {
   number: string;
   title: string;
   total: number;
+  status: string;
 }
 
 interface ConfirmSaleDrawerProps {

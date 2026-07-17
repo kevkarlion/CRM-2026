@@ -27,10 +27,9 @@ export async function PUT(
 
     const negotiation = await new CommercialEventService().addEvent(
       id,
-      { eventType, description },
+      { eventType, description, createActivity },
       userId,
       tenantId,
-      createActivity,
     );
 
     return NextResponse.json(negotiation);

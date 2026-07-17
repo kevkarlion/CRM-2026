@@ -23,7 +23,7 @@ export class CommercialProcessService {
           description: `Venta por $${totalAmount.toLocaleString('es-CL')}. Cliente ID: ${clientId}`,
           performedBy: new Types.ObjectId(userId),
           metadata: {
-            eventType: EVENT_TYPES.LEAD_WON,
+            eventType: EVENT_TYPES.LEAD_CONVERTED,
             clientId,
             quoteIds,
             totalAmount,

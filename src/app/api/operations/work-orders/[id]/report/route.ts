@@ -55,9 +55,10 @@ export async function POST(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const { id } = await params;
     const tenantId = request.headers.get('x-tenant-id') || '';
     const userId = request.headers.get('x-user-id') || '';
     if (!tenantId || !userId) {
@@ -65,7 +66,7 @@ export async function PATCH(
     }
 
     const body = await request.json() as UpdateVisitReportInput & { version: number };
-    const data = await service.updateVisitReport(params.id, body, tenantId, userId);
+    const data = await service.updateVisitReport(id, body, tenantId, userId);
 
     if (!data) {
       return NextResponse.json({ error: 'VisitReport not found' }, { status: 404 });

@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
           enrichedData = result.data.map(q => ({
             ...q,
             workOrderStatus: workOrderStatusMap[String((q as any).convertedToWorkOrder)] ?? null,
-          }));
+          })) as unknown as typeof result.data;
         }
       }
     } catch (e) {
