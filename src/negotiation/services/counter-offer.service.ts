@@ -1,8 +1,8 @@
 import { Types } from 'mongoose';
 import { NegotiationModel, NegotiationEventModel } from '../models';
 import { validateTransition, validateBusinessGuards } from './negotiation-state-machine';
-import { ActivityService } from '../../activity/services/activity.service';
-import { EVENT_TYPES } from '../../activity/types';
+import { ActivityService } from '../../crm/services/activity.service';
+import { EVENT_TYPES } from '../../activity/types/activity';
 import type {
   INegotiation,
   NegotiationStatus,
@@ -107,17 +107,15 @@ export class CounterOfferService {
 
     try {
       await new ActivityService().create({
-        tenantId,
-        leadId: negotiation.leadId?.toString(),
+        tenantId: new Types.ObjectId(tenantId),
         entityType: 'negotiation',
-        entityId: negotiationId,
-        eventType: EVENT_TYPES.NEGOTIATION_COUNTEROFFER,
+        entityId: new Types.ObjectId(negotiationId),
+        activityType: 'note' as const,
         title: 'Contraoferta registrada',
-        summary: `Contraoferta de $${data.amount} registrada`,
-        icon: 'repeat',
-        color: 'orange',
-        metadata: { amount: data.amount },
-      }, userId);
+        description: `Contraoferta de $${data.amount} registrada`,
+        performedBy: new Types.ObjectId(userId),
+        metadata: { amount: data.amount, icon: 'repeat', color: 'orange', eventType: EVENT_TYPES.NEGOTIATION_COUNTEROFFER, leadId: negotiation.leadId?.toString() },
+      }, tenantId);
     } catch (err) {
       console.error('[Activity] Failed to create activity:', err);
     }
@@ -191,17 +189,15 @@ export class CounterOfferService {
 
     try {
       await new ActivityService().create({
-        tenantId,
-        leadId: negotiation.leadId?.toString(),
+        tenantId: new Types.ObjectId(tenantId),
         entityType: 'negotiation',
-        entityId: negotiationId,
-        eventType: EVENT_TYPES.NEGOTIATION_COUNTEROFFER_STATUS_CHANGED,
+        entityId: new Types.ObjectId(negotiationId),
+        activityType: 'note' as const,
         title: `Contraoferta ${newStatus}`,
-        summary: `Contraoferta cambiada a ${newStatus}`,
-        icon: statusIcons[newStatus] || 'check-circle',
-        color: statusColors[newStatus] || 'blue',
-        metadata: { counterOfferIndex, newStatus },
-      }, userId);
+        description: `Contraoferta cambiada a ${newStatus}`,
+        performedBy: new Types.ObjectId(userId),
+        metadata: { counterOfferIndex, newStatus, icon: statusIcons[newStatus] || 'check-circle', color: statusColors[newStatus] || 'blue', eventType: EVENT_TYPES.NEGOTIATION_COUNTEROFFER_STATUS_CHANGED, leadId: negotiation.leadId?.toString() },
+      }, tenantId);
     } catch (err) {
       console.error('[Activity] Failed to create activity:', err);
     }

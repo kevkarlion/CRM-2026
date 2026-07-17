@@ -1,7 +1,7 @@
 import { Types } from 'mongoose';
 import { NegotiationModel } from '../models';
-import { ActivityService } from '../../activity/services/activity.service';
-import { EVENT_TYPES } from '../../activity/types';
+import { ActivityService } from '../../crm/services/activity.service';
+import { EVENT_TYPES } from '../../activity/types/activity';
 import type {
   INegotiation,
   NegotiationStatus,
@@ -72,17 +72,15 @@ export class CommercialEventService {
         };
 
         await new ActivityService().create({
-          tenantId,
-          leadId: negotiation.leadId?.toString(),
+          tenantId: new Types.ObjectId(tenantId),
           entityType: 'negotiation',
-          entityId: negotiationId,
-          eventType: EVENT_TYPES.NEGOTIATION_COMMERCIAL_EVENT,
+          entityId: new Types.ObjectId(negotiationId),
+          activityType: 'note' as const,
           title: eventTitles[data.eventType] || 'Evento comercial',
-          summary: data.description,
-          icon: 'file-text',
-          color: 'blue',
-          metadata: { eventType: data.eventType },
-        }, userId);
+          description: data.description,
+          performedBy: new Types.ObjectId(userId),
+          metadata: { commercialEventType: data.eventType, icon: 'file-text', color: 'blue', eventType: EVENT_TYPES.NEGOTIATION_COMMERCIAL_EVENT, leadId: negotiation.leadId?.toString() },
+        }, tenantId);
       } catch (err) {
         console.error('[Activity] Failed to create activity:', err);
       }

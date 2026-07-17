@@ -1,9 +1,9 @@
 import { Types } from 'mongoose';
 import { NegotiationModel, NegotiationEventModel } from '../models';
 import { validateTransition, validateBusinessGuards } from './negotiation-state-machine';
-import { ActivityService } from '../../activity/services/activity.service';
+import { ActivityService } from '../../crm/services/activity.service';
 import { LeadService } from '../../leads/services/lead.service';
-import { EVENT_TYPES } from '../../activity/types';
+import { EVENT_TYPES } from '../../activity/types/activity';
 import type {
   INegotiation,
   NegotiationStatus,
@@ -70,16 +70,15 @@ export class NegotiationService {
 
     try {
       await new ActivityService().create({
-        tenantId,
-        leadId: data.leadId,
+        tenantId: new Types.ObjectId(tenantId),
         entityType: 'negotiation',
-        entityId: String(negotiation._id),
-        eventType: EVENT_TYPES.NEGOTIATION_CREATED,
+        entityId: new Types.ObjectId(negotiation._id),
+        activityType: 'note' as const,
         title: 'Negociación iniciada',
-        summary: 'Negociación iniciada con el lead',
-        icon: 'handshake',
-        color: 'blue',
-      }, userId);
+        description: 'Negociación iniciada con el lead',
+        performedBy: new Types.ObjectId(userId),
+        metadata: { icon: 'handshake', color: 'blue', eventType: EVENT_TYPES.NEGOTIATION_CREATED, leadId: data.leadId },
+      }, tenantId);
     } catch (err) {
       console.error('[Activity] Failed to create activity:', err);
     }
@@ -215,17 +214,15 @@ export class NegotiationService {
     if (activityConfig) {
       try {
         await new ActivityService().create({
-          tenantId,
-          leadId: negotiation.leadId?.toString(),
+          tenantId: new Types.ObjectId(tenantId),
           entityType: 'negotiation',
-          entityId: id,
-          eventType: activityConfig.type as any,
+          entityId: new Types.ObjectId(id),
+          activityType: 'status_change' as const,
           title: activityConfig.title,
-          summary: `Negociación cambió de ${currentStatus} a ${newStatus}`,
-          icon: activityConfig.icon,
-          color: activityConfig.color,
-          metadata: { from: currentStatus, to: newStatus },
-        }, userId);
+          description: `Negociación cambió de ${currentStatus} a ${newStatus}`,
+          performedBy: new Types.ObjectId(userId),
+          metadata: { from: currentStatus, to: newStatus, icon: activityConfig.icon, color: activityConfig.color, eventType: activityConfig.type, leadId: negotiation.leadId?.toString() },
+        }, tenantId);
       } catch (err) {
         console.error('[Activity] Failed to create activity:', err);
       }

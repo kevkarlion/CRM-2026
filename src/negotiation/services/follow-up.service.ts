@@ -1,7 +1,7 @@
 import { Types } from 'mongoose';
 import { NegotiationModel } from '../models';
-import { ActivityService } from '../../activity/services/activity.service';
-import { EVENT_TYPES } from '../../activity/types';
+import { ActivityService } from '../../crm/services/activity.service';
+import { EVENT_TYPES } from '../../activity/types/activity';
 import type {
   INegotiation,
   NegotiationStatus,
@@ -70,22 +70,24 @@ export class FollowUpService {
 
     try {
       await new ActivityService().create({
-        tenantId,
-        leadId: negotiation.leadId?.toString(),
+        tenantId: new Types.ObjectId(tenantId),
         entityType: 'negotiation',
-        entityId: negotiationId,
-        eventType: EVENT_TYPES.NEGOTIATION_FOLLOWUP_UPDATED,
+        entityId: new Types.ObjectId(negotiationId),
+        activityType: 'follow_up' as const,
         title: 'Seguimiento actualizado',
-        summary: data.nextContactDate
+        description: data.nextContactDate
           ? `Próximo contacto: ${data.nextContactDate.toLocaleDateString()}`
           : 'Seguimiento actualizado',
-        icon: 'calendar',
-        color: 'purple',
+        performedBy: new Types.ObjectId(userId),
         metadata: {
           nextContactDate: data.nextContactDate,
           priority: data.priority,
+          icon: 'calendar',
+          color: 'purple',
+          eventType: EVENT_TYPES.NEGOTIATION_FOLLOWUP_UPDATED,
+          leadId: negotiation.leadId?.toString(),
         },
-      }, userId);
+      }, tenantId);
     } catch (err) {
       console.error('[Activity] Failed to create activity:', err);
     }
