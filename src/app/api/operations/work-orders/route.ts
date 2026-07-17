@@ -15,12 +15,18 @@ export async function GET(request: NextRequest) {
     }
 
     const status = searchParams.get('status') || undefined;
+    const type = searchParams.get('type') || undefined;
     const technicianId = searchParams.get('technicianId') || undefined;
     const from = searchParams.get('from') || undefined;
     const to = searchParams.get('to') || undefined;
 
     const filters: Record<string, unknown> = {};
     if (status) filters.status = status;
+    if (type === 'technical_visit') {
+      filters.source = 'technical_visit';
+    } else if (type === 'work_order') {
+      filters.source = { $in: ['lead_conversion', 'maintenance_contract', 'direct_sale', 'manual'] };
+    }
     if (technicianId) filters.technicianId = technicianId;
     if (from || to) {
       filters.scheduledDateGte = from ? new Date(from) : undefined;
