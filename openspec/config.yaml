@@ -1,0 +1,85 @@
+# CRM 2026 - OpenSpec Configuration
+
+## Context
+
+- **Project**: CRM 2026 - Commercial CRM with leads, quotes, contracts, and operations management
+- **Stack**: Next.js 16, React 19, TypeScript, Tailwind CSS 4, MongoDB (Mongoose)
+- **Persistence Mode**: openspec
+- **Pace**: automatic
+- **Delivery**: single-pr
+- **Review Budget**: 800 lines
+
+## Strict TDD
+
+**Mode**: enabled
+
+Test runner detected (Vitest), enabling Strict TDD by default.
+
+## Testing Capabilities
+
+**Detected**: 2026-07-17
+
+### Test Runner
+
+- Command: `npm test` → `vitest run`
+- Framework: Vitest 3.0.0
+
+### Test Layers
+
+| Layer       | Available | Tool                 |
+| ----------- | --------- | -------------------- |
+| Unit        | ✅        | Vitest               |
+| Integration | ✅        | @testing-library/*  |
+| E2E         | ❌        | —                    |
+
+### Coverage
+
+- Available: ❌ (not configured)
+- Command: —
+
+### Quality Tools
+
+| Tool         | Available | Command        |
+| ------------ | --------- | -------------- |
+| Linter       | ❌        | —              |
+| Type checker | ✅        | `npx tsc`      |
+| Formatter    | ❌        | —              |
+
+## Phase Rules
+
+### proposal
+
+- Single PR for entire proposal
+- Keep proposal under 200 lines
+
+### spec
+
+- Single PR for all spec artifacts
+- Keep specs under 400 lines combined
+- Prefer markdown tables over nested lists
+
+### design
+
+- Single PR for design artifacts
+- Include rationale for key decisions
+- Reference existing specs by filename
+
+### tasks
+
+- Single PR for task breakdown
+- Group related tasks into logical units
+
+### apply
+
+- Single PR for all implementation
+- Reference task IDs in commit messages
+
+### verify
+
+- Single PR for verification report
+- Include test results, manual checklist items
+
+### archive
+
+- Single PR to sync delta specs to archive
+- Minimize diff noise
