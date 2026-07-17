@@ -40,6 +40,24 @@ function decodeToken(token: string): { userId?: string; tenantId?: string; roles
   }
 }
 
+// Map short role names to full role names
+function normalizeRole(role: string): TenantRoleName {
+  const roleMap: Record<string, TenantRoleName> = {
+    'admin': 'Administrator',
+    'owner': 'Owner',
+    'superadmin': 'Owner',
+    'supervisor': 'Supervisor',
+    'sales': 'Sales',
+    'commercial': 'Sales',
+    'accounting': 'Accounting',
+    'accountant': 'Accounting',
+    'dispatcher': 'Dispatcher',
+    'technician': 'Technician',
+    'tech': 'Technician',
+  };
+  return roleMap[role.toLowerCase()] ?? 'Administrator';
+}
+
 const defaultUser: UserInfo = {
   name: 'Admin',
   email: 'admin@crm.local',
@@ -50,18 +68,32 @@ const RoleContext = createContext<RoleContextValue | null>(null);
 
 export function RoleProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserInfo>(defaultUser);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
       const data = decodeToken(token);
-      const role: TenantRoleName = (data.roles?.[0] as TenantRoleName) ?? 'Administrator';
+      console.log('[RoleContext] Token decoded:', data);
+      
+      // Normalize role: convert 'admin' -> 'Administrator', etc.
+      const rawRole = data.roles?.[0] ?? 'Administrator';
+      const role = normalizeRole(rawRole);
+      
+      console.log('[RoleContext] Raw role:', rawRole, '-> Normalized:', role);
+      
       setUser({
         name: data.name ?? 'Admin',
-        email: data.email ?? '',
+        email: data.email ?? 'admin@demo.cl',
         role,
       });
+    } else {
+      console.log('[RoleContext] No token found in localStorage, redirecting to login');
+      // Redirect to login if no token
+      window.location.href = '/login';
+      return;
     }
+    setLoading(false);
   }, []);
 
   const value = useMemo<RoleContextValue>(() => {

@@ -54,7 +54,7 @@ export const workOrderSchema = new Schema<IWorkOrder>(
     locationSnapshot: { type: locationSnapshotSchema, required: false },
     equipmentSnapshot: { type: equipmentSnapshotSchema, default: null },
     contractSnapshot: { type: contractSnapshotSchema, default: null },
-    source: { type: String, enum: ['manual', 'maintenance_contract'], required: true, default: 'manual' },
+    source: { type: String, enum: ['manual', 'maintenance_contract', 'lead_conversion', 'direct_sale'], required: true, default: 'manual' },
     workOrderNumber: { type: String, required: true },
     title: { type: String, required: true },
     description: String,

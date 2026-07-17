@@ -180,20 +180,52 @@ export async function POST(
 
       // 4. Create work order for the won lead
       const workOrderNumber = await getNextWorkOrderNumber(tenantId);
-      const [workOrder] = await WorkOrderModel.create([{
+      
+      // Get first quote for location/quoteId reference
+      let firstQuoteId = null;
+      let locationId = null;
+      let locationSnapshot = {};
+      
+      if (saleMode === 'quotes' && quotes.length > 0) {
+        const firstQuote = quotes[0];
+        firstQuoteId = firstQuote._id;
+        
+        // Try to get location from quote if available
+        if (firstQuote.locationId) {
+          locationId = firstQuote.locationId;
+          // Get location snapshot if available
+          const LocationModel = (await import('@/locations/models/location')).default;
+          const location = await LocationModel.findById(locationId).lean();
+          if (location) {
+            locationSnapshot = {
+              name: location.name,
+              address: location.address,
+            };
+          }
+        }
+      }
+      
+      const workOrderData = {
         tenantId: new Types.ObjectId(tenantId),
         clientId,
-        locationId: null,
         leadId: lead._id,
+        quoteId: firstQuoteId,
+        locationId: locationId || null,
         clientSnapshot: {
           name: lead.name,
           email: lead.email,
           phone: lead.phone,
+          companyName: lead.companyName || '',
           customerType: resolvedCustomerType,
           status: 'active',
         },
-        locationSnapshot: {},
-        source: 'manual',
+        locationSnapshot: Object.keys(locationSnapshot).length > 0 
+          ? locationSnapshot 
+          : (saleMode === 'quotes' ? {} : {
+              name: lead.companyName || lead.name,
+              address: '',
+            }),
+        source: 'manual', // TODO: change to 'lead_conversion' or 'direct_sale' after server restart
         workOrderNumber,
         title: `Venta: ${lead.companyName || lead.name}`,
         description: notes || `Venta generada desde lead #${lead._id}`,
@@ -202,7 +234,9 @@ export async function POST(
         status: 'draft',
         createdBy: new Types.ObjectId(userId),
         updatedBy: new Types.ObjectId(userId),
-      }], { session });
+      };
+      
+      const [workOrder] = await WorkOrderModel.create([workOrderData], { session });
 
       // Link quotes to the work order so hasWorkOrder resolves correctly
       if (saleMode === 'quotes' && quoteIds) {

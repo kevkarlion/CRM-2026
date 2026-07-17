@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connectDB } from '@/core/db';
 import { Types } from 'mongoose';
 import LeadModel from '@/leads/models/lead';
 import WorkOrderModel from '@/operations/models/work-order';
@@ -20,6 +21,7 @@ interface CreateVisitInput {
 
 export async function POST(request: NextRequest) {
   try {
+    await connectDB();
     const tenantId = request.headers.get('x-tenant-id');
     const userId = request.headers.get('x-user-id');
     

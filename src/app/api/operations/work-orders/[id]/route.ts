@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connectDB } from '@/core/db';
 import { WorkOrderService, ValidationError, ConflictError } from '@/operations/services/work-order.service';
 import { TransitionError } from '@/operations/helpers/state-machine';
 import type { TransitionContext } from '@/operations/helpers/state-machine';
@@ -11,6 +12,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await connectDB();
     const { id } = await params;
     const tenantId = _request.headers.get('x-tenant-id') || '';
     if (!tenantId) {
@@ -36,6 +38,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await connectDB();
     const { id } = await params;
     const tenantId = request.headers.get('x-tenant-id') || '';
     const userId = request.headers.get('x-user-id') || '';
@@ -87,6 +90,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await connectDB();
     const { id } = await params;
     const tenantId = request.headers.get('x-tenant-id') || '';
     const userId = request.headers.get('x-user-id') || '';

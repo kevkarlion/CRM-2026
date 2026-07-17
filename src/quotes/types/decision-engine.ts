@@ -43,7 +43,7 @@ export interface DecisionContext {
 export interface Action {
   id: string
   label: string
-  variant: 'primary' | 'secondary' | 'danger' | 'ghost'
+  variant: 'primary' | 'secondary' | 'danger' | 'success' | 'ghost'
   icon?: string
   disabled?: boolean
   tooltip?: string

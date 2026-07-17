@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connectDB } from '@/core/db';
 import { QuoteService } from '@/quotes/services';
 
 const service = new QuoteService();
@@ -8,6 +9,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await connectDB();
     const { id } = await params;
     const tenantId = _request.headers.get('x-tenant-id');
     if (!tenantId) {

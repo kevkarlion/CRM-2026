@@ -611,7 +611,6 @@ export class LeadService {
     const filter: Record<string, unknown> = {
       tenantId: new Types.ObjectId(tenantId),
       deletedAt: null,
-      status: { $nin: TERMINAL_STATUSES },
     };
 
     if (filters.assignedTo) {

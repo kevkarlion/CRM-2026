@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connectDB } from '@/core/db';
 import QuoteModel from '@/quotes/models/quote';
-import { cursorPage } from '@/crm/helpers/cursor-pagination';
-import type { IQuote } from '@/quotes/types/quote';
 
 export async function GET(
   request: NextRequest,
@@ -13,18 +12,29 @@ export async function GET(
       return NextResponse.json({ error: 'x-tenant-id header is required' }, { status: 401 });
     }
 
+    await connectDB();
+
     const { id } = await params;
-    const { searchParams } = new URL(request.url);
-    const cursor = searchParams.get('cursor') || undefined;
-    const limit = parseInt(searchParams.get('limit') || '20', 10);
 
-    const result = await cursorPage<IQuote>(
-      QuoteModel,
-      { tenantId, leadId: id, deletedAt: null },
-      { sortField: 'createdAt', sortOrder: -1, cursor, limit }
-    );
+    const quotes = await QuoteModel.find({
+      tenantId,
+      leadId: id,
+      deletedAt: null,
+    })
+      .select('_id number title total status')
+      .sort({ createdAt: -1 })
+      .limit(50)
+      .lean();
 
-    return NextResponse.json(result);
+    const formatted = quotes.map((q) => ({
+      _id: String(q._id),
+      number: q.number,
+      title: q.title,
+      total: q.total || 0,
+      status: q.status,
+    }));
+
+    return NextResponse.json(formatted);
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Internal server error' },

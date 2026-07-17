@@ -13,6 +13,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'x-tenant-id header is required' }, { status: 401 });
     }
 
+    await connectDB();
+
     const { searchParams } = new URL(request.url);
     const statusParam = searchParams.get('status') || undefined;
     const status = statusParam ? statusParam.split(',').filter(Boolean) : undefined;
@@ -74,6 +76,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    await connectDB();
     const tenantId = request.headers.get('x-tenant-id');
     const userId = request.headers.get('x-user-id');
     if (!tenantId || !userId) {

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connectDB } from '@/core/db';
 import { WorkOrderService, ValidationError } from '@/operations/services/work-order.service';
 import type { CreateWorkOrderInput } from '@/operations/types/work-order';
 
@@ -6,6 +7,7 @@ const service = new WorkOrderService();
 
 export async function GET(request: NextRequest) {
   try {
+    await connectDB();
     const { searchParams } = new URL(request.url);
     const tenantId = request.headers.get('x-tenant-id');
     if (!tenantId) {
@@ -38,6 +40,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    await connectDB();
     const tenantId = request.headers.get('x-tenant-id') || '';
     const userId = request.headers.get('x-user-id') || '';
     if (!tenantId || !userId) {

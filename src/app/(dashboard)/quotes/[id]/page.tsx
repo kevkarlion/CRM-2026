@@ -20,6 +20,7 @@ interface QuoteDetailData {
   client: any
   negotiation: any
   hasWorkOrder: boolean
+  workOrderId: string | null
   workOrderStatus: string | null
 }
 
@@ -106,18 +107,18 @@ export default function QuoteDetailPage() {
         }
         break
       case 'create-work-order':
-        if (data?.quote?.convertedToWorkOrder) {
-          router.push(`/work-orders/${data.quote.convertedToWorkOrder}/edit`)
+        if (data?.workOrderId) {
+          router.push(`/work-orders/${data.workOrderId}/edit`)
         }
         break
       case 'edit-work-order':
-        if (data?.quote?.convertedToWorkOrder) {
-          router.push(`/work-orders/${data.quote.convertedToWorkOrder}/edit`)
+        if (data?.workOrderId) {
+          router.push(`/work-orders/${data.workOrderId}/edit`)
         }
         break
       case 'view-work-order':
-        if (data?.quote?.convertedToWorkOrder) {
-          router.push(`/work-orders/${data.quote.convertedToWorkOrder}`)
+        if (data?.workOrderId) {
+          router.push(`/work-orders/${data.workOrderId}`)
         }
         break
     }

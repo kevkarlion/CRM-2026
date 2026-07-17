@@ -58,6 +58,7 @@ export async function POST(request: NextRequest) {
 
     const response = NextResponse.json({
       token,
+      tenantId: user.tenantId.toString(),
       user: {
         id: user._id.toString(),
         email: user.email,

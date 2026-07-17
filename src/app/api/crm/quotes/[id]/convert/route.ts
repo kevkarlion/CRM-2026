@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connectDB } from '@/core/db';
 import { ConversionService, ConversionError } from '@/quotes/services';
 
 const service = new ConversionService();
@@ -8,6 +9,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await connectDB();
     const { id } = await params;
     const tenantId = request.headers.get('x-tenant-id');
     const userId = request.headers.get('x-user-id');

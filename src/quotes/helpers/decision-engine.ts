@@ -60,11 +60,11 @@ export function evaluateQuoteDecision(context: DecisionContext): DecisionOutput 
         if (hasWorkOrder) {
           if (workOrderStatus === 'draft') {
             actions.push(
-              { id: 'edit-work-order', label: 'Editar OT', variant: 'primary', icon: 'edit' },
+              { id: 'edit-work-order', label: 'Editar OT', variant: 'success', icon: 'edit' },
             )
           } else {
             actions.push(
-              { id: 'view-work-order', label: 'Ver detalle OT', variant: 'primary', icon: 'eye' },
+              { id: 'view-work-order', label: 'Ver detalle OT', variant: 'secondary', icon: 'eye' },
             )
           }
           actions.push(
@@ -82,7 +82,7 @@ export function evaluateQuoteDecision(context: DecisionContext): DecisionOutput 
 
       if (!hasWorkOrder && (!negotiation || negotiation.status === 'accepted')) {
         actions.push(
-          { id: 'confirm-sale', label: 'Confirmar Venta', variant: 'primary', icon: 'check' },
+          { id: 'confirm-sale', label: 'Confirmar Venta', variant: 'success', icon: 'check' },
           { id: 'download-pdf', label: 'Descargar PDF', variant: 'secondary', icon: 'download' },
         )
         canConfirmSale = true

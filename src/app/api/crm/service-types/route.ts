@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connectDB } from '@/core/db';
 import { ServiceTypeService } from '@/service-types/services';
 
 const service = new ServiceTypeService();
 
 export async function GET(request: NextRequest) {
   try {
+    await connectDB();
     const tenantId = request.headers.get('x-tenant-id');
     if (!tenantId) {
       return NextResponse.json({ error: 'x-tenant-id header is required' }, { status: 401 });
@@ -32,6 +34,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    await connectDB();
     const tenantId = request.headers.get('x-tenant-id');
     if (!tenantId) {
       return NextResponse.json({ error: 'x-tenant-id header is required' }, { status: 401 });

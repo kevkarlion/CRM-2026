@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connectDB } from '@/core/db';
 import WorkOrderModel from '@/operations/models/work-order';
 
 export async function GET(
@@ -6,6 +7,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await connectDB();
     const tenantId = request.headers.get('x-tenant-id');
     if (!tenantId) {
       return NextResponse.json({ error: 'x-tenant-id header is required' }, { status: 401 });

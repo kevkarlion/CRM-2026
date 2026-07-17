@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connectDB } from '@/core/db';
 import { QuoteService, NotFoundError, ValidationError } from '@/quotes/services';
 import LeadModel from '@/leads/models/lead';
 import NegotiationModel from '@/negotiation/models/negotiation';
@@ -19,6 +20,8 @@ export async function GET(
     if (!tenantId) {
       return NextResponse.json({ error: 'x-tenant-id header is required' }, { status: 401 });
     }
+
+    await connectDB();
 
     const result = await service.getQuote(id, tenantId);
 
@@ -87,6 +90,7 @@ export async function GET(
           }
         : null,
       hasWorkOrder: !!workOrder,
+      workOrderId: workOrder ? String((workOrder as any)._id) : null,
       workOrderStatus: (workOrder as any)?.status ?? null,
     });
   } catch (error) {
@@ -105,6 +109,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await connectDB();
     const { id } = await params;
     const tenantId = request.headers.get('x-tenant-id');
     const userId = request.headers.get('x-user-id');
@@ -135,6 +140,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await connectDB();
     const { id } = await params;
     const tenantId = request.headers.get('x-tenant-id');
     const userId = request.headers.get('x-user-id');

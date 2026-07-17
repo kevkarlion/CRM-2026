@@ -79,8 +79,13 @@ export default function EditWorkOrderPage() {
     async function load() {
       try {
         setLoading(true);
-        const result = await api.get<{ data: { workOrder: WorkOrderData } }>(`/api/operations/work-orders/${id}`);
-        const wo = result.data.workOrder;
+        const result = await api.get<{ data: any }>(`/api/operations/work-orders/${id}`);
+        const wo = result.data;
+        if (!wo) {
+          setNotFound(true);
+          setLoading(false);
+          return;
+        }
         setWorkOrder(wo);
         function datePart(dt?: string) {
           if (!dt) return '';
@@ -333,11 +338,11 @@ export default function EditWorkOrderPage() {
 
         <div className="flex items-center gap-3 pt-2">
           <button type="button" onClick={() => handleSubmit(false)} disabled={saving}
-            className="rounded-lg border border-gray-200 px-5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors">
+            className="rounded-lg border border-gray-300 px-5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors shadow-sm">
             {saving ? 'Guardando...' : 'Guardar'}
           </button>
           <button type="button" onClick={() => handleSubmit(true)} disabled={saving}
-            className="rounded-lg bg-brand-600 px-5 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50 transition-colors">
+            className="rounded-lg bg-green-600 px-5 py-2 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-colors shadow-md">
             {saving ? 'Guardando...' : 'Guardar y Programar'}
           </button>
           <button type="button" onClick={() => router.push(`/work-orders/${id}`)}

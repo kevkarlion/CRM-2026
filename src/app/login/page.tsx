@@ -29,7 +29,7 @@ function LoginForm() {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await res.json() as { error?: string; token?: string };
+      const data = await res.json() as { error?: string; token?: string; tenantId?: string };
 
       if (!res.ok) {
         setError(data.error || 'Login failed');
@@ -41,6 +41,9 @@ function LoginForm() {
         return;
       }
       localStorage.setItem('token', data.token);
+      if (data.tenantId) {
+        localStorage.setItem('tenantId', data.tenantId);
+      }
       router.push(redirectTo);
     } catch (err) {
       console.error('Login error:', err);

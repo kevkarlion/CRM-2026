@@ -3,9 +3,10 @@
 import type { Action } from '@/quotes/types/decision-engine'
 
 const VARIANT_STYLES: Record<string, string> = {
-  primary: 'bg-brand-600 text-white hover:bg-brand-700',
-  secondary: 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50',
-  danger: 'bg-danger-500 text-white hover:bg-danger-600',
+  primary: 'bg-brand-600 text-white hover:bg-brand-700 shadow-sm',
+  secondary: 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 shadow-sm',
+  danger: 'bg-danger-500 text-white hover:bg-danger-600 shadow-sm',
+  success: 'bg-green-600 text-white hover:bg-green-700 shadow-md font-semibold',
   ghost: 'text-gray-600 hover:bg-gray-100',
 }
 

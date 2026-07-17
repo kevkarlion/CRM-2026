@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { connectDB } from '@/core/db';
 import { WorkOrderService, ConflictError } from '@/operations/services/work-order.service';
 import type { WorkOrderStatus } from '@/operations/types/work-order';
 import { TransitionError } from '@/operations/helpers/state-machine';
@@ -10,6 +11,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    await connectDB();
     const { id } = await params;
     const tenantId = request.headers.get('x-tenant-id') || '';
     const userId = request.headers.get('x-user-id') || '';
