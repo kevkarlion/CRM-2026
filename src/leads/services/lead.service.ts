@@ -461,7 +461,7 @@ export class LeadService {
       _id: new Types.ObjectId(leadId),
       tenantId: new Types.ObjectId(tenantId),
       deletedAt: null,
-      status: { $in: ['technical_visit', 'quote_sent', 'negotiation'] },
+      status: { $in: ['contacted', 'technical_visit', 'quote_sent', 'negotiation'] },
       convertedToClient: null,
     }).exec();
 
@@ -475,9 +475,9 @@ export class LeadService {
       if (!existing) {
         throw new Error('Lead not found');
       }
-      if (!['technical_visit', 'quote_sent', 'negotiation'].includes(existing.status)) {
+      if (!['contacted', 'technical_visit', 'quote_sent', 'negotiation'].includes(existing.status)) {
         throw new ValidationError(
-          `Lead must be in 'technical_visit', 'quote_sent', or 'negotiation' status to convert. Current status: '${existing.status}'`,
+          `Lead must be in 'contacted', 'technical_visit', 'quote_sent', or 'negotiation' status to convert. Current status: '${existing.status}'`,
         );
       }
       if (existing.convertedToClient) {
