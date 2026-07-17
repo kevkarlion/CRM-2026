@@ -51,9 +51,16 @@ export default function EditQuotePage() {
     async function load() {
       try {
         setLoading(true);
-        const quote = await api.get<QuoteData>(`/api/crm/quotes/${id}`);
-        setClientId(typeof quote.client === 'object' ? quote.client._id : (quote.client || ''));
-        setItems(quote.items.length > 0 ? quote.items : [emptyItem()]);
+        const response = await api.get<any>(`/api/crm/quotes/${id}`);
+        const quote = response.quote;
+        
+        if (!quote) {
+          setNotFound(true);
+          return;
+        }
+        
+        setClientId(quote.clientId || '');
+        setItems(quote.items && quote.items.length > 0 ? quote.items : [emptyItem()]);
         setNotes(quote.notes || '');
         setTerms(quote.terms || '');
         setValidUntil(quote.validUntil ? quote.validUntil.slice(0, 10) : '');
@@ -107,7 +114,7 @@ export default function EditQuotePage() {
 
     setSaving(true);
     try {
-      await api.put(`/api/crm/quotes/${id}`, {
+      await api.patch(`/api/crm/quotes/${id}`, {
         clientId: clientId.trim(),
         items: items.map((i) => ({ description: i.description.trim(), quantity: i.quantity, unitPrice: i.unitPrice })),
         validUntil: new Date(validUntil).toISOString(),
