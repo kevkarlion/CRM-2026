@@ -173,6 +173,7 @@ export default function LeadDetailPage() {
 
   // Quote sending state
   const [sendingQuoteId, setSendingQuoteId] = useState<string | null>(null);
+  const [quickSaleLoading, setQuickSaleLoading] = useState(false);
 
   // Lists
   const [quotes, setQuotes] = useState<Quote[]>([]);
@@ -236,6 +237,47 @@ export default function LeadDetailPage() {
       setError(err instanceof Error ? err.message : 'Error al cambiar estado');
     } finally {
       setChangingStatus(false);
+    }
+  }
+
+  // Quick sale: create approved quote + change lead to won
+  async function handleQuickSale() {
+    setQuickSaleLoading(true);
+    setError(null);
+    try {
+      // Create a quick approved quote
+      const quote = await api.post<{ _id: string }>('/api/crm/quotes', {
+        leadId: id,
+        title: `Venta directa - ${lead?.name}`,
+        status: 'approved',
+        approvedAt: new Date().toISOString(),
+        items: [],
+        subtotal: 0,
+        tax: 0,
+        total: 0,
+      });
+      
+      // Also create a WorkOrder for this sale
+      await api.post('/api/operations/work-orders', {
+        leadId: id,
+        title: `Servicio para ${lead?.name}`,
+        source: 'lead_conversion',
+        priority: 'normal',
+        category: 'maintenance',
+        clientSnapshot: {
+          name: lead?.name || '',
+          email: lead?.email || '',
+          phone: lead?.phone || '',
+        },
+      });
+      
+      // Change lead status to won
+      const updated = await api.patch<Lead>(`/api/crm/leads/${id}/status`, { status: 'won' });
+      setLead(updated);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al confirmar venta');
+    } finally {
+      setQuickSaleLoading(false);
     }
   }
 
@@ -465,6 +507,13 @@ export default function LeadDetailPage() {
                 onClick={() => setShowVisitDrawer(true)}
                 className="w-full rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600 transition-colors">
                 Programar Visita Técnica
+              </button>
+              
+              <button 
+                onClick={handleQuickSale}
+                disabled={quickSaleLoading}
+                className="w-full rounded-lg bg-success-500 px-4 py-2 text-sm font-medium text-white hover:bg-success-600 transition-colors disabled:opacity-50">
+                {quickSaleLoading ? 'Confirmando...' : 'Confirmar Venta'}
               </button>
             </div>
           )}
