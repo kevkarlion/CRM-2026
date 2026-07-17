@@ -36,11 +36,17 @@ const CATEGORY_OPTIONS = [
   { value: 'emergency', label: 'Emergencia' },
 ];
 
+const TYPE_OPTIONS = [
+  { value: 'work_order', label: 'Orden de Trabajo' },
+  { value: 'technical_visit', label: 'Visita Técnica' },
+];
+
 export default function NewWorkOrderPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState({
+    type: 'work_order',
     title: '',
     clientName: '',
     clientEmail: '',
@@ -79,7 +85,7 @@ export default function NewWorkOrderPage() {
     try {
       const body: Record<string, unknown> = {
         title: form.title.trim(),
-        source: 'manual',
+        source: form.type === 'technical_visit' ? 'technical_visit' : 'manual',
         priority: form.priority,
         category: form.category,
         clientSnapshot: {
@@ -135,6 +141,26 @@ export default function NewWorkOrderPage() {
         <div className="space-y-5">
           <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Información General</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Tipo <span className="text-danger-500">*</span>
+              </label>
+              <div className="flex gap-3">
+                {TYPE_OPTIONS.map((opt) => (
+                  <label key={opt.value} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="type"
+                      value={opt.value}
+                      checked={form.type === opt.value}
+                      onChange={handleChange}
+                      className="w-4 h-4 text-brand-600 border-gray-300 focus:ring-brand-500"
+                    />
+                    <span className="text-sm text-gray-700">{opt.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
             <div className="sm:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Título <span className="text-danger-500">*</span>
