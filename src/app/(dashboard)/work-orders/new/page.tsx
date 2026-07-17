@@ -4,6 +4,21 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api-client';
 
+function getBrowserTimezone(): string {
+  const offset = new Date().getTimezoneOffset();
+  const sign = offset <= 0 ? '+' : '-';
+  const hours = String(Math.abs(Math.floor(offset / 60))).padStart(2, '0');
+  const mins = String(Math.abs(offset % 60)).padStart(2, '0');
+  return `${sign}${hours}:${mins}`;
+}
+
+function toISOStringWithLocalTime(dateStr: string, timeStr: string): string {
+  const [y, mo, d] = dateStr.split('-').map(Number);
+  const [h, mi] = timeStr.split(':').map(Number);
+  const dt = new Date(y, mo - 1, d, h, mi);
+  return dt.toISOString();
+}
+
 const PRIORITY_OPTIONS = [
   { value: 'low', label: 'Baja' },
   { value: 'normal', label: 'Normal' },
@@ -90,8 +105,8 @@ export default function NewWorkOrderPage() {
 
       if (form.description.trim()) body.description = form.description.trim();
       if (form.scheduledDate) body.scheduledDate = form.scheduledDate;
-      if (form.startTime) body.scheduledStart = form.startTime;
-      if (form.endTime) body.scheduledEnd = form.endTime;
+      if (form.scheduledDate && form.startTime) body.scheduledStart = toISOStringWithLocalTime(form.scheduledDate, form.startTime);
+      if (form.scheduledDate && form.endTime) body.scheduledEnd = toISOStringWithLocalTime(form.scheduledDate, form.endTime);
       if (form.estimatedDuration) body.estimatedDuration = parseInt(form.estimatedDuration, 10);
 
       const result = await api.post<{ data: { _id: string } }>('/api/operations/work-orders', body);

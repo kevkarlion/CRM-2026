@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { WorkOrderService, ValidationError, ConflictError } from '@/operations/services/work-order.service';
+import { TransitionError } from '@/operations/helpers/state-machine';
+import type { TransitionContext } from '@/operations/helpers/state-machine';
+import type { WorkOrderStatus } from '@/operations/types/work-order';
 
 const service = new WorkOrderService();
 
@@ -40,8 +43,8 @@ export async function PATCH(
       return NextResponse.json({ error: 'x-tenant-id and x-user-id headers are required' }, { status: 400 });
     }
 
-    const body = await request.json() as { version: number; [key: string]: unknown };
-    const { version, ...data } = body;
+    const body = await request.json() as { version: number; status?: string; [key: string]: unknown };
+    const { version, status: targetStatus, ...data } = body;
 
     if (version === undefined || version === null) {
       return NextResponse.json({ error: 'version is required for OCC' }, { status: 400 });
@@ -52,13 +55,25 @@ export async function PATCH(
       return NextResponse.json({ error: 'WorkOrder not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ data: updated });
+    if (targetStatus && updated.status !== targetStatus) {
+      const context: TransitionContext = {};
+      if (data.scheduledDate || data.scheduledStart || data.scheduledEnd) {
+        context.hasSchedule = true;
+      }
+      await service.changeStatus(id, targetStatus as WorkOrderStatus, context, tenantId, userId, updated.version);
+    }
+
+    const refreshed = await service.getWorkOrderDetail(id, tenantId);
+    return NextResponse.json({ data: refreshed });
   } catch (error) {
     if (error instanceof ConflictError) {
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
     if (error instanceof ValidationError) {
       return NextResponse.json({ error: error.message }, { status: 422 });
+    }
+    if (error instanceof TransitionError) {
+      return NextResponse.json({ error: error.message, reason: error.reason }, { status: 422 });
     }
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Internal server error' },

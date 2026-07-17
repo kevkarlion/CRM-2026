@@ -397,6 +397,12 @@ export class LeadService {
 
     const currentStatus = lead.status as LeadStatus;
 
+    if (newStatus === 'won') {
+      throw new ValidationError(
+        'Use "Confirmar venta" o "Convertir a cliente" para marcar el lead como ganado'
+      );
+    }
+
     let hasActivity: boolean | undefined;
     let hasRequiredFields: boolean | undefined;
     let hasClient: boolean | undefined;
@@ -416,10 +422,6 @@ export class LeadService {
         (lead.email?.trim() || lead.phone?.trim()) &&
         lead.companyName?.trim()
       );
-    }
-
-    if ((currentStatus === 'quote_sent' && newStatus === 'won') || (currentStatus === 'negotiation' && newStatus === 'won')) {
-      hasClient = !!lead.convertedToClient;
     }
 
     validateTransition(currentStatus, newStatus, { hasActivity, hasRequiredFields, hasClient });

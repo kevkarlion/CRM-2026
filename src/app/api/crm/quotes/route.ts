@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import mongoose from 'mongoose';
+import { connectDB } from '@/core/db';
 import { QuoteService, ValidationError } from '@/quotes/services';
 import type { CreateQuoteInput, QuoteStatus } from '@/quotes/types/quote';
 
@@ -12,15 +14,56 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const status = searchParams.get('status') || undefined;
+    const statusParam = searchParams.get('status') || undefined;
+    const status = statusParam ? statusParam.split(',').filter(Boolean) : undefined;
     const clientId = searchParams.get('clientId') || undefined;
     const search = searchParams.get('search') || undefined;
     const cursor = searchParams.get('cursor') || undefined;
     const limit = parseInt(searchParams.get('limit') || '20', 10);
+    const dateFrom = searchParams.get('dateFrom') || undefined;
+    const dateTo = searchParams.get('dateTo') || undefined;
 
-    const result = await service.listQuotes({ status: status as QuoteStatus | undefined, clientId, search, cursor, limit }, tenantId);
+    const result = await service.listQuotes({
+      status: status as QuoteStatus | QuoteStatus[] | undefined,
+      clientId,
+      search,
+      cursor,
+      limit,
+      createdAtGte: dateFrom,
+      createdAtLte: dateTo,
+    }, tenantId);
 
-    return NextResponse.json(result);
+    // Bulk lookup work order statuses (best-effort, never break the list)
+    let enrichedData = result.data;
+    const woCount = result.data.filter(q => (q as any).convertedToWorkOrder).length;
+    console.log(`[quotes-list] ${result.data.length} quotes, ${woCount} with work orders`);
+    try {
+      const workOrderIds = result.data
+        .map(q => (q as any).convertedToWorkOrder)
+        .filter(Boolean)
+        .map(id => new mongoose.Types.ObjectId(String(id)));
+
+      if (workOrderIds.length > 0) {
+        const WorkOrderModel = mongoose.models.WorkOrder;
+        if (WorkOrderModel) {
+          const workOrders = await WorkOrderModel.find({ _id: { $in: workOrderIds } })
+            .select('_id status')
+            .lean();
+          const workOrderStatusMap: Record<string, string> = {};
+          for (const wo of workOrders) {
+            workOrderStatusMap[String(wo._id)] = (wo as any).status;
+          }
+          enrichedData = result.data.map(q => ({
+            ...q,
+            workOrderStatus: workOrderStatusMap[String((q as any).convertedToWorkOrder)] ?? null,
+          }));
+        }
+      }
+    } catch (e) {
+      console.error('[quotes-list] Work order enrichment failed:', e);
+    }
+
+    return NextResponse.json({ ...result, data: enrichedData });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Internal server error' },

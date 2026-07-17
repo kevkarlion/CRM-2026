@@ -6,6 +6,12 @@ import { api } from '@/lib/api-client';
 import { CreateQuoteDrawer } from '@/leads/components/CreateQuoteDrawer';
 import { CreateVisitDrawer } from '@/leads/components/CreateVisitDrawer';
 import { QuoteDetailDrawer } from '@/leads/components/QuoteDetailDrawer';
+import { WorkOrderDetailDrawer } from '@/operations/components/WorkOrderDetailDrawer';
+import { CreateWorkOrderDrawer } from '@/operations/components/CreateWorkOrderDrawer';
+import { ConfirmSaleDrawer } from '@/leads/components/ConfirmSaleDrawer';
+import { useLeadStatuses } from '@/leads/hooks/useLeadStatuses';
+import { getDaysUntilExpiry } from '@/lib/format-date';
+import { LeadTimeline } from '@/activity/components/LeadTimeline';
 
 interface Lead {
   _id: string;
@@ -90,16 +96,6 @@ const SOURCE_LABELS: Record<string, string> = {
   whatsapp: 'WhatsApp', call: 'Llamada', form: 'Formulario',
   referral: 'Referido', walk_in: 'Presencial', other: 'Otro',
 };
-
-function getDaysUntilExpiry(validUntil: string | null): number | null {
-  if (!validUntil) return null;
-  const expiryDate = new Date(validUntil);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  expiryDate.setHours(0, 0, 0, 0);
-  const diffTime = expiryDate.getTime() - today.getTime();
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-}
 
 function QuoteExpiryAlert({ validUntil }: { validUntil: string | null }) {
   const daysLeft = getDaysUntilExpiry(validUntil);

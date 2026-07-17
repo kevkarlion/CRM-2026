@@ -26,6 +26,13 @@ const PRIORITY_OPTIONS = [
   { value: 'urgent', label: 'Urgente' },
 ];
 
+function toISOStringWithLocalTime(dateStr: string, timeStr: string): string {
+  const [y, mo, d] = dateStr.split('-').map(Number);
+  const [h, mi] = timeStr.split(':').map(Number);
+  const dt = new Date(y, mo - 1, d, h, mi);
+  return dt.toISOString();
+}
+
 export function ScheduleVisitModal({ lead, isOpen, onClose, onSuccess }: ScheduleVisitModalProps) {
   const [title, setTitle] = useState(`Visita técnica - ${lead.name}`);
   const [description, setDescription] = useState('');
@@ -58,9 +65,9 @@ export function ScheduleVisitModal({ lead, isOpen, onClose, onSuccess }: Schedul
         clientSnapshot: { name: lead.name, email: lead.email, phone: lead.phone },
         locationSnapshot: {},
         equipmentSnapshot: null,
-        scheduledDate: scheduledDate ? new Date(scheduledDate) : undefined,
-        scheduledStart: scheduledStart ? new Date(`${scheduledDate}T${scheduledStart}`) : undefined,
-        scheduledEnd: scheduledEnd ? new Date(`${scheduledDate}T${scheduledEnd}`) : undefined,
+        scheduledDate: scheduledDate || undefined,
+        scheduledStart: scheduledStart ? toISOStringWithLocalTime(scheduledDate, scheduledStart) : undefined,
+        scheduledEnd: scheduledEnd ? toISOStringWithLocalTime(scheduledDate, scheduledEnd) : undefined,
       });
       onSuccess();
     } catch (err) {

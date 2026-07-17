@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { api } from '@/lib/api-client';
+import { formatDateSafe, getDaysUntilExpiry } from '@/lib/format-date';
 import { Drawer } from '@/lib/components/Drawer';
 
 interface QuoteItem {
@@ -79,16 +80,6 @@ const ITEM_TYPE_LABELS: Record<string, string> = {
   material: 'Material',
   part: 'Repuesto',
 };
-
-function getDaysUntilExpiry(validUntil: string | null): number | null {
-  if (!validUntil) return null;
-  const expiryDate = new Date(validUntil);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  expiryDate.setHours(0, 0, 0, 0);
-  const diffTime = expiryDate.getTime() - today.getTime();
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-}
 
 function ExpiryAlert({ validUntil }: { validUntil: string | null }) {
   const daysLeft = getDaysUntilExpiry(validUntil);
@@ -214,9 +205,7 @@ export function QuoteDetailDrawer({ isOpen, onClose, quoteId }: QuoteDetailDrawe
               <div>
                 <p className="text-gray-500">Válido hasta</p>
                 <p className="font-medium">
-                  {new Date(quote.validUntil).toLocaleDateString('es-CL', { 
-                    day: '2-digit', month: 'long', year: 'numeric' 
-                  })}
+                  {formatDateSafe(quote.validUntil)}
                 </p>
               </div>
             )}

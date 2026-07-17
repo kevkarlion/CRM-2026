@@ -11,6 +11,10 @@ import TenantModel from '../../core/models/tenant';
 import type { IQuote, QuoteStatus, CreateQuoteInput, UpdateQuoteInput } from '../types/quote';
 import type { IQuoteVersion } from '../types/quote-version';
 
+function parseDateOnly(value: string): Date {
+  return new Date(value + 'T12:00:00.000Z');
+}
+
 export class ConflictError extends Error {
   constructor(message: string) {
     super(message);
@@ -35,7 +39,7 @@ export class NotFoundError extends Error {
 const TERMINAL_STATES: QuoteStatus[] = ['approved', 'rejected', 'expired', 'cancelled'];
 
 export interface QuoteListFilters {
-  status?: QuoteStatus;
+  status?: QuoteStatus | QuoteStatus[];
   clientId?: string;
   createdAtGte?: string;
   createdAtLte?: string;
@@ -99,7 +103,7 @@ export class QuoteService {
         currentVersion: 1,
         title: data.title,
         description: data.description,
-        validUntil: data.validUntil ? new Date(data.validUntil) : null,
+        validUntil: data.validUntil ? parseDateOnly(data.validUntil) : null,
         subtotal,
         discountAmount,
         taxAmount,
@@ -157,7 +161,7 @@ export class QuoteService {
       deletedAt: null,
     })
       .populate('clientId', 'fullName companyName email phone')
-      
+      .populate('leadId', 'name email phone companyName status')
       .exec();
 
     if (!quote) {
@@ -187,7 +191,11 @@ export class QuoteService {
     };
 
     if (filters.status) {
-      filter.status = filters.status;
+      if (Array.isArray(filters.status)) {
+        filter.status = { $in: filters.status };
+      } else {
+        filter.status = filters.status;
+      }
     }
 
     if (filters.clientId) {
@@ -221,8 +229,29 @@ export class QuoteService {
       sort: { createdAt: -1 },
     } as never);
 
+    const populated = await QuoteModel.populate(page.data, {
+      path: 'clientId',
+      select: 'fullName companyName email phone',
+    });
+
+    await QuoteModel.populate(populated, {
+      path: 'leadId',
+      select: 'name status',
+    });
+
+    await QuoteModel.populate(populated, {
+      path: 'createdBy',
+      select: 'name email',
+    });
+
+    const enrichedData = (populated as any[]).map(q => {
+      const leadName = q.leadId?.name || (q.clientId ? (q.clientId.companyName || q.clientId.fullName) : '') || '—';
+      const leadStatus = q.leadId?.status || '';
+      return { ...q.toObject(), leadName, leadStatus };
+    });
+
     return {
-      data: page.data as unknown as IQuote[],
+      data: enrichedData as unknown as IQuote[],
       cursor: page.cursor ?? undefined,
       total,
     };
@@ -309,7 +338,7 @@ export class QuoteService {
             $set: {
               title: data.title ?? quote.title,
               description: data.description ?? quote.description,
-              validUntil: data.validUntil ? new Date(data.validUntil) : quote.validUntil,
+              validUntil: data.validUntil ? parseDateOnly(data.validUntil) : quote.validUntil,
               notes: data.notes ?? quote.notes,
               locationId: data.locationId ? new Types.ObjectId(data.locationId) : quote.locationId,
               subtotal,
@@ -367,7 +396,7 @@ export class QuoteService {
         $set: {
           ...(data.title !== undefined && { title: data.title }),
           ...(data.description !== undefined && { description: data.description }),
-          ...(data.validUntil !== undefined && { validUntil: new Date(data.validUntil) }),
+          ...(data.validUntil !== undefined && { validUntil: parseDateOnly(data.validUntil) }),
           ...(data.notes !== undefined && { notes: data.notes }),
           ...(data.locationId !== undefined && { locationId: new Types.ObjectId(data.locationId) }),
           updatedBy: new Types.ObjectId(userId),
