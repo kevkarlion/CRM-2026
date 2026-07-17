@@ -466,6 +466,14 @@ export default function LeadDetailPage() {
                 className="w-full rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600 transition-colors">
                 Programar Visita Técnica
               </button>
+              
+              {quotes.some(q => q.status === 'approved') && (
+                <button 
+                  onClick={() => router.push(`/leads/${id}/confirm-sale`)}
+                  className="w-full rounded-lg bg-success-500 px-4 py-2 text-sm font-medium text-white hover:bg-success-600 transition-colors">
+                  Confirmar Venta
+                </button>
+              )}
             </div>
           )}
 
