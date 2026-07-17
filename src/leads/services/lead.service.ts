@@ -397,12 +397,6 @@ export class LeadService {
 
     const currentStatus = lead.status as LeadStatus;
 
-    if (newStatus === 'won') {
-      throw new ValidationError(
-        'Use "Confirmar venta" o "Convertir a cliente" para marcar el lead como ganado'
-      );
-    }
-
     let hasActivity: boolean | undefined;
     let hasRequiredFields: boolean | undefined;
     let hasClient: boolean | undefined;
