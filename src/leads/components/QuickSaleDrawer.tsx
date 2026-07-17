@@ -120,8 +120,12 @@ export function QuickSaleDrawer({
         notes: notes.trim() || undefined,
       });
 
-      // 2. Create WorkOrder
+      // 2. Create client from lead first
+      const clientResult = await api.post<{ clientId: string }>(`/api/crm/leads/${leadId}/convert`, {});
+
+      // 3. Create WorkOrder with the new clientId
       await api.post('/api/operations/work-orders', {
+        clientId: clientResult.clientId,
         leadId,
         title: `Servicio para ${leadName}`,
         source: 'lead_conversion',
@@ -135,7 +139,7 @@ export function QuickSaleDrawer({
         },
       });
 
-      // 3. Change lead status to won
+      // 4. Change lead status to won
       await api.patch(`/api/crm/leads/${leadId}/status`, { status: 'won' });
 
       onSuccess();
