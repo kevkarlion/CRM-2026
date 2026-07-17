@@ -25,6 +25,7 @@ const navItems: NavItem[] = [
   { label: 'Quotes', href: '/quotes', icon: '📄', roles: ['Sales', 'Administrator', 'Owner', 'Supervisor'] },
   { label: 'Contracts', href: '/contracts', icon: '📝', roles: ['Administrator', 'Supervisor', 'Owner', 'Sales', 'Accounting', 'Dispatcher'] },
   { label: 'Work Orders', href: '/work-orders', icon: '🔧', roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Technician', 'Sales', 'Accounting'] },
+  { label: 'Visitas Técnicas', href: '/technical-visits', icon: '📅', roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Sales'] },
 ];
 
 export function Sidebar() {

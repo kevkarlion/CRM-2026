@@ -4,21 +4,20 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api-client';
 
-interface WorkOrder {
+interface TechnicalVisit {
   _id: string;
-  workOrderNumber: string;
+  visitNumber: string;
   title: string;
   status: string;
   priority: string;
-  source: string;
+  category: string;
   scheduledDate?: string;
   clientSnapshot?: { name?: string };
-  assignedTechnicians?: Array<{ _id: string; name: string } | string>;
-  leadId?: string;
+  locationSnapshot?: { address?: string };
 }
 
 interface ListResponse {
-  data: WorkOrder[];
+  data: TechnicalVisit[];
   total: number;
 }
 
@@ -27,11 +26,10 @@ const STATUS_OPTIONS = [
   { value: 'draft', label: 'Borrador' },
   { value: 'scheduled', label: 'Programado' },
   { value: 'confirmed', label: 'Confirmado' },
-  { value: 'assigned', label: 'Asignado' },
-  { value: 'en_route', label: 'En Ruta' },
-  { value: 'on_site', label: 'En Sitio' },
+  { value: 'in_progress', label: 'En Curso' },
   { value: 'completed', label: 'Completado' },
   { value: 'cancelled', label: 'Cancelado' },
+  { value: 'converted_to_work_order', label: 'Convertido a OT' },
 ];
 
 const PRIORITY_OPTIONS = [
@@ -42,17 +40,23 @@ const PRIORITY_OPTIONS = [
   { value: 'urgent', label: 'Urgente' },
 ];
 
+const CATEGORY_OPTIONS = [
+  { value: '', label: 'Todas' },
+  { value: 'budget', label: 'Presupuesto' },
+  { value: 'inspection', label: 'Inspección' },
+  { value: 'assessment', label: 'Evaluación' },
+  { value: 'emergency', label: 'Emergencia' },
+  { value: 'other', label: 'Otra' },
+];
+
 const STATUS_VARIANT: Record<string, string> = {
   draft: 'bg-gray-100 text-gray-700',
   scheduled: 'bg-blue-50 text-blue-700',
   confirmed: 'bg-teal-50 text-teal-700',
-  assigned: 'bg-indigo-50 text-indigo-700',
-  en_route: 'bg-amber-50 text-amber-700',
-  on_site: 'bg-orange-50 text-orange-700',
-  paused: 'bg-yellow-50 text-yellow-700',
+  in_progress: 'bg-amber-50 text-amber-700',
   completed: 'bg-green-50 text-green-700',
   cancelled: 'bg-red-50 text-red-700',
-  closed: 'bg-slate-50 text-slate-700',
+  converted_to_work_order: 'bg-purple-50 text-purple-700',
 };
 
 const PRIORITY_VARIANT: Record<string, string> = {
@@ -60,7 +64,14 @@ const PRIORITY_VARIANT: Record<string, string> = {
   normal: 'bg-blue-50 text-blue-700',
   high: 'bg-orange-50 text-orange-700',
   urgent: 'bg-red-50 text-red-700',
-  emergency: 'bg-red-100 text-red-900',
+};
+
+const CATEGORY_VARIANT: Record<string, string> = {
+  budget: 'bg-yellow-50 text-yellow-700',
+  inspection: 'bg-blue-50 text-blue-700',
+  assessment: 'bg-indigo-50 text-indigo-700',
+  emergency: 'bg-red-50 text-red-700',
+  other: 'bg-gray-50 text-gray-700',
 };
 
 function formatDate(dateStr?: string) {
@@ -70,68 +81,63 @@ function formatDate(dateStr?: string) {
   });
 }
 
-function clientName(wo: WorkOrder): string {
-  return wo.clientSnapshot?.name || '—';
-}
-
-function technicianName(wo: WorkOrder): string {
-  if (!wo.assignedTechnicians?.length) return '—';
-  const t = wo.assignedTechnicians[0];
-  return typeof t === 'object' ? t.name : t;
+function clientName(visit: TechnicalVisit): string {
+  return visit.clientSnapshot?.name || '—';
 }
 
 export default function TechnicalVisitsPage() {
   const router = useRouter();
-  const [orders, setOrders] = useState<WorkOrder[]>([]);
+  const [visits, setVisits] = useState<TechnicalVisit[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [total, setTotal] = useState(0);
 
-  const fetchOrders = useCallback(async () => {
+  const fetchVisits = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      // Always filter for technical visits only
-      const params: Record<string, string> = { type: 'technical_visit' };
+      const params: Record<string, string> = {};
       if (search) params.search = search;
       if (statusFilter) params.status = statusFilter;
       if (priorityFilter) params.priority = priorityFilter;
+      if (categoryFilter) params.category = categoryFilter;
       if (fromDate) params.from = fromDate;
       if (toDate) params.to = toDate;
 
-      const result = await api.get<ListResponse>('/api/operations/work-orders', params);
-      setOrders(result.data);
+      const result = await api.get<ListResponse>('/api/operations/technical-visits', params);
+      setVisits(result.data);
       setTotal(result.total);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar visitas');
     } finally {
       setLoading(false);
     }
-  }, [search, statusFilter, priorityFilter, fromDate, toDate]);
+  }, [search, statusFilter, priorityFilter, categoryFilter, fromDate, toDate]);
 
   useEffect(() => {
-    fetchOrders();
-  }, [statusFilter, priorityFilter, fromDate, toDate]);
+    fetchVisits();
+  }, [statusFilter, priorityFilter, categoryFilter, fromDate, toDate]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetchOrders();
+      fetchVisits();
     }, 400);
     return () => clearTimeout(timer);
   }, [search]);
 
   function handleRowClick(id: string) {
-    router.push(`/work-orders/${id}`);
+    router.push(`/technical-visits/${id}`);
   }
 
   function handleNew() {
-    router.push('/work-orders/new?source=technical_visit');
+    router.push('/technical-visits/new');
   }
 
   const label = (opts: { value: string; label: string }[], val: string) =>
@@ -180,11 +186,11 @@ export default function TechnicalVisitsPage() {
           ))}
         </select>
         <select
-          value={priorityFilter}
-          onChange={(e) => setPriorityFilter((e.target as any).value)}
+          value={categoryFilter}
+          onChange={(e) => setCategoryFilter((e.target as any).value)}
           className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
         >
-          {PRIORITY_OPTIONS.map((opt) => (
+          {CATEGORY_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </select>
@@ -216,11 +222,11 @@ export default function TechnicalVisitsPage() {
             <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />
           ))}
         </div>
-      ) : orders.length === 0 ? (
+      ) : visits.length === 0 ? (
         <div className="text-center py-12">
           <div className="text-4xl mb-3">🔍</div>
           <h3 className="text-lg font-medium text-gray-900">No hay visitas técnicas</h3>
-          <p className="text-gray-500 mt-1">Programá una nueva visita técnica para un lead</p>
+          <p className="text-gray-500 mt-1">Programá una nueva visita técnica</p>
         </div>
       ) : (
         <div className="hidden sm:block bg-white border border-gray-200 rounded-xl overflow-hidden">
@@ -229,35 +235,37 @@ export default function TechnicalVisitsPage() {
               <tr className="border-b border-gray-100 bg-gray-50">
                 <th className="text-left px-5 py-3 font-semibold text-gray-600">#</th>
                 <th className="text-left px-5 py-3 font-semibold text-gray-600">Título</th>
-                <th className="text-left px-5 py-3 font-semibold text-gray-600">Cliente</th>
+                <th className="text-left px-5 py-3 font-semibold text-gray-600">Categoría</th>
                 <th className="text-left px-5 py-3 font-semibold text-gray-600">Estado</th>
                 <th className="text-left px-5 py-3 font-semibold text-gray-600">Prioridad</th>
                 <th className="text-left px-5 py-3 font-semibold text-gray-600">Programado</th>
-                <th className="text-left px-5 py-3 font-semibold text-gray-600">Técnico</th>
               </tr>
             </thead>
             <tbody>
-              {orders.map((wo) => (
+              {visits.map((visit) => (
                 <tr
-                  key={wo._id}
-                  onClick={() => handleRowClick(wo._id)}
+                  key={visit._id}
+                  onClick={() => handleRowClick(visit._id)}
                   className="border-b border-gray-100 last:border-0 hover:bg-gray-50 cursor-pointer transition-colors"
                 >
-                  <td className="px-5 py-3 font-medium text-gray-900">{wo.workOrderNumber}</td>
-                  <td className="px-5 py-3 font-medium text-gray-900">{wo.title}</td>
-                  <td className="px-5 py-3 text-gray-700">{clientName(wo)}</td>
+                  <td className="px-5 py-3 font-medium text-gray-900">{visit.visitNumber}</td>
+                  <td className="px-5 py-3 font-medium text-gray-900">{visit.title}</td>
                   <td className="px-5 py-3">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[wo.status] || 'bg-gray-100 text-gray-700'}`}>
-                      {label(STATUS_OPTIONS, wo.status)}
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${CATEGORY_VARIANT[visit.category] || 'bg-gray-100 text-gray-700'}`}>
+                      {label(CATEGORY_OPTIONS, visit.category)}
                     </span>
                   </td>
                   <td className="px-5 py-3">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${PRIORITY_VARIANT[wo.priority] || 'bg-gray-100 text-gray-700'}`}>
-                      {label(PRIORITY_OPTIONS, wo.priority)}
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[visit.status] || 'bg-gray-100 text-gray-700'}`}>
+                      {label(STATUS_OPTIONS, visit.status)}
                     </span>
                   </td>
-                  <td className="px-5 py-3 text-gray-500">{formatDate(wo.scheduledDate)}</td>
-                  <td className="px-5 py-3 text-gray-500">{technicianName(wo)}</td>
+                  <td className="px-5 py-3">
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${PRIORITY_VARIANT[visit.priority] || 'bg-gray-100 text-gray-700'}`}>
+                      {label(PRIORITY_OPTIONS, visit.priority)}
+                    </span>
+                  </td>
+                  <td className="px-5 py-3 text-gray-500">{formatDate(visit.scheduledDate)}</td>
                 </tr>
               ))}
             </tbody>
@@ -267,26 +275,28 @@ export default function TechnicalVisitsPage() {
 
       {/* Mobile Cards */}
       <div className="sm:hidden space-y-3">
-        {orders.map((wo) => (
+        {visits.map((visit) => (
           <div
-            key={wo._id}
-            onClick={() => handleRowClick(wo._id)}
+            key={visit._id}
+            onClick={() => handleRowClick(visit._id)}
             className="bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:bg-gray-50"
           >
             <div className="flex justify-between items-start mb-2">
-              <span className="font-medium text-gray-900">{wo.workOrderNumber}</span>
-              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${PRIORITY_VARIANT[wo.priority] || 'bg-gray-100 text-gray-700'}`}>
-                {label(PRIORITY_OPTIONS, wo.priority)}
+              <span className="font-medium text-gray-900">{visit.visitNumber}</span>
+              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${PRIORITY_VARIANT[visit.priority] || 'bg-gray-100 text-gray-700'}`}>
+                {label(PRIORITY_OPTIONS, visit.priority)}
               </span>
             </div>
-            <div className="text-sm text-gray-700 font-medium">{wo.title}</div>
-            <div className="text-sm text-gray-500 mt-1">{clientName(wo)}</div>
-            <div className="flex justify-between items-center mt-2">
-              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${STATUS_VARIANT[wo.status] || 'bg-gray-100 text-gray-700'}`}>
-                {label(STATUS_OPTIONS, wo.status)}
+            <div className="text-sm text-gray-700 font-medium">{visit.title}</div>
+            <div className="flex gap-2 mt-2">
+              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${CATEGORY_VARIANT[visit.category] || 'bg-gray-100 text-gray-700'}`}>
+                {label(CATEGORY_OPTIONS, visit.category)}
               </span>
-              <span className="text-xs text-gray-500">{formatDate(wo.scheduledDate)}</span>
+              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${STATUS_VARIANT[visit.status] || 'bg-gray-100 text-gray-700'}`}>
+                {label(STATUS_OPTIONS, visit.status)}
+              </span>
             </div>
+            <div className="text-xs text-gray-500 mt-2">{formatDate(visit.scheduledDate)}</div>
           </div>
         ))}
       </div>
