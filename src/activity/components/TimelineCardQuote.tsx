@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { getDaysUntilExpiry } from '@/lib/format-date';
 import { TimelineCardProps } from '../types/timeline';
 import { resolveEntityRoute, getEntityNumber } from '../helpers/entity-routes';
 
@@ -53,11 +52,16 @@ function getExpiryLabel(validUntil?: string): {
   variant: string;
 } | null {
   if (!validUntil) return null;
-  const daysLeft = getDaysUntilExpiry(validUntil);
-  if (daysLeft === null) return null;
-  if (daysLeft < 0) return { text: 'Vencida', variant: 'text-red-600 bg-red-50' };
-  if (daysLeft === 0) return { text: 'Vence hoy', variant: 'text-orange-600 bg-orange-50' };
-  return { text: `${daysLeft}d`, variant: 'text-yellow-600 bg-yellow-50' };
+
+  const now = new Date();
+  const expiry = new Date(validUntil);
+  const diffDays = Math.ceil(
+    (expiry.getTime() - now.getTime()) / 86400000,
+  );
+
+  if (diffDays < 0) return { text: 'Vencida', variant: 'text-red-600 bg-red-50' };
+  if (diffDays === 0) return { text: 'Vence hoy', variant: 'text-orange-600 bg-orange-50' };
+  return { text: `${diffDays}d`, variant: 'text-yellow-600 bg-yellow-50' };
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -90,30 +94,54 @@ function formatFullDate(dateStr: string): string {
 
 export function TimelineCardQuote({ event }: TimelineCardProps) {
   const entityNumber = getEntityNumber(event.metadata, event.title);
-  const amount = event.metadata?.amount;
+  const amount = event.metadata?.amount || event.metadata?.total;
   const status = event.metadata?.status as string | undefined;
   const validUntil = event.metadata?.validUntil as string | undefined;
+  const title = event.metadata?.title as string | undefined;
+  const description = event.metadata?.description as string | undefined;
+  const notes = event.metadata?.notes as string | undefined;
   const expiry = getExpiryLabel(validUntil);
   const route = resolveEntityRoute(event.entityType, event.entityId);
 
   const statusLabel = status ? STATUS_LABELS[status] || status : null;
   const statusColor = status ? STATUS_COLORS[status] || 'bg-gray-100 text-gray-600' : '';
 
-  // Determinar el título según el tipo de evento
   const getEventTitle = () => {
     if (event.eventType === 'quote.created') return 'Presupuesto creado';
     if (event.eventType === 'quote.sent') return 'Presupuesto enviado';
     if (event.eventType === 'quote.approved') return 'Presupuesto aprobado';
     if (event.eventType === 'quote.rejected') return 'Presupuesto rechazado';
+    if (event.eventType === 'quote.converted') return 'Convertido a OT';
     return 'Presupuesto';
   };
+
+  const getEventColor = () => {
+    if (event.eventType === 'quote.approved') return 'text-green-600';
+    if (event.eventType === 'quote.rejected') return 'text-red-600';
+    if (event.eventType === 'quote.sent') return 'text-indigo-600';
+    return 'text-purple-600';
+  };
+
+  const rejectionReason = event.metadata?.reason as string | undefined;
+  const workOrderNumber = event.metadata?.workOrderNumber as string | undefined;
 
   return (
     <>
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-xs font-medium text-purple-600">{getEventTitle()}</p>
+          <p className={`text-xs font-medium ${getEventColor()}`}>{getEventTitle()}</p>
           <h4 className="text-sm font-semibold text-gray-900">{entityNumber}</h4>
+          {title && (
+            <p className="text-sm text-gray-700 mt-0.5">{title}</p>
+          )}
+          {description && (
+            <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{description}</p>
+          )}
+          {workOrderNumber && (
+            <p className="text-xs text-green-600 mt-0.5 font-medium">
+              OT #{workOrderNumber}
+            </p>
+          )}
           <p className="text-xs text-gray-400 mt-0.5">
             {formatFullDate(event.createdAt)}
           </p>
@@ -140,8 +168,22 @@ export function TimelineCardQuote({ event }: TimelineCardProps) {
         </div>
       )}
 
+      {event.summary && !amount && (
+        <p className="text-sm text-gray-600 mt-1">{event.summary}</p>
+      )}
+
+      {notes && (
+        <p className="text-xs text-gray-500 mt-1 italic">{notes}</p>
+      )}
+
+      {rejectionReason && (
+        <div className="mt-1 p-2 bg-red-50 rounded text-xs text-red-600">
+          <span className="font-medium">Motivo de rechazo:</span> {rejectionReason}
+        </div>
+      )}
+
       <p className="text-xs text-gray-500 mt-1">
-        Creado por {getUserName(event.createdBy)}
+        {getUserName(event.createdBy)}
       </p>
 
       {route !== '#' && (

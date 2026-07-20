@@ -3,7 +3,8 @@ import QuoteModel from '../models/quote';
 import QuoteVersionModel from '../models/quote-version';
 import { getNextWorkOrderNumber } from '../../operations/helpers/counter';
 import { WorkOrderModel } from '../../operations/models';
-import { logActivity } from '../../audit/activity-logger';
+import { eventBus } from '@/infrastructure/events/event-bus';
+import { DOMAIN_EVENTS, QuoteConvertedPayload } from '@/infrastructure/events/event.types';
 import type { IQuote } from '../types/quote';
 import type { IQuoteVersion } from '../types/quote-version';
 
@@ -125,17 +126,23 @@ export class ConversionService {
 
       await session.commitTransaction();
 
-      await logActivity({
-        tenantId,
-        entityType: 'quote',
-        entityId: quoteId,
-        action: 'converted',
-        actorId: userId,
-        metadata: {
-          convertedToWorkOrder: String(workOrder._id),
-          workOrderNumber,
-        },
-      });
+      try {
+        await eventBus.publish({
+          type: DOMAIN_EVENTS.QUOTE_CONVERTED,
+          aggregateId: quote._id.toString(),
+          aggregateType: 'Quote',
+          tenantId,
+          userId,
+          timestamp: new Date(),
+          payload: {
+            quoteId: quote._id.toString(),
+            workOrderId: workOrder._id.toString(),
+            workOrderNumber,
+          } as QuoteConvertedPayload,
+        });
+      } catch (eventError) {
+        console.error('[ConversionService] Failed to publish QUOTE_CONVERTED:', eventError);
+      }
 
       return {
         quote: quote.toObject() as unknown as IQuote,

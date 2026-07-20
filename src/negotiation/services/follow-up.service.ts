@@ -1,7 +1,7 @@
 import { Types } from 'mongoose';
 import { NegotiationModel } from '../models';
 import { ActivityService } from '../../crm/services/activity.service';
-import { EVENT_TYPES } from '../../activity/types/activity';
+import { EVENT_TYPES } from '../../crm/types/activity';
 import type {
   INegotiation,
   NegotiationStatus,

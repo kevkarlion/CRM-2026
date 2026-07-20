@@ -21,15 +21,11 @@ interface ConfirmSaleDrawerProps {
 }
 
 export function ConfirmSaleDrawer({ isOpen, onClose, leadId, leadName, onSuccess }: ConfirmSaleDrawerProps) {
-  const [saleMode, setSaleMode] = useState<'quotes' | 'direct'>('quotes');
   const [quotes, setQuotes] = useState<ApprovedQuote[]>([]);
   const [selectedQuoteIds, setSelectedQuoteIds] = useState<string[]>([]);
   const [loadingQuotes, setLoadingQuotes] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const [directAmount, setDirectAmount] = useState('');
-  const [directDescription, setDirectDescription] = useState('');
   const [notes, setNotes] = useState('');
 
   useEffect(() => {
@@ -64,10 +60,7 @@ export function ConfirmSaleDrawer({ isOpen, onClose, leadId, leadName, onSuccess
   }
 
   function resetForm() {
-    setSaleMode('quotes');
     setSelectedQuoteIds([]);
-    setDirectAmount('');
-    setDirectDescription('');
     setNotes('');
     setError(null);
   }
@@ -76,38 +69,21 @@ export function ConfirmSaleDrawer({ isOpen, onClose, leadId, leadName, onSuccess
     .filter(q => selectedQuoteIds.includes(q._id))
     .reduce((sum, q) => sum + q.total, 0);
 
-  const directTotal = parseFloat(directAmount) || 0;
-
   async function handleSubmit() {
     setError(null);
 
-    if (saleMode === 'quotes') {
-      if (selectedQuoteIds.length === 0) {
-        setError('Selecciona al menos un presupuesto');
-        return;
-      }
-    } else {
-      if (directTotal <= 0) {
-        setError('Ingresa un monto válido para la venta directa');
-        return;
-      }
+    if (selectedQuoteIds.length === 0) {
+      setError('Selecciona al menos un presupuesto');
+      return;
     }
 
     setSubmitting(true);
     try {
-      const body: Record<string, unknown> = {
-        saleMode,
+      const body = {
+        saleMode: 'quotes' as const,
+        quoteIds: selectedQuoteIds,
         notes: notes || undefined,
       };
-
-      if (saleMode === 'quotes') {
-        body.quoteIds = selectedQuoteIds;
-      } else {
-        body.directSale = {
-          amount: directTotal,
-          description: directDescription || undefined,
-        };
-      }
 
       await api.post(`/api/crm/leads/${leadId}/confirm-sale`, body);
       onSuccess();
@@ -154,126 +130,66 @@ export function ConfirmSaleDrawer({ isOpen, onClose, leadId, leadName, onSuccess
         )}
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Modo de venta
-          </label>
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={() => setSaleMode('quotes')}
-              className={`flex-1 px-4 py-3 border rounded-lg text-sm font-medium transition-colors ${
-                saleMode === 'quotes'
-                  ? 'border-brand-500 bg-brand-50 text-brand-700'
-                  : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              Por presupuestos
-            </button>
-            <button
-              type="button"
-              onClick={() => setSaleMode('direct')}
-              className={`flex-1 px-4 py-3 border rounded-lg text-sm font-medium transition-colors ${
-                saleMode === 'direct'
-                  ? 'border-brand-500 bg-brand-50 text-brand-700'
-                  : 'border-gray-200 text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              Venta directa
-            </button>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Presupuestos aprobados
+            </label>
+            {quotes.length > 0 && (
+              <button
+                type="button"
+                onClick={selectAllQuotes}
+                className="text-sm text-brand-600 hover:text-brand-700 font-medium"
+              >
+                Seleccionar todos
+              </button>
+            )}
           </div>
-        </div>
 
-        {saleMode === 'quotes' ? (
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="block text-sm font-medium text-gray-700">
-                Presupuestos aprobados
-              </label>
-              {quotes.length > 0 && (
-                <button
-                  type="button"
-                  onClick={selectAllQuotes}
-                  className="text-sm text-brand-600 hover:text-brand-700 font-medium"
+          {loadingQuotes ? (
+            <div className="p-4 text-center text-gray-400 text-sm">Cargando presupuestos...</div>
+          ) : quotes.length === 0 ? (
+            <div className="p-4 text-center bg-gray-50 rounded-lg">
+              <p className="text-gray-500 text-sm">No hay presupuestos aprobados para este lead.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {quotes.map(quote => (
+                <label
+                  key={quote._id}
+                  className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
+                    selectedQuoteIds.includes(quote._id)
+                      ? 'border-brand-500 bg-brand-50'
+                      : 'border-gray-200 hover:bg-gray-50'
+                  }`}
                 >
-                  Seleccionar todos
-                </button>
-              )}
+                  <input
+                    type="checkbox"
+                    checked={selectedQuoteIds.includes(quote._id)}
+                    onChange={() => toggleQuote(quote._id)}
+                    className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      #{quote.number} — {quote.title}
+                    </p>
+                  </div>
+                  <span className="text-sm font-medium text-gray-900 whitespace-nowrap">
+                    ${quote.total.toLocaleString('es-CL')}
+                  </span>
+                </label>
+              ))}
             </div>
+          )}
 
-            {loadingQuotes ? (
-              <div className="p-4 text-center text-gray-400 text-sm">Cargando presupuestos...</div>
-            ) : quotes.length === 0 ? (
-              <div className="p-4 text-center bg-gray-50 rounded-lg">
-                <p className="text-gray-500 text-sm">No hay presupuestos aprobados para este lead.</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {quotes.map(quote => (
-                  <label
-                    key={quote._id}
-                    className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition-colors ${
-                      selectedQuoteIds.includes(quote._id)
-                        ? 'border-brand-500 bg-brand-50'
-                        : 'border-gray-200 hover:bg-gray-50'
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedQuoteIds.includes(quote._id)}
-                      onChange={() => toggleQuote(quote._id)}
-                      className="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
-                        #{quote.number} — {quote.title}
-                      </p>
-                    </div>
-                    <span className="text-sm font-medium text-gray-900 whitespace-nowrap">
-                      ${quote.total.toLocaleString('es-CL')}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            )}
-
-            {selectedQuoteIds.length > 0 && (
-              <div className="mt-3 pt-3 border-t border-gray-200 flex justify-between text-sm">
-                <span className="text-gray-600">
-                  Total ({selectedQuoteIds.length} presupuesto{selectedQuoteIds.length > 1 ? 's' : ''})
-                </span>
-                <span className="font-medium text-gray-900">${selectedTotal.toLocaleString('es-CL')}</span>
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Monto de la venta *
-              </label>
-              <input
-                type="number"
-                value={directAmount}
-                onChange={(e) => setDirectAmount(e.target.value)}
-                min={0}
-                placeholder="0"
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
-              />
+          {selectedQuoteIds.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-gray-200 flex justify-between text-sm">
+              <span className="text-gray-600">
+                Total ({selectedQuoteIds.length} presupuesto{selectedQuoteIds.length > 1 ? 's' : ''})
+              </span>
+              <span className="font-medium text-gray-900">${selectedTotal.toLocaleString('es-CL')}</span>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Descripción
-              </label>
-              <textarea
-                value={directDescription}
-                onChange={(e) => setDirectDescription(e.target.value)}
-                rows={3}
-                placeholder="Detalles de la venta directa..."
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none resize-none"
-              />
-            </div>
-          </div>
-        )}
+          )}
+        </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">

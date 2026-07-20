@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { api } from '@/lib/api-client'
 import { Breadcrumb } from '@/lib/components/Breadcrumb'
 import { ExecutiveSummaryHeader } from '@/components/quotes/detail/executive-summary-header'
 import { GeneralInfoCard } from '@/components/quotes/detail/general-info-card'
@@ -41,9 +42,7 @@ export default function QuoteDetailPage() {
   async function fetchQuoteData() {
     try {
       setLoading(true)
-      const response = await fetch(`/api/crm/quotes/${quoteId}`)
-      if (!response.ok) throw new Error('Error al cargar cotización')
-      const result = await response.json()
+      const result = await api.get<QuoteDetailData>(`/api/crm/quotes/${quoteId}`)
       setData(result)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error desconocido')
@@ -70,8 +69,7 @@ export default function QuoteDetailPage() {
         break
       case 'send':
         try {
-          const res = await fetch(`/api/crm/quotes/${quoteId}/send`, { method: 'POST' })
-          if (!res.ok) throw new Error('Error al enviar cotización')
+          await api.post(`/api/crm/quotes/${quoteId}/send`, {})
           await fetchQuoteData()
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Error al enviar')
@@ -99,8 +97,7 @@ export default function QuoteDetailPage() {
         break
       case 'approve-quote':
         try {
-          const res = await fetch(`/api/crm/quotes/${quoteId}/approve`, { method: 'POST' })
-          if (!res.ok) throw new Error('Error al aprobar cotización')
+          await api.post(`/api/crm/quotes/${quoteId}/approve`, {})
           await fetchQuoteData()
         } catch (err) {
           setError(err instanceof Error ? err.message : 'Error al aprobar')

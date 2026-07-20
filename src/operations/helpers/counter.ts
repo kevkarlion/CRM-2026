@@ -1,4 +1,4 @@
-import { Schema, model, Model } from 'mongoose';
+import { Schema, model, Model, models } from 'mongoose';
 
 interface ICounter {
   _id: string;
@@ -10,7 +10,7 @@ const counterSchema = new Schema<ICounter>({
   seq: { type: Number, required: true, default: 0 },
 });
 
-const CounterModel: Model<ICounter> = model<ICounter>('WorkOrderCounter', counterSchema);
+const CounterModel: Model<ICounter> = models.WorkOrderCounter || model<ICounter>('WorkOrderCounter', counterSchema);
 
 export async function getNextWorkOrderNumber(tenantPrefix: string): Promise<string> {
   const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');

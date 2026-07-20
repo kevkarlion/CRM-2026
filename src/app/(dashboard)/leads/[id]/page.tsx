@@ -7,6 +7,7 @@ import { CreateQuoteDrawer } from '@/leads/components/CreateQuoteDrawer';
 import { CreateVisitDrawer } from '@/leads/components/CreateVisitDrawer';
 import { QuoteDetailDrawer } from '@/leads/components/QuoteDetailDrawer';
 import { QuickSaleDrawer } from '@/leads/components/QuickSaleDrawer';
+import { LeadTimeline } from '@/activity/components/LeadTimeline';
 import { getDaysUntilExpiry } from '@/lib/format-date';
 
 interface Lead {
@@ -180,6 +181,7 @@ export default function LeadDetailPage() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [visits, setVisits] = useState<WorkOrder[]>([]);
   const [loadingRelated, setLoadingRelated] = useState(false);
+  const [timelineRefreshKey, setTimelineRefreshKey] = useState(0);
 
   useEffect(() => {
     async function load() {
@@ -234,6 +236,7 @@ export default function LeadDetailPage() {
       const updated = await api.patch<Lead>(`/api/crm/leads/${id}/status`, { status: newStatus });
       setLead(updated);
       setShowStatusMenu(false);
+      setTimelineRefreshKey((k) => k + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cambiar estado');
     } finally {
@@ -244,6 +247,7 @@ export default function LeadDetailPage() {
   async function handleConvert() {
     try {
       const result = await api.post<{ clientId: string }>(`/api/crm/leads/${id}/convert`, {});
+      setTimelineRefreshKey((k) => k + 1);
       router.push(`/contracts`); // or wherever client detail is
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al convertir');
@@ -274,6 +278,7 @@ export default function LeadDetailPage() {
       await loadRelatedData();
       const refreshed = await api.get<Lead>(`/api/crm/leads/${id}`);
       setLead(refreshed);
+      setTimelineRefreshKey((k) => k + 1);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al enviar presupuesto');
     } finally {
@@ -377,6 +382,11 @@ export default function LeadDetailPage() {
               <p className="text-sm text-gray-700 whitespace-pre-wrap">{lead.notes}</p>
             </div>
           )}
+
+          <div className="bg-white border border-gray-200 rounded-xl p-6">
+            <h2 className="text-base font-semibold text-gray-900 mb-4">Actividad</h2>
+            <LeadTimeline leadId={id} refreshKey={timelineRefreshKey} />
+          </div>
         </div>
 
         <div className="space-y-4">
@@ -562,6 +572,7 @@ export default function LeadDetailPage() {
         leadName={lead?.name || ''}
         onSuccess={() => {
           loadRelatedData();
+          setTimelineRefreshKey((k) => k + 1);
           // Refresh lead status
           api.get<Lead>(`/api/crm/leads/${id}`).then(setLead);
         }}
@@ -576,6 +587,7 @@ export default function LeadDetailPage() {
         leadEmail={lead?.email}
         onSuccess={() => {
           loadRelatedData();
+          setTimelineRefreshKey((k) => k + 1);
           // Refresh lead status
           api.get<Lead>(`/api/crm/leads/${id}`).then(setLead);
         }}
@@ -599,9 +611,10 @@ export default function LeadDetailPage() {
         leadPhone={lead?.phone}
         leadCompany={lead?.companyName}
         onSuccess={() => {
-          // Refresh everything
+          // Refresh everything including timeline
           api.get<Lead>(`/api/crm/leads/${id}`).then(setLead);
           loadRelatedData();
+          setTimelineRefreshKey((k) => k + 1);
         }}
       />
     </div>

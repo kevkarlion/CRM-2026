@@ -1,20 +1,29 @@
-const ENTITY_ROUTE_MAP: Record<string, string> = {
-  lead: '/leads',
-  quote: '/quotes',
-  negotiation: '/negotiations',
-  work_order: '/work-orders',
-  client: '/clients',
-  technical_visit: '/technical-visits',
+const ENTITY_ROUTES: Record<string, string> = {
+  quote: '/quotes/',
+  negotiation: '/negotiations/',
+  visit: '/technical-visits/',
+  work_order: '/work-orders/',
+  workorder: '/work-orders/',
+  lead: '/leads/',
 };
 
-export function resolveEntityRoute(entityType: string, entityId: string): string {
-  const base = ENTITY_ROUTE_MAP[entityType];
-  if (!base || !entityId) return '#';
-  return `${base}/${entityId}`;
+export function resolveEntityRoute(
+  entityType: string,
+  entityId: string,
+  leadId?: string,
+): string {
+  const base = ENTITY_ROUTES[entityType];
+  if (!base) return '#';
+
+  const idWithSuffix = `${entityId}${leadId ? `?leadId=${leadId}` : ''}`;
+  return `${base}${idWithSuffix}`;
 }
 
-export function getEntityNumber(metadata?: Record<string, unknown>, title?: string): string {
-  if (metadata?.number) return `#${metadata.number}`;
-  if (metadata?.workOrderNumber) return `#${metadata.workOrderNumber}`;
-  return title || '—';
+export function getEntityNumber(
+  metadata?: Record<string, unknown>,
+  defaultLabel?: string,
+): string {
+  if (metadata?.number) return String(metadata.number);
+  if (metadata?.workOrderNumber) return String(metadata.workOrderNumber);
+  return defaultLabel ?? '';
 }

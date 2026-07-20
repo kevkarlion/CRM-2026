@@ -7,6 +7,8 @@ import { validateTransition, validateSendRequirements, validateApproveRequiremen
 import { getNextQuoteNumber } from '../helpers/counter';
 import { processItems, calculateSubtotal, calculateTotal } from '../helpers/calculator';
 import { logActivity } from '../../audit/activity-logger';
+import { eventBus } from '@/infrastructure/events/event-bus';
+import { DOMAIN_EVENTS, QuoteCreatedPayload, QuoteSentPayload, QuoteApprovedPayload, QuoteRejectedPayload } from '@/infrastructure/events/event.types';
 import { cursorPage } from '../../crm/helpers/cursor-pagination';
 import TenantModel from '../../core/models/tenant';
 import type { IQuote, QuoteStatus, CreateQuoteInput, UpdateQuoteInput } from '../types/quote';
@@ -142,6 +144,31 @@ export class QuoteService {
         actorId: userId,
         metadata: { number, version: 1 },
       });
+
+      // Publish QUOTE_CREATED event
+      try {
+        await eventBus.publish({
+          type: DOMAIN_EVENTS.QUOTE_CREATED,
+          aggregateId: String(quote._id),
+          aggregateType: 'Quote',
+          tenantId,
+          userId,
+          timestamp: new Date(),
+          payload: {
+            quoteId: String(quote._id),
+            number,
+            leadId: data.leadId || null,
+            total,
+            status: 'draft',
+            validUntil: data.validUntil || null,
+            title: data.title || '',
+            description: data.description || null,
+            notes: data.notes || null,
+          } as QuoteCreatedPayload,
+        });
+      } catch (eventError) {
+        console.error('[QuoteService] Failed to publish QUOTE_CREATED:', eventError);
+      }
 
       return {
         quote: quote.toObject() as unknown as IQuote,
@@ -511,17 +538,27 @@ export class QuoteService {
       }
     }
 
-    await logActivity({
-      tenantId,
-      entityType: 'quote',
-      entityId: quoteId,
-      action: 'status_changed',
-      actorId: userId,
-      changes: {
-        before: { status: currentStatus },
-        after: { status: 'sent' },
-      },
-    });
+    try {
+      await eventBus.publish({
+        type: DOMAIN_EVENTS.QUOTE_SENT,
+        aggregateId: quote._id.toString(),
+        aggregateType: 'Quote',
+        tenantId,
+        userId,
+        timestamp: new Date(),
+        payload: {
+          quoteId: quote._id.toString(),
+          leadId: quote.leadId?.toString() || '',
+          number: quote.number,
+          total: quote.total,
+          title: quote.title,
+          status: 'sent',
+          validUntil: quote.validUntil?.toISOString() || null,
+        } as QuoteSentPayload,
+      });
+    } catch (eventError) {
+      console.error('[QuoteService] Failed to publish QUOTE_SENT:', eventError);
+    }
 
     return updated as unknown as IQuote;
   }
@@ -584,17 +621,25 @@ export class QuoteService {
       throw new ConflictError('La cotización ya fue modificada por otro usuario');
     }
 
-    await logActivity({
-      tenantId,
-      entityType: 'quote',
-      entityId: quoteId,
-      action: 'status_changed',
-      actorId: userId,
-      changes: {
-        before: { status: currentStatus },
-        after: { status: 'approved' },
-      },
-    });
+    try {
+      await eventBus.publish({
+        type: DOMAIN_EVENTS.QUOTE_APPROVED,
+        aggregateId: quote._id.toString(),
+        aggregateType: 'Quote',
+        tenantId,
+        userId,
+        timestamp: new Date(),
+        payload: {
+          quoteId: quote._id.toString(),
+          leadId: quote.leadId?.toString() || null,
+          number: quote.number,
+          total: quote.total,
+          title: quote.title,
+        } as QuoteApprovedPayload,
+      });
+    } catch (eventError) {
+      console.error('[QuoteService] Failed to publish QUOTE_APPROVED:', eventError);
+    }
 
     return updated as unknown as IQuote;
   }
@@ -658,18 +703,26 @@ export class QuoteService {
       throw new ConflictError('La cotización ya fue modificada por otro usuario');
     }
 
-    await logActivity({
-      tenantId,
-      entityType: 'quote',
-      entityId: quoteId,
-      action: 'status_changed',
-      actorId: userId,
-      metadata: { reason },
-      changes: {
-        before: { status: currentStatus },
-        after: { status: 'rejected' },
-      },
-    });
+    try {
+      await eventBus.publish({
+        type: DOMAIN_EVENTS.QUOTE_REJECTED,
+        aggregateId: quote._id.toString(),
+        aggregateType: 'Quote',
+        tenantId,
+        userId,
+        timestamp: new Date(),
+        payload: {
+          quoteId: quote._id.toString(),
+          leadId: quote.leadId?.toString() || null,
+          number: quote.number,
+          total: quote.total,
+          title: quote.title,
+          reason: reason || undefined,
+        } as QuoteRejectedPayload,
+      });
+    } catch (eventError) {
+      console.error('[QuoteService] Failed to publish QUOTE_REJECTED:', eventError);
+    }
 
     return updated as unknown as IQuote;
   }

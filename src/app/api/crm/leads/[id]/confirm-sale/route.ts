@@ -7,6 +7,8 @@ import { CommercialProcessService } from '@/crm/services/commercial-process.serv
 import { Types } from 'mongoose';
 import WorkOrderModel from '@/operations/models/work-order';
 import { getNextWorkOrderNumber } from '@/operations/helpers/counter';
+import { eventBus } from '@/infrastructure/events/event-bus';
+import { DOMAIN_EVENTS, SaleConfirmedPayload } from '@/infrastructure/events/event.types';
 import type { LeadStatus } from '@/leads/constants/lead-status.constants';
 
 interface ConfirmSaleInput {
@@ -17,6 +19,7 @@ interface ConfirmSaleInput {
   directSale?: {
     amount: number;
     description?: string;
+    serviceTypeId?: string;
   };
 }
 
@@ -153,8 +156,8 @@ export async function POST(
         clientId = client._id;
 
         // Actualizar lead con referencia al cliente
-        await LeadModel.updateOne(
-          { _id: lead._id },
+        const leadUpdate = await LeadModel.updateOne(
+          { _id: lead._id, tenantId: new Types.ObjectId(tenantId) },
           {
             $set: {
               convertedToClient: clientId,
@@ -164,11 +167,15 @@ export async function POST(
           },
           { session }
         );
+        
+        if (leadUpdate.modifiedCount === 0) {
+          console.error('[ConfirmSale] Failed to update lead with client reference:', { leadId, clientId });
+        }
       }
 
       // 3. Actualizar estado del lead a ganado
-      await LeadModel.updateOne(
-        { _id: lead._id },
+      const statusUpdate = await LeadModel.updateOne(
+        { _id: lead._id, tenantId: new Types.ObjectId(tenantId) },
         {
           $set: {
             status: 'won',
@@ -177,6 +184,10 @@ export async function POST(
         },
         { session }
       );
+      
+      if (statusUpdate.modifiedCount === 0) {
+        console.error('[ConfirmSale] Failed to update lead status to won:', { leadId, tenantId });
+      }
 
       // 4. Create work order for the won lead
       const workOrderNumber = await getNextWorkOrderNumber(tenantId);
@@ -272,6 +283,28 @@ export async function POST(
           totalAmount,
           'direct'
         );
+      }
+
+      // Publish SALE_CONFIRMED event
+      try {
+        await eventBus.publish({
+          type: DOMAIN_EVENTS.SALE_CONFIRMED,
+          aggregateId: leadId,
+          aggregateType: 'Lead',
+          tenantId,
+          userId,
+          timestamp: new Date(),
+          payload: {
+            leadId,
+            clientId: clientId.toString(),
+            amount: totalAmount,
+            saleMode,
+            leadName: lead.name,
+            quotesCount: saleMode === 'quotes' ? quoteIds?.length || 0 : undefined,
+          } as SaleConfirmedPayload,
+        });
+      } catch (eventError) {
+        console.error('[confirm-sale] Failed to publish SALE_CONFIRMED:', eventError);
       }
 
       return NextResponse.json({

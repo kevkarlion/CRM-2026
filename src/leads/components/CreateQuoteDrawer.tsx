@@ -40,6 +40,7 @@ export function CreateQuoteDrawer({ isOpen, onClose, leadId, leadName, onSuccess
 
   useEffect(() => {
     if (isOpen) {
+      resetForm();
       loadServiceTypes();
     }
   }, [isOpen]);
@@ -48,7 +49,6 @@ export function CreateQuoteDrawer({ isOpen, onClose, leadId, leadName, onSuccess
     try {
       setLoadingServices(true);
       const data = await api.get<ServiceType[]>('/api/crm/service-types');
-      console.log('Service types loaded:', data);
       setServiceTypes(data);
     } catch (err) {
       console.error('Error loading service types:', err);
@@ -56,6 +56,16 @@ export function CreateQuoteDrawer({ isOpen, onClose, leadId, leadName, onSuccess
     } finally {
       setLoadingServices(false);
     }
+  }
+
+  function resetForm() {
+    setTitle('');
+    setServiceTypeId('');
+    setDescription('');
+    setValidUntil('');
+    setItems([{ description: '', type: 'service', quantity: 1, unitPrice: 0 }]);
+    setNotes('');
+    setError(null);
   }
 
   function addItem() {
@@ -76,7 +86,6 @@ export function CreateQuoteDrawer({ isOpen, onClose, leadId, leadName, onSuccess
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    console.log('Submit clicked', { title, serviceTypeId, items });
     setError(null);
 
     if (!title.trim() || !serviceTypeId) {
@@ -92,7 +101,6 @@ export function CreateQuoteDrawer({ isOpen, onClose, leadId, leadName, onSuccess
 
     setSubmitting(true);
     try {
-      console.log('Creating quote with:', { leadId, title, items: validItems });
       await api.post('/api/crm/quotes', {
         leadId,
         title,
@@ -112,15 +120,6 @@ export function CreateQuoteDrawer({ isOpen, onClose, leadId, leadName, onSuccess
     }
   }
 
-  function resetForm() {
-    setTitle('');
-    setServiceTypeId('');
-    setDescription('');
-    setValidUntil('');
-    setItems([{ description: '', type: 'service', quantity: 1, unitPrice: 0 }]);
-    setNotes('');
-  }
-
   return (
     <Drawer
       isOpen={isOpen}
@@ -136,11 +135,8 @@ export function CreateQuoteDrawer({ isOpen, onClose, leadId, leadName, onSuccess
             Cancelar
           </button>
           <button
-            type="button"
-            onClick={(e) => {
-              e.preventDefault();
-              handleSubmit(e as any);
-            }}
+            type="submit"
+            form="create-quote-form"
             disabled={submitting}
             className="flex-1 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 transition-colors font-medium"
           >
@@ -149,7 +145,7 @@ export function CreateQuoteDrawer({ isOpen, onClose, leadId, leadName, onSuccess
         </div>
       }
     >
-      <form onSubmit={handleSubmit} className="space-y-5">
+      <form id="create-quote-form" onSubmit={handleSubmit} className="space-y-5">
         {error && (
           <div className="p-3 bg-danger-50 text-danger-700 text-sm rounded-lg">
             {error}

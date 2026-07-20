@@ -13,6 +13,8 @@ import type { IPipeline, IPipelineStage } from '../types/pipeline';
 import PipelineModel from '../models/pipeline';
 import UserModel from '../../core/models/user';
 import { TERMINAL_STATUSES } from '../helpers/lead-state-machine';
+import { eventBus } from '@/infrastructure/events/event-bus';
+import { DOMAIN_EVENTS, LeadCreatedPayload, LeadStatusChangedPayload, LeadConvertedPayload } from '@/infrastructure/events/event.types';
 
 const assignmentService = new LeadAssignmentService();
 
@@ -120,13 +122,23 @@ export class LeadService {
       await assignmentService.assign(String(lead._id), assignedTo, userId, tenantId);
     }
 
-    await logActivity({
-      tenantId,
-      entityType: 'lead',
-      entityId: String(lead._id),
-      action: 'created',
-      actorId: userId,
-    });
+    try {
+      await eventBus.publish({
+        type: DOMAIN_EVENTS.LEAD_CREATED,
+        aggregateId: String(lead._id),
+        aggregateType: 'Lead',
+        tenantId,
+        userId,
+        timestamp: new Date(),
+        payload: {
+          leadId: String(lead._id),
+          name: lead.name,
+          source: lead.source || 'unknown',
+        } as LeadCreatedPayload,
+      });
+    } catch (eventError) {
+      console.error('[LeadService] Failed to publish LEAD_CREATED:', eventError);
+    }
 
     let nextAction: CreateLeadResult['nextAction'] = 'none';
 
@@ -246,17 +258,22 @@ export class LeadService {
       await session.commitTransaction();
       session.endSession();
 
-      await logActivity({
-        tenantId,
-        entityType: 'lead',
-        entityId: String(lead._id),
-        action: 'status_changed',
-        actorId: userId,
-        metadata: {
-          clientId: String(clientId),
-          trigger: 'create_lead_as_won',
-        },
-      });
+      try {
+        await eventBus.publish({
+          type: DOMAIN_EVENTS.LEAD_CONVERTED,
+          aggregateId: String(lead._id),
+          aggregateType: 'Lead',
+          tenantId,
+          userId,
+          timestamp: new Date(),
+          payload: {
+            leadId: String(lead._id),
+            clientId: String(clientId),
+          } as LeadConvertedPayload,
+        });
+      } catch (eventError) {
+        console.error('[LeadService] Failed to publish LEAD_CONVERTED:', eventError);
+      }
     } catch (error) {
       await session.abortTransaction();
       session.endSession();
@@ -437,17 +454,24 @@ export class LeadService {
       throw new ConflictError('Cannot change status, concurrent modification');
     }
 
-    await logActivity({
-      tenantId,
-      entityType: 'lead',
-      entityId: leadId,
-      action: 'status_changed',
-      actorId: userId,
-      changes: {
-        before: { status: currentStatus },
-        after: { status: newStatus },
-      },
-    });
+    try {
+      await eventBus.publish({
+        type: DOMAIN_EVENTS.LEAD_STATUS_CHANGED,
+        aggregateId: leadId,
+        aggregateType: 'Lead',
+        tenantId,
+        userId,
+        timestamp: new Date(),
+        payload: {
+          leadId,
+          from: currentStatus,
+          to: newStatus,
+          leadName: lead.name,
+        } as LeadStatusChangedPayload,
+      });
+    } catch (eventError) {
+      console.error('[LeadService] Failed to publish LEAD_STATUS_CHANGED:', eventError);
+    }
 
     return updatedLead as unknown as ILead;
   }
@@ -516,30 +540,6 @@ export class LeadService {
         updatedBy: userId,
       }], { session });
 
-      if (lead.notes) {
-        await ActivityModel.create([{
-          tenantId: lead.tenantId,
-          entityType: 'client',
-          entityId: client._id,
-          activityType: 'note',
-          title: 'Notas del Lead original',
-          description: lead.notes,
-          performedBy: userId,
-          metadata: { sourceLeadId: lead._id },
-        }], { session });
-      }
-
-      await ActivityModel.create([{
-        tenantId: lead.tenantId,
-        entityType: 'lead',
-        entityId: lead._id,
-        activityType: 'note',
-        title: 'Convertido a Cliente',
-        description: `Cliente creado: ${client.fullName || client.companyName}`,
-        performedBy: userId,
-        metadata: { clientId: client._id },
-      }], { session });
-
       const updatedLead = await LeadModel.findOneAndUpdate(
         {
           _id: lead._id,
@@ -563,14 +563,22 @@ export class LeadService {
 
       await session.commitTransaction();
 
-      await logActivity({
-        tenantId,
-        entityType: 'lead',
-        entityId: leadId,
-        action: 'converted',
-        actorId: userId,
-        metadata: { clientId: String(client._id) },
-      });
+      try {
+        await eventBus.publish({
+          type: DOMAIN_EVENTS.LEAD_CONVERTED,
+          aggregateId: leadId,
+          aggregateType: 'Lead',
+          tenantId,
+          userId,
+          timestamp: new Date(),
+          payload: {
+            leadId,
+            clientId: String(client._id),
+          } as LeadConvertedPayload,
+        });
+      } catch (eventError) {
+        console.error('[LeadService] Failed to publish LEAD_CONVERTED:', eventError);
+      }
 
       return {
         client: client.toObject() as unknown as Record<string, unknown>,

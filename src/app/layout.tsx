@@ -1,8 +1,10 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { initAuth } from '@/lib/auth-config';
+import { setupEventHandlers } from '@/infrastructure/events/setup';
 
 initAuth();
+setupEventHandlers();
 
 export const metadata: Metadata = {
   title: 'CRM 2026',

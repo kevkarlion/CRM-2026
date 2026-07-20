@@ -2,7 +2,7 @@ import { Types } from 'mongoose';
 import { NegotiationModel, NegotiationEventModel } from '../models';
 import { validateTransition, validateBusinessGuards } from './negotiation-state-machine';
 import { ActivityService } from '../../crm/services/activity.service';
-import { EVENT_TYPES } from '../../activity/types/activity';
+import { EVENT_TYPES } from '../../crm/types/activity';
 import type {
   INegotiation,
   NegotiationStatus,

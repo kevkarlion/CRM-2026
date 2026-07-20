@@ -35,6 +35,10 @@ describe('Lead State Machine', () => {
       expect(canTransition('contacted', 'lost')).toBe(true);
     });
 
+    it('allows technical_visit → won', () => {
+      expect(canTransition('technical_visit', 'won')).toBe(true);
+    });
+
     it('allows quote_sent → won', () => {
       expect(canTransition('quote_sent', 'won')).toBe(true);
     });
@@ -87,9 +91,11 @@ describe('Lead State Machine', () => {
       expect(() => validateTransition('new', 'lost')).not.toThrow();
       expect(() => validateTransition('contacted', 'quote_sent')).not.toThrow();
       expect(() => validateTransition('contacted', 'technical_visit')).not.toThrow();
+      expect(() => validateTransition('contacted', 'won', { hasClient: true })).not.toThrow();
       expect(() => validateTransition('contacted', 'lost')).not.toThrow();
-      expect(() => validateTransition('quote_sent', 'won')).not.toThrow();
-      expect(() => validateTransition('negotiation', 'won')).not.toThrow();
+      expect(() => validateTransition('technical_visit', 'won', { hasClient: true })).not.toThrow();
+      expect(() => validateTransition('quote_sent', 'won', { hasClient: true })).not.toThrow();
+      expect(() => validateTransition('negotiation', 'won', { hasClient: true })).not.toThrow();
       expect(() => validateTransition('quote_sent', 'lost')).not.toThrow();
       expect(() => validateTransition('negotiation', 'lost')).not.toThrow();
     });
@@ -129,6 +135,16 @@ describe('Lead State Machine', () => {
       it('quote_sent → won requires hasClient', () => {
         expect(() => validateTransition('quote_sent', 'won', { hasClient: true })).not.toThrow();
         expect(() => validateTransition('quote_sent', 'won', { hasClient: false })).toThrow(TransitionError);
+      });
+
+      it('contacted → won requires hasClient', () => {
+        expect(() => validateTransition('contacted', 'won', { hasClient: true })).not.toThrow();
+        expect(() => validateTransition('contacted', 'won', { hasClient: false })).toThrow(TransitionError);
+      });
+
+      it('technical_visit → won requires hasClient', () => {
+        expect(() => validateTransition('technical_visit', 'won', { hasClient: true })).not.toThrow();
+        expect(() => validateTransition('technical_visit', 'won', { hasClient: false })).toThrow(TransitionError);
       });
 
       it('negotiation → won requires hasClient', () => {
