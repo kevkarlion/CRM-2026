@@ -23,6 +23,10 @@ describe('Lead State Machine', () => {
       expect(canTransition('new', 'lost')).toBe(true);
     });
 
+    it('allows new → technical_visit', () => {
+      expect(canTransition('new', 'technical_visit')).toBe(true);
+    });
+
     it('allows contacted → quote_sent', () => {
       expect(canTransition('contacted', 'quote_sent')).toBe(true);
     });

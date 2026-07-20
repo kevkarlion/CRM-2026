@@ -20,6 +20,7 @@ const STATUS_VARIANT_MAP: Record<QuoteStatus, BadgeVariant> = {
   rejected: 'danger',
   expired: 'warning',
   cancelled: 'danger',
+  direct_sale: 'success',
 }
 
 const STATUS_LABEL_MAP: Record<QuoteStatus, string> = {
@@ -29,6 +30,7 @@ const STATUS_LABEL_MAP: Record<QuoteStatus, string> = {
   rejected: 'Rechazada',
   expired: 'Vencida',
   cancelled: 'Cancelada',
+  direct_sale: 'Venta Directa',
 }
 
 const variantClass: Record<BadgeVariant, string> = {

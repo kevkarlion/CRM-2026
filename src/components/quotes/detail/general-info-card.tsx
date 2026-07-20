@@ -48,7 +48,7 @@ export function GeneralInfoCard({ quote }: GeneralInfoCardProps) {
         )}
         {quote.approvedAt && (
           <InfoRow
-            label="Aprobado"
+            label={quote.status === 'direct_sale' ? 'Venta realizada' : 'Aprobado'}
             value={new Date(quote.approvedAt).toLocaleDateString('es-CL', {
               year: 'numeric', month: 'short', day: 'numeric',
             })}

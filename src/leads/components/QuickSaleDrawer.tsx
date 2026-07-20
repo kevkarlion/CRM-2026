@@ -10,6 +10,13 @@ interface ServiceType {
   description?: string;
 }
 
+interface QuoteItem {
+  description: string;
+  type: 'product' | 'service' | 'labor' | 'material' | 'part';
+  quantity: number;
+  unitPrice: number;
+}
+
 interface QuickSaleDrawerProps {
   isOpen: boolean;
   onClose: () => void;
@@ -30,14 +37,15 @@ export function QuickSaleDrawer({
 }: QuickSaleDrawerProps) {
   const [serviceTypes, setServiceTypes] = useState<ServiceType[]>([]);
   const [loadingServices, setLoadingServices] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [title, setTitle] = useState('');
   const [serviceTypeId, setServiceTypeId] = useState('');
-  const [amount, setAmount] = useState<number>(0);
   const [description, setDescription] = useState('');
+  const [validUntil, setValidUntil] = useState('');
+  const [items, setItems] = useState<QuoteItem[]>([{ description: '', type: 'service', quantity: 1, unitPrice: 0 }]);
   const [notes, setNotes] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -62,25 +70,28 @@ export function QuickSaleDrawer({
   function resetForm() {
     setTitle('');
     setServiceTypeId('');
-    setAmount(0);
     setDescription('');
+    setValidUntil('');
+    setItems([{ description: '', type: 'service', quantity: 1, unitPrice: 0 }]);
     setNotes('');
     setError(null);
   }
 
-  function formatCurrency(value: number): string {
-    return value.toLocaleString('es-AR');
+  function addItem() {
+    setItems([...items, { description: '', type: 'service', quantity: 1, unitPrice: 0 }]);
   }
 
-  function parseCurrency(value: string): number {
-    const cleaned = value.replace(/\./g, '').replace(/,/g, '.');
-    return Number(cleaned) || 0;
+  function removeItem(index: number) {
+    setItems(items.filter((_, i) => i !== index));
   }
 
-  function handleAmountChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const raw = e.target.value.replace(/[^0-9]/g, '');
-    setAmount(Number(raw) || 0);
+  function updateItem(index: number, field: keyof QuoteItem, value: string | number) {
+    const newItems = [...items];
+    newItems[index] = { ...newItems[index], [field]: value };
+    setItems(newItems);
   }
+
+  const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -96,8 +107,15 @@ export function QuickSaleDrawer({
       return;
     }
 
-    if (!amount || amount <= 0) {
-      setError('Ingresa un monto válido');
+    const validItems = items.filter(i => i.description.trim());
+    if (validItems.length === 0) {
+      setError('Agrega al menos un ítem');
+      return;
+    }
+
+    const total = validItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+    if (total <= 0) {
+      setError('El total debe ser mayor a $0');
       return;
     }
 
@@ -107,7 +125,7 @@ export function QuickSaleDrawer({
       await api.post(`/api/crm/leads/${leadId}/confirm-sale`, {
         saleMode: 'direct',
         directSale: {
-          amount,
+          amount: total,
           description: title.trim(),
           serviceTypeId,
         },
@@ -150,12 +168,6 @@ export function QuickSaleDrawer({
       }
     >
       <form id="quick-sale-form" onSubmit={handleSubmit} className="space-y-5">
-        <div className="bg-success-50 border border-success-200 rounded-lg p-4">
-          <p className="text-sm text-success-800">
-            Esta acción convertirá el lead en cliente ganado y creará una orden de trabajo.
-          </p>
-        </div>
-
         {error && (
           <div className="p-3 bg-danger-50 text-danger-700 text-sm rounded-lg">
             {error}
@@ -170,7 +182,7 @@ export function QuickSaleDrawer({
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Ej: Venta de sistema de seguridad"
+            placeholder="Ej: Instalación de sistema de frío"
             className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
           />
         </div>
@@ -203,34 +215,107 @@ export function QuickSaleDrawer({
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Monto total *
-          </label>
-          <div className="relative">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">
-              $
-            </span>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={amount ? formatCurrency(amount) : ''}
-              onChange={handleAmountChange}
-              placeholder="0"
-              className="w-full pl-7 pr-3 py-2.5 border border-gray-200 rounded-lg focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none text-lg font-semibold"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Descripción
+            Descripción general
           </label>
           <textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={3}
-            placeholder="Detalles de la venta..."
+            placeholder="Detalles adicionales del trabajo solicitado..."
             className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none resize-none"
           />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Válido hasta
+          </label>
+          <input
+            type="date"
+            value={validUntil}
+            onChange={(e) => setValidUntil(e.target.value)}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
+          />
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Items de la venta
+            </label>
+            <button
+              type="button"
+              onClick={addItem}
+              className="text-sm text-brand-600 hover:text-brand-700 font-medium"
+            >
+              + Agregar ítem
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {items.map((item, index) => (
+              <div key={index} className="p-3 bg-gray-50 rounded-lg space-y-2">
+                <div className="flex gap-2">
+                  <select
+                    value={item.type}
+                    onChange={(e) => updateItem(index, 'type', e.target.value)}
+                    className="w-28 px-2 py-2 border border-gray-200 rounded-lg focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none text-sm bg-white"
+                  >
+                    <option value="service">Servicio</option>
+                    <option value="product">Producto</option>
+                    <option value="labor">Mano obra</option>
+                    <option value="material">Material</option>
+                    <option value="part">Repuesto</option>
+                  </select>
+                  <input
+                    type="text"
+                    value={item.description}
+                    onChange={(e) => updateItem(index, 'description', e.target.value)}
+                    placeholder="Descripción del ítem"
+                    className="flex-1 px-3 py-2 border border-gray-200 rounded-lg focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none text-sm"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <div className="flex-1">
+                    <input
+                      type="number"
+                      value={item.quantity}
+                      onChange={(e) => updateItem(index, 'quantity', parseInt(e.target.value) || 0)}
+                      min={1}
+                      placeholder="Cantidad"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none text-sm"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <input
+                      type="number"
+                      value={item.unitPrice}
+                      onChange={(e) => updateItem(index, 'unitPrice', parseInt(e.target.value) || 0)}
+                      min={0}
+                      placeholder="Precio unitario"
+                      className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none text-sm"
+                    />
+                  </div>
+                  {items.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeItem(index)}
+                      className="p-2 text-danger-500 hover:text-danger-700"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-3 pt-3 border-t border-gray-200 flex justify-between text-sm">
+            <span className="text-gray-600">Total</span>
+            <span className="font-medium text-gray-900">${subtotal.toLocaleString()}</span>
+          </div>
         </div>
 
         <div>

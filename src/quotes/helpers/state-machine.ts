@@ -7,10 +7,11 @@ export const VALID_TRANSITIONS: Record<QuoteStatus, QuoteStatus[]> = {
   rejected: [],
   expired: [],
   cancelled: [],
+  direct_sale: [],
 };
 
 export const TERMINAL_STATUSES: QuoteStatus[] = [
-  'approved', 'rejected', 'expired', 'cancelled',
+  'approved', 'rejected', 'expired', 'cancelled', 'direct_sale',
 ];
 
 export class TransitionError extends Error {

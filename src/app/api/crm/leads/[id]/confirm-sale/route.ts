@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
 import QuoteModel from '@/quotes/models/quote';
+import QuoteVersionModel from '@/quotes/models/quote-version';
+import { getNextQuoteNumber } from '@/quotes/helpers/counter';
 import LeadModel from '@/leads/models/lead';
 import ClientModel from '@/crm/models/client';
 import { CommercialProcessService } from '@/crm/services/commercial-process.service';
@@ -11,6 +13,13 @@ import { eventBus } from '@/infrastructure/events/event-bus';
 import { DOMAIN_EVENTS, SaleConfirmedPayload } from '@/infrastructure/events/event.types';
 import type { LeadStatus } from '@/leads/constants/lead-status.constants';
 
+interface DirectSaleItem {
+  description: string;
+  type: 'product' | 'service' | 'labor' | 'material' | 'part';
+  quantity: number;
+  unitPrice: number;
+}
+
 interface ConfirmSaleInput {
   saleMode: 'quotes' | 'direct';
   quoteIds?: string[];
@@ -20,6 +29,7 @@ interface ConfirmSaleInput {
     amount: number;
     description?: string;
     serviceTypeId?: string;
+    items?: DirectSaleItem[];
   };
 }
 
@@ -258,6 +268,66 @@ export async function POST(
         );
       }
 
+      // 5. For direct sales: create a Quote + QuoteVersion so it appears in Centro Operativo
+      let directSaleQuoteId: Types.ObjectId | null = null;
+      if (saleMode === 'direct' && directSale) {
+        const quoteNumber = await getNextQuoteNumber(tenantId);
+        const items = directSale.items || [];
+        const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+
+        const [directQuote] = await QuoteModel.create([{
+          tenantId: new Types.ObjectId(tenantId),
+          leadId: lead._id,
+          clientId,
+          number: quoteNumber,
+          status: 'direct_sale',
+          currentVersion: 1,
+          title: directSale.description || `Venta directa - ${lead.name}`,
+          description: directSale.description,
+          validUntil: null,
+          subtotal,
+          discountAmount: 0,
+          taxAmount: 0,
+          total: directSale.amount,
+          notes,
+          approvedAt: new Date(),
+          convertedToWorkOrder: workOrder._id,
+          convertedAt: new Date(),
+          createdBy: new Types.ObjectId(userId),
+          updatedBy: new Types.ObjectId(userId),
+        }], { session });
+
+        directSaleQuoteId = directQuote._id;
+
+        await QuoteVersionModel.create([{
+          tenantId: new Types.ObjectId(tenantId),
+          quoteId: directQuote._id,
+          version: 1,
+          title: directQuote.title,
+          description: directSale.description,
+          items: items.map(item => ({
+            description: item.description,
+            type: item.type,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            subtotal: item.quantity * item.unitPrice,
+          })),
+          subtotal,
+          discountAmount: 0,
+          taxAmount: 0,
+          total: directSale.amount,
+          notes,
+          createdBy: new Types.ObjectId(userId),
+        }], { session });
+
+        // Link work order back to this quote
+        await WorkOrderModel.updateOne(
+          { _id: workOrder._id, tenantId: new Types.ObjectId(tenantId) },
+          { $set: { quoteId: directQuote._id } },
+          { session }
+        );
+      }
+
       await session.commitTransaction();
       session.endSession();
 
@@ -313,6 +383,7 @@ export async function POST(
         totalAmount,
         quotesApproved,
         saleMode,
+        quoteId: directSaleQuoteId?.toString() || null,
       });
     } catch (error) {
       await session.abortTransaction();

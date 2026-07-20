@@ -42,7 +42,7 @@ export class TechnicalVisitService {
         ...data,
         tenantId: new Types.ObjectId(tenantId),
         visitNumber,
-        status: 'draft',
+        status: data.status || 'scheduled',
         createdBy: new Types.ObjectId(userId),
         updatedBy: new Types.ObjectId(userId),
       }], { session });

@@ -72,6 +72,13 @@ const STATUS_VARIANT: Record<string, string> = {
   converted_to_work_order: 'bg-purple-50 text-purple-700',
 };
 
+function toLocalDatetimeValue(dateStr?: string): string {
+  if (!dateStr) return '';
+  const d = new Date(dateStr);
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 function formatDateTime(dateStr?: string) {
   if (!dateStr) return '—';
   return new Date(dateStr).toLocaleString('es-CL', {
@@ -89,6 +96,11 @@ export default function TechnicalVisitDetailPage() {
   const [saving, setSaving] = useState(false);
   const [newStatus, setNewStatus] = useState('');
 
+  // Edit mode state
+  const [editing, setEditing] = useState(false);
+  const [editDate, setEditDate] = useState('');
+  const [editTime, setEditTime] = useState('');
+
   const id = params.id as string;
 
   useEffect(() => {
@@ -101,10 +113,60 @@ export default function TechnicalVisitDetailPage() {
       const result = await api.get<{ data: TechnicalVisit }>(`/api/operations/technical-visits/${id}`);
       setVisit(result.data);
       setNewStatus(result.data.status);
+      syncEditFields(result.data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar');
     } finally {
       setLoading(false);
+    }
+  }
+
+  function syncEditFields(v: TechnicalVisit) {
+    if (v.scheduledStart) {
+      const d = new Date(v.scheduledStart);
+      const pad = (n: number) => String(n).padStart(2, '0');
+      setEditDate(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
+      setEditTime(`${pad(d.getHours())}:${pad(d.getMinutes())}`);
+    } else if (v.scheduledDate) {
+      const d = new Date(v.scheduledDate);
+      const pad = (n: number) => String(n).padStart(2, '0');
+      setEditDate(`${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`);
+      setEditTime('09:00');
+    } else {
+      setEditDate('');
+      setEditTime('09:00');
+    }
+  }
+
+  function enterEdit() {
+    if (visit) syncEditFields(visit);
+    setEditing(true);
+  }
+
+  function cancelEdit() {
+    setEditing(false);
+    setError(null);
+  }
+
+  async function handleReschedule() {
+    if (!editDate || !editTime) {
+      setError('Fecha y hora son requeridas');
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      const scheduledStart = new Date(`${editDate}T${editTime}:00`);
+      await api.patch(`/api/operations/technical-visits/${id}`, {
+        scheduledDate: scheduledStart,
+        scheduledStart,
+      });
+      setEditing(false);
+      await loadVisit();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al reprogramar');
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -166,6 +228,7 @@ export default function TechnicalVisitDetailPage() {
         <div className="rounded-lg bg-danger-50 px-4 py-3 text-sm text-danger-700">{error}</div>
       )}
 
+      {/* Header */}
       <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div>
@@ -227,6 +290,76 @@ export default function TechnicalVisitDetailPage() {
         )}
       </div>
 
+      {/* Reschedule card */}
+      <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Reprogramar</h2>
+          {!editing ? (
+            <button
+              onClick={enterEdit}
+              disabled={visit.status === 'completed' || visit.status === 'cancelled'}
+              className="px-4 py-2 text-sm font-medium text-brand-600 hover:text-brand-700 hover:bg-brand-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Editar fecha y hora
+            </button>
+          ) : (
+            <div className="flex gap-2">
+              <button
+                onClick={cancelEdit}
+                disabled={saving}
+                className="px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-800 rounded-lg transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleReschedule}
+                disabled={saving}
+                className="px-4 py-1.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
+              >
+                {saving ? 'Guardando...' : 'Guardar'}
+              </button>
+            </div>
+          )}
+        </div>
+
+        {!editing ? (
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <span className="text-gray-500">Fecha</span>
+              <p className="font-medium">{visit.scheduledDate ? new Date(visit.scheduledDate).toLocaleDateString('es-CL') : '—'}</p>
+            </div>
+            <div>
+              <span className="text-gray-500">Hora</span>
+              <p className="font-medium">
+                {visit.scheduledStart ? new Date(visit.scheduledStart).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : '—'}
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nueva fecha *</label>
+              <input
+                type="date"
+                value={editDate}
+                onChange={(e) => setEditDate(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nueva hora *</label>
+              <input
+                type="time"
+                value={editTime}
+                onChange={(e) => setEditTime(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Client card */}
       <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
         <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Cliente</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -249,6 +382,7 @@ export default function TechnicalVisitDetailPage() {
         </div>
       </div>
 
+      {/* Location card */}
       {visit.locationSnapshot && (
         <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
           <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Ubicación</h2>
@@ -269,6 +403,7 @@ export default function TechnicalVisitDetailPage() {
         </div>
       )}
 
+      {/* Result card (only for completed visits) */}
       {visit.status === 'completed' && visit.result && (
         <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
           <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Resultado de la Visita</h2>
@@ -293,6 +428,7 @@ export default function TechnicalVisitDetailPage() {
         </div>
       )}
 
+      {/* Converted banner */}
       {visit.convertedToWorkOrderId && (
         <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
           <p className="text-sm text-purple-700">

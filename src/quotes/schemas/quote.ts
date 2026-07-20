@@ -10,7 +10,7 @@ export const quoteSchema = new Schema<IQuote>(
     number: { type: String, required: true },
     status: {
       type: String,
-      enum: ['draft', 'sent', 'approved', 'rejected', 'expired', 'cancelled'] satisfies QuoteStatus[],
+      enum: ['draft', 'sent', 'approved', 'rejected', 'expired', 'cancelled', 'direct_sale'] satisfies QuoteStatus[],
       required: true,
       default: 'draft',
     },

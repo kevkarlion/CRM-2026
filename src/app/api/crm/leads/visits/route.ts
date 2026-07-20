@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
 import { Types } from 'mongoose';
 import LeadModel from '@/leads/models/lead';
-import WorkOrderModel from '@/operations/models/work-order';
-import { getNextWorkOrderNumber } from '@/operations/helpers/counter';
+import { eventBus } from '@/infrastructure/events/event-bus';
+import { DOMAIN_EVENTS, LeadStatusChangedPayload } from '@/infrastructure/events/event.types';
+import { technicalVisitService } from '@/operations/services/technical-visit.service';
 
 interface CreateVisitInput {
   leadId: string;
@@ -30,7 +31,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json() as CreateVisitInput;
-    const { leadId, serviceTypeId, scheduledDate, scheduledTime, address, description, observations, priority, contactName, contactPhone, contactEmail } = body;
+    const { leadId, scheduledDate, scheduledTime, address, description, observations, priority, contactName, contactPhone, contactEmail } = body;
 
     // Verify lead exists
     const lead = await LeadModel.findOne({ _id: leadId, tenantId, deletedAt: null });
@@ -38,53 +39,62 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Lead no encontrado' }, { status: 404 });
     }
 
-    // Create work order (visita técnica)
-    // Note: We create a draft first, then immediately schedule it
-    const workOrderNumber = await getNextWorkOrderNumber(tenantId);
-
     const scheduledStart = new Date(`${scheduledDate}T${scheduledTime}:00`);
 
-    const [workOrder] = await WorkOrderModel.create([{
-      tenantId: new Types.ObjectId(tenantId),
-      // For leads without converted client, we create a temporary client reference
-      // The client conversion will update this later
-      clientId: new Types.ObjectId(), // Placeholder - will be updated on lead conversion
-      locationId: new Types.ObjectId(), // Placeholder - will be updated on lead conversion
-      clientSnapshot: {
-        name: contactName,
-        email: contactEmail,
-        phone: contactPhone,
-        status: 'lead',
+    // Create TechnicalVisit via service (publishes VISIT_CREATED event → timeline)
+    const visit = await technicalVisitService.create(
+      {
+        leadId: lead._id,
+        clientSnapshot: {
+          name: contactName,
+          email: contactEmail,
+          phone: contactPhone,
+        },
+        locationSnapshot: {
+          name: 'Dirección de visita',
+          address: address,
+        },
+        title: `Visita técnica - ${contactName}`,
+        description,
+        scheduledDate: new Date(scheduledDate),
+        scheduledStart,
+        status: 'scheduled',
+        priority: priority || 'normal',
+        category: 'inspection',
       },
-      locationSnapshot: {
-        name: 'Dirección de visita',
-        address: address,
-      },
-      source: 'manual',
-      workOrderNumber,
-      title: `Visita técnica - ${contactName}`,
-      description,
-      priority: priority || 'normal',
-      category: 'inspection',
-      status: 'scheduled',
-      scheduledDate: new Date(scheduledDate),
-      scheduledStart,
-      createdBy: new Types.ObjectId(userId),
-      updatedBy: new Types.ObjectId(userId),
-    }]);
-
-    // Update lead status to technical_visit
-    await LeadModel.updateOne(
-      { _id: leadId, tenantId },
-      { 
-        $set: { 
-          status: 'technical_visit',
-          updatedBy: userId,
-        } 
-      }
+      tenantId,
+      userId,
     );
 
-    return NextResponse.json(workOrder, { status: 201 });
+    // Update lead status to technical_visit (direct update + event, no state machine validation)
+    // Visits are user-initiated actions that should always advance the lead
+    const currentStatus = lead.status as string;
+    if (currentStatus !== 'technical_visit') {
+      try {
+        await LeadModel.updateOne(
+          { _id: new Types.ObjectId(leadId), tenantId: new Types.ObjectId(tenantId) },
+          { $set: { status: 'technical_visit', updatedBy: userId } },
+        );
+        await eventBus.publish({
+          type: DOMAIN_EVENTS.LEAD_STATUS_CHANGED,
+          aggregateId: leadId,
+          aggregateType: 'Lead',
+          tenantId,
+          userId,
+          timestamp: new Date(),
+          payload: {
+            leadId,
+            from: currentStatus,
+            to: 'technical_visit',
+            leadName: lead.name,
+          } as LeadStatusChangedPayload,
+        });
+      } catch (statusError) {
+        console.error('[VisitsRoute] Failed to update lead status:', statusError);
+      }
+    }
+
+    return NextResponse.json(visit, { status: 201 });
   } catch (error) {
     console.error('Error creating visit:', error);
     return NextResponse.json(

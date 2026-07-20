@@ -18,6 +18,7 @@ import type {
   FilterState,
   ApiQuote,
   ApiNegotiation,
+  ApiTechnicalVisit,
 } from '@/quotes/types/client-quote-types';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -30,6 +31,7 @@ const STATUS_LABELS: Record<string, string> = {
   open: 'Abierta',
   counteroffer_made: 'Contraoferta',
   accepted: 'Aceptada',
+  direct_sale: 'Venta Directa',
 };
 
 function buildWorkTrayItems(quotes: ApiQuote[], negotiations: ApiNegotiation[]): WorkTrayItem[] {
@@ -100,6 +102,7 @@ export default function CentroOperativoContent({ initialFilters }: CentroOperati
 
   const [quotes, setQuotes] = useState<ApiQuote[]>([]);
   const [negotiations, setNegotiations] = useState<ApiNegotiation[]>([]);
+  const [visits, setVisits] = useState<ApiTechnicalVisit[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -138,6 +141,16 @@ export default function CentroOperativoContent({ initialFilters }: CentroOperati
       setNegotiations(negsData);
     } catch {
       // Negotiations endpoint may not be available — graceful degradation
+    }
+
+    try {
+      const visitsResult = await api.get<any>('/api/operations/technical-visits', { limit: '50' });
+      const visitsData = Array.isArray(visitsResult)
+        ? visitsResult
+        : (visitsResult as any)?.data || [];
+      setVisits(visitsData);
+    } catch {
+      // Visits endpoint may not be available — graceful degradation
     } finally {
       setLoading(false);
     }
@@ -148,7 +161,7 @@ export default function CentroOperativoContent({ initialFilters }: CentroOperati
   }, [fetchData]);
 
   const rows = useMemo((): QuoteTableRow[] => {
-    const merged = mergeQuotesAndNegotiations(quotes, negotiations);
+    const merged = mergeQuotesAndNegotiations(quotes, negotiations, visits);
     return merged
       .filter(row => {
         if (filters.client && !row.clientName.toLowerCase().includes(filters.client.toLowerCase())) {
@@ -169,7 +182,7 @@ export default function CentroOperativoContent({ initialFilters }: CentroOperati
           leadStatus: row.leadStatus,
         }).type,
       }));
-  }, [quotes, negotiations, filters.client, filters.assignedTo]);
+  }, [quotes, negotiations, visits, filters.client, filters.assignedTo]);
 
   const summary = useMemo((): QuoteSummaryStats => {
     const sent = quotes.filter(q => q.status === 'sent').length;

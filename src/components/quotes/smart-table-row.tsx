@@ -17,6 +17,12 @@ const STATUS_LABELS: Record<string, string> = {
   open: 'Abierta',
   counteroffer_made: 'Contraoferta',
   accepted: 'Aceptada',
+  scheduled: 'Programada',
+  confirmed: 'Confirmada',
+  in_progress: 'En Curso',
+  completed: 'Completada',
+  converted_to_work_order: 'Convertida a OT',
+  direct_sale: 'Venta Directa',
 };
 
 function getInitials(name: string): string {
@@ -27,6 +33,21 @@ function getInitials(name: string): string {
     .slice(0, 2)
     .join('')
     .toUpperCase();
+}
+
+const ENTITY_LABELS: Record<string, string> = {
+  quote: 'Cotización',
+  negotiation: 'Negociación',
+  technical_visit: 'Visita Técnica',
+};
+
+function getEntityHref(row: QuoteTableRow): string {
+  switch (row.entityType) {
+    case 'quote': return `/quotes/${row.id}`;
+    case 'technical_visit': return `/technical-visits/${row.id}`;
+    case 'negotiation': return `/negotiations/${row.id}`;
+    default: return '#';
+  }
 }
 
 function renderDaysUntilExpiry(validUntil: string | null): string {
@@ -48,7 +69,7 @@ interface SmartTableRowProps {
 }
 
 export function SmartTableRow({ row }: SmartTableRowProps) {
-  const href = row.entityType === 'quote' ? `/quotes/${row.id}` : `/negotiations/${row.id}`;
+  const href = getEntityHref(row);
   const nextAction = getNextAction({
     status: row.entityStatus,
     entityType: row.entityType,
@@ -71,7 +92,7 @@ export function SmartTableRow({ row }: SmartTableRowProps) {
       </td>
       <td className="px-3 py-3">
         <span className="text-sm text-gray-600">
-          {row.entityType === 'quote' ? 'Cotización' : 'Negociación'}
+          {ENTITY_LABELS[row.entityType] || row.entityType}
         </span>
       </td>
       <td className="px-3 py-3">

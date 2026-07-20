@@ -9,6 +9,7 @@ export type NextActionType =
   | 'confirm_sale'
   | 'schedule_work_order'
   | 'awaiting_execution'
+  | 'follow_up_visit'
   | 'none';
 
 export const NEXT_ACTION_LABELS: Record<NextActionType, string> = {
@@ -22,6 +23,7 @@ export const NEXT_ACTION_LABELS: Record<NextActionType, string> = {
   confirm_sale: 'Confirmar Venta',
   schedule_work_order: 'Programar la OT',
   awaiting_execution: 'Esperando ejecución',
+  follow_up_visit: 'Dar seguimiento VT',
   none: '—',
 };
 
@@ -35,7 +37,7 @@ export interface ExpiryBadgeResult {
 
 export interface QuoteTableRow {
   id: string;
-  entityType: 'quote' | 'negotiation';
+  entityType: 'quote' | 'negotiation' | 'technical_visit';
   clientName: string;
   companyName?: string;
   status: string;
@@ -58,9 +60,9 @@ export interface QuoteSummaryStats {
 
 export interface WorkTrayItem {
   id: string;
-  entityType: 'quote' | 'negotiation';
+  entityType: 'quote' | 'negotiation' | 'technical_visit';
   clientName: string;
-  category: 'expiring' | 'awaiting' | 'recently_approved';
+  category: 'expiring' | 'awaiting' | 'recently_approved' | 'upcoming_visit';
   validUntil?: string;
   status: string;
   total?: number;
@@ -103,6 +105,32 @@ export interface ApiNegotiation {
   counterOffers: any[];
   validUntil?: string;
   terms?: string;
+  createdBy?: any;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface ApiTechnicalVisit {
+  _id: string;
+  visitNumber: string;
+  title: string;
+  description?: string;
+  status: string;
+  priority: string;
+  category: string;
+  scheduledDate?: string;
+  scheduledStart?: string;
+  scheduledEnd?: string;
+  leadId?: any;
+  clientSnapshot: {
+    name: string;
+    email?: string;
+    phone?: string;
+  };
+  locationSnapshot?: {
+    name?: string;
+    address?: string;
+  };
   createdBy?: any;
   createdAt: string;
   updatedAt?: string;

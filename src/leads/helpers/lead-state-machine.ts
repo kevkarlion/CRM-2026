@@ -1,7 +1,7 @@
 import { LeadStatus } from '../types/lead';
 
 export const VALID_TRANSITIONS: Record<LeadStatus, LeadStatus[]> = {
-  new: ['contacted', 'lost'],
+  new: ['contacted', 'technical_visit', 'lost'],
   contacted: ['quote_sent', 'technical_visit', 'won', 'lost'],
   technical_visit: ['quote_sent', 'negotiation', 'won', 'lost'],
   quote_sent: ['negotiation', 'won', 'lost'],

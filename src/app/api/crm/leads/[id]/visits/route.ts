@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
-import WorkOrderModel from '@/operations/models/work-order';
+import { TechnicalVisitModel } from '@/operations/models/technical-visit';
+import { Types } from 'mongoose';
 
 export async function GET(
   request: NextRequest,
@@ -15,19 +16,15 @@ export async function GET(
 
     const { id } = await params;
 
-    // Get work orders linked to this lead
-    // Note: We store leadId in the work order's metadata or description
-    // For now, we query by client snapshot status = 'lead'
-    const workOrders = await WorkOrderModel.find({
-      tenantId,
-      'clientSnapshot.status': 'lead',
-      deletedAt: null,
+    const visits = await TechnicalVisitModel.find({
+      tenantId: new Types.ObjectId(tenantId),
+      leadId: new Types.ObjectId(id),
     })
       .sort({ scheduledDate: -1 })
       .limit(20)
-      .exec();
+      .lean();
 
-    return NextResponse.json(workOrders);
+    return NextResponse.json(visits);
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Internal server error' },

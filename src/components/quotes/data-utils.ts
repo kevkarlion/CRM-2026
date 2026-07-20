@@ -1,4 +1,14 @@
-import type { QuoteTableRow, ApiQuote, ApiNegotiation } from '@/quotes/types/client-quote-types';
+import type { QuoteTableRow, ApiQuote, ApiNegotiation, ApiTechnicalVisit } from '@/quotes/types/client-quote-types';
+
+const VISIT_STATUS_LABELS: Record<string, string> = {
+  draft: 'Borrador',
+  scheduled: 'Programada',
+  confirmed: 'Confirmada',
+  in_progress: 'En Curso',
+  completed: 'Completada',
+  cancelled: 'Cancelada',
+  converted_to_work_order: 'Convertida a OT',
+};
 
 function mapQuoteToRow(quote: ApiQuote): QuoteTableRow {
   const clientName = quote.leadName || (quote.clientId
@@ -62,14 +72,40 @@ function mapNegotiationToRow(neg: ApiNegotiation): QuoteTableRow {
   };
 }
 
+function mapVisitToRow(visit: ApiTechnicalVisit): QuoteTableRow {
+  const clientName = visit.clientSnapshot?.name || '—';
+
+  const assignedName = visit.createdBy
+    ? typeof visit.createdBy === 'object' && visit.createdBy !== null
+      ? (visit.createdBy as any).name || (visit.createdBy as any).email || '—'
+      : '—'
+    : '—';
+
+  return {
+    id: visit._id,
+    entityType: 'technical_visit',
+    clientName,
+    companyName: clientName,
+    status: VISIT_STATUS_LABELS[visit.status] || visit.status,
+    total: null,
+    validUntil: visit.scheduledDate ?? null,
+    nextAction: 'none',
+    assignedName,
+    createdAt: visit.createdAt,
+    entityStatus: visit.status,
+  };
+}
+
 export function mergeQuotesAndNegotiations(
   quotes: ApiQuote[],
   negotiations: ApiNegotiation[],
+  visits?: ApiTechnicalVisit[],
 ): QuoteTableRow[] {
   const quoteRows = quotes.map(mapQuoteToRow);
   const negRows = negotiations.map(mapNegotiationToRow);
+  const visitRows = (visits || []).map(mapVisitToRow);
 
-  const merged = [...quoteRows, ...negRows];
+  const merged = [...quoteRows, ...negRows, ...visitRows];
   merged.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
   return merged;

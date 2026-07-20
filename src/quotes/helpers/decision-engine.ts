@@ -122,6 +122,21 @@ export function evaluateQuoteDecision(context: DecisionContext): DecisionOutput 
       )
       priority = { level: 'none', label: 'Presupuesto cancelado', description: '' }
       break
+
+    case 'direct_sale':
+      if (hasWorkOrder) {
+        if (workOrderStatus === 'draft') {
+          actions.push(
+            { id: 'edit-work-order', label: 'Editar OT', variant: 'success', icon: 'edit' },
+          )
+        } else {
+          actions.push(
+            { id: 'view-work-order', label: 'Ver OT', variant: 'primary', icon: 'eye' },
+          )
+        }
+      }
+      priority = { level: 'none', label: 'Venta directa confirmada', description: 'La venta fue registrada exitosamente' }
+      break
   }
 
   if (isExpired && quote.status === 'sent') {

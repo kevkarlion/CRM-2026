@@ -1,7 +1,7 @@
 import { Document, Types } from 'mongoose';
 import { CreateQuoteItemInput } from './quote-version';
 
-export type QuoteStatus = 'draft' | 'sent' | 'approved' | 'rejected' | 'expired' | 'cancelled';
+export type QuoteStatus = 'draft' | 'sent' | 'approved' | 'rejected' | 'expired' | 'cancelled' | 'direct_sale';
 
 export interface IQuote extends Document {
   _id: Types.ObjectId;

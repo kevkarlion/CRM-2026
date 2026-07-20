@@ -57,6 +57,17 @@ export function getNextAction(entity: {
     }
   }
 
+  if (entity.entityType === 'technical_visit') {
+    return { type: 'follow_up_visit', label: NEXT_ACTION_LABELS.follow_up_visit };
+  }
+
+  if (entity.entityType === 'quote' && entity.status === 'direct_sale') {
+    if (entity.workOrderStatus === 'draft') {
+      return { type: 'schedule_work_order', label: NEXT_ACTION_LABELS.schedule_work_order };
+    }
+    return { type: 'awaiting_execution', label: NEXT_ACTION_LABELS.awaiting_execution };
+  }
+
   return { type: 'none', label: NEXT_ACTION_LABELS.none };
 }
 
@@ -71,6 +82,7 @@ const actionStyles: Record<NextActionType, string> = {
   confirm_sale: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
   schedule_work_order: 'bg-teal-50 text-teal-700 ring-teal-600/20',
   awaiting_execution: 'bg-indigo-50 text-indigo-700 ring-indigo-600/20',
+  follow_up_visit: 'bg-teal-50 text-teal-700 ring-teal-600/20',
   none: '',
 };
 
