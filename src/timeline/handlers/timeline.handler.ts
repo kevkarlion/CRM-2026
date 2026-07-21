@@ -15,6 +15,7 @@ import {
   WorkOrderCreatedPayload,
   WorkOrderStatusChangedPayload,
   WorkOrderCompletedPayload,
+  WorkOrderSelfAssignedPayload,
   VisitCreatedPayload,
   VisitStatusChangedPayload,
   VisitCompletedPayload,
@@ -61,6 +62,7 @@ export const timelineHandler = {
     on('WORK_ORDER_CREATED', timelineHandler.onWorkOrderCreated as EventHandler);
     on('WORK_ORDER_STATUS_CHANGED', timelineHandler.onWorkOrderStatusChanged as EventHandler);
     on('WORK_ORDER_COMPLETED', timelineHandler.onWorkOrderCompleted as EventHandler);
+    on('WORK_ORDER_SELF_ASSIGNED', timelineHandler.onWorkOrderSelfAssigned as EventHandler);
     on('VISIT_CREATED', timelineHandler.onVisitCreated as EventHandler);
     on('VISIT_STATUS_CHANGED', timelineHandler.onVisitStatusChanged as EventHandler);
     on('VISIT_COMPLETED', timelineHandler.onVisitCompleted as EventHandler);
@@ -406,6 +408,30 @@ export const timelineHandler = {
         number: p.number,
         status: 'completed',
         statusLabel: 'Completado',
+      },
+    });
+  },
+
+  async onWorkOrderSelfAssigned(event: DomainEvent<WorkOrderSelfAssignedPayload>): Promise<void> {
+    const p = event.payload;
+    await timelineService.create({
+      tenantId: event.tenantId,
+      leadId: '',
+      entityType: 'work_order',
+      entityId: p.workOrderId,
+      eventType: 'workorder.self_assigned',
+      title: `${p.technicianName} se auto-asignó la OT #${p.workOrderNumber}`,
+      summary: `Motivo: ${label(p.reason) || p.reason}`,
+      icon: 'user-check',
+      color: 'indigo',
+      performedBy: event.userId,
+      metadata: {
+        workOrderId: p.workOrderId,
+        technicianId: p.technicianId,
+        technicianName: p.technicianName,
+        workOrderNumber: p.workOrderNumber,
+        reason: p.reason,
+        reasonLabel: label(p.reason) || p.reason,
       },
     });
   },

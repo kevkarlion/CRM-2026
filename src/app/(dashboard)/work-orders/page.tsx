@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api-client';
+import { SelfAssignmentDrawer } from '@/operations/components/SelfAssignmentDrawer';
 
 interface WorkOrder {
   _id: string;
@@ -113,6 +114,10 @@ export default function WorkOrdersPage() {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [total, setTotal] = useState(0);
+
+  // Self-assignment drawer state
+  const [selfAssignOpen, setSelfAssignOpen] = useState(false);
+  const [selfAssignWO, setSelfAssignWO] = useState<{ id: string; number: string } | null>(null);
 
   const fetchOrders = useCallback(async () => {
     try {
@@ -272,6 +277,7 @@ export default function WorkOrdersPage() {
                   <th className="text-left px-5 py-3 font-semibold text-gray-600">Prioridad</th>
                   <th className="text-left px-5 py-3 font-semibold text-gray-600">Programado</th>
                   <th className="text-left px-5 py-3 font-semibold text-gray-600">Técnico</th>
+                  <th className="text-left px-5 py-3 font-semibold text-gray-600"></th>
                 </tr>
               </thead>
               <tbody>
@@ -301,6 +307,20 @@ export default function WorkOrdersPage() {
                     </td>
                     <td className="px-5 py-3 text-gray-500">{formatDate(wo.scheduledDate)}</td>
                     <td className="px-5 py-3 text-gray-500">{technicianName(wo)}</td>
+                    <td className="px-5 py-3">
+                      {(wo.status === 'scheduled' || wo.status === 'assigned') && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelfAssignWO({ id: wo._id, number: wo.workOrderNumber });
+                            setSelfAssignOpen(true);
+                          }}
+                          className="text-xs font-medium text-brand-600 hover:text-brand-700 transition-colors"
+                        >
+                          Auto-asignar
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -333,10 +353,37 @@ export default function WorkOrdersPage() {
                   <span>Programado: {formatDate(wo.scheduledDate)}</span>
                   <span>Técnico: {technicianName(wo)}</span>
                 </div>
+                {(wo.status === 'scheduled' || wo.status === 'assigned') && (
+                  <div className="mt-2 pt-2 border-t border-gray-100">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelfAssignWO({ id: wo._id, number: wo.workOrderNumber });
+                        setSelfAssignOpen(true);
+                      }}
+                      className="text-xs font-medium text-brand-600 hover:text-brand-700 transition-colors"
+                    >
+                      Auto-asignar
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
         </>
+      )}
+
+      {selfAssignWO && (
+        <SelfAssignmentDrawer
+          isOpen={selfAssignOpen}
+          onClose={() => {
+            setSelfAssignOpen(false);
+            setSelfAssignWO(null);
+          }}
+          workOrderId={selfAssignWO.id}
+          workOrderNumber={selfAssignWO.number}
+          onAssigned={fetchOrders}
+        />
       )}
     </div>
   );

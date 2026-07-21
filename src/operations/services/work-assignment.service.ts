@@ -167,6 +167,23 @@ export class WorkAssignmentService {
   }
 
   /**
+   * Self-assign a technician to a work order (technician assigns themselves)
+   */
+  async selfAssignTechnician(
+    workOrderId: string,
+    technicianId: string,
+    tenantId: string,
+    reason: string,
+    observations?: string,
+  ): Promise<any> {
+    return this.createAssignment(workOrderId, technicianId, technicianId, tenantId, {
+      assignmentType: 'auto_assignment',
+      reason,
+      notes: observations,
+    });
+  }
+
+  /**
    * Get assignments by technician with filters
    */
   async getAssignmentsByTechnician(
