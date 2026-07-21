@@ -60,3 +60,23 @@ export const CONTRACT_STATUS_VARIANT: Record<string, string> = {
   expired: 'bg-orange-50 text-orange-700',
   cancelled: 'bg-danger-50 text-danger-700',
 };
+
+export const CALENDAR_PRIORITY_COLORS: Record<string, { bg: string; border: string; text: string; dot: string }> = {
+  emergency: { bg: 'bg-red-100', border: 'border-red-400', text: 'text-red-900', dot: 'bg-red-500' },
+  urgent: { bg: 'bg-orange-50', border: 'border-orange-400', text: 'text-orange-800', dot: 'bg-orange-500' },
+  high: { bg: 'bg-amber-50', border: 'border-amber-400', text: 'text-amber-800', dot: 'bg-amber-500' },
+  normal: { bg: 'bg-blue-50', border: 'border-blue-400', text: 'text-blue-800', dot: 'bg-blue-500' },
+  low: { bg: 'bg-gray-50', border: 'border-gray-300', text: 'text-gray-600', dot: 'bg-gray-400' },
+};
+
+export const TECHNICIAN_UTILIZATION_COLOR: Record<string, string> = {
+  low: 'bg-green-500',
+  medium: 'bg-yellow-500',
+  high: 'bg-red-500',
+};
+
+export function getUtilizationLevel(pct: number): 'low' | 'medium' | 'high' {
+  if (pct < 60) return 'low';
+  if (pct <= 80) return 'medium';
+  return 'high';
+}
