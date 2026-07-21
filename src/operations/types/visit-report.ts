@@ -11,6 +11,11 @@ export interface IVisitReport extends Document, IAuditFields {
   workPerformed: string;
   observations?: string;
   recommendations?: string;
+  materialsUsed?: string;
+  materialsItems?: { item: string; quantity: number; unit: string }[];
+  needsNextVisit?: boolean;
+  internalComments?: string;
+  attachments?: { filename: string; url: string; type: string; uploadedAt: Date }[];
   version: number;
   customerSignature?: string;
   customerName?: string;

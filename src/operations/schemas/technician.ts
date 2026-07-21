@@ -1,27 +1,7 @@
 import { Schema, model, models, type Model } from 'mongoose';
-import { ITenant } from '@/core/types/tenant';
+import { ITechnician } from '../types/technician';
 
-export interface ITechnician {
-  _id: import('mongoose').Types.ObjectId;
-  tenantId: import('mongoose').Types.ObjectId;
-  userId?: import('mongoose').Types.ObjectId;
-  name: string;
-  email?: string;
-  phone?: string;
-  specialties: string[];
-  zones: string[];
-  status: 'active' | 'inactive' | 'on_leave';
-  availability: 'available' | 'busy' | 'unavailable';
-  maxDailyWorkOrders: number;
-  createdBy: import('mongoose').Types.ObjectId;
-  updatedBy: import('mongoose').Types.ObjectId;
-  deletedAt?: Date;
-  deletedBy?: import('mongoose').Types.ObjectId;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-const technicianSchema = new Schema<ITechnician>(
+export const technicianSchema = new Schema<ITechnician>(
   {
     tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
     userId: { type: Schema.Types.ObjectId, ref: 'User', default: null },

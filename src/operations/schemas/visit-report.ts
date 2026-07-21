@@ -18,6 +18,24 @@ export const visitReportSchema = new Schema<IVisitReport>(
     workPerformed: { type: String, required: true },
     observations: String,
     recommendations: String,
+    materialsUsed: String,
+    materialsItems: [
+      {
+        item: { type: String, required: true },
+        quantity: { type: Number, required: true },
+        unit: { type: String, required: true },
+      },
+    ],
+    needsNextVisit: { type: Boolean, default: false },
+    internalComments: String,
+    attachments: [
+      {
+        filename: { type: String, required: true },
+        url: { type: String, required: true },
+        type: { type: String, required: true },
+        uploadedAt: { type: Date, required: true },
+      },
+    ],
     version: { type: Number, default: 0 },
     customerSignature: String,
     customerName: String,

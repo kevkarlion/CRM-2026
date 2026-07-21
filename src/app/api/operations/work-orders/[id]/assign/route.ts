@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
-import { AssignmentService } from '@/operations/services/assignment.service';
-
-const service = new AssignmentService();
+import { workAssignmentService } from '@/operations/services/work-assignment.service';
 
 export async function GET(
   _request: NextRequest,
@@ -16,7 +14,7 @@ export async function GET(
       return NextResponse.json({ error: 'x-tenant-id header is required' }, { status: 400 });
     }
 
-    const data = await service.getCurrentAssignments(id, tenantId);
+    const data = await workAssignmentService.getCurrentAssignment(id, tenantId);
     return NextResponse.json({ data });
   } catch (error) {
     return NextResponse.json(
@@ -52,8 +50,11 @@ export async function POST(
         if (!technicianId) {
           return NextResponse.json({ error: 'technicianId is required for assign' }, { status: 400 });
         }
-        const result = await service.assignTechnician(id, technicianId, tenantId, userId);
-        return NextResponse.json({ data: result.assignment }, { status: 201 });
+        const assignment = await workAssignmentService.createAssignment(id, technicianId, userId, tenantId, {
+          assignmentType: 'manual',
+          reason: 'manual_assignment',
+        });
+        return NextResponse.json({ data: assignment }, { status: 201 });
       }
 
       case 'reassign': {
@@ -61,8 +62,8 @@ export async function POST(
         if (!oldTechnicianId || !newTechnicianId) {
           return NextResponse.json({ error: 'oldTechnicianId and newTechnicianId are required for reassign' }, { status: 400 });
         }
-        const result = await service.reassignTechnician(id, oldTechnicianId, newTechnicianId, tenantId, userId);
-        return NextResponse.json({ data: result.newAssignment });
+        const assignment = await workAssignmentService.replaceTechnician(id, newTechnicianId, userId, tenantId, 'manual_replacement');
+        return NextResponse.json({ data: assignment }, { status: 201 });
       }
 
       case 'unassign': {
@@ -70,8 +71,14 @@ export async function POST(
         if (!technicianId) {
           return NextResponse.json({ error: 'technicianId is required for unassign' }, { status: 400 });
         }
-        const result = await service.unassignTechnician(id, technicianId, tenantId, userId);
-        return NextResponse.json({ data: result.workOrder });
+        const current = await workAssignmentService.getCurrentAssignment(id, tenantId);
+        if (current) {
+          const WorkOrderAssignmentModel = (await import('@/operations/models/work-order-assignment')).default;
+          await WorkOrderAssignmentModel.findByIdAndUpdate(current._id, {
+            $set: { status: 'declined', declinedAt: new Date() },
+          });
+        }
+        return NextResponse.json({ data: current });
       }
 
       default:
@@ -83,7 +90,7 @@ export async function POST(
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Internal server error' },
-      error instanceof Error && error.message.includes('already assigned') ? { status: 409 }
+      error instanceof Error && error.message.includes('already') ? { status: 409 }
         : error instanceof Error && error.message.includes('not found') ? { status: 404 }
         : { status: 500 },
     );

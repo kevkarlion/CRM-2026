@@ -53,13 +53,13 @@ vi.mock('../../src/audit/activity-logger', () => ({
 }));
 
 import { WorkOrderModel, WorkOrderAssignmentModel } from '../../src/operations/models';
-import { AssignmentService } from '../../src/operations/services/assignment.service';
+import { WorkAssignmentService } from '../../src/operations/services/work-assignment.service';
 
 describe('Assignment Service', () => {
-  let service: AssignmentService;
+  let service: WorkAssignmentService;
 
   beforeEach(() => {
-    service = new AssignmentService();
+    service = new WorkAssignmentService();
     vi.clearAllMocks();
   });
 

@@ -32,3 +32,5 @@ export type {
   CreateVisitReportInput,
   UpdateVisitReportInput,
 } from './visit-report';
+
+export type { ITechnician } from './technician';
