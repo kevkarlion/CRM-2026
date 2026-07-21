@@ -34,3 +34,11 @@ export type {
 } from './visit-report';
 
 export type { ITechnician } from './technician';
+
+export type {
+  DashboardSummary,
+  TechnicianWorkload,
+  CalendarEvent,
+  WorkOrderRow,
+  CentroOperativoDashboardResponse,
+} from './centro-operativo';
