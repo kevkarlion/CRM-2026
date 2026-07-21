@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { api } from '@/lib/api-client';
+import { VisitReportForm } from '@/operations/components/VisitReportForm';
 
 interface WorkOrder {
   _id: string;
@@ -33,10 +34,19 @@ interface ChecklistItem {
 
 interface VisitReport {
   _id: string;
-  description?: string;
-  findings?: string;
+  workOrderId: string;
+  technicianId?: string;
+  arrivalTime?: string;
+  departureTime?: string;
+  workPerformed?: string;
+  observations?: string;
   recommendations?: string;
-  completedAt?: string;
+  materialsUsed?: string;
+  materialsItems?: { item: string; quantity: number; unit: string }[];
+  needsNextVisit?: boolean;
+  internalComments?: string;
+  attachments?: { filename: string; url: string; type: string; uploadedAt: string }[];
+  version?: number;
 }
 
 const STATUS_OPTIONS: Record<string, string> = {
@@ -138,6 +148,7 @@ export default function WorkOrderDetailPage() {
   const [addingCheckItem, setAddingCheckItem] = useState(false);
   const [report, setReport] = useState<VisitReport | null>(null);
   const [loadingReport, setLoadingReport] = useState(false);
+  const [showReportForm, setShowReportForm] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -422,13 +433,44 @@ export default function WorkOrderDetailPage() {
 
           {report && (
             <div className="bg-white border border-gray-200 rounded-xl p-6">
-              <h2 className="text-base font-semibold text-gray-900 mb-4">Informe de Visita</h2>
-              <dl className="divide-y divide-gray-100">
-                {report.description && <DetailRow label="Descripción" value={report.description} />}
-                {report.findings && <DetailRow label="Hallazgos" value={report.findings} />}
-                {report.recommendations && <DetailRow label="Recomendaciones" value={report.recommendations} />}
-                {report.completedAt && <DetailRow label="Completado" value={formatDate(report.completedAt)} />}
-              </dl>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-base font-semibold text-gray-900">Informe de Visita</h2>
+                <button
+                  onClick={() => setShowReportForm(!showReportForm)}
+                  className="text-sm text-brand-600 hover:text-brand-700 font-medium transition-colors"
+                >
+                  {showReportForm ? 'Ver resumen' : 'Editar'}
+                </button>
+              </div>
+
+              {showReportForm ? (
+                <VisitReportForm
+                  workOrderId={id}
+                  report={report}
+                  onSaved={(updated) => setReport(updated)}
+                />
+              ) : (
+                <dl className="divide-y divide-gray-100">
+                  {report.workPerformed && <DetailRow label="Trabajo realizado" value={report.workPerformed} />}
+                  {report.observations && <DetailRow label="Observaciones" value={report.observations} />}
+                  {report.recommendations && <DetailRow label="Recomendaciones" value={report.recommendations} />}
+                  {report.materialsUsed && <DetailRow label="Materiales" value={report.materialsUsed} />}
+                  {report.materialsItems && report.materialsItems.length > 0 && (
+                    <DetailRow
+                      label="Ítems de materiales"
+                      value={report.materialsItems.map((m) => `${m.item} (${m.quantity} ${m.unit})`).join(', ')}
+                    />
+                  )}
+                  {report.needsNextVisit && <DetailRow label="Próxima visita" value="Sí" />}
+                  {report.internalComments && <DetailRow label="Comentarios internos" value={report.internalComments} />}
+                  {report.attachments && report.attachments.length > 0 && (
+                    <DetailRow
+                      label="Archivos adjuntos"
+                      value={report.attachments.map((a) => a.filename).join(', ')}
+                    />
+                  )}
+                </dl>
+              )}
             </div>
           )}
         </div>
