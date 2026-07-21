@@ -64,31 +64,51 @@ const defaultUser: UserInfo = {
   role: 'Administrator',
 };
 
+const STORAGE_KEY = 'crm_user_info';
+
+function getCachedUser(): UserInfo | null {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as UserInfo;
+  } catch {
+    return null;
+  }
+}
+
+function setCachedUser(user: UserInfo) {
+  try {
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+  } catch {
+    // ignore
+  }
+}
+
 const RoleContext = createContext<RoleContextValue | null>(null);
 
 export function RoleProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<UserInfo>(defaultUser);
-  const [loading, setLoading] = useState(true);
+  const cached = getCachedUser();
+  const [user, setUser] = useState<UserInfo>(cached ?? defaultUser);
+  const [loading, setLoading] = useState(!cached);
 
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
       const data = decodeToken(token);
-      console.log('[RoleContext] Token decoded:', data);
       
       // Normalize role: convert 'admin' -> 'Administrator', etc.
       const rawRole = data.roles?.[0] ?? 'Administrator';
       const role = normalizeRole(rawRole);
       
-      console.log('[RoleContext] Raw role:', rawRole, '-> Normalized:', role);
-      
-      setUser({
+      const newUser: UserInfo = {
         name: data.name ?? 'Admin',
         email: data.email ?? 'admin@demo.cl',
         role,
-      });
+      };
+      
+      setUser(newUser);
+      setCachedUser(newUser);
     } else {
-      console.log('[RoleContext] No token found in localStorage, redirecting to login');
       // Redirect to login if no token
       window.location.href = '/login';
       return;
