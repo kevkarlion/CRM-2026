@@ -2,6 +2,7 @@
 
 'use client';
 
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { useRole } from '@/dashboard/context/role-context';
@@ -23,7 +24,7 @@ const navItems: NavItem[] = [
   { label: 'Admin', href: '/dashboard/admin', icon: '⚙', roles: ['Owner', 'Administrator'] },
   { label: 'Leads', href: '/leads', icon: '📋', roles: ['Sales', 'Administrator', 'Owner', 'Supervisor'] },
   { label: 'Quotes', href: '/quotes', icon: '📄', roles: ['Sales', 'Administrator', 'Owner', 'Supervisor'] },
-  { label: 'Contracts', href: '/contracts', icon: '📝', roles: ['Administrator', 'Supervisor', 'Owner', 'Sales', 'Accounting', 'Dispatcher'] },
+  // { label: 'Contracts', href: '/contracts', icon: '📝', roles: ['Administrator', 'Supervisor', 'Owner', 'Sales', 'Accounting', 'Dispatcher'] },
   { label: 'Centro Operativo', href: '/centro-operativo', icon: '⚙', roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Technician'] },
   { label: 'Work Orders', href: '/work-orders', icon: '🔧', roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Technician', 'Sales', 'Accounting'] },
   { label: 'Mi Calendario', href: '/work-orders/calendar', icon: '📅', roles: ['Technician', 'Supervisor', 'Dispatcher'] },
@@ -69,7 +70,7 @@ export function Sidebar() {
           {visibleItems.map((item) => {
             const active = pathname === item.href;
             return (
-              <a
+              <Link
                 key={item.href}
                 href={item.href}
                 onClick={() => setMobileOpen(false)}
@@ -81,7 +82,7 @@ export function Sidebar() {
               >
                 <span className="text-lg">{item.icon}</span>
                 {item.label}
-              </a>
+              </Link>
             );
           })}
         </nav>
