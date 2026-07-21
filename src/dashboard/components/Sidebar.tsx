@@ -26,6 +26,7 @@ const navItems: NavItem[] = [
   { label: 'Contracts', href: '/contracts', icon: '📝', roles: ['Administrator', 'Supervisor', 'Owner', 'Sales', 'Accounting', 'Dispatcher'] },
   { label: 'Centro Operativo', href: '/centro-operativo', icon: '⚙', roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Technician'] },
   { label: 'Work Orders', href: '/work-orders', icon: '🔧', roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Technician', 'Sales', 'Accounting'] },
+  { label: 'Mi Calendario', href: '/work-orders/calendar', icon: '📅', roles: ['Technician', 'Supervisor', 'Dispatcher'] },
   { label: 'Visitas Técnicas', href: '/technical-visits', icon: '📅', roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Sales'] },
 ];
 

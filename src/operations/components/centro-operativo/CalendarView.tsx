@@ -9,7 +9,7 @@ type ViewMode = 'day' | 'week' | 'month';
 
 interface CalendarViewProps {
   events: CalendarEvent[];
-  technicians: TechnicianWorkload[];
+  technicians?: TechnicianWorkload[];
   onEventClick: (eventId: string) => void;
 }
 
