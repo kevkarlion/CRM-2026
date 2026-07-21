@@ -32,7 +32,6 @@ interface WorkOrder {
 interface WorkOrderDetailResponse {
   workOrder: WorkOrder;
   temporalInfo?: { status: string; scheduledStart?: string; scheduledEnd?: string };
-  technicianInfo?: Array<{ _id: string; firstName: string; lastName: string }>;
 }
 
 interface WorkOrderDetailDrawerProps {
@@ -462,8 +461,8 @@ export function WorkOrderDetailDrawer({ isOpen, onClose, workOrderId }: WorkOrde
           <div>
             <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Técnico Asignado</p>
             <p className="text-sm text-gray-900 bg-gray-50 rounded-lg p-3">
-              {data.technicianInfo && data.technicianInfo.length > 0
-                ? data.technicianInfo.map((t) => `${t.firstName} ${t.lastName}`).join(', ')
+              {wo.assignedTechnicians && wo.assignedTechnicians.length > 0
+                ? wo.assignedTechnicians.map((t: any) => t.name || String(t)).join(', ')
                 : 'Sin asignar'}
             </p>
           </div>

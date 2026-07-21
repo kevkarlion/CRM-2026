@@ -125,7 +125,7 @@ export class WorkOrderService {
 
   async findById(id: string, tenantId: string): Promise<IWorkOrder | null> {
     return WorkOrderModel.findOne({ _id: id, tenantId, deletedAt: null })
-      
+      .populate('assignedTechnicians', 'name email phone specialties')
       .exec();
   }
 
