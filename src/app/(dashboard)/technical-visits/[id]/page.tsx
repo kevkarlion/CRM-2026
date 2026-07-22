@@ -26,6 +26,7 @@ interface TechnicalVisit {
     city?: string;
     province?: string;
   };
+  assignedTechnicianId?: { _id: string; name: string; email?: string; specialties?: string[] } | string | null;
   result?: {
     findings?: string;
     recommendation?: string;
@@ -100,6 +101,14 @@ export default function TechnicalVisitDetailPage() {
   const [editing, setEditing] = useState(false);
   const [editDate, setEditDate] = useState('');
   const [editTime, setEditTime] = useState('');
+
+  // Assignment state
+  const [technicians, setTechnicians] = useState<Array<{ _id: string; name: string; email?: string; specialties?: string[] }>>([]);
+  const [loadingTechnicians, setLoadingTechnicians] = useState(false);
+  const [assigning, setAssigning] = useState(false);
+  const [assignTechId, setAssignTechId] = useState('');
+  const [showAssignInput, setShowAssignInput] = useState(false);
+  const [unassigning, setUnassigning] = useState(false);
 
   const id = params.id as string;
 
@@ -193,6 +202,47 @@ export default function TechnicalVisitDetailPage() {
     }
   }
 
+  async function loadTechnicians() {
+    if (technicians.length > 0) return;
+    setLoadingTechnicians(true);
+    try {
+      const result = await api.get<Array<{ _id: string; name: string; email?: string; specialties?: string[] }>>('/api/operations/technicians');
+      setTechnicians(result || []);
+    } catch {
+      // silently ignore
+    } finally {
+      setLoadingTechnicians(false);
+    }
+  }
+
+  async function handleAssign() {
+    if (!assignTechId.trim()) return;
+    setAssigning(true);
+    try {
+      const action = visit?.assignedTechnicianId ? 'reassign' : 'assign';
+      await api.post(`/api/operations/technical-visits/${id}/assign`, { action, technicianId: assignTechId.trim() });
+      setShowAssignInput(false);
+      setAssignTechId('');
+      await loadVisit();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al asignar');
+    } finally {
+      setAssigning(false);
+    }
+  }
+
+  async function handleUnassign() {
+    setUnassigning(true);
+    try {
+      await api.post(`/api/operations/technical-visits/${id}/assign`, { action: 'unassign' });
+      await loadVisit();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al desasignar');
+    } finally {
+      setUnassigning(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="max-w-3xl mx-auto space-y-6">
@@ -281,6 +331,109 @@ export default function TechnicalVisitDetailPage() {
             </p>
           </div>
         </div>
+
+        {/* Assignment section */}
+        {visit.status !== 'completed' && visit.status !== 'cancelled' && (
+          <div className="border-t border-gray-100 pt-4 space-y-3">
+            {visit.assignedTechnicianId ? (
+              <>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-medium text-gray-500">Técnico Asignado</span>
+                    <p className="text-sm font-medium text-gray-900">
+                      {typeof visit.assignedTechnicianId === 'object' ? visit.assignedTechnicianId.name : '—'}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { setShowAssignInput(!showAssignInput); if (!showAssignInput) loadTechnicians(); }}
+                      className="px-3 py-1.5 text-xs font-medium text-brand-600 border border-brand-200 rounded-lg hover:bg-brand-50 transition-colors"
+                    >
+                      Reasignar
+                    </button>
+                    <button
+                      onClick={handleUnassign}
+                      disabled={unassigning}
+                      className="px-3 py-1.5 text-xs font-medium text-danger-600 border border-danger-200 rounded-lg hover:bg-danger-50 disabled:opacity-50 transition-colors"
+                    >
+                      {unassigning ? '...' : 'Desasignar'}
+                    </button>
+                  </div>
+                </div>
+                {showAssignInput && (
+                  <div className="space-y-2">
+                    <p className="text-xs text-gray-500">Seleccionar nuevo técnico:</p>
+                    {loadingTechnicians ? (
+                      <div className="text-xs text-gray-500 py-2">Cargando técnicos...</div>
+                    ) : (
+                      <select
+                        value={assignTechId}
+                        onChange={(e) => setAssignTechId(e.target.value)}
+                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
+                      >
+                        <option value="">Seleccionar técnico...</option>
+                        {technicians.map((tech) => (
+                          <option key={tech._id} value={tech._id}>
+                            {tech.name}{tech.specialties?.length ? ` — ${tech.specialties.slice(0, 2).join(', ')}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    <div className="flex gap-2">
+                      <button onClick={handleAssign} disabled={assigning || !assignTechId.trim()}
+                        className="flex-1 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50 transition-colors">
+                        {assigning ? 'Asignando...' : 'Reasignar'}
+                      </button>
+                      <button onClick={() => { setShowAssignInput(false); setAssignTechId(''); }}
+                        className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="space-y-2">
+                <button
+                  onClick={() => { setShowAssignInput(!showAssignInput); if (!showAssignInput) loadTechnicians(); }}
+                  className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Asignar Técnico
+                </button>
+                {showAssignInput && (
+                  <div className="space-y-2">
+                    {loadingTechnicians ? (
+                      <div className="text-xs text-gray-500 py-2">Cargando técnicos...</div>
+                    ) : (
+                      <select
+                        value={assignTechId}
+                        onChange={(e) => setAssignTechId(e.target.value)}
+                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
+                      >
+                        <option value="">Seleccionar técnico...</option>
+                        {technicians.map((tech) => (
+                          <option key={tech._id} value={tech._id}>
+                            {tech.name}{tech.specialties?.length ? ` — ${tech.specialties.slice(0, 2).join(', ')}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    <div className="flex gap-2">
+                      <button onClick={handleAssign} disabled={assigning || !assignTechId.trim()}
+                        className="flex-1 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50 transition-colors">
+                        {assigning ? 'Asignando...' : 'Asignar'}
+                      </button>
+                      <button onClick={() => { setShowAssignInput(false); setAssignTechId(''); }}
+                        className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {visit.description && (
           <div>

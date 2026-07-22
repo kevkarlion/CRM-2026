@@ -2,6 +2,7 @@ import { Types } from 'mongoose';
 import WorkOrderModel from '../models/work-order';
 import WorkOrderAssignmentModel from '../models/work-order-assignment';
 import { TechnicianModel } from '../models/technician';
+import { TechnicalVisitModel } from '../models/technical-visit';
 import VisitReportModel from '../models/visit-report';
 
 export interface OperativeDashboardMetrics {
@@ -38,10 +39,10 @@ export class OperativeDashboardService {
    */
   async getDashboardMetrics(tenantId: string): Promise<OperativeDashboardMetrics> {
     const tenantObjectId = new Types.ObjectId(tenantId);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const tomorrowDate = new Date();
+    tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+    const tomorrowStr = tomorrowDate.toISOString().slice(0, 10);
 
     const [
       totalWorkOrders,
@@ -83,10 +84,15 @@ export class OperativeDashboardService {
         deletedAt: null,
       }),
 
-      // Work orders starting today
+      // Work orders starting today (handles both YYYY-MM-DD and ISO datetime strings)
       WorkOrderModel.countDocuments({
         tenantId: tenantObjectId,
-        scheduledDate: { $gte: today, $lt: tomorrow },
+        $expr: {
+          $and: [
+            { $gte: [{ $substrCP: ['$scheduledDate', 0, 10] }, todayStr] },
+            { $lt: [{ $substrCP: ['$scheduledDate', 0, 10] }, tomorrowStr] },
+          ],
+        },
         deletedAt: null,
       }),
 
@@ -141,7 +147,7 @@ export class OperativeDashboardService {
     return WorkOrderModel.countDocuments({
       tenantId,
       status: { $nin: ['completed', 'cancelled', 'closed'] },
-      scheduledDate: { $lt: now },
+      $expr: { $lt: [{ $substrCP: ['$scheduledDate', 0, 10] }, new Date().toISOString().slice(0, 10)] },
       deletedAt: null,
     });
   }
@@ -219,6 +225,13 @@ export class OperativeDashboardService {
           deletedAt: null,
         });
 
+        const activeVisits = await TechnicalVisitModel.countDocuments({
+          tenantId: tenantObjectId,
+          assignedTechnicianId: tech._id,
+          status: { $nin: ['completed', 'cancelled'] },
+          deletedAt: null,
+        });
+
         return {
           _id: String(tech._id),
           name: tech.name,
@@ -229,6 +242,7 @@ export class OperativeDashboardService {
           specialties: tech.specialties,
           maxDailyWorkOrders: tech.maxDailyWorkOrders,
           activeAssignments,
+          activeVisits,
           todayAssignments,
           completedToday,
           utilization: tech.maxDailyWorkOrders > 0 
@@ -250,18 +264,40 @@ export class OperativeDashboardService {
     endDate: Date
   ) {
     const tenantObjectId = new Types.ObjectId(tenantId);
+    const startStr = startDate.toISOString().slice(0, 10);
+    const endStr = endDate.toISOString().slice(0, 10);
+
+    // scheduledDate may be "YYYY-MM-DD" (new) or "YYYY-MM-DDTHH:mm:ss.sssZ" (legacy Date).
+    // Extract first 10 chars for comparison so both formats work.
+    const dateFilter = {
+      $expr: {
+        $and: [
+          { $gte: [{ $substrCP: ['$scheduledDate', 0, 10] }, startStr] },
+          { $lte: [{ $substrCP: ['$scheduledDate', 0, 10] }, endStr] },
+        ],
+      },
+    };
 
     const workOrders = await WorkOrderModel.find({
       tenantId: tenantObjectId,
-      scheduledDate: { $gte: startDate, $lte: endDate },
+      ...dateFilter,
       status: { $nin: ['cancelled', 'closed'] },
       deletedAt: null,
     })
       .populate('assignedTechnicians', 'name email phone')
       .lean();
 
-    return workOrders.map(wo => ({
+    const visits = await TechnicalVisitModel.find({
+      tenantId: tenantObjectId,
+      scheduledDate: { $gte: startDate, $lte: endDate },
+      status: { $nin: ['cancelled', 'completed'] },
+    })
+      .populate('assignedTechnicianId', 'name email phone')
+      .lean();
+
+    const woEvents = workOrders.map(wo => ({
       _id: String(wo._id),
+      type: 'work_order' as const,
       workOrderNumber: wo.workOrderNumber,
       title: wo.title,
       status: wo.status,
@@ -279,6 +315,26 @@ export class OperativeDashboardService {
         phone: t.phone,
       })) || [],
     }));
+
+    const visitEvents = visits.map(v => ({
+      _id: String(v._id),
+      type: 'technical_visit' as const,
+      workOrderNumber: v.visitNumber || '',
+      title: v.title,
+      status: v.status,
+      priority: v.priority,
+      category: v.category,
+      scheduledDate: v.scheduledDate,
+      scheduledStart: v.scheduledStart,
+      scheduledEnd: undefined,
+      clientSnapshot: v.clientSnapshot,
+      locationSnapshot: v.locationSnapshot,
+      technicians: v.assignedTechnicianId && typeof v.assignedTechnicianId === 'object'
+        ? [{ _id: String(v.assignedTechnicianId._id), name: v.assignedTechnicianId.name, email: v.assignedTechnicianId.email, phone: v.assignedTechnicianId.phone }]
+        : [],
+    }));
+
+    return [...woEvents, ...visitEvents];
   }
 }
 

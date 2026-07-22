@@ -19,14 +19,19 @@ export class TechnicalVisitService {
       query.scheduledDate = { $gte: filters.scheduledDateGte as Date, $lte: filters.scheduledDateLte as Date } as any;
     }
     
-    return TechnicalVisitModel.find(query).sort({ createdAt: -1 }).lean();
+    return TechnicalVisitModel.find(query)
+      .sort({ createdAt: -1 })
+      .populate('assignedTechnicianId', 'name email specialties')
+      .lean();
   }
 
   async findById(id: string, tenantId: string): Promise<ITechnicalVisit | null> {
     return TechnicalVisitModel.findOne({
       _id: new Types.ObjectId(id),
       tenantId: new Types.ObjectId(tenantId),
-    }).lean();
+    })
+      .populate('assignedTechnicianId', 'name email phone specialties')
+      .lean();
   }
 
   async create(data: Partial<ITechnicalVisit>, tenantId: string, userId: string): Promise<ITechnicalVisit> {
@@ -169,6 +174,40 @@ export class TechnicalVisitService {
       tenantId: new Types.ObjectId(tenantId),
     });
     return result.deletedCount > 0;
+  }
+
+  async assignTechnician(
+    visitId: string,
+    technicianId: string,
+    tenantId: string,
+    userId: string,
+  ): Promise<ITechnicalVisit | null> {
+    // Verify technician exists
+    const { TechnicianModel } = await import('../models/technician');
+    const technician = await TechnicianModel.findOne({
+      _id: new Types.ObjectId(technicianId),
+      tenantId: new Types.ObjectId(tenantId),
+      deletedAt: null,
+    });
+    if (!technician) throw new ValidationError('Technician not found');
+
+    return TechnicalVisitModel.findOneAndUpdate(
+      { _id: new Types.ObjectId(visitId), tenantId: new Types.ObjectId(tenantId) },
+      { $set: { assignedTechnicianId: new Types.ObjectId(technicianId), updatedBy: new Types.ObjectId(userId) } },
+      { new: true },
+    ).populate('assignedTechnicianId', 'name email phone specialties').lean();
+  }
+
+  async unassignTechnician(
+    visitId: string,
+    tenantId: string,
+    userId: string,
+  ): Promise<ITechnicalVisit | null> {
+    return TechnicalVisitModel.findOneAndUpdate(
+      { _id: new Types.ObjectId(visitId), tenantId: new Types.ObjectId(tenantId) },
+      { $set: { assignedTechnicianId: null, updatedBy: new Types.ObjectId(userId) } },
+      { new: true },
+    ).populate('assignedTechnicianId', 'name email phone specialties').lean();
   }
 }
 

@@ -39,10 +39,10 @@ export async function GET(request: NextRequest) {
 
     const dateFilter: Record<string, unknown> = {};
     if (startDateParam) {
-      dateFilter.$gte = new Date(startDateParam);
+      dateFilter.$gte = startDateParam;
     }
     if (endDateParam) {
-      dateFilter.$lte = new Date(endDateParam);
+      dateFilter.$lte = endDateParam;
     }
 
     const query: Record<string, unknown> = {

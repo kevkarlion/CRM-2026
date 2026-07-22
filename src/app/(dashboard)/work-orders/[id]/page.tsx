@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { api } from '@/lib/api-client';
 import { VisitReportForm } from '@/operations/components/VisitReportForm';
+import { formatDateLong as formatDate } from '@/operations/helpers/date-utils';
 
 interface WorkOrder {
   _id: string;
@@ -109,13 +110,6 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-function formatDate(dateStr?: string) {
-  if (!dateStr) return '—';
-  return new Date(dateStr).toLocaleDateString('es-CL', {
-    day: '2-digit', month: 'long', year: 'numeric',
-  });
-}
-
 function formatTime(dateStr?: string) {
   if (!dateStr) return '—';
   return new Date(dateStr).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
@@ -142,6 +136,9 @@ export default function WorkOrderDetailPage() {
   const [assigning, setAssigning] = useState(false);
   const [assignTechId, setAssignTechId] = useState('');
   const [showAssignInput, setShowAssignInput] = useState(false);
+  const [technicians, setTechnicians] = useState<Array<{ _id: string; name: string; email?: string; specialties?: string[] }>>([]);
+  const [loadingTechnicians, setLoadingTechnicians] = useState(false);
+  const [unassigning, setUnassigning] = useState(false);
   const [checklist, setChecklist] = useState<ChecklistItem[]>([]);
   const [loadingChecklist, setLoadingChecklist] = useState(false);
   const [newCheckItem, setNewCheckItem] = useState('');
@@ -168,10 +165,24 @@ export default function WorkOrderDetailPage() {
   useEffect(() => {
     if (!workOrder) return;
     loadChecklist();
+    loadTechnicians(); // Always pre-load for assign/reassign
     if (workOrder.status === 'completed' || workOrder.status === 'closed') {
       loadReport();
     }
   }, [workOrder?._id]);
+
+  async function loadTechnicians() {
+    if (technicians.length > 0) return; // already loaded
+    setLoadingTechnicians(true);
+    try {
+      const result = await api.get<Array<{ _id: string; name: string; email?: string; specialties?: string[] }>>('/api/operations/technicians');
+      setTechnicians(result || []);
+    } catch {
+      // silently ignore
+    } finally {
+      setLoadingTechnicians(false);
+    }
+  }
 
   async function loadChecklist() {
     setLoadingChecklist(true);
@@ -250,7 +261,23 @@ export default function WorkOrderDetailPage() {
     if (!assignTechId.trim()) return;
     setAssigning(true);
     try {
-      await api.post(`/api/operations/work-orders/${id}/assign`, { technicianId: assignTechId.trim() });
+      const hasCurrentTech = workOrder?.assignedTechnicians && workOrder.assignedTechnicians.length > 0;
+      if (hasCurrentTech) {
+        // Reassign: replace current technician
+        const oldTech = workOrder.assignedTechnicians![0];
+        const oldTechId = typeof oldTech === 'string' ? oldTech : oldTech._id;
+        await api.post(`/api/operations/work-orders/${id}/assign`, {
+          action: 'reassign',
+          oldTechnicianId: oldTechId,
+          newTechnicianId: assignTechId.trim(),
+        });
+      } else {
+        // First assignment
+        await api.post(`/api/operations/work-orders/${id}/assign`, {
+          action: 'assign',
+          technicianId: assignTechId.trim(),
+        });
+      }
       setShowAssignInput(false);
       setAssignTechId('');
       const result = await api.get<{ data: WorkOrder }>(`/api/operations/work-orders/${id}`);
@@ -259,6 +286,19 @@ export default function WorkOrderDetailPage() {
       setError(err instanceof Error ? err.message : 'Error al asignar');
     } finally {
       setAssigning(false);
+    }
+  }
+
+  async function handleUnassign(technicianId: string) {
+    setUnassigning(true);
+    try {
+      await api.post(`/api/operations/work-orders/${id}/assign`, { action: 'unassign', technicianId });
+      const result = await api.get<{ data: WorkOrder }>(`/api/operations/work-orders/${id}`);
+      setWorkOrder(result.data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al desasignar');
+    } finally {
+      setUnassigning(false);
     }
   }
 
@@ -506,23 +546,73 @@ export default function WorkOrderDetailPage() {
             )}
 
             {!isTerminal && (
-              <div className="relative">
-                <button onClick={() => setShowAssignInput(!showAssignInput)}
-                  className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-                  Asignar Técnico
-                </button>
-                {showAssignInput && (
-                  <div className="mt-2 space-y-2">
-                    <input type="text" value={assignTechId} onChange={(e) => setAssignTechId((e.target as any).value)}
-                      placeholder="ID del técnico"
-                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none" />
-                    <button onClick={handleAssign} disabled={assigning || !assignTechId.trim()}
-                      className="w-full rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50 transition-colors">
-                      {assigning ? 'Asignando...' : 'Confirmar'}
-                    </button>
+              <>
+                {/* Current technician info */}
+                {workOrder.assignedTechnicians && workOrder.assignedTechnicians.length > 0 && (
+                  <div className="rounded-lg bg-brand-50 border border-brand-100 p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-brand-700">Técnico Asignado</span>
+                      <span className="text-xs text-brand-600">{technicianName(workOrder)}</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => { setShowAssignInput(!showAssignInput); if (!showAssignInput) loadTechnicians(); }}
+                        className="flex-1 rounded-lg border border-brand-200 px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-100 transition-colors"
+                      >
+                        Reasignar
+                      </button>
+                      <button
+                        onClick={() => {
+                          const tech = workOrder.assignedTechnicians![0];
+                          const techId = typeof tech === 'string' ? tech : tech._id;
+                          handleUnassign(techId);
+                        }}
+                        disabled={unassigning}
+                        className="flex-1 rounded-lg border border-danger-200 px-3 py-1.5 text-xs font-medium text-danger-600 hover:bg-danger-50 disabled:opacity-50 transition-colors"
+                      >
+                        {unassigning ? '...' : 'Desasignar'}
+                      </button>
+                    </div>
                   </div>
                 )}
-              </div>
+
+                {/* Assign / Reassign dropdown */}
+                {(!workOrder.assignedTechnicians || workOrder.assignedTechnicians.length === 0 || showAssignInput) && (
+                  <div className="space-y-2">
+                    {workOrder.assignedTechnicians && workOrder.assignedTechnicians.length > 0 && (
+                      <p className="text-xs text-gray-500">Seleccionar nuevo técnico:</p>
+                    )}
+                    {loadingTechnicians ? (
+                      <div className="text-xs text-gray-500 py-2">Cargando técnicos...</div>
+                    ) : (
+                      <select
+                        value={assignTechId}
+                        onChange={(e) => setAssignTechId(e.target.value)}
+                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
+                      >
+                        <option value="">Seleccionar técnico...</option>
+                        {technicians.map((tech) => (
+                          <option key={tech._id} value={tech._id}>
+                            {tech.name}{tech.specialties?.length ? ` — ${tech.specialties.slice(0, 2).join(', ')}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    <div className="flex gap-2">
+                      <button onClick={handleAssign} disabled={assigning || !assignTechId.trim()}
+                        className="flex-1 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50 transition-colors">
+                        {assigning ? 'Asignando...' : workOrder.assignedTechnicians?.length ? 'Reasignar' : 'Asignar'}
+                      </button>
+                      {showAssignInput && (
+                        <button onClick={() => { setShowAssignInput(false); setAssignTechId(''); }}
+                          className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
+                          Cancelar
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             {!showDeleteConfirm ? (

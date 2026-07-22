@@ -6,6 +6,7 @@ import { api } from '@/lib/api-client';
 import { CalendarView } from '@/operations/components/centro-operativo/CalendarView';
 import { TechnicianAgendaSummary } from '@/operations/components/centro-operativo/TechnicianAgendaSummary';
 import { SelfAssignmentDrawer } from '@/operations/components/SelfAssignmentDrawer';
+import { parseLocalDate } from '@/operations/helpers/date-utils';
 import type { CalendarEvent } from '@/operations/types/centro-operativo';
 
 interface UnassignedWorkOrder {
@@ -100,24 +101,28 @@ export default function TechnicianCalendarPage() {
     fetchData();
   }, [fetchData]);
 
-  function handleEventClick(eventId: string) {
-    router.push(`/work-orders/${eventId}`);
+  function handleEventClick(event: CalendarEvent) {
+    if (event.type === 'technical_visit') {
+      router.push(`/technical-visits/${event._id}`);
+    } else {
+      router.push(`/work-orders/${event._id}`);
+    }
   }
 
   const { todayCount, weekCount, nextJob } = useMemo(() => {
     const now = new Date();
-    const todayEvents = events.filter((e) => isSameDay(new Date(e.scheduledDate), now));
+    const todayEvents = events.filter((e) => isSameDay(parseLocalDate(e.scheduledDate), now));
     const weekStart = getWeekStart(now);
     const weekEnd = new Date(weekStart);
     weekEnd.setDate(weekEnd.getDate() + 7);
     const weekEvents = events.filter((e) => {
-      const d = new Date(e.scheduledDate);
+      const d = parseLocalDate(e.scheduledDate);
       return d >= weekStart && d < weekEnd;
     });
 
     const upcoming = events
-      .filter((e) => new Date(e.scheduledDate) >= now)
-      .sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime());
+      .filter((e) => parseLocalDate(e.scheduledDate) >= now)
+      .sort((a, b) => parseLocalDate(a.scheduledDate).getTime() - parseLocalDate(b.scheduledDate).getTime());
 
     const next = upcoming[0];
 
@@ -132,10 +137,12 @@ export default function TechnicianCalendarPage() {
                   hour: '2-digit',
                   minute: '2-digit',
                 })
-              : new Date(next.scheduledDate).toLocaleDateString('es-CL', {
-                  day: '2-digit',
-                  month: '2-digit',
-                }),
+              : (() => {
+                  return parseLocalDate(next.scheduledDate).toLocaleDateString('es-CL', {
+                    day: '2-digit',
+                    month: '2-digit',
+                  });
+                })(),
             client: next.clientSnapshot?.name || '',
           }
         : undefined,

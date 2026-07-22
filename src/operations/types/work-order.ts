@@ -60,7 +60,7 @@ export interface IWorkOrder extends Document, IAuditFields {
   priority: WorkOrderPriority;
   category: WorkOrderCategory;
   status: WorkOrderStatus;
-  scheduledDate?: Date;
+  scheduledDate?: string;
   scheduledStart?: Date;
   scheduledEnd?: Date;
   estimatedDuration?: number;

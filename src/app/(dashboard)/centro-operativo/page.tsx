@@ -7,16 +7,19 @@ import { MetricsCards } from '@/operations/components/centro-operativo/MetricsCa
 import { WorkOrderListView } from '@/operations/components/centro-operativo/WorkOrderListView';
 import { CalendarView } from '@/operations/components/centro-operativo/CalendarView';
 import { TechnicianWorkloadPanel } from '@/operations/components/centro-operativo/TechnicianWorkloadPanel';
+import { TechnicalVisitsView } from '@/operations/components/centro-operativo/TechnicalVisitsView';
 import type {
   CentroOperativoDashboardResponse,
   CalendarEvent,
   WorkOrderRow,
+  TechnicalVisitRow,
 } from '@/operations/types/centro-operativo';
 
-type Tab = 'orders' | 'calendar' | 'technicians';
+type Tab = 'orders' | 'visits' | 'calendar' | 'technicians';
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'orders', label: 'Órdenes', icon: '📋' },
+  { id: 'visits', label: 'Visitas', icon: '🔧' },
   { id: 'calendar', label: 'Calendario', icon: '📅' },
   { id: 'technicians', label: 'Técnicos', icon: '👥' },
 ];
@@ -46,6 +49,23 @@ function mapWorkOrderToRow(wo: any): WorkOrderRow {
   };
 }
 
+function mapVisitToRow(v: any): TechnicalVisitRow {
+  const tech = v.assignedTechnicianId;
+  return {
+    _id: v._id,
+    visitNumber: v.visitNumber,
+    title: v.title,
+    status: v.status,
+    priority: v.priority,
+    category: v.category,
+    scheduledDate: v.scheduledDate,
+    scheduledStart: v.scheduledStart,
+    clientSnapshot: v.clientSnapshot,
+    locationSnapshot: v.locationSnapshot,
+    technicianName: tech && typeof tech === 'object' ? tech.name : null,
+  };
+}
+
 export default function CentroOperativoPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>('orders');
@@ -55,16 +75,18 @@ export default function CentroOperativoPage() {
   const [dashboard, setDashboard] = useState<CentroOperativoDashboardResponse | null>(null);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
   const [workOrders, setWorkOrders] = useState<WorkOrderRow[]>([]);
+  const [technicalVisits, setTechnicalVisits] = useState<TechnicalVisitRow[]>([]);
 
   const fetchAll = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const [dashboardData, calendarData, workOrdersData] = await Promise.allSettled([
+      const [dashboardData, calendarData, workOrdersData, visitsData] = await Promise.allSettled([
         api.get<CentroOperativoDashboardResponse>('/api/operations/centro-operativo'),
         api.get<CalendarEvent[]>('/api/operations/centro-operativo/calendar'),
         api.get<{ data: any[]; total: number }>('/api/operations/work-orders'),
+        api.get<{ data: any[]; total: number }>('/api/operations/technical-visits'),
       ]);
 
       if (dashboardData.status === 'fulfilled') {
@@ -82,7 +104,13 @@ export default function CentroOperativoPage() {
         setWorkOrders(list.map(mapWorkOrderToRow));
       }
 
-      const failures = [dashboardData, calendarData, workOrdersData].filter(
+      if (visitsData.status === 'fulfilled') {
+        const raw = visitsData.value;
+        const list = Array.isArray(raw) ? raw : raw?.data || [];
+        setTechnicalVisits(list.map(mapVisitToRow));
+      }
+
+      const failures = [dashboardData, calendarData, workOrdersData, visitsData].filter(
         (r) => r.status === 'rejected',
       );
       if (failures.length > 0) {
@@ -100,8 +128,12 @@ export default function CentroOperativoPage() {
     fetchAll();
   }, [fetchAll]);
 
-  function handleEventClick(eventId: string) {
-    router.push(`/work-orders/${eventId}`);
+  function handleEventClick(event: CalendarEvent) {
+    if (event.type === 'technical_visit') {
+      router.push(`/technical-visits/${event._id}`);
+    } else {
+      router.push(`/work-orders/${event._id}`);
+    }
   }
 
   return (
@@ -198,6 +230,13 @@ export default function CentroOperativoPage() {
             {activeTab === 'orders' && (
               <WorkOrderListView
                 workOrders={workOrders}
+                onRefresh={fetchAll}
+              />
+            )}
+
+            {activeTab === 'visits' && (
+              <TechnicalVisitsView
+                visits={technicalVisits}
                 onRefresh={fetchAll}
               />
             )}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { api } from '@/lib/api-client';
+import { parseLocalDate } from '@/operations/helpers/date-utils';
 
 type CalendarView = 'day' | 'week' | 'month';
 
@@ -138,7 +139,7 @@ export function CalendarView({ onItemClick, initialDate = new Date() }: Calendar
   const groupedByDate = useMemo(() => {
     const groups: Record<string, AgendaItem[]> = {};
     agendaItems.forEach((item) => {
-      const dateKey = new Date(item.scheduledDate).toDateString();
+      const dateKey = parseLocalDate(item.scheduledDate).toDateString();
       if (!groups[dateKey]) groups[dateKey] = [];
       groups[dateKey].push(item);
     });

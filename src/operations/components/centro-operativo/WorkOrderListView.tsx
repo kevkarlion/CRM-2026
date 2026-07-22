@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { SelfAssignmentDrawer } from '@/operations/components/SelfAssignmentDrawer';
 import { WORK_ORDER_STATUS_VARIANT, WORK_ORDER_PRIORITY_VARIANT } from '@/operations/constants/status-colors';
+import { formatDateMonthShort as formatDate } from '@/operations/helpers/date-utils';
 import type { WorkOrderRow } from '@/operations/types/centro-operativo';
 
 interface WorkOrderListViewProps {
@@ -39,11 +40,6 @@ const PRIORITY_ORDER: Record<string, number> = {
   normal: 3,
   low: 4,
 };
-
-function formatDate(iso: string | null | undefined): string {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('es-CL', { day: 'numeric', month: 'short' });
-}
 
 function formatTime(iso: string | null | undefined): string {
   if (!iso) return '';

@@ -105,7 +105,7 @@ export class WorkOrderService {
             title: workOrder.title,
             category: workOrder.category,
             priority: workOrder.priority,
-            scheduledDate: workOrder.scheduledDate?.toISOString(),
+            scheduledDate: workOrder.scheduledDate,
             clientName: client.fullName || client.companyName || undefined,
             address: location.address || undefined,
           } as WorkOrderCreatedPayload,
@@ -134,8 +134,8 @@ export class WorkOrderService {
     filters: {
       status?: WorkOrderStatus;
       technicianId?: string;
-      scheduledDateGte?: Date;
-      scheduledDateLte?: Date;
+      scheduledDateGte?: string;
+      scheduledDateLte?: string;
     } = {},
   ): Promise<IWorkOrder[]> {
     const query: Record<string, unknown> = { tenantId, deletedAt: null };
@@ -157,7 +157,7 @@ export class WorkOrderService {
 
     return WorkOrderModel.find(query)
       .sort({ createdAt: -1 })
-      
+      .populate('assignedTechnicians', 'name email specialties')
       .exec();
   }
 
@@ -292,7 +292,7 @@ export class WorkOrderService {
   async schedule(
     id: string,
     scheduleData: {
-      scheduledDate: Date;
+      scheduledDate: string;
       scheduledStart: Date;
       scheduledEnd: Date;
     },
@@ -351,7 +351,7 @@ export class WorkOrderService {
         tenantId: new Types.ObjectId(tenantId),
         workOrderId: new Types.ObjectId(id),
         eventType: 'status_changed',
-        description: `WorkOrder scheduled on ${scheduleData.scheduledDate.toISOString().slice(0, 10)}`,
+        description: `WorkOrder scheduled on ${scheduleData.scheduledDate}`,
         performedBy: new Types.ObjectId(userId),
         metadata: { from: currentStatus, to: 'scheduled', scheduleData },
       }], { session });

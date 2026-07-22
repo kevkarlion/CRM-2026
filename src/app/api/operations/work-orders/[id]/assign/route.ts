@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
 import { workAssignmentService } from '@/operations/services/work-assignment.service';
+import WorkOrderModel from '@/operations/models/work-order';
 
 export async function GET(
   _request: NextRequest,
@@ -52,7 +53,7 @@ export async function POST(
         }
         const assignment = await workAssignmentService.createAssignment(id, technicianId, userId, tenantId, {
           assignmentType: 'manual',
-          reason: 'manual_assignment',
+          reason: 'other',
         });
         return NextResponse.json({ data: assignment }, { status: 201 });
       }
@@ -62,7 +63,7 @@ export async function POST(
         if (!oldTechnicianId || !newTechnicianId) {
           return NextResponse.json({ error: 'oldTechnicianId and newTechnicianId are required for reassign' }, { status: 400 });
         }
-        const assignment = await workAssignmentService.replaceTechnician(id, newTechnicianId, userId, tenantId, 'manual_replacement');
+        const assignment = await workAssignmentService.replaceTechnician(id, newTechnicianId, userId, tenantId, 'replacement');
         return NextResponse.json({ data: assignment }, { status: 201 });
       }
 
@@ -78,7 +79,20 @@ export async function POST(
             $set: { status: 'declined', declinedAt: new Date() },
           });
         }
-        return NextResponse.json({ data: current });
+        // Remove technician from assignedTechnicians
+        const { Types } = await import('mongoose');
+        await WorkOrderModel.findByIdAndUpdate(id, {
+          $pull: { assignedTechnicians: new Types.ObjectId(technicianId) },
+        });
+        // Check if any technicians remain — if not, downgrade status to confirmed
+        const wo = await WorkOrderModel.findById(id).select('assignedTechnicians status');
+        const remaining = (wo?.assignedTechnicians || []).length;
+        if (remaining === 0) {
+          await WorkOrderModel.findByIdAndUpdate(id, {
+            $set: { status: 'confirmed', updatedBy: new Types.ObjectId(userId) },
+          });
+        }
+        return NextResponse.json({ data: { success: true } });
       }
 
       default:

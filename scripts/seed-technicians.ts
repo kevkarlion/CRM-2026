@@ -1,40 +1,126 @@
-import { connectDB } from './src/core/db';
+import { config } from 'dotenv';
+config({ path: '.env.local' });
+
 import mongoose from 'mongoose';
+const { connectDB } = await import('../src/core/db');
 
 async function seed() {
   await connectDB();
-  
-  const tenantId = '67f0a1b2c9e77a0012345678';
-  const userId = '67f0a1b2c9e77a0012345678';
-  
+
+  const db = mongoose.connection.db!;
+
+  // Find the first tenant in the database
+  const tenant = await db.collection('tenants').findOne({});
+  if (!tenant) {
+    console.error('❌ No tenant found in database. Run seed.ts first.');
+    process.exit(1);
+  }
+  const tenantId = tenant._id;
+  console.log(`📍 Using tenant: ${tenant.name || tenant.slug} (${tenantId})`);
+
   const technicians = [
-    { name: 'Juan Pérez', email: 'juan@crm.com', phone: '+54 9 11 1234-5678', specialties: ['refrigeración', 'electricidad'], zones: ['CABA Norte', 'CABA Oeste'], maxDailyWorkOrders: 6 },
-    { name: 'María González', email: 'maria@crm.com', phone: '+54 9 11 2345-6789', specialties: ['gas', 'calderas'], zones: ['CABA Sur', 'La Plata'], maxDailyWorkOrders: 5 },
-    { name: 'Carlos Rodríguez', email: 'carlos@crm.com', phone: '+54 9 11 3456-7890', specialties: ['aire acondicionado', 'refrigeración'], zones: ['GBA Norte', 'GBA Este'], maxDailyWorkOrders: 7 },
-    { name: 'Ana López', email: 'ana@crm.com', phone: '+54 9 11 4567-8901', specialties: ['electricidad', 'automatización'], zones: ['CABA Centro'], maxDailyWorkOrders: 5 },
-    { name: 'Pedro Martínez', email: 'pedro@crm.com', phone: '+54 9 11 5678-9012', specialties: ['refrigeración', 'montaje'], zones: ['GBA Oeste', 'CABA Sur'], maxDailyWorkOrders: 4 },
+    {
+      name: 'Juan Pérez',
+      email: 'juan.perez@crm.com',
+      phone: '+54 9 11 1234-5678',
+      specialties: ['refrigeración', 'electricidad'],
+      zones: ['CABA Norte', 'CABA Oeste'],
+      availability: 'available',
+      maxDailyWorkOrders: 6,
+    },
+    {
+      name: 'María González',
+      email: 'maria.gonzalez@crm.com',
+      phone: '+54 9 11 2345-6789',
+      specialties: ['gas', 'calderas', 'calefacción'],
+      zones: ['CABA Sur', 'La Plata'],
+      availability: 'busy',
+      maxDailyWorkOrders: 5,
+    },
+    {
+      name: 'Carlos Rodríguez',
+      email: 'carlos.rodriguez@crm.com',
+      phone: '+54 9 11 3456-7890',
+      specialties: ['aire acondicionado', 'refrigeración', 'informática'],
+      zones: ['GBA Norte', 'GBA Este'],
+      availability: 'available',
+      maxDailyWorkOrders: 7,
+    },
+    {
+      name: 'Ana López',
+      email: 'ana.lopez@crm.com',
+      phone: '+54 9 11 4567-8901',
+      specialties: ['electricidad', 'automatización', 'domótica'],
+      zones: ['CABA Centro', 'CABA Este'],
+      availability: 'available',
+      maxDailyWorkOrders: 5,
+    },
+    {
+      name: 'Pedro Martínez',
+      email: 'pedro.martinez@crm.com',
+      phone: '+54 9 11 5678-9012',
+      specialties: ['refrigeración', 'montaje', 'desmontaje'],
+      zones: ['GBA Oeste', 'CABA Sur'],
+      availability: 'unavailable',
+      maxDailyWorkOrders: 4,
+    },
+    {
+      name: 'Lucía Fernández',
+      email: 'lucia.fernandez@crm.com',
+      phone: '+54 9 11 6789-0123',
+      specialties: ['gas', 'aire acondicionado', 'reparación'],
+      zones: ['CABA Norte', 'GBA Norte', 'Tigre'],
+      availability: 'available',
+      maxDailyWorkOrders: 6,
+    },
+    {
+      name: 'Diego Sánchez',
+      email: 'diego.sanchez@crm.com',
+      phone: '+54 9 11 7890-1234',
+      specialties: ['electricidad', 'refrigeración', 'plomería'],
+      zones: ['CABA Sur', 'La Plata', 'Quilmes'],
+      availability: 'available',
+      maxDailyWorkOrders: 5,
+    },
   ];
 
-  // Clear existing
-  const { Technician } = await import('./src/operations/models/technician');
-  await Technician.deleteMany({ tenantId: new mongoose.Types.ObjectId(tenantId) });
-  
-  // Insert with proper ObjectIds
-  const { TechnicianModel } = await import('./src/operations/models');
-  const result = await TechnicianModel.insertMany(technicians.map(t => ({
-    ...t,
-    tenantId: new mongoose.Types.ObjectId(tenantId),
-    userId: null,
-    status: 'active',
-    availability: ['available', 'busy', 'available', 'available', 'unavailable'],
-    createdBy: new mongoose.Types.ObjectId(userId),
-    updatedBy: new mongoose.Types.ObjectId(userId),
-  })));
-  
-  console.log('✅ Created', result.length, 'technicians');
-  result.forEach((t: any) => console.log('  -', t.name, '|', t.availability));
-  
+  const collection = db.collection('technicians');
+
+  // Clear existing for this tenant
+  await collection.deleteMany({ tenantId });
+  console.log('🗑️  Cleared existing technicians');
+
+  // Insert one by one to handle unique index on (tenantId, userId)
+  let count = 0;
+  for (const t of technicians) {
+    const userId = new mongoose.Types.ObjectId(); // unique per technician
+    await collection.insertOne({
+      ...t,
+      tenantId,
+      userId,
+      status: 'active',
+      createdBy: tenantId,
+      updatedBy: tenantId,
+      deletedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    count++;
+  }
+
+  console.log(`✅ Created ${count} technicians:\n`);
+
+  const all = await collection.find({ tenantId }).toArray();
+  all.forEach((t: any) => {
+    console.log(
+      `  ${t.name} | ${t.specialties.join(', ')} | ${t.zones.join(', ')} | ${t.availability}`
+    );
+  });
+
   process.exit(0);
 }
 
-seed().catch(e => { console.error(e); process.exit(1); });
+seed().catch((e) => {
+  console.error(e);
+  process.exit(1);
+});

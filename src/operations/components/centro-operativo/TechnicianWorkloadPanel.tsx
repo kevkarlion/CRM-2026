@@ -71,7 +71,17 @@ function TechnicianCard({ tech }: { tech: TechnicianWorkload }) {
       </div>
 
       <div className="flex items-center justify-between gap-2 mb-3">
-        <StatItem label="Activas" value={tech.activeAssignments} color="text-blue-700" />
+        <div className="text-center flex-1">
+          <p className="text-[10px] text-gray-500 leading-tight mb-1">Activas</p>
+          <div className="flex items-center justify-center gap-1.5">
+            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 text-xs font-bold tabular-nums">
+              OT {tech.activeAssignments}
+            </span>
+            <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-purple-50 text-purple-700 text-xs font-bold tabular-nums">
+              VT {tech.activeVisits}
+            </span>
+          </div>
+        </div>
         <StatItem label="Hoy" value={tech.todayAssignments} color="text-indigo-700" />
         <StatItem label="Completadas" value={tech.completedToday} color="text-green-700" />
       </div>

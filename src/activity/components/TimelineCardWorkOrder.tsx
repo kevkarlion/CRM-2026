@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { TimelineCardProps } from '../types/timeline';
 import { resolveEntityRoute, getEntityNumber } from '../helpers/entity-routes';
+import { formatDateLong } from '@/operations/helpers/date-utils';
 
 function getUserName(
   user:
@@ -125,11 +126,7 @@ export function TimelineCardWorkOrder({ event }: TimelineCardProps) {
 
         {scheduledDate && !isStatusChange && (
           <p className="text-xs text-gray-600">
-            📅 {new Date(scheduledDate).toLocaleDateString('es-CL', {
-              day: '2-digit',
-              month: 'long',
-              year: 'numeric',
-            })}
+            📅 {formatDateLong(scheduledDate)}
           </p>
         )}
       </div>

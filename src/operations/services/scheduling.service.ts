@@ -17,7 +17,7 @@ export class SchedulingService {
     excludeWorkOrderId?: string,
   ): Promise<boolean> {
     const slot: TimeSlot = {
-      scheduledDate: new Date(startTime.toISOString().slice(0, 10)),
+      scheduledDate: startTime.toISOString().slice(0, 10),
       scheduledStart: startTime,
       scheduledEnd: endTime,
     };
@@ -39,7 +39,7 @@ export class SchedulingService {
     endTime: Date,
   ): Promise<{ available: boolean; conflicts: ConflictResult[] }> {
     const slot: TimeSlot = {
-      scheduledDate: new Date(startTime.toISOString().slice(0, 10)),
+      scheduledDate: startTime.toISOString().slice(0, 10),
       scheduledStart: startTime,
       scheduledEnd: endTime,
     };
@@ -66,7 +66,7 @@ export class SchedulingService {
   async schedule(
     workOrderId: string,
     scheduleData: {
-      scheduledDate: Date;
+      scheduledDate: string;
       scheduledStart: Date;
       scheduledEnd: Date;
     },
@@ -121,7 +121,7 @@ export class SchedulingService {
   async reschedule(
     workOrderId: string,
     newScheduleData: {
-      scheduledDate: Date;
+      scheduledDate: string;
       scheduledStart: Date;
       scheduledEnd: Date;
     },

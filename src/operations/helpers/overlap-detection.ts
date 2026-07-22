@@ -3,7 +3,7 @@ import { WorkOrderModel } from '../models';
 import { IWorkOrder } from '../types/work-order';
 
 export interface TimeSlot {
-  scheduledDate: Date;
+  scheduledDate: string;
   scheduledStart: Date;
   scheduledEnd: Date;
 }

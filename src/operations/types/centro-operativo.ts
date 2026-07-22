@@ -18,6 +18,7 @@ export interface TechnicianWorkload {
   specialties: string[];
   maxDailyWorkOrders: number;
   activeAssignments: number;
+  activeVisits: number;
   todayAssignments: number;
   completedToday: number;
   utilization: number;
@@ -25,6 +26,7 @@ export interface TechnicianWorkload {
 
 export interface CalendarEvent {
   _id: string;
+  type: 'work_order' | 'technical_visit';
   workOrderNumber: string;
   title: string;
   status: string;
@@ -69,4 +71,18 @@ export interface CentroOperativoDashboardResponse {
     awaitingExecution: number;
     pendingReport: number;
   };
+}
+
+export interface TechnicalVisitRow {
+  _id: string;
+  visitNumber: string;
+  title: string;
+  status: string;
+  priority: string;
+  category: string;
+  scheduledDate?: string;
+  scheduledStart?: string;
+  clientSnapshot?: { name?: string; email?: string; phone?: string };
+  locationSnapshot?: { name?: string; address?: string };
+  technicianName?: string | null;
 }

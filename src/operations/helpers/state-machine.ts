@@ -11,7 +11,7 @@ export const VALID_TRANSITIONS: Record<WorkOrderStatus, WorkOrderStatus[]> = {
   draft: ['scheduled', 'cancelled'],
   scheduled: ['confirmed', 'assigned', 'cancelled'],
   confirmed: ['assigned', 'cancelled'],
-  assigned: ['en_route', 'cancelled'],
+  assigned: ['en_route', 'scheduled', 'cancelled'],
   en_route: ['on_site', 'cancelled'],
   on_site: ['paused', 'completed', 'cancelled'],
   paused: ['on_site', 'cancelled'],

@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useMemo, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { CALENDAR_PRIORITY_COLORS } from '@/operations/constants/status-colors';
+import { parseLocalDate } from '@/operations/helpers/date-utils';
 import type { CalendarEvent, TechnicianWorkload } from '@/operations/types/centro-operativo';
 
 type ViewMode = 'day' | 'week' | 'month';
@@ -10,7 +10,7 @@ type ViewMode = 'day' | 'week' | 'month';
 interface CalendarViewProps {
   events: CalendarEvent[];
   technicians?: TechnicianWorkload[];
-  onEventClick: (eventId: string) => void;
+  onEventClick: (event: CalendarEvent) => void;
 }
 
 const VIEW_LABELS: Record<ViewMode, string> = {
@@ -59,8 +59,7 @@ function formatTimeShort(iso: string | undefined): string {
 
 function getEventsForDay(events: CalendarEvent[], day: Date): CalendarEvent[] {
   return events.filter((e) => {
-    const d = new Date(e.scheduledDate);
-    return isSameDay(d, day);
+    return isSameDay(parseLocalDate(e.scheduledDate), day);
   });
 }
 
@@ -98,7 +97,10 @@ function EventBlock({ event, onClick, compact }: { event: CalendarEvent; onClick
         onClick={onClick}
         className={`w-full text-left px-1.5 py-0.5 rounded border-l-2 ${colors.bg} ${colors.border} ${colors.text} hover:opacity-80 transition-opacity cursor-pointer`}
       >
-        <p className="text-[10px] font-bold truncate">{event.workOrderNumber}</p>
+        <p className="text-[10px] font-bold truncate">
+          {event.type === 'technical_visit' && <span className="text-emerald-600">🔧 </span>}
+          {event.workOrderNumber}
+        </p>
         <p className="text-[9px] truncate opacity-75">{clientName}</p>
       </button>
     );
@@ -110,14 +112,17 @@ function EventBlock({ event, onClick, compact }: { event: CalendarEvent; onClick
       className={`w-full text-left px-2 py-1 rounded border-l-2 ${colors.bg} ${colors.border} ${colors.text} hover:opacity-80 transition-opacity cursor-pointer`}
     >
       {timeRange && <p className="text-[10px] font-medium">{timeRange}</p>}
-      <p className="text-xs font-bold truncate">#{event.workOrderNumber}</p>
+      <p className="text-xs font-bold truncate">
+        {event.type === 'technical_visit' && <span className="text-emerald-600">🔧 </span>}
+        #{event.workOrderNumber}
+      </p>
       {clientName && <p className="text-[10px] truncate opacity-75">{clientName}</p>}
       {techName && <p className="text-[9px] truncate opacity-60">{techName}</p>}
     </button>
   );
 }
 
-function DayView({ events, date, onEventClick }: { events: CalendarEvent[]; date: Date; onEventClick: (id: string) => void }) {
+function DayView({ events, date, onEventClick }: { events: CalendarEvent[]; date: Date; onEventClick: (event: CalendarEvent) => void }) {
   const dayEvents = useMemo(() => getEventsForDay(events, date), [events, date]);
   const hours = useMemo(() => {
     const arr: number[] = [];
@@ -148,7 +153,7 @@ function DayView({ events, date, onEventClick }: { events: CalendarEvent[]; date
                   className="absolute left-1 right-1 pointer-events-auto"
                   style={{ top: `${pos.top}%`, height: `${pos.height}%` }}
                 >
-                  <EventBlock event={event} onClick={() => onEventClick(event._id)} />
+                  <EventBlock event={event} onClick={() => onEventClick(event)} />
                 </div>
               );
             })}
@@ -159,7 +164,7 @@ function DayView({ events, date, onEventClick }: { events: CalendarEvent[]; date
   );
 }
 
-function WeekView({ events, date, onEventClick }: { events: CalendarEvent[]; date: Date; onEventClick: (id: string) => void }) {
+function WeekView({ events, date, onEventClick }: { events: CalendarEvent[]; date: Date; onEventClick: (event: CalendarEvent) => void }) {
   const weekStart = useMemo(() => getWeekStart(date), [date]);
   const weekDays = useMemo(() => {
     const days: Date[] = [];
@@ -212,7 +217,7 @@ function WeekView({ events, date, onEventClick }: { events: CalendarEvent[]; dat
                       <EventBlock
                         key={event._id}
                         event={event}
-                        onClick={() => onEventClick(event._id)}
+                        onClick={() => onEventClick(event)}
                         compact
                       />
                     ))}
@@ -232,7 +237,7 @@ function WeekView({ events, date, onEventClick }: { events: CalendarEvent[]; dat
   );
 }
 
-function MonthView({ events, date, onEventClick }: { events: CalendarEvent[]; date: Date; onEventClick: (id: string) => void }) {
+function MonthView({ events, date, onEventClick }: { events: CalendarEvent[]; date: Date; onEventClick: (event: CalendarEvent) => void }) {
   const today = new Date();
   const year = date.getFullYear();
   const month = date.getMonth();
@@ -263,7 +268,7 @@ function MonthView({ events, date, onEventClick }: { events: CalendarEvent[]; da
   const eventsByDate = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>();
     events.forEach((e) => {
-      const key = startOfDay(new Date(e.scheduledDate)).toISOString();
+      const key = startOfDay(parseLocalDate(e.scheduledDate)).toISOString();
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(e);
     });
@@ -304,7 +309,7 @@ function MonthView({ events, date, onEventClick }: { events: CalendarEvent[]; da
                   return (
                     <button
                       key={event._id}
-                      onClick={() => onEventClick(event._id)}
+                      onClick={() => onEventClick(event)}
                       className={`w-full text-left px-1 py-0.5 rounded text-[9px] font-medium truncate border-l-2 ${colors.bg} ${colors.border} ${colors.text} hover:opacity-80 cursor-pointer`}
                     >
                       {event.workOrderNumber}
@@ -326,7 +331,6 @@ function MonthView({ events, date, onEventClick }: { events: CalendarEvent[]; da
 }
 
 export function CalendarView({ events, onEventClick }: CalendarViewProps) {
-  const router = useRouter();
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
   const [viewMode, setViewMode] = useState<ViewMode>(isMobile ? 'day' : 'week');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -363,10 +367,6 @@ export function CalendarView({ events, onEventClick }: CalendarViewProps) {
     }
     return `${MONTH_NAMES[selectedDate.getMonth()]} ${selectedDate.getFullYear()}`;
   }, [viewMode, selectedDate]);
-
-  const handleEventClick = useCallback((eventId: string) => {
-    router.push(`/work-orders/${eventId}`);
-  }, [router]);
 
   return (
     <div className="space-y-3">
@@ -422,13 +422,13 @@ export function CalendarView({ events, onEventClick }: CalendarViewProps) {
       </div>
 
       {viewMode === 'day' && (
-        <DayView events={events} date={selectedDate} onEventClick={handleEventClick} />
+        <DayView events={events} date={selectedDate} onEventClick={onEventClick} />
       )}
       {viewMode === 'week' && (
-        <WeekView events={events} date={selectedDate} onEventClick={handleEventClick} />
+        <WeekView events={events} date={selectedDate} onEventClick={onEventClick} />
       )}
       {viewMode === 'month' && (
-        <MonthView events={events} date={selectedDate} onEventClick={handleEventClick} />
+        <MonthView events={events} date={selectedDate} onEventClick={onEventClick} />
       )}
 
       {events.length === 0 && (

@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api-client';
 import { SelfAssignmentDrawer } from '@/operations/components/SelfAssignmentDrawer';
+import { formatDateShort as formatDate } from '@/operations/helpers/date-utils';
 
 interface WorkOrder {
   _id: string;
@@ -71,13 +72,6 @@ const PRIORITY_VARIANT: Record<string, string> = {
   urgent: 'bg-red-50 text-red-700',
   emergency: 'bg-red-100 text-red-900',
 };
-
-function formatDate(dateStr?: string) {
-  if (!dateStr) return '—';
-  return new Date(dateStr).toLocaleDateString('es-CL', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-  });
-}
 
 function clientName(wo: WorkOrder): string {
   return wo.clientSnapshot?.name || '—';

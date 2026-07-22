@@ -121,7 +121,7 @@ export class MaintenanceSchedulerService {
             description: `Mantenimiento programado para el contrato ${contract.name}`,
             priority: 'normal',
             category: 'maintenance',
-            scheduledDate: schedule.scheduledDate,
+            scheduledDate: schedule.scheduledDate.toISOString().slice(0, 10),
             scheduledStart: schedule.scheduledDate,
             scheduledEnd: schedule.scheduledDate,
           },

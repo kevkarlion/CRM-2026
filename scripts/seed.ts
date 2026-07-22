@@ -659,7 +659,7 @@ async function seed() {
       priority: woPriorities[i],
       category: woCategories[i],
       status: woStatuses[i],
-      scheduledDate: addDays(now, -5 + i * 2),
+      scheduledDate: addDays(now, -5 + i * 2).toISOString().slice(0, 10),
       scheduledStart: addDays(now, -5 + i * 2),
       scheduledEnd: addDays(now, -5 + i * 2 + 1),
       estimatedDuration: 4,

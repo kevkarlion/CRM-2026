@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Drawer } from '@/lib/components/Drawer';
 import { api } from '@/lib/api-client';
+import { formatDateLong as formatDate } from '@/operations/helpers/date-utils';
 
 interface WorkOrder {
   _id: string;
@@ -91,13 +92,6 @@ function extractLocalTime(dateStr: string): string {
   const h = d.getHours().toString().padStart(2, '0');
   const m = d.getMinutes().toString().padStart(2, '0');
   return `${h}:${m}`;
-}
-
-function formatDate(iso: string | null | undefined): string {
-  if (!iso) return '—';
-  return new Date(iso).toLocaleDateString('es-CL', {
-    day: 'numeric', month: 'long', year: 'numeric',
-  });
 }
 
 function formatTime(iso: string | null | undefined): string {

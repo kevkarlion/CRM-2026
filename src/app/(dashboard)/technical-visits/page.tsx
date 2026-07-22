@@ -14,6 +14,7 @@ interface TechnicalVisit {
   scheduledDate?: string;
   clientSnapshot?: { name?: string };
   locationSnapshot?: { address?: string };
+  assignedTechnicianId?: { _id: string; name: string; email?: string } | string | null;
 }
 
 interface ListResponse {
@@ -83,6 +84,12 @@ function formatDate(dateStr?: string) {
 
 function clientName(visit: TechnicalVisit): string {
   return visit.clientSnapshot?.name || '—';
+}
+
+function technicianName(visit: TechnicalVisit): string {
+  if (!visit.assignedTechnicianId) return '—';
+  const t = visit.assignedTechnicianId;
+  return typeof t === 'object' ? t.name : '—';
 }
 
 export default function TechnicalVisitsPage() {
@@ -239,6 +246,7 @@ export default function TechnicalVisitsPage() {
                 <th className="text-left px-5 py-3 font-semibold text-gray-600">Estado</th>
                 <th className="text-left px-5 py-3 font-semibold text-gray-600">Prioridad</th>
                 <th className="text-left px-5 py-3 font-semibold text-gray-600">Programado</th>
+                <th className="text-left px-5 py-3 font-semibold text-gray-600">Técnico</th>
               </tr>
             </thead>
             <tbody>
@@ -266,6 +274,7 @@ export default function TechnicalVisitsPage() {
                     </span>
                   </td>
                   <td className="px-5 py-3 text-gray-500">{formatDate(visit.scheduledDate)}</td>
+                  <td className="px-5 py-3 text-gray-700">{technicianName(visit)}</td>
                 </tr>
               ))}
             </tbody>
@@ -297,6 +306,9 @@ export default function TechnicalVisitsPage() {
               </span>
             </div>
             <div className="text-xs text-gray-500 mt-2">{formatDate(visit.scheduledDate)}</div>
+            {visit.assignedTechnicianId && (
+              <div className="text-xs text-gray-600 mt-1">Técnico: {technicianName(visit)}</div>
+            )}
           </div>
         ))}
       </div>

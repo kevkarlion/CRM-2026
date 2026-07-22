@@ -29,8 +29,8 @@ export async function GET(request: NextRequest) {
     }
     if (technicianId) filters.technicianId = technicianId;
     if (from || to) {
-      filters.scheduledDateGte = from ? new Date(from) : undefined;
-      filters.scheduledDateLte = to ? new Date(to) : undefined;
+      filters.scheduledDateGte = from || undefined;
+      filters.scheduledDateLte = to || undefined;
     }
 
     const data = await service.findByTenant(tenantId, filters as any);
