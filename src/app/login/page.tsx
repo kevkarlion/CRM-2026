@@ -1,22 +1,31 @@
 'use client';
 
-import { FormEvent, Suspense, useEffect, useState } from 'react';
+import { FormEvent, Suspense, useEffect, useState, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirect') || '/dashboard/admin';
+  
+  console.log('🔵 LoginForm rendered, redirect param:', searchParams.get('redirect'), '-> redirectTo:', redirectTo);
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get('redirect') || '/dashboard/admin';
+  const isMounted = useRef(false);
 
   useEffect(() => {
+    if (isMounted.current) return;
+    isMounted.current = true;
+    
     const token = localStorage.getItem('token');
     if (token) {
-      // Already logged in, redirect
+      console.log('🔄 Already logged in, redirecting to:', redirectTo);
       window.location.href = redirectTo;
     }
   }, [redirectTo]);
 
   useEffect(() => {
+    console.log('🧹 Cleaning token on login page');
     localStorage.removeItem('token');
   }, []);
 
