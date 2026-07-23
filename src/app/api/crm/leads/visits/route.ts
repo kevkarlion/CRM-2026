@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
         },
         title: `Visita técnica - ${contactName}`,
         description,
-        scheduledDate: scheduledDate,
+        scheduledDate: new Date(scheduledDate),
         scheduledStart,
         status: 'scheduled',
         priority: priority || 'normal',
