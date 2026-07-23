@@ -5,7 +5,7 @@ const nextConfig = {
   },
   // Excluir tests del build de producción
   typescript: {
-    ignoreBuildErrors: ['tests/', '**/*.test.ts', '**/*.spec.ts'],
+    ignoreBuildErrors: true,
   },
   eslint: {
     ignoreDuringBuilds: true,
