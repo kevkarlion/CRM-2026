@@ -9,6 +9,14 @@ function LoginForm() {
   const redirectTo = searchParams.get('redirect') || '/dashboard/admin';
 
   useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      // Already logged in, redirect
+      window.location.href = redirectTo;
+    }
+  }, [redirectTo]);
+
+  useEffect(() => {
     localStorage.removeItem('token');
   }, []);
 
@@ -22,6 +30,8 @@ function LoginForm() {
     setError('');
     setLoading(true);
 
+    console.log('🔐 Login attempt:', { email, redirectTo });
+
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
@@ -30,25 +40,32 @@ function LoginForm() {
       });
 
       const data = await res.json() as { error?: string; token?: string; tenantId?: string };
+      console.log('📡 Login response:', { status: res.status, data });
 
       if (!res.ok) {
         setError(data.error || 'Login failed');
+        setLoading(false);
         return;
       }
 
       if (!data.token) {
         setError('No token received');
+        setLoading(false);
         return;
       }
+      
+      console.log('✅ Token received, saving to localStorage');
       localStorage.setItem('token', data.token);
       if (data.tenantId) {
         localStorage.setItem('tenantId', data.tenantId);
       }
-      router.push(redirectTo);
+      
+      console.log('🚀 Redirecting to:', redirectTo);
+      // Use window.location for reliable redirect in production
+      window.location.href = redirectTo;
     } catch (err) {
-      console.error('Login error:', err);
+      console.error('❌ Login error:', err);
       setError('Network error. Please try again.');
-    } finally {
       setLoading(false);
     }
   }
