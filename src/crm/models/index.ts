@@ -6,3 +6,4 @@ export { default as ServiceHistoryModel } from './service-history';
 export { default as ActivityModel } from './activity';
 export { default as TaskModel } from './task';
 export { default as AttachmentModel } from './attachment';
+export { default as WhatsAppMessageModel } from './whatsapp-message';
