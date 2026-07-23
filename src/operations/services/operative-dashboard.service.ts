@@ -330,7 +330,12 @@ export class OperativeDashboardService {
       clientSnapshot: v.clientSnapshot,
       locationSnapshot: v.locationSnapshot,
       technicians: v.assignedTechnicianId && typeof v.assignedTechnicianId === 'object'
-        ? [{ _id: String(v.assignedTechnicianId._id), name: v.assignedTechnicianId.name, email: v.assignedTechnicianId.email, phone: v.assignedTechnicianId.phone }]
+        ? [{
+            _id: String((v.assignedTechnicianId as { _id: unknown })._id),
+            name: (v.assignedTechnicianId as { name?: string }).name || '',
+            email: (v.assignedTechnicianId as { email?: string }).email || '',
+            phone: (v.assignedTechnicianId as { phone?: string }).phone || ''
+          }]
         : [],
     }));
 
