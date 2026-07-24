@@ -1,33 +1,11 @@
 'use client';
 
-import { FormEvent, Suspense, useEffect, useState, useRef } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { FormEvent, Suspense, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirect') || '/dashboard/admin';
-  
-  console.log('🔵 LoginForm rendered, redirect param:', searchParams.get('redirect'), '-> redirectTo:', redirectTo);
-  const searchParams = useSearchParams();
-  const redirectTo = searchParams.get('redirect') || '/dashboard/admin';
-  const isMounted = useRef(false);
-
-  useEffect(() => {
-    if (isMounted.current) return;
-    isMounted.current = true;
-    
-    const token = localStorage.getItem('token');
-    if (token) {
-      console.log('🔄 Already logged in, redirecting to:', redirectTo);
-      window.location.href = redirectTo;
-    }
-  }, [redirectTo]);
-
-  useEffect(() => {
-    console.log('🧹 Cleaning token on login page');
-    localStorage.removeItem('token');
-  }, []);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -39,8 +17,6 @@ function LoginForm() {
     setError('');
     setLoading(true);
 
-    console.log('🔐 Login attempt:', { email, redirectTo });
-
     try {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
@@ -49,7 +25,6 @@ function LoginForm() {
       });
 
       const data = await res.json() as { error?: string; token?: string; tenantId?: string };
-      console.log('📡 Login response:', { status: res.status, data });
 
       if (!res.ok) {
         setError(data.error || 'Login failed');
@@ -62,18 +37,17 @@ function LoginForm() {
         setLoading(false);
         return;
       }
-      
-      console.log('✅ Token received, saving to localStorage');
+
+      // The API already set an httpOnly cookie for the middleware.
+      // localStorage is a fallback for client-side checks only.
       localStorage.setItem('token', data.token);
       if (data.tenantId) {
         localStorage.setItem('tenantId', data.tenantId);
       }
-      
-      console.log('🚀 Redirecting to:', redirectTo);
-      // Use window.location for reliable redirect in production
+
+      // Full page reload so the middleware picks up the httpOnly cookie.
       window.location.href = redirectTo;
-    } catch (err) {
-      console.error('❌ Login error:', err);
+    } catch {
       setError('Network error. Please try again.');
       setLoading(false);
     }
