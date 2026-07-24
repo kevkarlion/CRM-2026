@@ -32,7 +32,7 @@ export async function middleware(request: NextRequest) {
 
   try {
     const secretKey = new TextEncoder().encode(secret);
-    const { payload } = await jwtVerify(token, secretKey);
+    const { payload } = await jwtVerify(token, secretKey, { algorithms: ['HS256'] });
 
     const headers = new Headers(request.headers);
     headers.set('x-user-id', payload.userId as string);

@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     const roles = await RoleModel.find({ _id: { $in: roleIds } }).lean();
     const roleNames = roles.map(r => r.name);
 
-    const token = generateToken(
+    const token = await generateToken(
       {
         userId: user._id.toString(),
         tenantId: user.tenantId.toString(),

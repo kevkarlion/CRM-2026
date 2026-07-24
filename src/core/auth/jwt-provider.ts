@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import { SignJWT, jwtVerify } from 'jose';
 import type { AuthProvider, CurrentUser, CurrentTenant, RequestLike } from './types';
 import { AuthenticationError } from './errors';
 
@@ -8,8 +8,16 @@ export interface JwtPayload {
   roles: string[];
 }
 
-export function generateToken(user: JwtPayload, secret: string): string {
-  return jwt.sign(user, secret, { expiresIn: '24h' });
+function toSecretKey(secret: string): Uint8Array {
+  return new TextEncoder().encode(secret);
+}
+
+export async function generateToken(user: JwtPayload, secret: string): Promise<string> {
+  return new SignJWT(user as unknown as Record<string, unknown>)
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('7d')
+    .sign(toSecretKey(secret));
 }
 
 function extractToken(request: RequestLike): string {
@@ -30,11 +38,11 @@ export class JwtAuthProvider implements AuthProvider {
   async extractUser(request: RequestLike): Promise<CurrentUser> {
     try {
       const token = extractToken(request);
-      const payload = jwt.verify(token, this.secret) as JwtPayload;
+      const { payload } = await jwtVerify(token, toSecretKey(this.secret), { algorithms: ['HS256'] });
       return {
-        userId: payload.userId,
-        tenantId: payload.tenantId,
-        roles: payload.roles,
+        userId: payload.userId as string,
+        tenantId: payload.tenantId as string,
+        roles: payload.roles as string[],
         permissions: [],
       };
     } catch (err) {
