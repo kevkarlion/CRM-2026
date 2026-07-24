@@ -1,9 +1,10 @@
 'use client';
 
 import { FormEvent, Suspense, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 function LoginForm() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirect') || '/dashboard/admin';
 
@@ -45,8 +46,8 @@ function LoginForm() {
         localStorage.setItem('tenantId', data.tenantId);
       }
 
-      // Full page reload so the middleware picks up the httpOnly cookie.
-      window.location.href = redirectTo;
+      // Client-side navigation — cookie is already set by the API response.
+      router.push(redirectTo);
     } catch {
       setError('Network error. Please try again.');
       setLoading(false);
