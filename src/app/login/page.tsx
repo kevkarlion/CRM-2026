@@ -11,43 +11,68 @@ function LoginForm() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [debug, setDebug] = useState<string[]>([]);
+
+  const log = (msg: string) => setDebug(prev => [...prev, `${new Date().toISOString().slice(11, 23)} — ${msg}`]);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    e.stopPropagation();
     setError('');
+    setDebug([]);
     setLoading(true);
 
+    log('handleSubmit started');
+    log(`redirectTo: ${redirectTo}`);
+
     try {
+      log('Fetching /api/auth/login...');
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await res.json() as { error?: string; token?: string; tenantId?: string };
+      log(`Response status: ${res.status}`);
+      log(`Response headers Set-Cookie: ${res.headers.get('set-cookie') ?? 'NONE'}`);
+
+      const text = await res.text();
+      log(`Response body (first 200 chars): ${text.slice(0, 200)}`);
+
+      let data: Record<string, unknown>;
+      try { data = JSON.parse(text); } catch { data = { raw: text }; }
 
       if (!res.ok) {
-        setError(data.error || 'Login failed');
+        const msg = (data.error as string) || 'Login failed';
+        log(`ERROR: ${msg}`);
+        setError(msg);
         setLoading(false);
         return;
       }
 
       if (!data.token) {
+        log('ERROR: No token in response');
         setError('No token received');
         setLoading(false);
         return;
       }
 
-      // The API already set an httpOnly cookie for the middleware.
-      // localStorage is a fallback for client-side checks only.
-      localStorage.setItem('token', data.token);
+      log('Token received OK');
+      localStorage.setItem('token', data.token as string);
       if (data.tenantId) {
-        localStorage.setItem('tenantId', data.tenantId);
+        localStorage.setItem('tenantId', data.tenantId as string);
       }
+      log('localStorage set OK');
 
-      // Navigate after cookie is set by the API response.
-      window.location.href = redirectTo;
-    } catch {
+      // Check if cookie was actually stored
+      const cookieAfter = document.cookie;
+      log(`Cookies after response: ${cookieAfter || 'NONE (httpOnly expected)'}`);
+
+      log('READY TO REDIRECT — fix applied, redirect is OFF for debug');
+      // window.location.href = redirectTo;  // <-- DISABLED FOR DEBUG
+      setLoading(false);
+    } catch (err) {
+      log(`CATCH: ${err instanceof Error ? err.message : String(err)}`);
       setError('Network error. Please try again.');
       setLoading(false);
     }
@@ -106,6 +131,16 @@ function LoginForm() {
               {loading ? 'Signing in…' : 'Sign in'}
             </button>
           </form>
+
+          {/* DEBUG PANEL — remove after diagnosis */}
+          {debug.length > 0 && (
+            <div className="mt-4 rounded-lg bg-gray-900 p-3">
+              <p className="mb-2 text-xs font-bold text-green-400">DEBUG LOG</p>
+              {debug.map((line, i) => (
+                <p key={i} className="font-mono text-xs text-gray-300 whitespace-pre-wrap">{line}</p>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>
