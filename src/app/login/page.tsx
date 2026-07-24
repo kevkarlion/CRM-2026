@@ -1,10 +1,9 @@
 'use client';
 
 import { FormEvent, Suspense, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get('redirect') || '/dashboard/admin';
 
@@ -46,8 +45,10 @@ function LoginForm() {
         localStorage.setItem('tenantId', data.tenantId);
       }
 
-      // Client-side navigation — cookie is already set by the API response.
-      router.push(redirectTo);
+      // Let the browser finish processing the Set-Cookie header before navigating.
+      setTimeout(() => {
+        window.location.href = redirectTo;
+      }, 100);
     } catch {
       setError('Network error. Please try again.');
       setLoading(false);
