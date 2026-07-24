@@ -45,10 +45,8 @@ function LoginForm() {
         localStorage.setItem('tenantId', data.tenantId);
       }
 
-      // Let the browser finish processing the Set-Cookie header before navigating.
-      setTimeout(() => {
-        window.location.href = redirectTo;
-      }, 100);
+      // Navigate after cookie is set by the API response.
+      window.location.href = redirectTo;
     } catch {
       setError('Network error. Please try again.');
       setLoading(false);
