@@ -1,4 +1,4 @@
-import { Schema, model, models, type Model } from 'mongoose';
+import { Schema } from 'mongoose';
 import { ITechnician } from '../types/technician';
 
 export const technicianSchema = new Schema<ITechnician>(
@@ -37,5 +37,4 @@ technicianSchema.index({ tenantId: 1, availability: 1 });
 technicianSchema.index({ tenantId: 1, userId: 1 }, { unique: true, sparse: true });
 technicianSchema.index({ tenantId: 1, specialties: 1 });
 
-export const TechnicianModel: Model<ITechnician> =
-  models.Technician || model<ITechnician>('Technician', technicianSchema);
+export default technicianSchema;

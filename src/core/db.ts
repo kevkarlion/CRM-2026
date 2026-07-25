@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import './models/registry'; // Register ALL models before any connection
 
 interface CachedConnection {
   conn: typeof mongoose | null;

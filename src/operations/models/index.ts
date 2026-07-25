@@ -4,3 +4,4 @@ export { default as PreVisitChecklistModel } from './pre-visit-checklist';
 export { default as WorkOrderEventModel } from './work-order-event';
 export { default as VisitReportModel } from './visit-report';
 export { TechnicianModel } from './technician';
+export { TechnicalVisitModel } from './technical-visit';

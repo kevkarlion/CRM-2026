@@ -3,6 +3,7 @@ import QuoteModel from '../models/quote';
 import QuoteVersionModel from '../models/quote-version';
 import LeadModel from '@/leads/models/lead';
 import '@/core/models/user'; // Register User model for ref resolution
+import '@/crm/models/client'; // Register Client model for ref resolution
 import { validateTransition, validateSendRequirements, validateApproveRequirements } from '../helpers/state-machine';
 import { getNextQuoteNumber } from '../helpers/counter';
 import { processItems, calculateSubtotal, calculateTotal } from '../helpers/calculator';
