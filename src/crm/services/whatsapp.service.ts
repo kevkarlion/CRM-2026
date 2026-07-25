@@ -13,6 +13,9 @@ import type { ILead } from '../../leads/types/lead';
 // Flag para modo desarrollo sin DB
 const SKIP_DB_OPERATIONS = process.env.SKIP_WHATSAPP_DB === 'true';
 
+const WHATSAPP_ACCESS_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN;
+const WHATSAPP_PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID;
+
 export interface ProcessMessageResult {
   message: IWhatsAppMessage;
   lead: ILead | null;
@@ -47,6 +50,60 @@ export class WhatsAppService {
       // IMPORTANTE: Cambiar esto en producción
       return '000000000000000000000001';
     }
+  }
+
+  /**
+   * Envía un mensaje de WhatsApp a través de la API de Meta
+   */
+  async sendMessage(
+    tenantId: string,
+    to: string,
+    text: string,
+    leadId?: string
+  ): Promise<{ message: IWhatsAppMessage; metaResponse: any }> {
+    if (!WHATSAPP_ACCESS_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
+      throw new Error('WHATSAPP_ACCESS_TOKEN o WHATSAPP_PHONE_NUMBER_ID no configurados');
+    }
+
+    const normalizedTo = this.normalizePhone(to);
+
+    const response = await fetch(
+      `https://graph.facebook.com/v25.0/${WHATSAPP_PHONE_NUMBER_ID}/messages`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to: normalizedTo,
+          type: 'text',
+          text: { body: text },
+        }),
+      }
+    );
+
+    const metaResponse = await response.json();
+
+    if (!response.ok) {
+      console.error('[WhatsApp] Error enviando mensaje:', metaResponse);
+      throw new Error(metaResponse.error?.message || 'Error enviando mensaje de WhatsApp');
+    }
+
+    const waMessageId = metaResponse.messages?.[0]?.id || '';
+
+    const message = await this.saveMessage({
+      tenantId: new Types.ObjectId(tenantId),
+      phone: normalizedTo,
+      messageId: waMessageId,
+      direction: 'outbound',
+      type: 'text',
+      content: text,
+      ...(leadId ? { leadId: new Types.ObjectId(leadId) } : {}),
+    });
+
+    return { message, metaResponse };
   }
 
   /**

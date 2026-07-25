@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
         // Si hay respuesta automática, enviarla
         if (result.shouldRespond && result.responseText) {
           console.log(`📤 Enviando respuesta automática: "${result.responseText}"`);
-          await sendWhatsAppMessage(fromNumber, result.responseText);
+          await whatsappService.sendMessage(tenantId, fromNumber, result.responseText, result.lead?._id?.toString());
         }
       }
 
@@ -112,41 +112,3 @@ export async function POST(req: NextRequest) {
   }
 }
 
-/**
- * Envía un mensaje de WhatsApp usando la API de Meta
- */
-async function sendWhatsAppMessage(to: string, text: string): Promise<void> {
-  if (!WHATSAPP_ACCESS_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
-    console.warn('⚠️ WHATSAPP_ACCESS_TOKEN o WHATSAPP_PHONE_NUMBER_ID no configurados');
-    return;
-  }
-
-  try {
-    const response = await fetch(
-      `https://graph.facebook.com/v25.0/${WHATSAPP_PHONE_NUMBER_ID}/messages`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          messaging_product: 'whatsapp',
-          to: to,
-          type: 'text',
-          text: { body: text },
-        }),
-      }
-    );
-
-    const data = await response.json();
-    
-    if (!response.ok) {
-      console.error('❌ Error enviando mensaje:', data);
-    } else {
-      console.log('✅ Mensaje enviado:', data.messages?.[0]?.id);
-    }
-  } catch (error) {
-    console.error('❌ Error en sendWhatsAppMessage:', error);
-  }
-}
