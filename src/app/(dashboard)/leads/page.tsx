@@ -107,6 +107,14 @@ export default function LeadsPage() {
     return () => clearTimeout(timer);
   }, [search]);
 
+  // Real-time polling: refetch every 5 seconds for live WhatsApp leads
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchLeads(true);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [fetchLeads]);
+
   function handleRowClick(id: string) {
     router.push(`/leads/${id}`);
   }

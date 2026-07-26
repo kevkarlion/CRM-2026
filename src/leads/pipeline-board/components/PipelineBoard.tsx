@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -86,6 +86,14 @@ export function PipelineBoard() {
   } = usePipelineBoard(stages, groups, refetch);
 
   const [reFetching, setReFetching] = useState(false);
+
+  // Real-time polling: refetch every 5 seconds for live WhatsApp leads
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refetch();
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [refetch]);
 
   const hasData = Object.keys(groups).length > 0;
 

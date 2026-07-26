@@ -2,12 +2,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
 import LeadModel from '@/leads/models/lead';
 import ActivityModel from '@/crm/models/activity';
+import TenantModel from '@/core/models/tenant';
 import leadScoringService from '@/leads/services/lead-scoring.service';
 import { LeadService } from '@/leads/services/lead.service';
 import type { InquiryReason, CustomerType } from '@/leads/types/lead';
 import { Types } from 'mongoose';
 
 const leadService = new LeadService();
+
+// Default tenant ID for WhatsApp leads (Demo Corp)
+const DEFAULT_TENANT_ID = '6a45a83e202f4857cebf0e72';
 
 interface BotState {
   step: 'initial' | 'inquiry_reason' | 'customer_type' | 'free_text';
@@ -93,7 +97,7 @@ export async function POST(req: NextRequest) {
 
           // 1. Create lead with status 'new'
           const lead = await LeadModel.create({
-            tenantId: new Types.ObjectId('000000000000000000000001'),
+            tenantId: new Types.ObjectId(DEFAULT_TENANT_ID),
             name: pushName || `Lead WhatsApp ${phone.slice(-4)}`,
             phone,
             source: 'whatsapp',
@@ -114,14 +118,14 @@ export async function POST(req: NextRequest) {
           // 2. Create activity (required for new → contacted transition)
           // WhatsApp is written communication, so activityType = 'email'
           await ActivityModel.create({
-            tenantId: new Types.ObjectId('000000000000000000000001'),
+            tenantId: new Types.ObjectId(DEFAULT_TENANT_ID),
             entityType: 'lead',
             entityId: new Types.ObjectId(leadId),
             leadId: new Types.ObjectId(leadId),
             activityType: 'email',
             title: 'Primer contacto vía WhatsApp',
             description: `Lead clasificado como ${scoringResult.temperature.toUpperCase()} (${scoringResult.score} puntos). Servicio: ${state.inquiryReason}, Tipo: ${state.customerType}`,
-            performedBy: new Types.ObjectId('000000000000000000000001'),
+            performedBy: new Types.ObjectId(DEFAULT_TENANT_ID),
             metadata: {
               source: 'whatsapp-bot',
               scoring: scoringResult.breakdown,
@@ -134,8 +138,8 @@ export async function POST(req: NextRequest) {
           await leadService.changeStatus(
             leadId,
             'contacted',
-            '000000000000000000000001',
-            '000000000000000000000001'
+            DEFAULT_TENANT_ID,
+            DEFAULT_TENANT_ID
           );
 
           responseMessage = `¡Gracias! Un asesor te contactará pronto.\n\nTu clasificación: ${scoringResult.temperature.toUpperCase()}\nPuntaje: ${scoringResult.score}`;
@@ -200,6 +204,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       _id: lead._id,
+      tenantId: lead.tenantId,
       name: lead.name,
       phone: lead.phone,
       status: lead.status,
