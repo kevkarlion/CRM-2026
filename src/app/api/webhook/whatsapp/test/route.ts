@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
 import LeadModel from '@/leads/models/lead';
-import ActivityModel from '@/crm/models/activity';
-import TenantModel from '@/core/models/tenant';
+import TimelineEventModel from '@/timeline/models/timeline-event';
 import leadScoringService from '@/leads/services/lead-scoring.service';
 import { LeadService } from '@/leads/services/lead.service';
 import type { InquiryReason, CustomerType } from '@/leads/types/lead';
@@ -12,6 +11,8 @@ const leadService = new LeadService();
 
 // Default tenant ID for WhatsApp leads (Demo Corp)
 const DEFAULT_TENANT_ID = '6a45a83e202f4857cebf0e72';
+// Default user ID for bot actions (Admin user)
+const DEFAULT_USER_ID = '6a45a841202f4857cebf0ed1';
 
 interface BotState {
   step: 'initial' | 'inquiry_reason' | 'customer_type' | 'free_text';
@@ -115,8 +116,27 @@ export async function POST(req: NextRequest) {
 
           const leadId = lead._id.toString();
 
-          // 2. Create activity (required for new → contacted transition)
-          // WhatsApp is written communication, so activityType = 'email'
+          // 2. Create timeline event (required for new → contacted transition)
+          // WhatsApp is written communication, so we create a timeline event
+          await TimelineEventModel.create({
+            tenantId: new Types.ObjectId(DEFAULT_TENANT_ID),
+            entityType: 'lead',
+            entityId: new Types.ObjectId(leadId),
+            leadId: new Types.ObjectId(leadId),
+            eventType: 'lead.created',
+            title: 'Primer contacto vía WhatsApp',
+            description: `Lead clasificado como ${scoringResult.temperature.toUpperCase()} (${scoringResult.score} puntos). Servicio: ${state.inquiryReason}, Tipo: ${state.customerType}`,
+            performedBy: new Types.ObjectId(DEFAULT_USER_ID),
+            metadata: {
+              source: 'whatsapp-bot',
+              scoring: scoringResult.breakdown,
+              temperature: scoringResult.temperature,
+              score: scoringResult.score,
+            },
+          });
+
+          // Also create activity record for state machine validation
+          const { default: ActivityModel } = await import('@/crm/models/activity');
           await ActivityModel.create({
             tenantId: new Types.ObjectId(DEFAULT_TENANT_ID),
             entityType: 'lead',
@@ -125,7 +145,7 @@ export async function POST(req: NextRequest) {
             activityType: 'email',
             title: 'Primer contacto vía WhatsApp',
             description: `Lead clasificado como ${scoringResult.temperature.toUpperCase()} (${scoringResult.score} puntos). Servicio: ${state.inquiryReason}, Tipo: ${state.customerType}`,
-            performedBy: new Types.ObjectId(DEFAULT_TENANT_ID),
+            performedBy: new Types.ObjectId(DEFAULT_USER_ID),
             metadata: {
               source: 'whatsapp-bot',
               scoring: scoringResult.breakdown,
@@ -138,7 +158,7 @@ export async function POST(req: NextRequest) {
           await leadService.changeStatus(
             leadId,
             'contacted',
-            DEFAULT_TENANT_ID,
+            DEFAULT_USER_ID,
             DEFAULT_TENANT_ID
           );
 
