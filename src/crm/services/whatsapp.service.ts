@@ -67,6 +67,21 @@ export class WhatsAppService {
 
     const normalizedTo = this.normalizePhone(to);
 
+    console.log("=== WhatsApp Send ===");
+    console.log({
+      phoneNumberId: WHATSAPP_PHONE_NUMBER_ID,
+      to: normalizedTo,
+      accessToken: process.env.WHATSAPP_ACCESS_TOKEN?.slice(0, 15) + "...",
+    });
+
+    const requestBody = {
+      messaging_product: 'whatsapp',
+      to: normalizedTo,
+      type: 'text',
+      text: { body: text },
+    };
+    console.log("Request body:", JSON.stringify(requestBody, null, 2));
+
     const response = await fetch(
       `https://graph.facebook.com/v25.0/${WHATSAPP_PHONE_NUMBER_ID}/messages`,
       {
@@ -75,12 +90,7 @@ export class WhatsAppService {
           'Authorization': `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          messaging_product: 'whatsapp',
-          to: normalizedTo,
-          type: 'text',
-          text: { body: text },
-        }),
+        body: JSON.stringify(requestBody),
       }
     );
 
