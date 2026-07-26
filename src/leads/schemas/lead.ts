@@ -1,5 +1,5 @@
 import { Schema } from 'mongoose';
-import { ILead, LeadStatus, LeadSource, QualificationStatus, LostReason } from '../types/lead';
+import { ILead, LeadStatus, LeadSource, QualificationStatus, LostReason, InquiryReason, CustomerType, Temperature } from '../types/lead';
 
 export const leadSchema = new Schema<ILead>(
   {
@@ -34,6 +34,33 @@ export const leadSchema = new Schema<ILead>(
     previousLeadId: { type: Schema.Types.ObjectId, ref: 'Lead' },
     estimatedValue: { type: Number, min: 0 },
     notes: { type: String },
+    inquiryReason: {
+      type: String,
+      enum: ['repair', 'maintenance', 'installation', 'budget', 'other'] satisfies InquiryReason[],
+    },
+    customerType: {
+      type: String,
+      enum: ['residential', 'commercial'] satisfies CustomerType[],
+    },
+    temperature: {
+      type: String,
+      enum: ['hot', 'warm', 'cold'] satisfies Temperature[],
+    },
+    score: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    isB2B: {
+      type: Boolean,
+      default: false,
+    },
+    scoringBreakdown: {
+      buttons: { type: Number, default: 0 },
+      property: { type: Number, default: 0 },
+      keywords: { type: Number, default: 0 },
+      b2b: { type: Number, default: 0 },
+    },
     convertedToClient: { type: Schema.Types.ObjectId, ref: 'Client' },
     convertedAt: { type: Date },
     createdBy: { type: String, required: true },

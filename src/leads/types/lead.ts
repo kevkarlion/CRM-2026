@@ -4,6 +4,16 @@ export type LeadStatus = 'new' | 'contacted' | 'quote_sent' | 'technical_visit' 
 export type LeadSource = 'whatsapp' | 'call' | 'form' | 'referral' | 'walk_in' | 'other';
 export type QualificationStatus = 'qualified' | 'not_qualified' | 'pending';
 export type LostReason = 'price' | 'competitor' | 'budget' | 'not_interested' | 'timing' | 'no_response' | 'other';
+export type InquiryReason = 'repair' | 'maintenance' | 'installation' | 'budget' | 'other';
+export type CustomerType = 'residential' | 'commercial';
+export type Temperature = 'hot' | 'warm' | 'cold';
+
+export interface ScoringBreakdown {
+  buttons: number;
+  property: number;
+  keywords: number;
+  b2b: number;
+}
 
 export interface ILead extends Document {
   tenantId: Types.ObjectId;
@@ -22,6 +32,12 @@ export interface ILead extends Document {
   convertedAt?: Date;
   lostReason?: LostReason;
   lostDescription?: string;
+  inquiryReason?: InquiryReason;
+  customerType?: CustomerType;
+  temperature?: Temperature;
+  score?: number;
+  isB2B?: boolean;
+  scoringBreakdown?: ScoringBreakdown;
   createdBy: string;
   updatedBy: string;
   deletedAt: Date | null;
@@ -43,6 +59,12 @@ export interface CreateLeadInput {
   status?: LeadStatus;
   lostReason?: LostReason;
   lostDescription?: string;
+  inquiryReason?: InquiryReason;
+  customerType?: CustomerType;
+  temperature?: Temperature;
+  score?: number;
+  isB2B?: boolean;
+  scoringBreakdown?: ScoringBreakdown;
 }
 
 export interface UpdateLeadInput {
