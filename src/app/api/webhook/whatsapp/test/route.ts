@@ -156,25 +156,8 @@ export async function POST(req: NextRequest) {
             metadata: { source: 'whatsapp-bot', scoring: scoringResult.breakdown },
           });
 
-          // Create timeline event for status change
-          await TimelineEventModel.create({
-            tenantId: new Types.ObjectId(DEFAULT_TENANT_ID),
-            entityType: 'lead',
-            entityId: new Types.ObjectId(state.leadId),
-            leadId: new Types.ObjectId(state.leadId),
-            eventType: 'lead.status_changed',
-            title: 'Estado: Nuevo → Contactado',
-            description: `Lead clasificado como ${scoringResult.temperature.toUpperCase()} (${scoringResult.score} puntos)`,
-            performedBy: new Types.ObjectId(DEFAULT_USER_ID),
-            metadata: {
-              from: 'new',
-              to: 'contacted',
-              temperature: scoringResult.temperature,
-              score: scoringResult.score,
-            },
-          });
-
           // Change status from 'new' → 'contacted'
+          // This automatically creates the timeline event (no manual creation needed)
           await leadService.changeStatus(
             state.leadId,
             'contacted',
