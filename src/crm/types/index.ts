@@ -9,3 +9,11 @@ export { EVENT_TYPES } from './activity';
 export type { EventType, IActivity, CreateActivityInput } from './activity';
 export type { ITask, CreateTaskInput, UpdateTaskInput } from './task';
 export type { IAttachment, CreateAttachmentInput } from './attachment';
+export type {
+  IWhatsAppMessage,
+  CreateWhatsAppMessageInput,
+  WhatsAppMessageDirection,
+  WhatsAppMessageType,
+  WhatsAppMessageStatus,
+  WhatsAppConversation,
+} from './whatsapp-message';

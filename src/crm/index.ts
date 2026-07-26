@@ -6,6 +6,7 @@ export { ServiceHistoryService } from './services/service-history.service';
 export { ActivityService } from './services/activity.service';
 export { TaskService } from './services/task.service';
 export { AttachmentService } from './services/attachment.service';
+export { ChatService } from './services/chat.service';
 export {
   ClientModel,
   ContactModel,

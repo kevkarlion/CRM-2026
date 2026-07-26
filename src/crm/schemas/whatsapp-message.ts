@@ -18,6 +18,12 @@ export const whatsappMessageSchema = new Schema<IWhatsAppMessage>(
       required: true,
     },
     content: { type: String, default: '' },
+    status: {
+      type: String,
+      enum: ['pending', 'sent', 'delivered', 'read', 'failed'],
+      default: 'pending',
+      index: true,
+    },
     metadata: {
       mediaId: String,
       caption: String,
@@ -25,12 +31,15 @@ export const whatsappMessageSchema = new Schema<IWhatsAppMessage>(
       fromMe: Boolean,
       waMessageId: String,
     },
+    errorMessage: { type: String },
+    readAt: { type: Date },
+    deliveredAt: { type: Date },
     processedAt: { type: Date },
   },
-  { timestamps: { createdAt: true, updatedAt: false } }
+  { timestamps: { createdAt: true, updatedAt: true } }
 );
 
-// Indexes
 whatsappMessageSchema.index({ tenantId: 1, phone: 1, createdAt: -1 });
 whatsappMessageSchema.index({ tenantId: 1, leadId: 1, createdAt: -1 });
+whatsappMessageSchema.index({ tenantId: 1, phone: 1, status: 1, createdAt: -1 });
 whatsappMessageSchema.index({ phone: 1, createdAt: -1 });

@@ -2,6 +2,7 @@ import { Document, Types } from 'mongoose';
 
 export type WhatsAppMessageDirection = 'inbound' | 'outbound';
 export type WhatsAppMessageType = 'text' | 'image' | 'audio' | 'video' | 'document' | 'interactive' | 'unknown';
+export type WhatsAppMessageStatus = 'pending' | 'sent' | 'delivered' | 'read' | 'failed';
 
 export interface IWhatsAppMessage extends Document {
   _id: Types.ObjectId;
@@ -12,6 +13,7 @@ export interface IWhatsAppMessage extends Document {
   direction: WhatsAppMessageDirection;
   type: WhatsAppMessageType;
   content: string;
+  status: WhatsAppMessageStatus;
   metadata?: {
     mediaId?: string;
     caption?: string;
@@ -19,11 +21,32 @@ export interface IWhatsAppMessage extends Document {
     fromMe?: boolean;
     waMessageId?: string;
   };
+  errorMessage?: string;
+  readAt?: Date;
+  deliveredAt?: Date;
   processedAt?: Date;
   createdAt: Date;
+  updatedAt: Date;
 }
 
 export type CreateWhatsAppMessageInput = Omit<
   IWhatsAppMessage,
-  keyof Document | '_id' | 'createdAt' | 'processedAt'
->;
+  keyof Document | '_id' | 'createdAt' | 'updatedAt' | 'processedAt' | 'readAt' | 'deliveredAt' | 'status'
+> & {
+  status?: WhatsAppMessageStatus;
+};
+
+export interface WhatsAppConversation {
+  phone: string;
+  leadId?: Types.ObjectId;
+  leadName?: string;
+  lastMessage: {
+    content: string;
+    direction: WhatsAppMessageDirection;
+    type: WhatsAppMessageType;
+    createdAt: Date;
+  };
+  unreadCount: number;
+  totalMessages: number;
+  lastActivity: Date;
+}
