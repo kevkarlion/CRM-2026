@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
 import LeadModel from '@/leads/models/lead';
+import ActivityModel from '@/crm/models/activity';
 import leadScoringService from '@/leads/services/lead-scoring.service';
+import { LeadService } from '@/leads/services/lead.service';
 import type { InquiryReason, CustomerType } from '@/leads/types/lead';
 import { Types } from 'mongoose';
+
+const leadService = new LeadService();
 
 interface BotState {
   step: 'initial' | 'inquiry_reason' | 'customer_type' | 'free_text';
@@ -87,6 +91,7 @@ export async function POST(req: NextRequest) {
             messageText: '',
           });
 
+          // 1. Create lead with status 'new'
           const lead = await LeadModel.create({
             tenantId: new Types.ObjectId('000000000000000000000001'),
             name: pushName || `Lead WhatsApp ${phone.slice(-4)}`,
@@ -104,10 +109,39 @@ export async function POST(req: NextRequest) {
             updatedBy: 'whatsapp-bot',
           });
 
+          const leadId = lead._id.toString();
+
+          // 2. Create activity (required for new → contacted transition)
+          // WhatsApp is written communication, so activityType = 'email'
+          await ActivityModel.create({
+            tenantId: new Types.ObjectId('000000000000000000000001'),
+            entityType: 'lead',
+            entityId: new Types.ObjectId(leadId),
+            leadId: new Types.ObjectId(leadId),
+            activityType: 'email',
+            title: 'Primer contacto vía WhatsApp',
+            description: `Lead clasificado como ${scoringResult.temperature.toUpperCase()} (${scoringResult.score} puntos). Servicio: ${state.inquiryReason}, Tipo: ${state.customerType}`,
+            performedBy: new Types.ObjectId('000000000000000000000001'),
+            metadata: {
+              source: 'whatsapp-bot',
+              scoring: scoringResult.breakdown,
+              temperature: scoringResult.temperature,
+              score: scoringResult.score,
+            },
+          });
+
+          // 3. Change status from 'new' → 'contacted'
+          await leadService.changeStatus(
+            leadId,
+            'contacted',
+            '000000000000000000000001',
+            '000000000000000000000001'
+          );
+
           responseMessage = `¡Gracias! Un asesor te contactará pronto.\n\nTu clasificación: ${scoringResult.temperature.toUpperCase()}\nPuntaje: ${scoringResult.score}`;
           nextStep = 'initial';
           
-          state.leadId = lead._id.toString();
+          state.leadId = leadId;
           state.temperature = scoringResult.temperature;
           state.score = scoringResult.score;
           state.isB2B = scoringResult.isB2B;
@@ -137,6 +171,50 @@ export async function POST(req: NextRequest) {
 
   } catch (error) {
     console.error('Error in WhatsApp test webhook:', error);
+    return NextResponse.json(
+      { error: 'Internal Server Error' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * GET: Debug - fetch lead by ID (no auth required for testing)
+ */
+export async function GET(req: NextRequest) {
+  try {
+    await connectDB();
+    
+    const { searchParams } = new URL(req.url);
+    const leadId = searchParams.get('leadId');
+    
+    if (!leadId) {
+      return NextResponse.json({ error: 'leadId required' }, { status: 400 });
+    }
+
+    const lead = await LeadModel.findById(leadId).lean();
+    
+    if (!lead) {
+      return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({
+      _id: lead._id,
+      name: lead.name,
+      phone: lead.phone,
+      status: lead.status,
+      temperature: lead.temperature,
+      score: lead.score,
+      isB2B: lead.isB2B,
+      inquiryReason: lead.inquiryReason,
+      customerType: lead.customerType,
+      scoringBreakdown: lead.scoringBreakdown,
+      createdAt: lead.createdAt,
+      updatedAt: lead.updatedAt,
+    }, { status: 200 });
+
+  } catch (error) {
+    console.error('Error fetching lead:', error);
     return NextResponse.json(
       { error: 'Internal Server Error' },
       { status: 500 }
