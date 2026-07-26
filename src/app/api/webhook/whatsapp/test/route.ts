@@ -78,6 +78,35 @@ export async function POST(req: NextRequest) {
       case 'inquiry_reason':
         if (buttonPayload) {
           state.inquiryReason = buttonPayload as InquiryReason;
+
+          // Create lead with status 'new' — appears in "Nuevo" column
+          const lead = await LeadModel.create({
+            tenantId: new Types.ObjectId(DEFAULT_TENANT_ID),
+            name: pushName || `Lead WhatsApp ${phone.slice(-4)}`,
+            phone,
+            source: 'whatsapp',
+            status: 'new',
+            inquiryReason: state.inquiryReason,
+            notes: `Servicio solicitado: ${state.inquiryReason}`,
+            createdBy: 'whatsapp-bot',
+            updatedBy: 'whatsapp-bot',
+          });
+
+          state.leadId = lead._id.toString();
+
+          // Create timeline event for lead.created
+          await TimelineEventModel.create({
+            tenantId: new Types.ObjectId(DEFAULT_TENANT_ID),
+            entityType: 'lead',
+            entityId: new Types.ObjectId(state.leadId),
+            leadId: new Types.ObjectId(state.leadId),
+            eventType: 'lead.created',
+            title: 'Lead creado desde WhatsApp',
+            description: `Servicio: ${state.inquiryReason}`,
+            performedBy: new Types.ObjectId(DEFAULT_USER_ID),
+            metadata: { source: 'whatsapp-bot', inquiryReason: state.inquiryReason },
+          });
+
           responseMessage = '¿Es para tu casa o tu empresa/local?';
           nextStep = 'customer_type';
         } else {
@@ -89,6 +118,7 @@ export async function POST(req: NextRequest) {
         if (buttonPayload) {
           state.customerType = buttonPayload as CustomerType;
 
+          // Calculate scoring
           const scoringResult = leadScoringService.calculateScore({
             pushName: state.pushName,
             inquiryReason: state.inquiryReason,
@@ -96,67 +126,57 @@ export async function POST(req: NextRequest) {
             messageText: '',
           });
 
-          // 1. Create lead with status 'new'
-          const lead = await LeadModel.create({
-            tenantId: new Types.ObjectId(DEFAULT_TENANT_ID),
-            name: pushName || `Lead WhatsApp ${phone.slice(-4)}`,
-            phone,
-            source: 'whatsapp',
-            status: 'new',
-            inquiryReason: state.inquiryReason,
-            customerType: state.customerType,
-            temperature: scoringResult.temperature,
-            score: scoringResult.score,
-            isB2B: scoringResult.isB2B,
-            scoringBreakdown: scoringResult.breakdown,
-            notes: `Clasificación: ${scoringResult.temperature.toUpperCase()} (${scoringResult.score} puntos)`,
-            createdBy: 'whatsapp-bot',
-            updatedBy: 'whatsapp-bot',
-          });
+          // Update lead with scoring data
+          await LeadModel.findByIdAndUpdate(
+            state.leadId,
+            {
+              $set: {
+                customerType: state.customerType,
+                temperature: scoringResult.temperature,
+                score: scoringResult.score,
+                isB2B: scoringResult.isB2B,
+                scoringBreakdown: scoringResult.breakdown,
+                notes: `Clasificación: ${scoringResult.temperature.toUpperCase()} (${scoringResult.score} puntos)`,
+                updatedBy: 'whatsapp-bot',
+              },
+            }
+          );
 
-          const leadId = lead._id.toString();
-
-          // 2. Create timeline event (required for new → contacted transition)
-          // WhatsApp is written communication, so we create a timeline event
-          await TimelineEventModel.create({
-            tenantId: new Types.ObjectId(DEFAULT_TENANT_ID),
-            entityType: 'lead',
-            entityId: new Types.ObjectId(leadId),
-            leadId: new Types.ObjectId(leadId),
-            eventType: 'lead.created',
-            title: 'Primer contacto vía WhatsApp',
-            description: `Lead clasificado como ${scoringResult.temperature.toUpperCase()} (${scoringResult.score} puntos). Servicio: ${state.inquiryReason}, Tipo: ${state.customerType}`,
-            performedBy: new Types.ObjectId(DEFAULT_USER_ID),
-            metadata: {
-              source: 'whatsapp-bot',
-              scoring: scoringResult.breakdown,
-              temperature: scoringResult.temperature,
-              score: scoringResult.score,
-            },
-          });
-
-          // Also create activity record for state machine validation
+          // Create activity for state machine (required for new → contacted)
           const { default: ActivityModel } = await import('@/crm/models/activity');
           await ActivityModel.create({
             tenantId: new Types.ObjectId(DEFAULT_TENANT_ID),
             entityType: 'lead',
-            entityId: new Types.ObjectId(leadId),
-            leadId: new Types.ObjectId(leadId),
+            entityId: new Types.ObjectId(state.leadId),
+            leadId: new Types.ObjectId(state.leadId),
             activityType: 'email',
-            title: 'Primer contacto vía WhatsApp',
-            description: `Lead clasificado como ${scoringResult.temperature.toUpperCase()} (${scoringResult.score} puntos). Servicio: ${state.inquiryReason}, Tipo: ${state.customerType}`,
+            title: 'Respuesta a preguntas de clasificación',
+            description: `Tipo: ${state.customerType}. Clasificación: ${scoringResult.temperature.toUpperCase()}`,
+            performedBy: new Types.ObjectId(DEFAULT_USER_ID),
+            metadata: { source: 'whatsapp-bot', scoring: scoringResult.breakdown },
+          });
+
+          // Create timeline event for status change
+          await TimelineEventModel.create({
+            tenantId: new Types.ObjectId(DEFAULT_TENANT_ID),
+            entityType: 'lead',
+            entityId: new Types.ObjectId(state.leadId),
+            leadId: new Types.ObjectId(state.leadId),
+            eventType: 'lead.status_changed',
+            title: 'Estado: Nuevo → Contactado',
+            description: `Lead clasificado como ${scoringResult.temperature.toUpperCase()} (${scoringResult.score} puntos)`,
             performedBy: new Types.ObjectId(DEFAULT_USER_ID),
             metadata: {
-              source: 'whatsapp-bot',
-              scoring: scoringResult.breakdown,
+              from: 'new',
+              to: 'contacted',
               temperature: scoringResult.temperature,
               score: scoringResult.score,
             },
           });
 
-          // 3. Change status from 'new' → 'contacted'
+          // Change status from 'new' → 'contacted'
           await leadService.changeStatus(
-            leadId,
+            state.leadId,
             'contacted',
             DEFAULT_USER_ID,
             DEFAULT_TENANT_ID
@@ -165,7 +185,6 @@ export async function POST(req: NextRequest) {
           responseMessage = `¡Gracias! Un asesor te contactará pronto.\n\nTu clasificación: ${scoringResult.temperature.toUpperCase()}\nPuntaje: ${scoringResult.score}`;
           nextStep = 'initial';
           
-          state.leadId = leadId;
           state.temperature = scoringResult.temperature;
           state.score = scoringResult.score;
           state.isB2B = scoringResult.isB2B;
