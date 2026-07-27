@@ -76,7 +76,7 @@ const STATE_LABELS: Record<string, string> = {
   equipment_captured: 'Equipo capturado',
   evaluate: 'Evaluando',
   scored: 'Calificado',
-  handoff_pending: 'Handoff pendiente',
+  handoff_pending: 'Requiere humano',
   human_assigned: 'Humano asignado',
   closed: 'Cerrado',
   timeout: 'Timeout',
@@ -232,7 +232,7 @@ function HandoffTab({ conversationId, lead, conversationStatus, onTakeCase }: Ha
     <div className="p-4 space-y-4 overflow-y-auto">
       {/* Handoff Info */}
       <div className="bg-white rounded-lg border border-gray-200 p-4">
-        <h4 className="text-xs font-semibold text-gray-500 uppercase mb-3">Estado del Handoff</h4>
+        <h4 className="text-xs font-semibold text-gray-500 uppercase mb-3">Requiere humano</h4>
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
             <span className="text-gray-500">Estado:</span>
@@ -481,7 +481,7 @@ export function LeadChatDrawer({ isOpen, onClose, lead, conversationStatus }: Le
                   )}
                   {conversationStatus?.isHandoffPending && (
                     <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200">
-                      Handoff
+                      Requiere humano
                     </span>
                   )}
                 </div>
@@ -528,7 +528,7 @@ export function LeadChatDrawer({ isOpen, onClose, lead, conversationStatus }: Le
                     : 'border-transparent text-gray-500 hover:text-gray-700'
                 }`}
               >
-                Handoff
+                Requiere humano
                 {conversationStatus?.isHandoffPending && (
                   <span className="ml-1.5 w-2 h-2 rounded-full bg-red-500 inline-block" />
                 )}
@@ -570,7 +570,7 @@ export function LeadChatDrawer({ isOpen, onClose, lead, conversationStatus }: Le
           <div className="px-4 py-3 bg-red-50 border-b border-red-100 shrink-0">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-red-800">Handoff pendiente</p>
+                <p className="text-sm font-medium text-red-800">Requiere humano</p>
                 <p className="text-xs text-red-600 mt-0.5">
                   {conversationStatus.handoffReason || 'Requiere atencion humana'}
                 </p>

@@ -170,7 +170,7 @@ export const LeadCard = React.memo(function LeadCard({
           {conversationStatus.isHandoffPending && (
             <div className="flex items-center gap-1.5 text-[10px] md:text-[10px] text-red-600 font-medium">
               <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-              <span>Handoff pendiente</span>
+              <span>Requiere humano</span>
             </div>
           )}
 

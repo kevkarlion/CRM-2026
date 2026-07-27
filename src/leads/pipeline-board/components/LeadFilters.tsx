@@ -202,7 +202,7 @@ export function LeadFilters({
         </div>
 
         <button onClick={handleBotActiveToggle} className={toggleButtonClass(isBotActive)}>Bot activo</button>
-        <button onClick={handleHandoffToggle} className={toggleButtonClass(isHandoff)}>Handoff</button>
+        <button onClick={handleHandoffToggle} className={toggleButtonClass(isHandoff)}>Requiere humano</button>
 
         <div className="flex items-center gap-1.5">
           <label className="text-xs text-gray-500">Score</label>

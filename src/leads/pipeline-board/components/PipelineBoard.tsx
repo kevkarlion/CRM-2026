@@ -80,6 +80,22 @@ export function PipelineBoard() {
     return new Set(param.split(','));
   }, [searchParams]);
 
+  // Read ALL filter params from URL
+  const filterParams = useMemo(() => ({
+    search: searchParams.get('search')?.toLowerCase() || '',
+    assignedTo: searchParams.get('assignedTo') || '',
+    source: searchParams.get('source') || '',
+    service: searchParams.get('service') || '',
+    zone: searchParams.get('zone') || '',
+    isBotActive: searchParams.get('isBotActive') === 'true',
+    isHandoff: searchParams.get('isHandoff') === 'true',
+    scoreMin: searchParams.get('scoreMin') || '',
+    scoreMax: searchParams.get('scoreMax') || '',
+    dateFrom: searchParams.get('createdAtGte') || '',
+    dateTo: searchParams.get('createdAtLte') || '',
+    lastContact: searchParams.get('lastContact') || '',
+  }), [searchParams]);
+
   const [reFetching, setReFetching] = useState(false);
 
   // WhatsApp chat drawer state
@@ -182,7 +198,77 @@ export function PipelineBoard() {
     return { total, calientes, handoffs, sinRespuesta };
   }, [columns, pendingHandoffs, conversationStatusMap]);
 
-  const visibleColumns = columns;
+  // Filter leads by ALL URL params
+  const filteredColumns = useMemo(() => {
+    const f = filterParams;
+    const hasActiveFilter = f.search || f.assignedTo || f.source || f.service || f.zone
+      || f.isBotActive || f.isHandoff || f.scoreMin || f.scoreMax
+      || f.dateFrom || f.dateTo || f.lastContact;
+
+    if (!hasActiveFilter) return columns;
+
+    const result: Record<string, ILead[]> = {};
+    for (const [stageName, leads] of Object.entries(columns)) {
+      result[stageName] = leads.filter((lead) => {
+        // Search by name or company
+        if (f.search) {
+          const q = f.search;
+          const nameMatch = lead.name?.toLowerCase().includes(q);
+          const companyMatch = lead.companyName?.toLowerCase().includes(q);
+          if (!nameMatch && !companyMatch) return false;
+        }
+
+        // Source
+        if (f.source && lead.source !== f.source) return false;
+
+        // Service (inquiryReason)
+        if (f.service && lead.inquiryReason !== f.service) return false;
+
+        // Score range
+        if (f.scoreMin && (lead.score ?? 0) < Number(f.scoreMin)) return false;
+        if (f.scoreMax && (lead.score ?? 0) > Number(f.scoreMax)) return false;
+
+        // Date range
+        if (f.dateFrom) {
+          const from = new Date(f.dateFrom);
+          if (new Date(lead.createdAt) < from) return false;
+        }
+        if (f.dateTo) {
+          const to = new Date(f.dateTo);
+          to.setHours(23, 59, 59, 999);
+          if (new Date(lead.createdAt) > to) return false;
+        }
+
+        // Conversation-based filters
+        const convStatus = conversationStatusMap.get(String(lead._id));
+        if (f.isBotActive && !convStatus?.isBotActive) return false;
+        if (f.isHandoff && !convStatus?.isHandoffPending) return false;
+
+        // Last contact
+        if (f.lastContact) {
+          const lastMsg = convStatus?.lastMessageAt;
+          if (f.lastContact === 'never' && lastMsg) return false;
+          if (f.lastContact === 'today') {
+            if (!lastMsg) return false;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            if (new Date(lastMsg) < today) return false;
+          }
+          if (f.lastContact === 'week') {
+            if (!lastMsg) return false;
+            const weekAgo = new Date();
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            if (new Date(lastMsg) < weekAgo) return false;
+          }
+        }
+
+        return true;
+      });
+    }
+    return result;
+  }, [columns, filterParams, conversationStatusMap]);
+
+  const visibleColumns = filteredColumns;
 
   // Filter stages by URL param
   const filteredStages = useMemo(() => {
