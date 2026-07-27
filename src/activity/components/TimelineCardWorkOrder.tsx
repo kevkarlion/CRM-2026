@@ -8,8 +8,11 @@ import { formatDateLong } from '@/operations/helpers/date-utils';
 function getUserName(
   user:
     | { _id: string; firstName?: string; lastName?: string; email?: string }
-    | string,
+    | string
+    | null
+    | undefined,
 ): string {
+  if (!user) return 'Sistema';
   if (typeof user === 'string') return user;
   return [user.firstName, user.lastName].filter(Boolean).join(' ') || user._id;
 }

@@ -1,7 +1,6 @@
 export { LeadCard } from './components/LeadCard';
 export { PipelineColumn } from './components/PipelineColumn';
 export { ColumnHeader } from './components/ColumnHeader';
-export { DragOverlayCard } from './components/DragOverlayCard';
 export { PipelineBoard } from './components/PipelineBoard';
 export { LeadFilters } from './components/LeadFilters';
 export { usePipelineLeads } from './hooks/usePipelineLeads';

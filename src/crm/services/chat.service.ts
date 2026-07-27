@@ -115,8 +115,9 @@ export class ChatService {
       query.createdAt = { $lt: before };
     }
 
+    // Sort ascending (oldest first) for chat view
     return WhatsAppMessageModel.find(query)
-      .sort({ createdAt: -1 })
+      .sort({ createdAt: 1 })
       .limit(limit)
       .exec();
   }

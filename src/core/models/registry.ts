@@ -70,5 +70,8 @@ import '@/negotiation/models/negotiation-event';
 // ─── Service Types ───────────────────────────────────────────────────
 import '@/service-types/models/service-type';
 
+// ─── Conversation ──────────────────────────────────────────────────
+import '@/conversation/models/conversation';
+
 // ─── Timeline ────────────────────────────────────────────────────────
 import '@/timeline/models/timeline-event';

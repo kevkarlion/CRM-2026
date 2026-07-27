@@ -8,6 +8,11 @@ import { CreateVisitDrawer } from '@/leads/components/CreateVisitDrawer';
 import { QuoteDetailDrawer } from '@/leads/components/QuoteDetailDrawer';
 import { QuickSaleDrawer } from '@/leads/components/QuickSaleDrawer';
 import { LeadTimeline } from '@/activity/components/LeadTimeline';
+import { ChatPanel } from '@/whatsapp/components/ChatPanel';
+import { useChatMessages } from '@/whatsapp/hooks/useChatMessages';
+import { useWhatsAppSend } from '@/whatsapp/hooks/useWhatsAppSend';
+import { useChatPolling } from '@/whatsapp/hooks/useChatPolling';
+import { useConversationStatus } from '@/leads/pipeline-board/hooks/useConversationStatus';
 import { getDaysUntilExpiry } from '@/lib/format-date';
 
 interface Lead {
@@ -182,6 +187,39 @@ export default function LeadDetailPage() {
   const [visits, setVisits] = useState<WorkOrder[]>([]);
   const [loadingRelated, setLoadingRelated] = useState(false);
   const [timelineRefreshKey, setTimelineRefreshKey] = useState(0);
+
+  // Chat state
+  const [activeDetailTab, setActiveDetailTab] = useState<'info' | 'chat' | 'timeline'>('info');
+  const phone = lead?.phone || '';
+  const {
+    messages,
+    loading: chatLoading,
+    error: chatError,
+    hasMore,
+    loadMore,
+    refetch: refetchChat,
+  } = useChatMessages(phone);
+  const { sendMessage, sending: chatSending } = useWhatsAppSend();
+  const { statusMap } = useConversationStatus([id]);
+  const conversationStatus = statusMap.get(id) || null;
+
+  const handleSendChat = async (content: string) => {
+    if (!lead?.phone) return;
+    const result = await sendMessage({
+      phone: lead.phone,
+      content,
+      leadId: id,
+    });
+    if (result) {
+      refetchChat();
+    }
+  };
+
+  useChatPolling({
+    interval: 5000,
+    enabled: activeDetailTab === 'chat',
+    onPoll: refetchChat,
+  });
 
   useEffect(() => {
     async function load() {
@@ -383,9 +421,53 @@ export default function LeadDetailPage() {
             </div>
           )}
 
-          <div className="bg-white border border-gray-200 rounded-xl p-6">
-            <h2 className="text-base font-semibold text-gray-900 mb-4">Actividad</h2>
-            <LeadTimeline leadId={id} refreshKey={timelineRefreshKey} />
+          <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+            {/* Tabs */}
+            <div className="flex border-b border-gray-200">
+              <button
+                onClick={() => setActiveDetailTab('chat')}
+                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  activeDetailTab === 'chat'
+                    ? 'border-brand-500 text-brand-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Chat WhatsApp
+                {conversationStatus?.isHandoffPending && (
+                  <span className="ml-1.5 w-2 h-2 rounded-full bg-red-500 inline-block" />
+                )}
+              </button>
+              <button
+                onClick={() => setActiveDetailTab('timeline')}
+                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  activeDetailTab === 'timeline'
+                    ? 'border-brand-500 text-brand-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Actividad
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className={activeDetailTab === 'chat' ? 'h-[500px]' : ''}>
+              {activeDetailTab === 'chat' ? (
+                <ChatPanel
+                  messages={messages}
+                  loading={chatLoading}
+                  error={chatError}
+                  hasMore={hasMore}
+                  onLoadMore={loadMore}
+                  onSend={handleSendChat}
+                  sending={chatSending}
+                  selectedPhone={phone || null}
+                />
+              ) : (
+                <div className="p-6">
+                  <LeadTimeline leadId={id} refreshKey={timelineRefreshKey} />
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

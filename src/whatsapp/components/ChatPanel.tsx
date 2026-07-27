@@ -28,24 +28,13 @@ export function ChatPanel({
 }: ChatPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const isInitialLoad = useRef(true);
 
   useEffect(() => {
-    if (messages.length > 0 && isInitialLoad.current) {
+    if (messages.length > 0) {
+      // Scroll to bottom (newest messages are at the end now)
       messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
-      isInitialLoad.current = false;
     }
   }, [messages]);
-
-  useEffect(() => {
-    if (!loading && messages.length > 0) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages.length, loading]);
-
-  useEffect(() => {
-    isInitialLoad.current = true;
-  }, [selectedPhone]);
 
   if (!selectedPhone) {
     return (

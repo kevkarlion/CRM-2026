@@ -289,7 +289,7 @@ export class WhatsAppService {
       return {
         shouldRespond: true,
         responseText: isNewLead 
-          ? '¡Hola! 👋 Bienvenido a Patagonia. Soy tu asistente virtual. ¿En qué puedo ayudarte hoy?'
+          ? '¡Hola! 👋 Gracias por contactarte con Rolo Climatización. ¿En qué puedo ayudarte hoy?'
           : '¡Hola de nuevo! 👋 ¿En qué puedo ayudarte?'
       };
     }

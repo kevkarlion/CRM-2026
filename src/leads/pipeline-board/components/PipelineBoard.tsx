@@ -1,20 +1,14 @@
 'use client';
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import {
-  DndContext,
-  DragOverlay,
-  PointerSensor,
-  KeyboardSensor,
-  useSensor,
-  useSensors,
-  closestCorners,
-} from '@dnd-kit/core';
+import { useSearchParams } from 'next/navigation';
 import { usePipelineLeads } from '../hooks/usePipelineLeads';
 import { usePipelineBoard } from '../hooks/usePipelineBoard';
+import { useConversationStatus } from '../hooks/useConversationStatus';
+import { usePendingHandoffs } from '../hooks/usePendingHandoffs';
 import { PipelineColumn } from './PipelineColumn';
 import { LeadFilters } from './LeadFilters';
-import { DragOverlayCard } from './DragOverlayCard';
+import { LeadChatDrawer } from './LeadChatDrawer';
 import type { ILead } from '../../types/lead';
 
 function SkeletonColumn() {
@@ -62,6 +56,7 @@ function EmptyBoard() {
 }
 
 export function PipelineBoard() {
+  const searchParams = useSearchParams();
   const {
     pipeline,
     groups,
@@ -76,16 +71,96 @@ export function PipelineBoard() {
     return pipeline.stages.filter((s) => s.isActive).sort((a, b) => a.position - b.position);
   }, [pipeline]);
 
-  const {
-    columns,
-    activeId,
-    handleDragStart,
-    handleDragEnd,
-    handleDragCancel,
-    setColumns,
-  } = usePipelineBoard(stages, groups, refetch);
+  const { columns } = usePipelineBoard(stages, groups, refetch);
+
+  // Read stage filter from URL params
+  const visibleStageNames = useMemo(() => {
+    const param = searchParams.get('stages');
+    if (!param) return null; // null = all visible
+    return new Set(param.split(','));
+  }, [searchParams]);
 
   const [reFetching, setReFetching] = useState(false);
+
+  // WhatsApp chat drawer state
+  const [chatDrawerOpen, setChatDrawerOpen] = useState(false);
+  const [selectedLeadForChat, setSelectedLeadForChat] = useState<ILead | null>(null);
+  const [showHandoffs, setShowHandoffs] = useState(false);
+
+  // Collect all lead IDs across all columns for conversation status lookup
+  const allLeadIds = useMemo(() => {
+    const ids: string[] = [];
+    for (const col of Object.values(columns)) {
+      for (const lead of col) {
+        ids.push(String(lead._id));
+      }
+    }
+    for (const lead of unmatched) {
+      ids.push(String(lead._id));
+    }
+    return ids;
+  }, [columns, unmatched]);
+
+  const { statusMap: conversationStatusMap } = useConversationStatus(allLeadIds);
+  const { count: pendingHandoffs, handoffs: handoffList } = usePendingHandoffs();
+
+  // Open WhatsApp chat drawer for a lead
+  const handleLeadWhatsAppClick = useCallback((lead: ILead) => {
+    setSelectedLeadForChat(lead);
+    setChatDrawerOpen(true);
+  }, []);
+
+  // Open chat for a specific lead (from quick actions)
+  const handleOpenChat = useCallback((lead: ILead) => {
+    setSelectedLeadForChat(lead);
+    setChatDrawerOpen(true);
+  }, []);
+
+  // Quick reply opens the chat drawer focused on input
+  const handleQuickReply = useCallback((lead: ILead) => {
+    setSelectedLeadForChat(lead);
+    setChatDrawerOpen(true);
+  }, []);
+
+  // Take case — assign the current user to the conversation
+  const handleTakeCase = useCallback(async (lead: ILead) => {
+    const status = conversationStatusMap.get(String(lead._id));
+    if (!status?.conversationId) return;
+    try {
+      const res = await fetch(`/api/crm/conversations/${status.conversationId}/assign`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(() => {
+            if (typeof window === 'undefined') return {};
+            const token = localStorage.getItem('token');
+            const tenantId = localStorage.getItem('tenantId');
+            const headers: Record<string, string> = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+            if (tenantId) headers['x-tenant-id'] = tenantId;
+            try {
+              const payload = token ? JSON.parse(atob(token.split('.')[1])) : null;
+              if (payload?.userId) headers['x-user-id'] = payload.userId;
+            } catch { /* noop */ }
+            return headers;
+          })(),
+        },
+        body: JSON.stringify({ userId: (() => {
+          try {
+            const token = localStorage.getItem('token');
+            return token ? JSON.parse(atob(token.split('.')[1])).userId : '';
+          } catch { return ''; }
+        })() }),
+      });
+      if (res.ok) {
+        // Refresh conversation data
+        conversationStatusMap.delete(String(lead._id));
+        // Force re-render will happen via polling
+      }
+    } catch {
+      // Silent fail — polling will retry
+    }
+  }, [conversationStatusMap]);
 
   // Real-time polling: refetch every 5 seconds for live WhatsApp leads
   useEffect(() => {
@@ -97,23 +172,23 @@ export function PipelineBoard() {
 
   const hasData = Object.keys(groups).length > 0;
 
-  const activeLead: ILead | null = useMemo(() => {
-    if (!activeId) return null;
-    for (const column of Object.values(columns)) {
-      const found = column.find((l) => String(l._id) === activeId);
-      if (found) return found;
-    }
-    return null;
-  }, [activeId, columns]);
+  // Metrics for the filters bar
+  const metrics = useMemo(() => {
+    const allLeads = Object.values(columns).flat();
+    const total = allLeads.length;
+    const calientes = allLeads.filter((l) => l.temperature === 'hot').length;
+    const handoffs = pendingHandoffs;
+    const sinRespuesta = allLeads.filter((l) => !conversationStatusMap.has(String(l._id))).length;
+    return { total, calientes, handoffs, sinRespuesta };
+  }, [columns, pendingHandoffs, conversationStatusMap]);
 
   const visibleColumns = columns;
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { delay: 500, tolerance: 5 },
-    }),
-    useSensor(KeyboardSensor),
-  );
+  // Filter stages by URL param
+  const filteredStages = useMemo(() => {
+    if (!visibleStageNames) return stages;
+    return stages.filter((s) => visibleStageNames.has(s.name));
+  }, [stages, visibleStageNames]);
 
   const handleLeadClick = useCallback((leadId: string) => {
     console.log('Lead clicked:', leadId);
@@ -141,78 +216,89 @@ export function PipelineBoard() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden">
-      <LeadFilters stages={stages} />
+      <LeadFilters
+        stages={stages}
+        metrics={metrics}
+        onNewLead={() => {/* TODO: open new lead modal */}}
+        onExport={() => {/* TODO: export logic */}}
+        onBulkAssign={() => {/* TODO: bulk assign */}}
+        onViewActivity={() => {/* TODO: activity view */}}
+      />
 
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCorners}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-        onDragCancel={handleDragCancel}
-      >
-        {loading && !hasData ? (
-          <div className="flex gap-4 p-4 overflow-x-auto scroll-snap-x-mandatory flex-1">
-            <SkeletonColumn />
-            <SkeletonColumn />
-            <SkeletonColumn />
-            <SkeletonColumn />
-          </div>
-        ) : allEmpty && !loading && unmatched.length === 0 ? (
-          <EmptyBoard />
-        ) : (
-          <div className="flex gap-4 p-4 overflow-x-auto scroll-snap-x-mandatory flex-1">
-            {stages.map((stage) => {
-              const stageLeads = visibleColumns[stage.name] || [];
-              return (
-                <PipelineColumn
-                  key={stage.name}
-                  stage={stage}
-                  leads={stageLeads}
-                  isLoading={false}
-                  onLeadClick={handleLeadClick}
-                />
-              );
-            })}
+      {loading && !hasData ? (
+        <div className="flex gap-4 p-4 overflow-x-auto scroll-snap-x-mandatory flex-1">
+          <SkeletonColumn />
+          <SkeletonColumn />
+          <SkeletonColumn />
+          <SkeletonColumn />
+        </div>
+      ) : allEmpty && !loading && unmatched.length === 0 ? (
+        <EmptyBoard />
+      ) : (
+        <div className="flex gap-4 p-4 overflow-x-auto scroll-snap-x-mandatory flex-1">
+          {filteredStages.map((stage) => {
+            const stageLeads = visibleColumns[stage.name] || [];
+            return (
+              <PipelineColumn
+                key={stage.name}
+                stage={stage}
+                leads={stageLeads}
+                isLoading={false}
+                onLeadClick={handleLeadClick}
+                onWhatsAppClick={handleLeadWhatsAppClick}
+                conversationStatusMap={conversationStatusMap}
+                onTakeCase={handleTakeCase}
+                onQuickReply={handleQuickReply}
+                onOpenChat={handleOpenChat}
+              />
+            );
+          })}
 
-            {unmatched.length > 0 && (
-              <div className="bg-gray-100 rounded-lg border border-dashed border-gray-300 min-w-[85vw] md:min-w-[260px] snap-start">
-                <div className="px-3 py-2 border-b border-gray-200 bg-gray-100 rounded-t-lg">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-semibold text-gray-500 truncate">
-                      Sin etapa
-                    </h3>
-                    <span className="badge badge-neutral text-xs shrink-0">
-                      {unmatched.length}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-gray-400 mt-0.5">
-                    Leads con estado sin etapa asignada
-                  </p>
+          {unmatched.length > 0 && (
+            <div className="bg-gray-100 rounded-lg border border-dashed border-gray-300 min-w-[85vw] md:min-w-[260px] snap-start">
+              <div className="px-3 py-2 border-b border-gray-200 bg-gray-100 rounded-t-lg">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-gray-500 truncate">
+                    Sin etapa
+                  </h3>
+                  <span className="badge badge-neutral text-xs shrink-0">
+                    {unmatched.length}
+                  </span>
                 </div>
-                <div className="p-2 space-y-2">
-                  {unmatched.map((lead) => (
-                    <div
-                      key={String(lead._id)}
-                      className="bg-white rounded-lg border border-gray-200 p-3 opacity-60 cursor-default"
-                    >
-                      <p className="text-sm font-semibold text-gray-900 truncate">
-                        {lead.name}
-                      </p>
-                      {lead.companyName && (
-                        <p className="text-xs text-gray-500 truncate">{lead.companyName}</p>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                <p className="text-[10px] text-gray-400 mt-0.5">
+                  Leads con estado sin etapa asignada
+                </p>
               </div>
-            )}
-          </div>
-        )}
+              <div className="p-2 space-y-2">
+                {unmatched.map((lead) => (
+                  <div
+                    key={String(lead._id)}
+                    className="bg-white rounded-lg border border-gray-200 p-3 opacity-60 cursor-default"
+                  >
+                    <p className="text-sm font-semibold text-gray-900 truncate">
+                      {lead.name}
+                    </p>
+                    {lead.companyName && (
+                      <p className="text-xs text-gray-500 truncate">{lead.companyName}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
-        <DragOverlay>
-          {activeLead ? <DragOverlayCard lead={activeLead} /> : null}
-        </DragOverlay>
-      </DndContext>
+      {/* WhatsApp Chat Drawer */}
+      <LeadChatDrawer
+        isOpen={chatDrawerOpen}
+        onClose={() => {
+          setChatDrawerOpen(false);
+          setSelectedLeadForChat(null);
+        }}
+        lead={selectedLeadForChat}
+        conversationStatus={selectedLeadForChat ? (conversationStatusMap.get(String(selectedLeadForChat._id)) ?? null) : null}
+      />
     </div>
   );
 }

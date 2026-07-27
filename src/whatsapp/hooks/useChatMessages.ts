@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { api } from '@/lib/api-client';
 import type { ChatMessage } from '../types/chat';
 
@@ -47,6 +47,14 @@ export function useChatMessages(phone: string | null): UseChatMessagesReturn {
       setLoading(false);
     }
   }, [phone]);
+
+  // Fetch on phone change
+  useEffect(() => {
+    if (phone) {
+      setMessages([]); // Clear previous messages
+      fetchMessages();
+    }
+  }, [phone, fetchMessages]);
 
   const loadMore = useCallback(async () => {
     if (messages.length === 0) return;

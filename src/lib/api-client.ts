@@ -51,12 +51,15 @@ async function request<T>(
   const tenantId = getTenantId();
   const headers: Record<string, string> = {};
 
+  console.log('[api-client] token:', !!token, 'tenantId:', tenantId);
+
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
   if (tenantId) {
     headers['x-tenant-id'] = tenantId;
+    console.log('[api-client] Setting x-tenant-id header:', tenantId);
   }
 
   let url = path;

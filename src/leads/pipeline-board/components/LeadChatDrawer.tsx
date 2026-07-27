@@ -1,0 +1,636 @@
+'use client';
+
+import { useState, useMemo, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
+import { ChatPanel } from '@/whatsapp/components/ChatPanel';
+import { useChatMessages } from '@/whatsapp/hooks/useChatMessages';
+import { useWhatsAppSend } from '@/whatsapp/hooks/useWhatsAppSend';
+import { useChatPolling } from '@/whatsapp/hooks/useChatPolling';
+import type { ILead } from '../../types/lead';
+import type { ConversationStatus } from '../hooks/useConversationStatus';
+
+interface LeadChatDrawerProps {
+  isOpen: boolean;
+  onClose: () => void;
+  lead: ILead | null;
+  conversationStatus?: ConversationStatus | null;
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  new: 'Nuevo',
+  contacted: 'Contactado',
+  quote_sent: 'Presupuesto enviado',
+  technical_visit: 'Visita técnica',
+  negotiation: 'Negociación',
+  qualified: 'Calificado',
+  won: 'Ganado',
+  lost: 'Perdido',
+  disqualified: 'Descalificado',
+};
+
+const STATUS_VARIANTS: Record<string, string> = {
+  new: 'bg-info-50 text-info-700',
+  contacted: 'bg-brand-50 text-brand-700',
+  quote_sent: 'bg-purple-50 text-purple-700',
+  technical_visit: 'bg-orange-50 text-orange-700',
+  negotiation: 'bg-yellow-50 text-yellow-700',
+  qualified: 'bg-warning-50 text-warning-700',
+  won: 'bg-success-50 text-success-700',
+  lost: 'bg-danger-50 text-danger-700',
+  disqualified: 'bg-gray-100 text-gray-700',
+};
+
+const TEMPERATURE_COLORS = {
+  hot: 'bg-red-100 text-red-700 border-red-200',
+  warm: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+  cold: 'bg-blue-100 text-blue-700 border-blue-200',
+};
+
+const INQUIRY_REASON_LABELS: Record<string, string> = {
+  repair: 'Reparacion',
+  installation: 'Instalacion',
+  maintenance: 'Mantenimiento',
+  budget: 'Presupuesto',
+  other: 'Otro',
+};
+
+const CUSTOMER_TYPE_LABELS: Record<string, string> = {
+  residential: 'Residencial',
+  commercial: 'Comercial/Empresa',
+};
+
+const STATE_LABELS: Record<string, string> = {
+  idle: 'Inactivo',
+  greeting: 'Saludo',
+  need_type_asked: 'Tipo preguntado',
+  need_type_captured: 'Tipo capturado',
+  detail_asked: 'Detalle preguntado',
+  detail_captured: 'Detalle capturado',
+  customer_type_asked: 'Cliente preguntado',
+  customer_type_captured: 'Cliente capturado',
+  urgency_asked: 'Urgencia preguntada',
+  urgency_captured: 'Urgencia capturada',
+  location_asked: 'Ubicacion preguntada',
+  location_captured: 'Ubicacion capturada',
+  equipment_asked: 'Equipo preguntado',
+  equipment_captured: 'Equipo capturado',
+  evaluate: 'Evaluando',
+  scored: 'Calificado',
+  handoff_pending: 'Handoff pendiente',
+  human_assigned: 'Humano asignado',
+  closed: 'Cerrado',
+  timeout: 'Timeout',
+  fallback: 'Fallback',
+};
+
+type TabType = 'chat' | 'handoff' | 'timeline';
+
+function LeadInfoTab({ lead }: { lead: ILead }) {
+  const assignedTo = lead.assignedTo 
+    ? (typeof lead.assignedTo === 'object' && 'name' in lead.assignedTo 
+        ? (lead.assignedTo as { name: string }).name 
+        : String(lead.assignedTo))
+    : 'Sin asignar';
+
+  const formatDate = (date: Date | string | undefined) => {
+    if (!date) return '-';
+    return new Date(date).toLocaleDateString('es-AR', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
+
+  return (
+    <div className="p-4 space-y-6 overflow-y-auto">
+      {/* Score Section */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <h4 className="text-xs font-semibold text-gray-500 uppercase mb-3">Clasificacion del Lead</h4>
+        
+        <div className="flex items-center gap-3 mb-4">
+          {lead.temperature && (
+            <span className={`px-3 py-1.5 rounded-full text-sm font-bold border ${TEMPERATURE_COLORS[lead.temperature]}`}>
+              {lead.temperature.toUpperCase()}
+            </span>
+          )}
+          {lead.score !== undefined && (
+            <span className="text-2xl font-bold text-gray-900">
+              {lead.score} <span className="text-sm font-normal text-gray-500">pts</span>
+            </span>
+          )}
+        </div>
+
+        {lead.scoringBreakdown && (
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-500">Tipo de consulta:</span>
+              <span className="font-medium">{lead.scoringBreakdown.buttons} pts</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Tipo de propiedad:</span>
+              <span className="font-medium">{lead.scoringBreakdown.property} pts</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Palabras clave:</span>
+              <span className="font-medium">{lead.scoringBreakdown.keywords} pts</span>
+            </div>
+            {lead.scoringBreakdown.b2b > 0 && (
+              <div className="flex justify-between">
+                <span className="text-gray-500">B2B:</span>
+                <span className="font-medium">{lead.scoringBreakdown.b2b} pts</span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Info Section */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <h4 className="text-xs font-semibold text-gray-500 uppercase mb-3">Datos del Lead</h4>
+        
+        <div className="space-y-3 text-sm">
+          <div className="flex justify-between">
+            <span className="text-gray-500">Estado:</span>
+            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANTS[lead.status] || 'bg-gray-100 text-gray-700'}`}>
+              {STATUS_LABELS[lead.status] || lead.status}
+            </span>
+          </div>
+          
+          {lead.inquiryReason && (
+            <div className="flex justify-between">
+              <span className="text-gray-500">Necesita:</span>
+              <span className="font-medium">{INQUIRY_REASON_LABELS[lead.inquiryReason] || lead.inquiryReason}</span>
+            </div>
+          )}
+          
+          {lead.customerType && (
+            <div className="flex justify-between">
+              <span className="text-gray-500">Tipo:</span>
+              <span className="font-medium">{CUSTOMER_TYPE_LABELS[lead.customerType] || lead.customerType}</span>
+            </div>
+          )}
+          
+          <div className="flex justify-between">
+            <span className="text-gray-500">Origen:</span>
+            <span className="font-medium capitalize">{lead.source}</span>
+          </div>
+          
+          <div className="flex justify-between">
+            <span className="text-gray-500">Asignado a:</span>
+            <span className="font-medium">{assignedTo}</span>
+          </div>
+          
+          {lead.estimatedValue && (
+            <div className="flex justify-between">
+              <span className="text-gray-500">Valor estimado:</span>
+              <span className="font-medium">${lead.estimatedValue.toLocaleString('es-AR')}</span>
+            </div>
+          )}
+
+          <div className="flex justify-between">
+            <span className="text-gray-500">Creado:</span>
+            <span className="font-medium">{formatDate(lead.createdAt)}</span>
+          </div>
+          
+          {lead.isB2B && (
+            <div className="flex justify-between">
+              <span className="text-gray-500">B2B:</span>
+              <span className="font-medium text-green-600">Si</span>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Notes Section */}
+      {lead.notes && (
+        <div className="bg-white rounded-lg border border-gray-200 p-4">
+          <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Notas</h4>
+          <p className="text-sm text-gray-700 whitespace-pre-wrap">{lead.notes}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface HandoffTabProps {
+  conversationId: string;
+  lead: ILead;
+  conversationStatus: ConversationStatus;
+  onTakeCase: () => void;
+}
+
+function HandoffTab({ conversationId, lead, conversationStatus, onTakeCase }: HandoffTabProps) {
+  const handleReassign = useCallback(async () => {
+    // Placeholder — TODO: open reassign modal
+  }, []);
+
+  const handleClose = useCallback(async () => {
+    // Placeholder — TODO: close handoff
+  }, []);
+
+  return (
+    <div className="p-4 space-y-4 overflow-y-auto">
+      {/* Handoff Info */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <h4 className="text-xs font-semibold text-gray-500 uppercase mb-3">Estado del Handoff</h4>
+        <div className="space-y-2 text-sm">
+          <div className="flex justify-between">
+            <span className="text-gray-500">Estado:</span>
+            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700">
+              {conversationStatus.isHandoffPending ? 'Pendiente' : conversationStatus.isHumanAssigned ? 'Asignado' : conversationStatus.conversationState || '-'}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Motivo:</span>
+            <span className="font-medium">{conversationStatus.handoffReason || '-'}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Score:</span>
+            <span className="font-medium">{lead.score || 0} pts</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Temperatura:</span>
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+              lead.temperature === 'hot' ? 'bg-red-100 text-red-700' :
+              lead.temperature === 'warm' ? 'bg-yellow-100 text-yellow-700' :
+              'bg-blue-100 text-blue-700'
+            }`}>
+              {lead.temperature?.toUpperCase() || '-'}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-gray-500">Conversation ID:</span>
+            <span className="font-mono text-xs text-gray-400">{conversationId.slice(0, 12)}...</span>
+          </div>
+        </div>
+      </div>
+      
+      {/* Conversation Summary */}
+      <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Resumen automatico</h4>
+        <p className="text-sm text-gray-700">
+          Estado: {STATE_LABELS[conversationStatus.conversationState || ''] || conversationStatus.conversationState || '-'}
+        </p>
+      </div>
+      
+      {/* Actions */}
+      <div className="flex gap-2">
+        <button
+          onClick={onTakeCase}
+          className="flex-1 px-4 py-2 text-sm font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+        >
+          Tomar caso
+        </button>
+        <button
+          onClick={handleReassign}
+          className="px-4 py-2 text-sm font-medium bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+        >
+          Reasignar
+        </button>
+        <button
+          onClick={handleClose}
+          className="px-4 py-2 text-sm font-medium bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+        >
+          Cerrar
+        </button>
+      </div>
+    </div>
+  );
+}
+
+interface TimelineTabProps {
+  messages: Array<{
+    content: string;
+    direction: string;
+    createdAt: string;
+    type?: string;
+  }>;
+  conversationStatus: ConversationStatus;
+}
+
+function TimelineTab({ messages, conversationStatus }: TimelineTabProps) {
+  const events = useMemo(() => {
+    const timeline: Array<{
+      type: 'message_received' | 'bot_response' | 'state_change';
+      content: string;
+      timestamp: string;
+      direction: string;
+    }> = [];
+
+    for (const msg of messages) {
+      timeline.push({
+        type: msg.direction === 'inbound' ? 'message_received' : 'bot_response',
+        content: msg.content,
+        timestamp: msg.createdAt,
+        direction: msg.direction,
+      });
+    }
+
+    if (conversationStatus.conversationState) {
+      timeline.push({
+        type: 'state_change',
+        content: `Estado: ${STATE_LABELS[conversationStatus.conversationState] || conversationStatus.conversationState}`,
+        timestamp: new Date().toISOString(),
+        direction: 'system',
+      });
+    }
+
+    return timeline.sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+  }, [messages, conversationStatus.conversationState]);
+
+  if (events.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full py-12">
+        <svg className="w-12 h-12 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <p className="text-sm font-medium text-gray-900">Sin eventos</p>
+        <p className="text-xs text-gray-500 mt-1">No hay actividad registrada aun</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4 space-y-3 overflow-y-auto">
+      {events.map((event, i) => (
+        <div key={i} className="flex items-start gap-3 text-sm">
+          <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${
+            event.type === 'message_received' ? 'bg-gray-400' :
+            event.type === 'bot_response' ? 'bg-blue-500' :
+            'bg-amber-500'
+          }`} />
+          <div className="min-w-0 flex-1">
+            <p className={`text-gray-700 ${event.type === 'bot_response' ? 'text-blue-700' : ''}`}>
+              {event.type === 'bot_response' && <span className="text-xs font-medium mr-1">BOT</span>}
+              {event.content}
+            </p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {new Date(event.timestamp).toLocaleString('es-AR')}
+            </p>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+export function LeadChatDrawer({ isOpen, onClose, lead, conversationStatus }: LeadChatDrawerProps) {
+  const [activeTab, setActiveTab] = useState<TabType>('chat');
+  const router = useRouter();
+
+  const phone = lead?.phone || '';
+  
+  const {
+    messages,
+    loading,
+    error,
+    hasMore,
+    loadMore,
+    refetch,
+  } = useChatMessages(phone);
+
+  const { sendMessage, sending } = useWhatsAppSend();
+
+  const handleSend = async (content: string) => {
+    if (!lead) return;
+    const result = await sendMessage({
+      phone,
+      content,
+      leadId: lead._id ? String(lead._id) : undefined,
+    });
+    if (result) {
+      refetch();
+    }
+  };
+
+  const handleTakeControl = useCallback(async () => {
+    if (!conversationStatus?.conversationId || !lead) return;
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const tenantId = typeof window !== 'undefined' ? localStorage.getItem('tenantId') : null;
+      let userId = '';
+      try {
+        if (token) userId = JSON.parse(atob(token.split('.')[1])).userId;
+      } catch { /* noop */ }
+
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      if (tenantId) headers['x-tenant-id'] = tenantId;
+      if (userId) headers['x-user-id'] = userId;
+
+      await fetch(`/api/crm/conversations/${conversationStatus.conversationId}/assign`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ userId }),
+      });
+      // Polling will refresh data
+    } catch {
+      // Silent — polling retries
+    }
+  }, [conversationStatus, lead]);
+
+  const handleTakeCase = useCallback(async () => {
+    await handleTakeControl();
+  }, [handleTakeControl]);
+
+  useChatPolling({
+    interval: 5000,
+    enabled: isOpen,
+    onPoll: refetch,
+  });
+
+  if (!isOpen || !lead) return null;
+
+  const leadName = typeof lead.name === 'string' ? lead.name : 'Lead sin nombre';
+  const hasConversation = !!conversationStatus?.hasActiveConversation;
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div className="fixed inset-0 bg-black/30 z-40" onClick={onClose} />
+      
+      {/* Drawer */}
+      <div className="fixed right-0 top-0 h-full w-full max-w-md bg-white shadow-xl z-50 flex flex-col animate-in slide-in-from-right duration-200">
+        {/* Header - Lead Info */}
+        <div className="border-b border-gray-200 bg-white shrink-0">
+          <div className="flex items-start justify-between p-4 pb-3">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center text-white font-semibold text-lg">
+                {leadName.charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-base font-bold text-gray-900 truncate">{leadName}</h3>
+                {lead.companyName && (
+                  <p className="text-sm text-gray-500 truncate">{lead.companyName}</p>
+                )}
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANTS[lead.status] || 'bg-gray-100 text-gray-700'}`}>
+                    {STATUS_LABELS[lead.status] || lead.status}
+                  </span>
+                  {lead.temperature && (
+                    <span className={`text-xs px-2 py-0.5 rounded-full border ${TEMPERATURE_COLORS[lead.temperature]}`}>
+                      {lead.temperature.toUpperCase()}
+                    </span>
+                  )}
+                  {conversationStatus?.isBotActive && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200">
+                      Bot activo
+                    </span>
+                  )}
+                  {conversationStatus?.isHandoffPending && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200">
+                      Handoff
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-1">
+              {lead._id && (
+                <button
+                  onClick={() => router.push(`/leads/${String(lead._id)}`)}
+                  className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-brand-600 transition-colors"
+                  title="Ver detalle del lead"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                  </svg>
+                </button>
+              )}
+              <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Tabs */}
+          <div className="px-4 pb-0 flex border-b border-gray-200">
+            <button
+              onClick={() => setActiveTab('chat')}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'chat'
+                  ? 'border-brand-500 text-brand-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Chat
+            </button>
+            {hasConversation && (
+              <button
+                onClick={() => setActiveTab('handoff')}
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'handoff'
+                    ? 'border-brand-500 text-brand-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                Handoff
+                {conversationStatus?.isHandoffPending && (
+                  <span className="ml-1.5 w-2 h-2 rounded-full bg-red-500 inline-block" />
+                )}
+              </button>
+            )}
+            <button
+              onClick={() => setActiveTab('timeline')}
+              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'timeline'
+                  ? 'border-brand-500 text-brand-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Timeline
+            </button>
+          </div>
+        </div>
+
+        {/* Bot Active Banner */}
+        {conversationStatus?.isBotActive && (
+          <div className="px-4 py-2 bg-blue-50 border-b border-blue-100 shrink-0">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm text-blue-700">
+                <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                <span>Bot respondiendo automaticamente</span>
+              </div>
+              <button
+                onClick={handleTakeControl}
+                className="px-3 py-1 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Tomar control
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Handoff Pending Banner */}
+        {conversationStatus?.isHandoffPending && (
+          <div className="px-4 py-3 bg-red-50 border-b border-red-100 shrink-0">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-red-800">Handoff pendiente</p>
+                <p className="text-xs text-red-600 mt-0.5">
+                  {conversationStatus.handoffReason || 'Requiere atencion humana'}
+                </p>
+              </div>
+              <button
+                onClick={handleTakeCase}
+                className="px-3 py-1.5 text-xs font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Tomar caso
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Content */}
+        <div className="flex-1 overflow-hidden bg-gray-50">
+          {activeTab === 'chat' ? (
+            <ChatPanel
+              messages={messages}
+              loading={loading}
+              error={error}
+              hasMore={hasMore}
+              onLoadMore={loadMore}
+              onSend={handleSend}
+              sending={sending}
+              selectedPhone={phone}
+            />
+          ) : activeTab === 'handoff' && conversationStatus ? (
+            <HandoffTab
+              conversationId={conversationStatus.conversationId}
+              lead={lead}
+              conversationStatus={conversationStatus}
+              onTakeCase={handleTakeCase}
+            />
+          ) : activeTab === 'timeline' ? (
+            <TimelineTab
+              messages={messages.map((m) => ({
+                content: m.content,
+                direction: m.direction,
+                createdAt: m.createdAt,
+                type: m.type,
+              }))}
+              conversationStatus={conversationStatus || {
+                conversationId: '',
+                leadId: String(lead._id),
+                hasActiveConversation: false,
+                conversationState: null,
+                isBotActive: false,
+                isHandoffPending: false,
+                isHumanAssigned: false,
+                lastMessageAt: null,
+                lastMessagePreview: null,
+                unreadCount: 0,
+              }}
+            />
+          ) : (
+            <LeadInfoTab lead={lead} />
+          )}
+        </div>
+      </div>
+    </>
+  );
+}

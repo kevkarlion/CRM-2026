@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { api } from '@/lib/api-client';
 import type { ChatConversation } from '../types/chat';
 
@@ -23,16 +23,24 @@ export function useChatLeads(): UseChatLeadsReturn {
     try {
       setLoading(true);
       setError(null);
+      console.log('[useChatLeads] Fetching conversations...');
       const result = await api.get<{ conversations: ChatConversation[] }>(
         '/api/crm/whatsapp/conversations'
       );
+      console.log('[useChatLeads] Got conversations:', result.conversations);
       setConversations(result.conversations);
     } catch (err) {
+      console.error('[useChatLeads] Error:', err);
       setError(err instanceof Error ? err.message : 'Error al cargar conversaciones');
     } finally {
       setLoading(false);
     }
   }, []);
+
+  // Fetch on mount
+  useEffect(() => {
+    fetchConversations();
+  }, [fetchConversations]);
 
   const filteredConversations = searchQuery
     ? conversations.filter(

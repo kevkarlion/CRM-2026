@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
-import { useDroppable } from '@dnd-kit/core';
 import type { ILead } from '../../types/lead';
 import type { IPipelineStage } from '../../types/pipeline';
+import type { ConversationStatus } from '../hooks/useConversationStatus';
 import { ColumnHeader } from './ColumnHeader';
 import { LeadCard } from './LeadCard';
 
@@ -10,6 +10,11 @@ interface PipelineColumnProps {
   leads: ILead[];
   isLoading?: boolean;
   onLeadClick?: (leadId: string) => void;
+  onWhatsAppClick?: (lead: ILead) => void;
+  conversationStatusMap?: Map<string, ConversationStatus>;
+  onTakeCase?: (lead: ILead) => void;
+  onQuickReply?: (lead: ILead) => void;
+  onOpenChat?: (lead: ILead) => void;
 }
 
 function SkeletonCard() {
@@ -24,17 +29,20 @@ function SkeletonCard() {
   );
 }
 
-export const PipelineColumn = memo(function PipelineColumn({ stage, leads, isLoading, onLeadClick }: PipelineColumnProps) {
-  const { isOver, setNodeRef } = useDroppable({
-    id: stage.name,
-  });
-
+export const PipelineColumn = memo(function PipelineColumn({
+  stage,
+  leads,
+  isLoading,
+  onLeadClick,
+  onWhatsAppClick,
+  conversationStatusMap,
+  onTakeCase,
+  onQuickReply,
+  onOpenChat,
+}: PipelineColumnProps) {
   return (
     <div
-      ref={setNodeRef}
-      className={`bg-gray-50 rounded-lg border min-w-[85vw] md:min-w-[280px] md:flex-1 snap-start ${
-        isOver ? 'ring-2 ring-brand-400' : 'border-gray-200'
-      }`}
+      className="bg-gray-50 rounded-lg border border-gray-200 min-w-[85vw] md:min-w-[280px] md:flex-1 snap-start"
     >
       <ColumnHeader stage={stage} leadCount={leads.length} />
 
@@ -51,7 +59,16 @@ export const PipelineColumn = memo(function PipelineColumn({ stage, leads, isLoa
           </p>
         ) : (
           leads.map((lead) => (
-            <LeadCard key={String(lead._id)} lead={lead} onClick={onLeadClick} />
+            <LeadCard
+              key={String(lead._id)}
+              lead={lead}
+              onClick={onLeadClick}
+              onWhatsAppClick={onWhatsAppClick}
+              conversationStatus={conversationStatusMap?.get(String(lead._id)) ?? undefined}
+              onTakeCase={onTakeCase}
+              onQuickReply={onQuickReply}
+              onOpenChat={onOpenChat}
+            />
           ))
         )}
       </div>

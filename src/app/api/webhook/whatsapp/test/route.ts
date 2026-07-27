@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
 import LeadModel from '@/leads/models/lead';
 import TimelineEventModel from '@/timeline/models/timeline-event';
+import WhatsAppMessageModel from '@/crm/models/whatsapp-message';
 import leadScoringService from '@/leads/services/lead-scoring.service';
 import { LeadService } from '@/leads/services/lead.service';
 import type { InquiryReason, CustomerType } from '@/leads/types/lead';
@@ -27,6 +28,29 @@ interface BotState {
 }
 
 const botStates = new Map<string, BotState>();
+
+// Helper to save WhatsApp messages
+async function saveWhatsAppMessage(
+  phone: string,
+  content: string,
+  direction: 'inbound' | 'outbound',
+  leadId?: string
+) {
+  try {
+    await WhatsAppMessageModel.create({
+      tenantId: new Types.ObjectId(DEFAULT_TENANT_ID),
+      phone,
+      messageId: `wamid.bot.${Date.now()}`,
+      direction,
+      type: 'text',
+      content,
+      status: 'delivered',
+      leadId: leadId ? new Types.ObjectId(leadId) : undefined,
+    });
+  } catch (err) {
+    console.error('Error saving WhatsApp message:', err);
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -60,6 +84,10 @@ export async function POST(req: NextRequest) {
     console.log('=== WhatsApp Test Webhook ===');
     console.log({ phone, pushName, userResponse, buttonPayload });
 
+    // Save incoming message
+    const currentState = botStates.get(phone);
+    await saveWhatsAppMessage(phone, userResponse || buttonPayload, 'inbound', currentState?.leadId);
+
     let state: BotState = botStates.get(phone) || {
       step: 'initial',
       pushName,
@@ -71,7 +99,7 @@ export async function POST(req: NextRequest) {
     
     switch (state.step) {
       case 'initial':
-        responseMessage = '¿Qué necesitas resolver hoy?';
+        responseMessage = '¡Hola! 👋 Bienvenido a Rolo Climatizaciones. ¿En qué puedo ayudarte hoy?\n\n🔧 Reparación\n🛡️ Mantenimiento\n🏗️ Proyecto nuevo';
         nextStep = 'inquiry_reason';
         break;
         
@@ -110,7 +138,7 @@ export async function POST(req: NextRequest) {
           responseMessage = '¿Es para tu casa o tu empresa/local?';
           nextStep = 'customer_type';
         } else {
-          responseMessage = 'Por favor seleccioná una opción: [Reparación] [Mantenimiento] [Proyecto nuevo]';
+          responseMessage = 'Por favor seleccioná una opción:\n\n🔧 Reparación\n🛡️ Mantenimiento\n🏗️ Proyecto nuevo';
         }
         break;
         
@@ -165,7 +193,7 @@ export async function POST(req: NextRequest) {
             DEFAULT_TENANT_ID
           );
 
-          responseMessage = `¡Gracias! Un asesor te contactará pronto.\n\nTu clasificación: ${scoringResult.temperature.toUpperCase()}\nPuntaje: ${scoringResult.score}`;
+          responseMessage = `¡Gracias! Un asesor te contactará pronto.`;
           nextStep = 'initial';
           
           state.temperature = scoringResult.temperature;
@@ -178,6 +206,9 @@ export async function POST(req: NextRequest) {
     }
 
     botStates.set(phone, { ...state, step: nextStep });
+
+    // Save bot response
+    await saveWhatsAppMessage(phone, responseMessage, 'outbound', state.leadId);
 
     return NextResponse.json({
       status: 'ok',
