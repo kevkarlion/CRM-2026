@@ -9,6 +9,7 @@ interface UserInfo {
   name: string;
   email: string;
   role: TenantRoleName;
+  _isDefault?: boolean;
 }
 
 interface RoleContextValue {
@@ -22,6 +23,7 @@ interface RoleContextValue {
   isSupervisor: boolean;
   isCommercial: boolean;
   isTechnician: boolean;
+  loading: boolean;
 }
 
 function decodeToken(token: string): { userId?: string; tenantId?: string; roles?: string[]; name?: string; email?: string } {
@@ -59,9 +61,10 @@ function normalizeRole(role: string): TenantRoleName {
 }
 
 const defaultUser: UserInfo = {
-  name: 'Admin',
-  email: 'admin@crm.local',
-  role: 'Administrator',
+  name: '',
+  email: '',
+  role: 'Administrator' as TenantRoleName, // Default for SSR
+  _isDefault: true, // Mark as default to detect SSR vs client mismatch
 };
 
 const STORAGE_KEY = 'crm_user_info';
@@ -130,8 +133,9 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       isSupervisor: role === 'Supervisor',
       isCommercial: role === 'Sales',
       isTechnician: role === 'Technician',
+      loading,
     };
-  }, [user]);
+  }, [user, loading]);
 
   return <RoleContext.Provider value={value}>{children}</RoleContext.Provider>;
 }

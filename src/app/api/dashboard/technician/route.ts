@@ -1,0 +1,179 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { connectDB } from '@/core/db';
+import WorkOrderModel from '@/operations/models/work-order';
+import { TechnicalVisitModel } from '@/operations/models/technical-visit';
+import { TechnicianModel } from '@/operations/models/technician';
+import { Types } from 'mongoose';
+
+export async function GET(request: NextRequest) {
+  try {
+    await connectDB();
+    const tenantId = request.headers.get('x-tenant-id');
+    const userId = request.headers.get('x-user-id');
+
+    if (!tenantId || !userId) {
+      return NextResponse.json(
+        { error: 'x-tenant-id and x-user-id headers are required' },
+        { status: 401 },
+      );
+    }
+
+    const tenantObjectId = new Types.ObjectId(tenantId);
+    const userObjectId = new Types.ObjectId(userId);
+
+    // Find technician by userId
+    const technician = await TechnicianModel.findOne({
+      userId: userObjectId,
+      tenantId: tenantObjectId,
+      deletedAt: null,
+    }).lean();
+
+    if (!technician) {
+      return NextResponse.json({
+        assignedCount: 0,
+        completedToday: 0,
+        pendingOrders: 0,
+        inProgressOrders: 0,
+        upcomingSevenDays: 0,
+        sla: { onTime: 0, delayed: 0, avgResponseTimeHours: null },
+        technicianLoad: [],
+        workOrders: [],
+        generatedAt: new Date().toISOString(),
+      });
+    }
+
+    const technicianId = technician._id;
+    const now = new Date();
+    const sevenDaysFromNow = new Date();
+    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const todayEnd = new Date(todayStart);
+    todayEnd.setDate(todayEnd.getDate() + 1);
+
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    // Get assigned work orders count (status: assigned, en_route, on_site, paused)
+    const inProgressOrders = await WorkOrderModel.countDocuments({
+      tenantId: tenantObjectId,
+      assignedTechnicians: { $in: [technicianId] },
+      deletedAt: null,
+      status: { $in: ['assigned', 'en_route', 'on_site', 'paused'] },
+    });
+
+    // Get completed today
+    const completedToday = await WorkOrderModel.countDocuments({
+      tenantId: tenantObjectId,
+      assignedTechnicians: { $in: [technicianId] },
+      deletedAt: null,
+      status: 'completed',
+      updatedAt: { $gte: todayStart, $lt: todayEnd },
+    });
+
+    // Get pending (scheduled for future)
+    const pendingOrders = await WorkOrderModel.countDocuments({
+      tenantId: tenantObjectId,
+      assignedTechnicians: { $in: [technicianId] },
+      deletedAt: null,
+      status: { $in: ['scheduled', 'confirmed'] },
+    });
+
+    // Get upcoming 7 days
+    const upcomingSevenDays = await WorkOrderModel.countDocuments({
+      tenantId: tenantObjectId,
+      assignedTechnicians: { $in: [technicianId] },
+      deletedAt: null,
+      status: { $in: ['scheduled', 'confirmed', 'assigned'] },
+      scheduledDate: { $gte: now.toISOString().split('T')[0], $lte: sevenDaysFromNow.toISOString().split('T')[0] },
+    });
+
+    // Calculate SLA for this technician
+    const completedWO = await WorkOrderModel.find({
+      tenantId: tenantObjectId,
+      assignedTechnicians: { $in: [technicianId] },
+      deletedAt: null,
+      status: 'completed',
+      updatedAt: { $gte: thirtyDaysAgo },
+    }).select('createdAt updatedAt').lean();
+
+    let onTime = 0;
+    let delayed = 0;
+    let totalHours = 0;
+
+    for (const wo of completedWO) {
+      const hours = (new Date(wo.updatedAt).getTime() - new Date(wo.createdAt).getTime()) / (1000 * 60 * 60);
+      totalHours += hours;
+      if (hours <= 48) onTime++;
+      else delayed++;
+    }
+
+    // Get work orders for this technician
+    const workOrders = await WorkOrderModel.find({
+      tenantId: tenantObjectId,
+      assignedTechnicians: { $in: [technicianId] },
+      deletedAt: null,
+    })
+      .populate('assignedTechnicians', 'name email phone')
+      .sort({ scheduledDate: 1, scheduledStart: 1 })
+      .limit(50)
+      .lean();
+
+    // Get technical visits for this technician
+    const technicalVisits = await TechnicalVisitModel.find({
+      tenantId: tenantObjectId,
+      assignedTechnicianId: technicianId,
+      deletedAt: null,
+    })
+      .sort({ scheduledDate: 1, scheduledStart: 1 })
+      .limit(50)
+      .lean();
+
+    const technicalVisitsData = technicalVisits.map((tv) => ({
+      _id: String(tv._id),
+      visitNumber: tv.visitNumber,
+      title: tv.title,
+      status: tv.status,
+      priority: tv.priority,
+      category: tv.category,
+      scheduledDate: tv.scheduledDate ? (typeof tv.scheduledDate === 'string' ? tv.scheduledDate : tv.scheduledDate.toISOString().split('T')[0]) : undefined,
+      scheduledStart: tv.scheduledStart?.toISOString(),
+      scheduledEnd: tv.scheduledEnd?.toISOString(),
+      clientSnapshot: tv.clientSnapshot,
+      locationSnapshot: tv.locationSnapshot,
+    }));
+
+    // Combine work orders and technical visits
+    const allWorkOrders = [...workOrdersData, ...technicalVisitsData];
+
+    // Get technician load (just this technician)
+    const technicianLoad = [{
+      techId: String(technicianId),
+      name: technician.name || `${technician.firstName || ''} ${technician.lastName || ''}`.trim() || 'Técnico',
+      assignedCount: inProgressOrders + pendingOrders + (technicalVisits?.length || 0),
+    }];
+
+    return NextResponse.json({
+      assignedCount: inProgressOrders + pendingOrders + (technicalVisits?.length || 0),
+      completedToday,
+      pendingOrders,
+      inProgressOrders,
+      upcomingSevenDays,
+      sla: {
+        onTime,
+        delayed,
+        avgResponseTimeHours: completedWO.length > 0
+          ? Math.round((totalHours / completedWO.length) * 10) / 10
+          : null,
+      },
+      technicianLoad,
+      workOrders: allWorkOrders,
+      generatedAt: now.toISOString(),
+    });
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { status: 500 },
+    );
+  }
+}

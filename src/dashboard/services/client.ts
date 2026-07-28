@@ -5,6 +5,7 @@ import type {
   OperationsResponse,
   CommercialResponse,
   ContractsResponse,
+  TechnicianDashboardResponse,
 } from '../types/metrics';
 
 const BASE = '/api/dashboard';
@@ -36,4 +37,8 @@ export async function fetchCommercial(): Promise<CommercialResponse> {
 
 export async function fetchContracts(): Promise<ContractsResponse> {
   return fetchJson<ContractsResponse>(`${BASE}/contracts`);
+}
+
+export async function fetchTechnicianDashboard(): Promise<TechnicianDashboardResponse> {
+  return fetchJson<TechnicianDashboardResponse>(`${BASE}/technician`);
 }

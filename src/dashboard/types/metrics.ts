@@ -109,3 +109,45 @@ export interface ContractsResponse {
   equipmentUnderContract: number;
   generatedAt: string;
 }
+
+// ── Technician Dashboard ───────────────────────────────────
+
+export interface TechnicianWorkOrder {
+  _id: string;
+  workOrderNumber: string;
+  title: string;
+  status: string;
+  priority: string;
+  category: string;
+  scheduledDate?: string;
+  scheduledStart?: string;
+  scheduledEnd?: string;
+  clientSnapshot?: {
+    name?: string;
+    email?: string;
+    phone?: string;
+  };
+  locationSnapshot?: {
+    name?: string;
+    address?: string;
+    city?: string;
+  };
+  technicians: Array<{
+    _id: string;
+    name: string;
+    email: string;
+    phone: string;
+  }>;
+}
+
+export interface TechnicianDashboardResponse {
+  assignedCount: number;
+  completedToday: number;
+  pendingOrders: number;
+  inProgressOrders: number;
+  upcomingSevenDays: number;
+  sla: SLAMetrics;
+  technicianLoad: TechnicianLoad[];
+  workOrders: TechnicianWorkOrder[];
+  generatedAt: string;
+}

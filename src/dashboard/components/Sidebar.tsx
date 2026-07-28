@@ -4,7 +4,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRole } from '@/dashboard/context/role-context';
 import type { TenantRoleName } from '@/rbac/permissions';
 
@@ -24,17 +24,42 @@ const navItems: NavItem[] = [
   { label: 'Admin', href: '/dashboard/admin', icon: '⚙', roles: ['Owner', 'Administrator'] },
   { label: 'Leads', href: '/leads', icon: '📋', roles: ['Sales', 'Administrator', 'Owner', 'Supervisor'] },
   { label: 'Quotes', href: '/quotes', icon: '📄', roles: ['Sales', 'Administrator', 'Owner', 'Supervisor'] },
-  // { label: 'Contracts', href: '/contracts', icon: '📝', roles: ['Administrator', 'Supervisor', 'Owner', 'Sales', 'Accounting', 'Dispatcher'] },
   { label: 'Centro Operativo', href: '/centro-operativo', icon: '⚙', roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Technician'] },
   { label: 'Work Orders', href: '/work-orders', icon: '🔧', roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Technician', 'Sales', 'Accounting'] },
-  { label: 'Mi Calendario', href: '/work-orders/calendar', icon: '📅', roles: ['Technician', 'Supervisor', 'Dispatcher'] },
-  { label: 'Visitas Técnicas', href: '/technical-visits', icon: '📅', roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Sales'] },
+  { label: 'Mi Calendario', href: '/work-orders/calendar', icon: '📅', roles: ['Technician', 'Supervisor', 'Dispatcher', 'Owner', 'Administrator'] },
+  { label: 'Visitas Técnicas', href: '/technical-visits', icon: '📅', roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Sales', 'Technician'] },
 ];
 
 export function Sidebar() {
   const pathname = usePathname();
-  const { role } = useRole();
+  const { role, loading, user } = useRole();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  // Only render after mount to avoid hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Don't render sidebar content until mounted
+  if (!mounted || loading) {
+    return (
+      <aside className="fixed top-0 left-0 z-40 h-full w-56 bg-white border-r border-gray-200">
+        <div className="p-4 border-b border-gray-100">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-gray-200 animate-pulse" />
+            <div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
+          </div>
+          <div className="h-3 w-16 bg-gray-200 rounded animate-pulse mt-2" />
+        </div>
+        <div className="p-3 space-y-2">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="h-10 bg-gray-100 rounded-lg animate-pulse" />
+          ))}
+        </div>
+      </aside>
+    );
+  }
 
   const visibleItems = navItems.filter((item) => item.roles.includes(role));
 

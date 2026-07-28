@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
 import { workAssignmentService } from '@/operations/services/work-assignment.service';
 import WorkOrderModel from '@/operations/models/work-order';
+import { requireAssignPermission } from '@/rbac/api-helpers';
 
 export async function GET(
   _request: NextRequest,
@@ -30,6 +31,12 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    // Check permission first
+    const permCheck = await requireAssignPermission(request);
+    if (permCheck.error) {
+      return NextResponse.json({ error: permCheck.error }, { status: permCheck.status });
+    }
+
     await connectDB();
     const { id } = await params;
     const tenantId = request.headers.get('x-tenant-id') || '';

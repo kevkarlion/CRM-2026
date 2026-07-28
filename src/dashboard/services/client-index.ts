@@ -1,1 +1,1 @@
-export { fetchSummary, fetchOperations, fetchCommercial, fetchContracts } from './client';
+export { fetchSummary, fetchOperations, fetchCommercial, fetchContracts, fetchTechnicianDashboard } from './client';

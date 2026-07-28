@@ -112,7 +112,13 @@ function DetailRow({ label, value }: { label: string; value: string }) {
 
 function formatTime(dateStr?: string) {
   if (!dateStr) return '—';
-  return new Date(dateStr).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return '—';
+    return date.toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return '—';
+  }
 }
 
 function technicianName(wo: WorkOrder): string {
