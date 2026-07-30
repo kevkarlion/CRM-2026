@@ -11,6 +11,7 @@ interface CalendarViewProps {
   events: CalendarEvent[];
   technicians?: TechnicianWorkload[];
   onEventClick: (event: CalendarEvent) => void;
+  className?: string;
 }
 
 const VIEW_LABELS: Record<ViewMode, string> = {
@@ -409,7 +410,7 @@ function MonthView({ events, date, onEventClick }: { events: CalendarEvent[]; da
   );
 }
 
-export function CalendarView({ events, onEventClick }: CalendarViewProps) {
+export function CalendarView({ events, onEventClick, className = '' }: CalendarViewProps) {
   // Start with 'week' on server, then use useEffect to detect mobile after mount
   const [viewMode, setViewMode] = useState<ViewMode>('week');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -458,7 +459,7 @@ export function CalendarView({ events, onEventClick }: CalendarViewProps) {
   }, [viewMode, selectedDate]);
 
   return (
-    <div className="space-y-3">
+    <div className={`space-y-3 ${className}`}>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <h2 className="text-sm font-semibold text-gray-900">Calendario</h2>
 

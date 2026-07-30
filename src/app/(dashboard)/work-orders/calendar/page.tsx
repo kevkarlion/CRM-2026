@@ -157,7 +157,7 @@ export default function TechnicianCalendarPage() {
     }
   }
 
-  const { todayCount, weekCount, nextJob } = useMemo(() => {
+  const { todayCount, weekCount, todayJobs } = useMemo(() => {
     const now = new Date();
     const todayEvents = events.filter((e) => isSameDay(parseLocalDate(e.scheduledDate), now));
     const weekStart = getWeekStart(now);
@@ -168,36 +168,35 @@ export default function TechnicianCalendarPage() {
       return d >= weekStart && d < weekEnd;
     });
 
-    // Next job: FIRST event of TODAY (not from all upcoming)
+    // Sort today's events by time
     const todaySorted = todayEvents.sort((a, b) => {
       if (!a.scheduledStart) return 1;
       if (!b.scheduledStart) return -1;
       return new Date(a.scheduledStart).getTime() - new Date(b.scheduledStart).getTime();
     });
-    const next = todaySorted[0];
+
+    // Map all today's jobs
+    const jobs = todaySorted.map((e) => ({
+      type: e.type,
+      title: e.title,
+      time: e.scheduledStart
+        ? new Date(e.scheduledStart).toLocaleTimeString('es-CL', {
+            hour: '2-digit',
+            minute: '2-digit',
+          })
+        : parseLocalDate(e.scheduledDate).toLocaleDateString('es-CL', {
+            day: '2-digit',
+            month: '2-digit',
+          }),
+      client: e.clientSnapshot?.name || '',
+      address: e.locationSnapshot?.address || '',
+      technician: e.technician?.name || e.technicians?.[0]?.name || '',
+    }));
 
     return {
       todayCount: todayEvents.length,
       weekCount: weekEvents.length,
-      nextJob: next
-        ? {
-            type: next.type,
-            title: next.title,
-            time: next.scheduledStart
-              ? new Date(next.scheduledStart).toLocaleTimeString('es-CL', {
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })
-              : (() => {
-                  return parseLocalDate(next.scheduledDate).toLocaleDateString('es-CL', {
-                    day: '2-digit',
-                    month: '2-digit',
-                  });
-                })(),
-            client: next.clientSnapshot?.name || '',
-            address: next.locationSnapshot?.address || '',
-          }
-        : undefined,
+      todayJobs: jobs,
     };
   }, [events]);
 
@@ -220,12 +219,29 @@ export default function TechnicianCalendarPage() {
     return (
       <div className="min-h-screen bg-gray-50 p-4">
         <div className="bg-white border-b border-gray-200 px-4 py-4">
-          <div className="flex items-center justify-between">
+<div className="flex items-center justify-between" suppressHydrationWarning>
             <div>
               <h1 className="h-8 w-48 bg-gray-200 rounded animate-pulse text-transparent">Mis Órdenes</h1>
               <p className="h-5 w-64 bg-gray-100 rounded animate-pulse mt-2 text-transparent">0 órdenes y visitas técnicas</p>
             </div>
-            <div className="w-10 h-10 bg-gray-100 rounded animate-pulse" />
+            <button
+                  className="p-2 rounded-lg bg-gray-100 animate-pulse"
+                  disabled
+                >
+                  <svg
+                    className="w-5 h-5 animate-spin"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={1.5}
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182"
+                    />
+                  </svg>
+                </button>
           </div>
         </div>
         <div className="p-4 space-y-4">
@@ -263,6 +279,7 @@ export default function TechnicianCalendarPage() {
             </p>
           </div>
           <button
+            suppressHydrationWarning
             onClick={fetchData}
             disabled={loading}
             className="p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50"
@@ -292,45 +309,23 @@ export default function TechnicianCalendarPage() {
           </div>
         )}
 
-        {!loading && (
-          <TechnicianAgendaSummary
-            todayCount={todayCount}
-            weekCount={weekCount}
-            nextJob={nextJob}
-          />
-        )}
+        <TechnicianAgendaSummary
+          todayCount={todayCount}
+          weekCount={weekCount}
+          todayJobs={todayJobs}
+          className={loading ? 'opacity-0 pointer-events-none' : ''}
+        />
 
-        {loading ? (
-          <div className="space-y-4">
-            {/* Same structure as TechnicianAgendaSummary */}
-            <div className="bg-white border border-gray-200 rounded-xl p-3 sm:p-4">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                <div className="flex items-center gap-4 flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-gray-100 animate-pulse" />
-                    <div className="h-4 w-20 bg-gray-100 rounded animate-pulse" />
-                  </div>
-                  <div className="w-px h-6 bg-gray-200" />
-                  <div className="flex items-center gap-2">
-                    <div className="w-8 h-8 rounded-lg bg-gray-100 animate-pulse" />
-                    <div className="h-4 w-20 bg-gray-100 rounded animate-pulse" />
-                  </div>
-                </div>
-              </div>
-            </div>
-            {/* Same structure as CalendarView */}
-            <div className="bg-white border border-gray-200 rounded-xl p-4">
-              <div className="h-[500px] bg-gray-100 rounded-xl animate-pulse" />
-            </div>
-          </div>
-        ) : (
-          <CalendarView events={events} onEventClick={handleEventClick} />
-        )}
+        <CalendarView 
+          events={events} 
+          onEventClick={handleEventClick} 
+          className={loading ? 'opacity-0 pointer-events-none' : ''}
+        />
 
         {/* Unassigned items for self-assignment - show only to technicians */}
         {isTechnician && unassignedOrders.length > 0 && (
           <div className="space-y-3">
-            <div className="flex items-center justify-between">
+<div className="flex items-center justify-between" suppressHydrationWarning>
               <h2 className="text-sm font-semibold text-gray-900">
                 Disponibles para auto-asignar
               </h2>
