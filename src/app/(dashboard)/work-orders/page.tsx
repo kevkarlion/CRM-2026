@@ -15,6 +15,22 @@ function shortWO(number: string): string {
   return number.slice(-7);
 }
 
+function isTechAssigned(wo: WorkOrder, currentUserName: string | null, currentUserEmail: string | null): boolean {
+  if (!currentUserName && !currentUserEmail) return false;
+  return (wo.assignedTechnicians ?? []).some((t) => {
+    if (typeof t === 'string') return false;
+    // Use email as primary identifier (unique)
+    if (currentUserEmail && t.email) {
+      return t.email.toLowerCase() === currentUserEmail.toLowerCase();
+    }
+    // Fallback: name comparison
+    if (currentUserName && t.name) {
+      return t.name.toLowerCase() === currentUserName.toLowerCase();
+    }
+    return false;
+  });
+}
+
 interface WorkOrder {
   _id: string;
   workOrderNumber: string;
@@ -24,7 +40,7 @@ interface WorkOrder {
   source: string;
   scheduledDate?: string;
   clientSnapshot?: { name?: string };
-  assignedTechnicians?: Array<{ _id: string; name: string } | string>;
+  assignedTechnicians?: Array<{ _id: string; name: string; email?: string } | string>;
 }
 
 interface ListResponse {
@@ -86,22 +102,13 @@ function technicianName(wo: WorkOrder): string {
   return typeof t === 'object' ? t.name : t;
 }
 
-function sourceBadge(source: string): { label: string; variant: string } {
-  switch (source) {
-    case 'technical_visit':
-      return { label: 'VT', variant: 'bg-purple-100 text-purple-700' };
-    case 'lead_conversion':
-    case 'maintenance_contract':
-    case 'direct_sale':
-      return { label: 'OT', variant: 'bg-blue-100 text-blue-700' };
-    default:
-      return { label: '—', variant: 'bg-gray-100 text-gray-700' };
-  }
+function sourceBadge(_source: string): { label: string; variant: string } {
+  return { label: 'OT', variant: 'bg-blue-100 text-blue-700' };
 }
 
 export default function WorkOrdersPage() {
   const router = useRouter();
-  const { isAdmin } = useRole();
+  const { isAdmin, isTechnician, user } = useRole();
   const [orders, setOrders] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -315,110 +322,127 @@ const params: Record<string, string> = {};
                 </tr>
               </thead>
               <tbody>
-                {orders.map((wo) => (
-                  <tr
-                    key={wo._id}
-                    className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors"
-                  >
-                    <td className="px-5 py-3">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${sourceBadge(wo.source).variant}`}>
-                        {sourceBadge(wo.source).label}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3 font-medium text-gray-900">#{shortWO(wo.workOrderNumber)}</td>
-                    <td className="px-5 py-3 font-medium text-gray-900">{wo.title}</td>
-                    <td className="px-5 py-3 text-gray-700">{clientName(wo)}</td>
-                    <td className="px-5 py-3">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[wo.status] || 'bg-gray-100 text-gray-700'}`}>
-                        {label(STATUS_OPTIONS, wo.status)}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${PRIORITY_VARIANT[wo.priority] || 'bg-gray-100 text-gray-700'}`}>
-                        {label(PRIORITY_OPTIONS, wo.priority)}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3 text-gray-500">{formatDate(wo.scheduledDate)}</td>
-                    <td className="px-5 py-3 text-gray-500">{technicianName(wo)}</td>
-                    <td className="px-5 py-3">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          router.push(`/work-orders/${wo._id}`);
-                        }}
-                        className="text-xs font-medium text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 px-3 py-1.5 rounded-lg transition-colors"
-                      >
-                        Ver
-                      </button>
-                      {!isAdmin && (wo.status === 'scheduled' || wo.status === 'assigned') && (
+                {orders.map((wo, idx) => {
+                  const isOwn = isTechAssigned(wo, isTechnician ? user.name : null, isTechnician ? user.email : null);
+                  const rowBg = idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/60';
+                  return (
+                    <tr
+                      key={wo._id}
+                      className={`${rowBg} border-b border-gray-100 last:border-0 hover:bg-gray-100 transition-colors`}
+                    >
+                      <td className="px-5 py-3">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${sourceBadge(wo.source).variant}`}>
+                            {sourceBadge(wo.source).label}
+                          </span>
+                          {isOwn && (
+                            <span className="text-yellow-500 shrink-0" title="Asignada a ti">★</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-5 py-3 font-medium text-gray-900">#{shortWO(wo.workOrderNumber)}</td>
+                      <td className="px-5 py-3 font-medium text-gray-900">{wo.title}</td>
+                      <td className="px-5 py-3 text-gray-700">{clientName(wo)}</td>
+                      <td className="px-5 py-3">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[wo.status] || 'bg-gray-100 text-gray-700'}`}>
+                          {label(STATUS_OPTIONS, wo.status)}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${PRIORITY_VARIANT[wo.priority] || 'bg-gray-100 text-gray-700'}`}>
+                          {label(PRIORITY_OPTIONS, wo.priority)}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3 text-gray-500">{formatDate(wo.scheduledDate)}</td>
+                      <td className="px-5 py-3 text-gray-500">{technicianName(wo)}</td>
+                      <td className="px-5 py-3">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setSelfAssignWO({ id: wo._id, number: wo.workOrderNumber });
-                            setSelfAssignOpen(true);
+                            router.push(`/work-orders/${wo._id}`);
                           }}
-                          className="text-xs font-medium text-brand-600 hover:text-brand-700 transition-colors"
+                          className="text-xs font-medium text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 px-3 py-1.5 rounded-lg transition-colors"
                         >
-                          Auto-asignar
+                          Ver
                         </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                        {!isAdmin && !isOwn && (wo.status === 'scheduled' || wo.status === 'assigned') && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelfAssignWO({ id: wo._id, number: wo.workOrderNumber });
+                              setSelfAssignOpen(true);
+                            }}
+                            className="text-xs font-medium text-brand-600 hover:text-brand-700 transition-colors"
+                          >
+                            Auto-asignar
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
 <div className="sm:hidden space-y-3">
-            {orders.map((wo) => (
-              <div
-                key={wo._id}
-                className="bg-white border border-gray-200 rounded-xl p-4 hover:border-gray-300 transition-colors"
-              >
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <p className="font-medium text-gray-900">{wo.title}</p>
-                    <p className="text-xs text-gray-400">#{shortWO(wo.workOrderNumber)}</p>
+            {orders.map((wo, idx) => {
+              const isOwn = isTechAssigned(wo, isTechnician ? user.name : null, isTechnician ? user.email : null);
+              return (
+                <div
+                  key={wo._id}
+                  className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'} border border-gray-200 rounded-xl p-4 hover:border-gray-300 transition-colors`}
+                >
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex items-center gap-1.5">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${sourceBadge(wo.source).variant}`}>
+                        {sourceBadge(wo.source).label}
+                      </span>
+                      {isOwn && (
+                        <span className="text-yellow-500 text-sm" title="Asignada a ti">★</span>
+                      )}
+                      <p className="font-medium text-gray-900">{wo.title}</p>
+                    </div>
+                    <div className="flex gap-1">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[wo.status] || 'bg-gray-100 text-gray-700'}`}>
+                        {label(STATUS_OPTIONS, wo.status)}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex gap-1">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[wo.status] || 'bg-gray-100 text-gray-700'}`}>
-                      {label(STATUS_OPTIONS, wo.status)}
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400">
+                    <span className="text-gray-700">{clientName(wo)}</span>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${PRIORITY_VARIANT[wo.priority] || 'bg-gray-100 text-gray-700'}`}>
+                      {label(PRIORITY_OPTIONS, wo.priority)}
                     </span>
+                    <span>Programado: {formatDate(wo.scheduledDate)}</span>
+                    <span>Técnico: {technicianName(wo)}</span>
                   </div>
-                </div>
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400">
-                  <span className="text-gray-700">{clientName(wo)}</span>
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${PRIORITY_VARIANT[wo.priority] || 'bg-gray-100 text-gray-700'}`}>
-                    {label(PRIORITY_OPTIONS, wo.priority)}
-                  </span>
-                  <span>Programado: {formatDate(wo.scheduledDate)}</span>
-                  <span>Técnico: {technicianName(wo)}</span>
-                </div>
-                <div className="mt-2 pt-2 border-t border-gray-100 flex gap-2">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      router.push(`/work-orders/${wo._id}`);
-                    }}
-                    className="flex-1 text-xs font-medium text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 px-3 py-1.5 rounded-lg text-center transition-colors"
-                  >
-                    Ver
-                  </button>
-                  {!isAdmin && (wo.status === 'scheduled' || wo.status === 'assigned') && (
+                  <div className="mt-2 pt-2 border-t border-gray-100 flex gap-2">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
-                        setSelfAssignWO({ id: wo._id, number: wo.workOrderNumber });
-                        setSelfAssignOpen(true);
+                        router.push(`/work-orders/${wo._id}`);
                       }}
-                      className="flex-1 text-xs font-medium text-brand-600 hover:text-brand-700 transition-colors"
+                      className="flex-1 text-xs font-medium text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 px-3 py-1.5 rounded-lg text-center transition-colors"
                     >
-                      Auto-asignar
+                      Ver
                     </button>
-                  )}
+                    {!isAdmin && !isOwn && (wo.status === 'scheduled' || wo.status === 'assigned') && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelfAssignWO({ id: wo._id, number: wo.workOrderNumber });
+                          setSelfAssignOpen(true);
+                        }}
+                        className="flex-1 text-xs font-medium text-brand-600 hover:text-brand-700 transition-colors"
+                      >
+                        Auto-asignar
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </>
       )}

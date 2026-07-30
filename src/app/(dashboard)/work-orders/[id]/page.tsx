@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { api, unwrapData } from '@/lib/api-client';
 import { VisitReportForm } from '@/operations/components/VisitReportForm';
+import { SelfAssignmentDrawer } from '@/operations/components/SelfAssignmentDrawer';
 import { formatDateLong as formatDate } from '@/operations/helpers/date-utils';
 import { useRole } from '@/dashboard/context/role-context';
 
@@ -167,6 +168,9 @@ export default function WorkOrderDetailPage() {
   const [report, setReport] = useState<VisitReport | null>(null);
   const [loadingReport, setLoadingReport] = useState(false);
   const [showReportForm, setShowReportForm] = useState(false);
+  // Self-assignment drawer
+  const [selfAssignOpen, setSelfAssignOpen] = useState(false);
+  const [selfAssigning, setSelfAssigning] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -589,6 +593,16 @@ export default function WorkOrderDetailPage() {
               </div>
             )}
 
+            {/* Self-assign for technicians */}
+            {isTechnician && !isTerminal && (workOrder.status === 'scheduled' || workOrder.status === 'assigned') && (
+              <button
+                onClick={() => setSelfAssignOpen(true)}
+                className="w-full rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 transition-colors"
+              >
+                Auto-asignar esta OT
+              </button>
+            )}
+
             {/* Technician info - visible to all, but buttons only for non-technicians */}
             {workOrder.assignedTechnicians && workOrder.assignedTechnicians.length > 0 && (
               <div className="rounded-lg bg-brand-50 border border-brand-100 p-3 space-y-2">
@@ -682,6 +696,19 @@ export default function WorkOrderDetailPage() {
           </div>
         </div>
       </div>
+
+      <SelfAssignmentDrawer
+        isOpen={selfAssignOpen}
+        onClose={() => setSelfAssignOpen(false)}
+        workOrderId={id}
+        workOrderNumber={workOrder.workOrderNumber}
+        onAssigned={() => {
+          // Reload work order after self-assignment
+          api.get<{ data: WorkOrder }>(`/api/operations/work-orders/${id}`).then((r) => {
+            setWorkOrder(unwrapData(r));
+          }).catch(() => {});
+        }}
+      />
     </div>
   );
 }
