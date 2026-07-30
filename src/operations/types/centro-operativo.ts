@@ -16,6 +16,8 @@ export interface TechnicianWorkload {
   status: string;
   availability: string;
   specialties: string[];
+  hireDate?: string;
+  profession?: string;
   maxDailyWorkOrders: number;
   activeAssignments: number;
   activeVisits: number;

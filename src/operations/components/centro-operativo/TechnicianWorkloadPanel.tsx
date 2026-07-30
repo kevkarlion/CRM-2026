@@ -51,6 +51,25 @@ function StatItem({ label, value, color }: { label: string; value: number; color
   );
 }
 
+function formatDate(iso?: string): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+function computeTenure(iso?: string): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const now = new Date();
+  let years = now.getFullYear() - d.getFullYear();
+  let months = now.getMonth() - d.getMonth();
+  if (months < 0) { years--; months += 12; }
+  if (years < 1) return `${months} meses`;
+  return `${years} ${years === 1 ? 'año' : 'años'}${months > 0 ? ` ${months} meses` : ''}`;
+}
+
 function TechnicianCard({ tech }: { tech: TechnicianWorkload }) {
   const level = getUtilizationLevel(tech.utilization);
   const avatarColor =
@@ -68,6 +87,27 @@ function TechnicianCard({ tech }: { tech: TechnicianWorkload }) {
           <p className="text-sm font-semibold text-gray-900 truncate">{tech.name}</p>
           <p className="text-[10px] text-gray-400 capitalize">{tech.status || tech.availability}</p>
         </div>
+      </div>
+
+      {/* Extra info: hire date + specialties */}
+      <div className="mb-3 space-y-1.5">
+        {tech.hireDate && (
+          <div className="flex items-center justify-between text-[11px]">
+            <span className="text-gray-400">Ingreso</span>
+            <span className="text-gray-700 font-medium tabular-nums">
+              {formatDate(tech.hireDate)} · {computeTenure(tech.hireDate)}
+            </span>
+          </div>
+        )}
+        {tech.specialties && tech.specialties.length > 0 && (
+          <div className="flex flex-wrap gap-1 pt-1">
+            {tech.specialties.map((s, i) => (
+              <span key={i} className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-[10px] font-medium">
+                {s}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="flex items-center justify-between gap-2 mb-3">

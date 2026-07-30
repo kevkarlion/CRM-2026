@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api-client';
-import { MetricsCards } from '@/operations/components/centro-operativo/MetricsCards';
 import { WorkOrderListView } from '@/operations/components/centro-operativo/WorkOrderListView';
 import { CalendarView } from '@/operations/components/centro-operativo/CalendarView';
 import { TechnicianWorkloadPanel } from '@/operations/components/centro-operativo/TechnicianWorkloadPanel';
@@ -228,15 +227,6 @@ export default function CentroOperativoPage() {
           </div>
         ) : (
           <>
-            {/* Metrics — always visible */}
-            {dashboard && (
-              <MetricsCards
-                summary={dashboard.summary}
-                byPriority={dashboard.byPriority}
-                technicianCount={dashboard.technicians?.length}
-              />
-            )}
-
             {/* Tab content */}
             {activeTab === 'orders' && (
               <WorkOrderListView

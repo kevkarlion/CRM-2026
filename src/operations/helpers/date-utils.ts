@@ -61,3 +61,36 @@ export function formatDateMonthShort(dateStr?: string): string {
     return '—';
   }
 }
+
+/**
+ * Calculate days remaining until a scheduled date.
+ * Uses scheduledStart (ISO) if available, falls back to scheduledDate (YYYY-MM-DD).
+ * Returns a label and Tailwind color variant, or null if no date.
+ */
+export function daysRemaining(
+  scheduledStart?: string | null,
+  scheduledDate?: string | null,
+): { label: string; variant: string } | null {
+  const dateStr = scheduledStart || scheduledDate;
+  if (!dateStr) return null;
+
+  const target = parseLocalDate(dateStr);
+  if (target.getTime() === 0) return null;
+
+  // Normalize both to local midnight so we compare whole days only
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const targetDay = new Date(target.getFullYear(), target.getMonth(), target.getDate());
+  const diffDays = Math.round((targetDay.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (diffDays > 7) {
+    return { label: `Vence en ${diffDays} días`, variant: 'bg-green-50 text-green-700 ring-green-600/20' };
+  }
+  if (diffDays >= 1) {
+    return { label: `Vence en ${diffDays} días`, variant: 'bg-yellow-50 text-yellow-700 ring-yellow-600/20' };
+  }
+  if (diffDays === 0) {
+    return { label: 'Vence hoy', variant: 'bg-red-50 text-red-700 ring-red-600/20' };
+  }
+  return { label: 'Vencido', variant: 'bg-red-50 text-red-700 ring-red-600/20' };
+}
