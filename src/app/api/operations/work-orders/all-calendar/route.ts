@@ -4,6 +4,25 @@ import WorkOrderModel from '@/operations/models/work-order';
 import { TechnicalVisitModel } from '@/operations/models/technical-visit';
 import { Types } from 'mongoose';
 
+// Set timezone to Chile for consistent date handling
+process.env.TZ = 'America/Santiago';
+
+/**
+ * Convert a Date to YYYY-MM-DD string using Chile timezone (not UTC).
+ * This prevents the day-shift bug when the server is in UTC.
+ */
+function toLocalDateString(date: Date | string | undefined): string | undefined {
+  if (!date) return undefined;
+  if (typeof date === 'string') return date;
+  
+  // Create date in Chile timezone
+  const chileTime = new Date(date.toLocaleString('en-US', { timeZone: 'America/Santiago' }));
+  const year = chileTime.getFullYear();
+  const month = String(chileTime.getMonth() + 1).padStart(2, '0');
+  const day = String(chileTime.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
@@ -46,6 +65,7 @@ export async function GET(request: NextRequest) {
     console.log('[all-calendar] Found visits:', visits.length);
 
     // Map Work Orders to calendar events
+    // Note: scheduledDate is stored as String "YYYY-MM-DD" in WorkOrder schema (may have legacy Date values)
     const workOrderEvents = workOrders.map((wo) => ({
       _id: String(wo._id),
       type: 'work_order' as const,
@@ -54,7 +74,7 @@ export async function GET(request: NextRequest) {
       status: wo.status,
       priority: wo.priority,
       category: wo.category,
-      scheduledDate: typeof wo.scheduledDate === 'string' ? wo.scheduledDate : wo.scheduledDate?.toISOString().split('T')[0],
+      scheduledDate: toLocalDateString(wo.scheduledDate as any),
       scheduledStart: wo.scheduledStart?.toISOString(),
       scheduledEnd: wo.scheduledEnd?.toISOString(),
       clientSnapshot: wo.clientSnapshot,
@@ -69,6 +89,7 @@ export async function GET(request: NextRequest) {
     }));
 
     // Map Technical Visits to calendar events
+    // Note: scheduledDate is Date in TechnicalVisit schema - convert to local YYYY-MM-DD
     const visitEvents = visits.map((tv) => ({
       _id: String(tv._id),
       type: 'technical_visit' as const,
@@ -77,7 +98,7 @@ export async function GET(request: NextRequest) {
       status: tv.status,
       priority: tv.priority,
       category: tv.category,
-      scheduledDate: tv.scheduledDate ? (typeof tv.scheduledDate === 'string' ? tv.scheduledDate : tv.scheduledDate.toISOString().split('T')[0]) : undefined,
+      scheduledDate: toLocalDateString(tv.scheduledDate as any),
       scheduledStart: tv.scheduledStart?.toISOString(),
       scheduledEnd: tv.scheduledEnd?.toISOString(),
       clientSnapshot: tv.clientSnapshot,

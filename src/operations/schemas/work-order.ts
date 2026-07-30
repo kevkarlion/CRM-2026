@@ -17,6 +17,18 @@ const clientSnapshotSchema = new Schema({
   status: String,
 }, { _id: false });
 
+const locationDetailsSchema = new Schema({
+  floor: String,
+  apartment: String,
+  tower: String,
+  office: String,
+  neighborhood: String,
+  block: String,
+  lot: String,
+  reference: String,
+  observations: String,
+}, { _id: false });
+
 const locationSnapshotSchema = new Schema({
   name: String,
   address: String,
@@ -24,6 +36,19 @@ const locationSnapshotSchema = new Schema({
   province: String,
   country: String,
   postalCode: String,
+  // Google Maps coordinates
+  latitude: Number,
+  longitude: Number,
+  placeId: String,
+  // Additional location details
+  details: { type: locationDetailsSchema, default: null },
+}, { _id: false });
+
+// Schema para campos adicionales del técnico
+const technicianNotesSchema = new Schema({
+  materials: { type: String, default: null },       // Materiales que necesita
+  tools: { type: String, default: null },           // Herramientas requeridas
+  additionalNotes: { type: String, default: null }, // Notas adicionales
 }, { _id: false });
 
 const equipmentSnapshotSchema = new Schema({
@@ -51,9 +76,11 @@ export const workOrderSchema = new Schema<IWorkOrder>(
     equipmentId: { type: Schema.Types.ObjectId, ref: 'Equipment', default: null },
     quoteId: { type: Schema.Types.ObjectId, ref: 'Quote', default: null },
     clientSnapshot: { type: clientSnapshotSchema, required: true },
-    locationSnapshot: { type: locationSnapshotSchema, required: false },
+    locationSnapshot: { type: locationSnapshotSchema, required: true },
     equipmentSnapshot: { type: equipmentSnapshotSchema, default: null },
     contractSnapshot: { type: contractSnapshotSchema, default: null },
+    // Campos adicionales para el técnico
+    technicianNotes: { type: technicianNotesSchema, default: null },
     source: { type: String, enum: ['manual', 'maintenance_contract', 'lead_conversion', 'direct_sale'], required: true, default: 'manual' },
     workOrderNumber: { type: String, required: true },
     title: { type: String, required: true },

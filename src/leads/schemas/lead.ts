@@ -62,6 +62,7 @@ export const leadSchema = new Schema<ILead>(
       b2b: { type: Number, default: 0 },
     },
     convertedToClient: { type: Schema.Types.ObjectId, ref: 'Client' },
+    convertedToWorkOrder: { type: Schema.Types.ObjectId, ref: 'WorkOrder' },
     convertedAt: { type: Date },
     createdBy: { type: String, required: true },
     updatedBy: { type: String, required: true },

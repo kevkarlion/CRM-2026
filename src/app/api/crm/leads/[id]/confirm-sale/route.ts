@@ -259,6 +259,13 @@ export async function POST(
       
       const [workOrder] = await WorkOrderModel.create([workOrderData], { session });
 
+      // Link work order to the lead
+      await LeadModel.updateOne(
+        { _id: lead._id, tenantId: new Types.ObjectId(tenantId) },
+        { $set: { convertedToWorkOrder: workOrder._id } },
+        { session }
+      );
+
       // Link quotes to the work order so hasWorkOrder resolves correctly
       if (saleMode === 'quotes' && quoteIds) {
         await QuoteModel.updateMany(
@@ -380,6 +387,8 @@ export async function POST(
       return NextResponse.json({
         success: true,
         clientId: clientId.toString(),
+        workOrderId: workOrder?._id.toString() || null,
+        workOrderNumber: workOrder?.workOrderNumber || null,
         totalAmount,
         quotesApproved,
         saleMode,

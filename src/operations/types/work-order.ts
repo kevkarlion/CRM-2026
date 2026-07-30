@@ -14,13 +14,31 @@ export interface IClientSnapshot {
   status?: string;
 }
 
+export interface ILocationDetails {
+  floor?: string;
+  apartment?: string;
+  tower?: string;
+  office?: string;
+  neighborhood?: string;
+  block?: string;
+  lot?: string;
+  reference?: string;
+  observations?: string;
+}
+
 export interface ILocationSnapshot {
   name?: string;
-  address?: string;
+  address: string; // Obligatorio
   city?: string;
   province?: string;
   country?: string;
   postalCode?: string;
+  // Google Maps coordinates
+  latitude?: number;
+  longitude?: number;
+  placeId?: string;
+  // Additional location details
+  details?: ILocationDetails | null;
 }
 
 export interface IEquipmentSnapshot {
@@ -39,6 +57,13 @@ export interface IContractSnapshot {
   equipmentIds: Types.ObjectId[];
 }
 
+// Campos adicionales para el técnico
+export interface ITechnicianNotes {
+  materials?: string;       // Materiales que necesita
+  tools?: string;           // Herramientas requeridas
+  additionalNotes?: string; // Notas adicionales
+}
+
 export type WorkOrderSource = 'manual' | 'maintenance_contract';
 
 export interface IWorkOrder extends Document, IAuditFields {
@@ -53,6 +78,7 @@ export interface IWorkOrder extends Document, IAuditFields {
   locationSnapshot: ILocationSnapshot;
   equipmentSnapshot: IEquipmentSnapshot | null;
   contractSnapshot?: IContractSnapshot;
+  technicianNotes?: ITechnicianNotes; // Campos adicionales para el técnico
   source: WorkOrderSource;
   workOrderNumber: string;
   title: string;

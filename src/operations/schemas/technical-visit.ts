@@ -15,10 +15,10 @@ export interface ITechnicalVisit {
     phone?: string;
   };
   
-  // Location data (snapshot)
+  // Location data (snapshot) - address es obligatorio
   locationSnapshot?: {
     name?: string;
-    address?: string;
+    address: string;
     city?: string;
     province?: string;
   };
@@ -56,6 +56,13 @@ export interface ITechnicalVisit {
   
   // Assigned technician
   assignedTechnicianId?: import('mongoose').Types.ObjectId;
+  
+  // Campos adicionales para el técnico
+  technicianNotes?: {
+    materials?: string;
+    tools?: string;
+    additionalNotes?: string;
+  };
   
   // Audit
   createdBy: import('mongoose').Types.ObjectId;

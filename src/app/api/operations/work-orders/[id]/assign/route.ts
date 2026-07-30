@@ -3,20 +3,36 @@ import { connectDB } from '@/core/db';
 import { workAssignmentService } from '@/operations/services/work-assignment.service';
 import WorkOrderModel from '@/operations/models/work-order';
 import { requireAssignPermission } from '@/rbac/api-helpers';
+import { Types } from 'mongoose';
+
+// Helper: resolve workOrderId from param (could be _id or workOrderNumber)
+async function resolveWorkOrderId(id: string, tenantId: string): Promise<string> {
+  // Try as ObjectId first
+  if (Types.ObjectId.isValid(id) && id.length === 24) {
+    const wo = await WorkOrderModel.findOne({ _id: id, tenantId, deletedAt: null }).select('_id').lean();
+    if (wo) return id;
+  }
+  // Try as workOrderNumber
+  const woByNumber = await WorkOrderModel.findOne({ workOrderNumber: id, tenantId, deletedAt: null }).select('_id').lean();
+  if (woByNumber) return String(woByNumber._id);
+  // Return original - let it fail downstream
+  return id;
+}
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     await connectDB();
     const { id } = await params;
-    const tenantId = _request.headers.get('x-tenant-id') || '';
+    const tenantId = request.headers.get('x-tenant-id') || '';
     if (!tenantId) {
       return NextResponse.json({ error: 'x-tenant-id header is required' }, { status: 400 });
     }
 
-    const data = await workAssignmentService.getCurrentAssignment(id, tenantId);
+    const workOrderId = await resolveWorkOrderId(id, tenantId);
+    const data = await workAssignmentService.getCurrentAssignment(workOrderId, tenantId);
     return NextResponse.json({ data });
   } catch (error) {
     return NextResponse.json(
@@ -45,6 +61,9 @@ export async function POST(
       return NextResponse.json({ error: 'x-tenant-id and x-user-id headers are required' }, { status: 400 });
     }
 
+    // Resolve workOrderId (could be _id or workOrderNumber)
+    const workOrderId = await resolveWorkOrderId(id, tenantId);
+
     const body = await request.json() as { action: string; technicianId?: string; oldTechnicianId?: string; newTechnicianId?: string };
     const { action } = body;
 
@@ -58,7 +77,15 @@ export async function POST(
         if (!technicianId) {
           return NextResponse.json({ error: 'technicianId is required for assign' }, { status: 400 });
         }
-        const assignment = await workAssignmentService.createAssignment(id, technicianId, userId, tenantId, {
+        
+        const { Types } = await import('mongoose');
+        
+        // Add technician to work order's assignedTechnicians array
+        await WorkOrderModel.findByIdAndUpdate(workOrderId, {
+          $addToSet: { assignedTechnicians: new Types.ObjectId(technicianId) },
+        });
+        
+        const assignment = await workAssignmentService.createAssignment(workOrderId, technicianId, userId, tenantId, {
           assignmentType: 'manual',
           reason: 'other',
         });
@@ -70,7 +97,18 @@ export async function POST(
         if (!oldTechnicianId || !newTechnicianId) {
           return NextResponse.json({ error: 'oldTechnicianId and newTechnicianId are required for reassign' }, { status: 400 });
         }
-        const assignment = await workAssignmentService.replaceTechnician(id, newTechnicianId, userId, tenantId, 'replacement');
+        
+        const { Types } = await import('mongoose');
+        
+        // Update work order's assignedTechnicians array
+        await WorkOrderModel.findByIdAndUpdate(workOrderId, {
+          $pull: { assignedTechnicians: new Types.ObjectId(oldTechnicianId) },
+        });
+        await WorkOrderModel.findByIdAndUpdate(workOrderId, {
+          $addToSet: { assignedTechnicians: new Types.ObjectId(newTechnicianId) },
+        });
+        
+        const assignment = await workAssignmentService.replaceTechnician(workOrderId, newTechnicianId, userId, tenantId, 'replacement');
         return NextResponse.json({ data: assignment }, { status: 201 });
       }
 
@@ -79,7 +117,7 @@ export async function POST(
         if (!technicianId) {
           return NextResponse.json({ error: 'technicianId is required for unassign' }, { status: 400 });
         }
-        const current = await workAssignmentService.getCurrentAssignment(id, tenantId);
+        const current = await workAssignmentService.getCurrentAssignment(workOrderId, tenantId);
         if (current) {
           const WorkOrderAssignmentModel = (await import('@/operations/models/work-order-assignment')).default;
           await WorkOrderAssignmentModel.findByIdAndUpdate(current._id, {
@@ -88,14 +126,14 @@ export async function POST(
         }
         // Remove technician from assignedTechnicians
         const { Types } = await import('mongoose');
-        await WorkOrderModel.findByIdAndUpdate(id, {
+        await WorkOrderModel.findByIdAndUpdate(workOrderId, {
           $pull: { assignedTechnicians: new Types.ObjectId(technicianId) },
         });
         // Check if any technicians remain — if not, downgrade status to confirmed
         const wo = await WorkOrderModel.findById(id).select('assignedTechnicians status');
         const remaining = (wo?.assignedTechnicians || []).length;
         if (remaining === 0) {
-          await WorkOrderModel.findByIdAndUpdate(id, {
+          await WorkOrderModel.findByIdAndUpdate(workOrderId, {
             $set: { status: 'confirmed', updatedBy: new Types.ObjectId(userId) },
           });
         }

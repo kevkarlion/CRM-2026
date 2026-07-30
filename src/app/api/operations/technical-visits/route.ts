@@ -19,11 +19,15 @@ export async function GET(request: NextRequest) {
     const from = searchParams.get('from') || undefined;
     const to = searchParams.get('to') || undefined;
     const leadId = searchParams.get('leadId') || undefined;
+    const search = searchParams.get('search') || undefined;
+    const technicianId = searchParams.get('technicianId') || undefined;
 
     const filters: Record<string, unknown> = {};
     if (status) filters.status = status;
     if (priority) filters.priority = priority;
     if (leadId) filters.leadId = leadId;
+    if (search) filters.search = search;
+    if (technicianId) filters.technicianId = technicianId;
     if (from || to) {
       filters.scheduledDateGte = from ? new Date(from) : undefined;
       filters.scheduledDateLte = to ? new Date(to) : undefined;

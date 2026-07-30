@@ -68,8 +68,20 @@ function LoginForm() {
       const cookieAfter = document.cookie;
       log(`Cookies after response: ${cookieAfter || 'NONE (httpOnly expected)'}`);
 
-      log('READY TO REDIRECT — fix applied, redirect is OFF for debug');
-      // window.location.href = redirectTo;  // <-- DISABLED FOR DEBUG
+      // Determine redirect based on user role
+      const userRoles = (data.user as any)?.roles || [];
+      let finalRedirect = redirectTo;
+      
+      if (userRoles.includes('Technician')) {
+        finalRedirect = '/dashboard/technician';
+        log('Role is Technician, redirecting to /dashboard/technician');
+      } else if (userRoles.includes('Supervisor') || userRoles.includes('Dispatcher')) {
+        finalRedirect = '/dashboard/supervisor';
+        log('Role is Supervisor/Dispatcher, redirecting to /dashboard/supervisor');
+      }
+
+      log(`READY TO REDIRECT to: ${finalRedirect}`);
+      window.location.href = finalRedirect;
       setLoading(false);
     } catch (err) {
       log(`CATCH: ${err instanceof Error ? err.message : String(err)}`);

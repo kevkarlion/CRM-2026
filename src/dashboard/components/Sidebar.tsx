@@ -16,11 +16,15 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { label: 'Resumen', href: '/dashboard', icon: '⊟', roles: ['Owner', 'Administrator', 'Supervisor', 'Sales', 'Accounting', 'Dispatcher', 'Technician'] },
+  // Resumen solo para roles administrativos, no para técnico
+  { label: 'Resumen', href: '/dashboard', icon: '⊟', roles: ['Owner', 'Administrator', 'Supervisor', 'Sales', 'Accounting', 'Dispatcher'] },
+  // Panel del Técnico
+  { label: 'Mi Panel', href: '/dashboard/technician', icon: '🔧', roles: ['Technician'] },
   { label: 'Operaciones', href: '/dashboard/supervisor', icon: '⚙', roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher'] },
   { label: 'Comercial', href: '/dashboard/commercial', icon: '📊', roles: ['Owner', 'Administrator', 'Sales', 'Supervisor'] },
   { label: 'Pipeline', href: '/leads/pipeline', icon: '📋', roles: ['Owner', 'Administrator', 'Supervisor', 'Sales'] },
-  { label: 'Técnicos', href: '/dashboard/technician', icon: '🔧', roles: ['Technician', 'Supervisor', 'Dispatcher'] },
+  // Lista de técnicos - solo para supervisor/dispatcher
+  { label: 'Técnicos', href: '/dashboard/technicians', icon: '👥', roles: ['Supervisor', 'Dispatcher'] },
   { label: 'Admin', href: '/dashboard/admin', icon: '⚙', roles: ['Owner', 'Administrator'] },
   { label: 'Leads', href: '/leads', icon: '📋', roles: ['Sales', 'Administrator', 'Owner', 'Supervisor'] },
   { label: 'Quotes', href: '/quotes', icon: '📄', roles: ['Sales', 'Administrator', 'Owner', 'Supervisor'] },

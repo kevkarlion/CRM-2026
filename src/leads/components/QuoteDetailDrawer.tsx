@@ -62,6 +62,7 @@ const QUOTE_STATUS_LABELS: Record<string, string> = {
   rejected: 'Rechazado',
   expired: 'Expirado',
   cancelled: 'Cancelado',
+  direct_sale: 'Venta Directa',
 };
 
 const QUOTE_STATUS_VARIANT: Record<string, string> = {
@@ -71,6 +72,7 @@ const QUOTE_STATUS_VARIANT: Record<string, string> = {
   rejected: 'bg-danger-50 text-danger-700',
   expired: 'bg-warning-50 text-warning-700',
   cancelled: 'bg-gray-100 text-gray-500',
+  direct_sale: 'bg-success-50 text-success-700',
 };
 
 const ITEM_TYPE_LABELS: Record<string, string> = {
@@ -158,11 +160,14 @@ export function QuoteDetailDrawer({ isOpen, onClose, quoteId }: QuoteDetailDrawe
 
   if (!isOpen) return null;
 
+  const isDirectSale = quote?.status === 'direct_sale';
+  const titlePrefix = isDirectSale ? 'Venta Directa' : 'Presupuesto';
+
   return (
     <Drawer
       isOpen={isOpen}
       onClose={onClose}
-      title={`Presupuesto #${quote?.number || ''}`}
+      title={`${titlePrefix} #${quote?.number || ''}`}
     >
       {loading ? (
         <div className="space-y-4">
@@ -232,34 +237,43 @@ export function QuoteDetailDrawer({ isOpen, onClose, quoteId }: QuoteDetailDrawe
           {/* Items */}
           <div>
             <p className="text-sm font-medium text-gray-700 mb-2">Ítems</p>
-            <div className="border border-gray-200 rounded-lg overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="text-left px-3 py-2 font-medium text-gray-500">Tipo</th>
-                    <th className="text-left px-3 py-2 font-medium text-gray-500">Descripción</th>
-                    <th className="text-center px-3 py-2 font-medium text-gray-500">Cant.</th>
-                    <th className="text-right px-3 py-2 font-medium text-gray-500">Unitario</th>
-                    <th className="text-right px-3 py-2 font-medium text-gray-500">Total</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {currentVersion?.items.map((item, index) => (
-                    <tr key={index}>
-                      <td className="px-3 py-2 text-gray-600">
-                        <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">
-                          {ITEM_TYPE_LABELS[item.type] || item.type}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2 text-gray-900">{item.description}</td>
-                      <td className="px-3 py-2 text-center text-gray-600">{item.quantity}</td>
-                      <td className="px-3 py-2 text-right text-gray-600">${item.unitPrice.toLocaleString()}</td>
-                      <td className="px-3 py-2 text-right font-medium text-gray-900">${item.subtotal.toLocaleString()}</td>
+            {currentVersion?.items && currentVersion.items.length > 0 ? (
+              <div className="border border-gray-200 rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="text-left px-3 py-2 font-medium text-gray-500">Tipo</th>
+                      <th className="text-left px-3 py-2 font-medium text-gray-500">Descripción</th>
+                      <th className="text-center px-3 py-2 font-medium text-gray-500">Cant.</th>
+                      <th className="text-right px-3 py-2 font-medium text-gray-500">Unitario</th>
+                      <th className="text-right px-3 py-2 font-medium text-gray-500">Total</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {currentVersion.items.map((item, index) => (
+                      <tr key={index}>
+                        <td className="px-3 py-2 text-gray-600">
+                          <span className="text-xs bg-gray-100 px-2 py-0.5 rounded">
+                            {ITEM_TYPE_LABELS[item.type] || item.type}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-gray-900">{item.description}</td>
+                        <td className="px-3 py-2 text-center text-gray-600">{item.quantity}</td>
+                        <td className="px-3 py-2 text-right text-gray-600">${item.unitPrice.toLocaleString()}</td>
+                        <td className="px-3 py-2 text-right font-medium text-gray-900">${item.subtotal.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="text-center py-8 bg-gray-50 rounded-lg">
+                <p className="text-gray-500 text-sm">Venta directa - sin detalle de ítems</p>
+                {quote.description && (
+                  <p className="text-gray-700 mt-2">{quote.description}</p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Totales */}

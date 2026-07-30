@@ -59,6 +59,7 @@ export interface TechnicianLoad {
   techId: string;
   name: string;
   assignedCount: number;
+  maxDailyLoad?: number; // Límite diario desde la DB
 }
 
 export interface OperationsResponse {
@@ -146,6 +147,19 @@ export interface TechnicianDashboardResponse {
   pendingOrders: number;
   inProgressOrders: number;
   upcomingSevenDays: number;
+  maxDailyLoad: number; // Límite diario de tareas desde la DB
+  // Datos globales para el técnico
+  globalStats?: {
+    totalUnassignedOrders: number;
+    totalUnassignedVisits: number;
+    ordersExpiringSoon: number;
+    urgentOrders: number;
+    // Vencidas y por vencer
+    expiredOrders: number;
+    expiredVisits: number;
+    ordersDueSoon: number;
+    visitsDueSoon: number;
+  };
   sla: SLAMetrics;
   technicianLoad: TechnicianLoad[];
   workOrders: TechnicianWorkOrder[];

@@ -5,6 +5,13 @@ import { useRouter, useParams } from 'next/navigation';
 import { api } from '@/lib/api-client';
 import { VisitReportForm } from '@/operations/components/VisitReportForm';
 import { formatDateLong as formatDate } from '@/operations/helpers/date-utils';
+import { useRole } from '@/dashboard/context/role-context';
+
+// Helper to get short WO number (last 7 chars)
+function shortWO(number: string): string {
+  if (!number) return '';
+  return number.slice(-7);
+}
 
 interface WorkOrder {
   _id: string;
@@ -16,13 +23,19 @@ interface WorkOrder {
   status: string;
   source: string;
   clientSnapshot?: { name?: string; email?: string; phone?: string };
-  locationSnapshot?: { name?: string; address?: string };
+  locationSnapshot?: { name?: string; address?: string; city?: string; province?: string };
   equipmentSnapshot?: { equipmentType?: string; brand?: string; model?: string; serialNumber?: string } | null;
   scheduledDate?: string;
   scheduledStart?: string;
   scheduledEnd?: string;
   estimatedDuration?: number;
   assignedTechnicians?: Array<{ _id: string; name: string; email?: string } | string>;
+  // Campos adicionales para el técnico
+  technicianNotes?: {
+    materials?: string;
+    tools?: string;
+    additionalNotes?: string;
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -131,10 +144,12 @@ export default function WorkOrderDetailPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
+  const { isAdmin, isTechnician } = useRole();
 
   const [workOrder, setWorkOrder] = useState<WorkOrder | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'tecnico' | 'cliente'>('tecnico');
   const [deleting, setDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [changingStatus, setChangingStatus] = useState(false);
@@ -348,7 +363,7 @@ export default function WorkOrderDetailPage() {
           </button>
           <div>
             <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{workOrder.title}</h1>
-            <p className="text-sm text-gray-500">{workOrder.workOrderNumber}</p>
+            <p className="text-sm text-gray-500">#{shortWO(workOrder.workOrderNumber)}</p>
           </div>
           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[workOrder.status]}`}>
             {STATUS_OPTIONS[workOrder.status] || workOrder.status}
@@ -363,161 +378,180 @@ export default function WorkOrderDetailPage() {
         <div className="rounded-lg bg-danger-50 px-4 py-3 text-sm text-danger-700">{error}</div>
       )}
 
+      {/* Tabs para navegación rápida */}
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex space-x-4">
+          <button
+            onClick={() => setActiveTab('tecnico')}
+            className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+              activeTab === 'tecnico'
+                ? 'border-brand-500 text-brand-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            🔧 Información del Técnico
+          </button>
+          <button
+            onClick={() => setActiveTab('cliente')}
+            className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+              activeTab === 'cliente'
+                ? 'border-brand-500 text-brand-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            👤 Cliente y Ubicación
+          </button>
+        </nav>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white border border-gray-200 rounded-xl p-6">
-            <h2 className="text-base font-semibold text-gray-900 mb-4">Información General</h2>
-            <dl className="divide-y divide-gray-100">
-              <DetailRow label="# OT" value={workOrder.workOrderNumber} />
-              <DetailRow label="Título" value={workOrder.title} />
-              <DetailRow label="Prioridad" value={PRIORITY_LABELS[workOrder.priority] || workOrder.priority} />
-              <DetailRow label="Categoría" value={workOrder.category} />
-              <DetailRow label="Origen" value={workOrder.source === 'maintenance_contract' ? 'Contrato Mantención' : 'Manual'} />
-              <DetailRow label="Técnico Asignado" value={technicianName(workOrder)} />
-              <DetailRow label="Creado" value={formatDate(workOrder.createdAt)} />
-              <DetailRow label="Actualizado" value={formatDate(workOrder.updatedAt)} />
-            </dl>
-          </div>
+        <div className="lg:col-span-2 space-y-4">
+          {/* Pestaña: Información del Técnico */}
+          {activeTab === 'tecnico' && (
+            <>
+              {/* Información para el Técnico */}
+              {(workOrder.technicianNotes?.materials || workOrder.technicianNotes?.tools || workOrder.technicianNotes?.additionalNotes) && (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                  <h2 className="text-sm font-semibold text-blue-900 mb-3">📋 Lo que necesitás saber</h2>
+                  <dl className="space-y-2">
+                    {workOrder.technicianNotes.materials && (
+                      <div className="flex flex-col">
+                        <dt className="text-xs font-medium text-blue-700">🎒 Materiales</dt>
+                        <dd className="text-sm text-blue-900">{workOrder.technicianNotes.materials}</dd>
+                      </div>
+                    )}
+                    {workOrder.technicianNotes.tools && (
+                      <div className="flex flex-col">
+                        <dt className="text-xs font-medium text-blue-700">🔧 Herramientas</dt>
+                        <dd className="text-sm text-blue-900">{workOrder.technicianNotes.tools}</dd>
+                      </div>
+                    )}
+                    {workOrder.technicianNotes.additionalNotes && (
+                      <div className="flex flex-col">
+                        <dt className="text-xs font-medium text-blue-700">📝 Notas</dt>
+                        <dd className="text-sm text-blue-900">{workOrder.technicianNotes.additionalNotes}</dd>
+                      </div>
+                    )}
+                  </dl>
+                </div>
+              )}
 
-          {(workOrder.clientSnapshot?.name || workOrder.locationSnapshot?.name) && (
-            <div className="bg-white border border-gray-200 rounded-xl p-6">
-              <h2 className="text-base font-semibold text-gray-900 mb-4">Cliente y Ubicación</h2>
-              <dl className="divide-y divide-gray-100">
-                {workOrder.clientSnapshot?.name && (
-                  <DetailRow label="Cliente" value={workOrder.clientSnapshot.name} />
-                )}
-                {workOrder.clientSnapshot?.email && (
-                  <DetailRow label="Email" value={workOrder.clientSnapshot.email} />
-                )}
-                {workOrder.clientSnapshot?.phone && (
-                  <DetailRow label="Teléfono" value={workOrder.clientSnapshot.phone} />
-                )}
-                {workOrder.locationSnapshot?.name && (
-                  <DetailRow label="Lugar" value={workOrder.locationSnapshot.name} />
-                )}
-                {workOrder.locationSnapshot?.address && (
-                  <DetailRow label="Dirección" value={workOrder.locationSnapshot.address} />
-                )}
-              </dl>
-            </div>
-          )}
-
-          {workOrder.equipmentSnapshot && (workOrder.equipmentSnapshot.equipmentType || workOrder.equipmentSnapshot.brand) && (
-            <div className="bg-white border border-gray-200 rounded-xl p-6">
-              <h2 className="text-base font-semibold text-gray-900 mb-4">Equipo</h2>
-              <dl className="divide-y divide-gray-100">
-                <DetailRow label="Tipo" value={workOrder.equipmentSnapshot.equipmentType || '—'} />
-                <DetailRow label="Marca" value={workOrder.equipmentSnapshot.brand || '—'} />
-                <DetailRow label="Modelo" value={workOrder.equipmentSnapshot.model || '—'} />
-                <DetailRow label="N° Serie" value={workOrder.equipmentSnapshot.serialNumber || '—'} />
-              </dl>
-            </div>
-          )}
-
-          <div className="bg-white border border-gray-200 rounded-xl p-6">
-            <h2 className="text-base font-semibold text-gray-900 mb-4">Programación</h2>
-            <dl className="divide-y divide-gray-100">
-              <DetailRow label="Fecha" value={formatDate(workOrder.scheduledDate)} />
-              <DetailRow label="Hora Inicio" value={formatTime(workOrder.scheduledStart)} />
-              <DetailRow label="Hora Término" value={formatTime(workOrder.scheduledEnd)} />
-              <DetailRow label="Duración" value={
-                workOrder.estimatedDuration ? `${workOrder.estimatedDuration} min` : '—'
-              } />
-            </dl>
-          </div>
-
-          {workOrder.description && (
-            <div className="bg-white border border-gray-200 rounded-xl p-6">
-              <h2 className="text-base font-semibold text-gray-900 mb-3">Descripción</h2>
-              <p className="text-sm text-gray-700 whitespace-pre-wrap">{workOrder.description}</p>
-            </div>
-          )}
-
-          <div className="bg-white border border-gray-200 rounded-xl p-6">
-            <h2 className="text-base font-semibold text-gray-900 mb-4">Checklist</h2>
-            {loadingChecklist ? (
-              <div className="space-y-2">
-                {[1, 2].map((i) => (
-                  <div key={i} className="h-8 bg-gray-100 rounded animate-pulse" />
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {checklist.length === 0 && (
-                  <p className="text-sm text-gray-500">Sin items en el checklist</p>
-                )}
-                {checklist.map((item) => (
-                  <label key={item._id} className="flex items-center gap-3 py-1.5 cursor-pointer group">
-                    <input
-                      type="checkbox"
-                      checked={item.completed}
-                      onChange={() => toggleCheckItem(item)}
-                      className="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
-                    />
-                    <span className={`text-sm ${item.completed ? 'line-through text-gray-400' : 'text-gray-700'}`}>
-                      {item.description}
-                    </span>
-                  </label>
-                ))}
-                <div className="flex gap-2 pt-2">
-                  <input
-                    type="text"
-                    value={newCheckItem}
-                    onChange={(e) => setNewCheckItem((e.target as any).value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCheckItem(); } }}
-                    placeholder="Nuevo item..."
-                    className="flex-1 rounded-lg border border-gray-200 px-3 py-1.5 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
-                  />
-                  <button onClick={addCheckItem} disabled={addingCheckItem || !newCheckItem.trim()}
-                    className="rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50 transition-colors">
-                    {addingCheckItem ? '...' : 'Agregar'}
-                  </button>
+              {/* Programación */}
+              <div className="bg-white border border-gray-200 rounded-xl p-4">
+                <h2 className="text-sm font-semibold text-gray-900 mb-3">📅 Cuándo ir</h2>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-500 text-xs">Fecha</span>
+                    <p className="font-medium">{formatDate(workOrder.scheduledDate)}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 text-xs">Horario</span>
+                    <p className="font-medium">{formatTime(workOrder.scheduledStart)} - {formatTime(workOrder.scheduledEnd)}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 text-xs">Duración est.</span>
+                    <p className="font-medium">{workOrder.estimatedDuration ? `${workOrder.estimatedDuration} min` : '—'}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 text-xs">Prioridad</span>
+                    <p className="font-medium">{PRIORITY_LABELS[workOrder.priority] || workOrder.priority}</p>
+                  </div>
                 </div>
               </div>
-            )}
-          </div>
 
-          {report && (
-            <div className="bg-white border border-gray-200 rounded-xl p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-base font-semibold text-gray-900">Informe de Visita</h2>
-                <button
-                  onClick={() => setShowReportForm(!showReportForm)}
-                  className="text-sm text-brand-600 hover:text-brand-700 font-medium transition-colors"
-                >
-                  {showReportForm ? 'Ver resumen' : 'Editar'}
-                </button>
-              </div>
-
-              {showReportForm ? (
-                <VisitReportForm
-                  workOrderId={id}
-                  report={report}
-                  onSaved={(updated) => setReport(updated)}
-                />
-              ) : (
-                <dl className="divide-y divide-gray-100">
-                  {report.workPerformed && <DetailRow label="Trabajo realizado" value={report.workPerformed} />}
-                  {report.observations && <DetailRow label="Observaciones" value={report.observations} />}
-                  {report.recommendations && <DetailRow label="Recomendaciones" value={report.recommendations} />}
-                  {report.materialsUsed && <DetailRow label="Materiales" value={report.materialsUsed} />}
-                  {report.materialsItems && report.materialsItems.length > 0 && (
-                    <DetailRow
-                      label="Ítems de materiales"
-                      value={report.materialsItems.map((m) => `${m.item} (${m.quantity} ${m.unit})`).join(', ')}
-                    />
-                  )}
-                  {report.needsNextVisit && <DetailRow label="Próxima visita" value="Sí" />}
-                  {report.internalComments && <DetailRow label="Comentarios internos" value={report.internalComments} />}
-                  {report.attachments && report.attachments.length > 0 && (
-                    <DetailRow
-                      label="Archivos adjuntos"
-                      value={report.attachments.map((a) => a.filename).join(', ')}
-                    />
-                  )}
-                </dl>
+              {/* Descripción del trabajo */}
+              {workOrder.description && (
+                <div className="bg-white border border-gray-200 rounded-xl p-4">
+                  <h2 className="text-sm font-semibold text-gray-900 mb-2">📋 Descripción</h2>
+                  <p className="text-sm text-gray-700">{workOrder.description}</p>
+                </div>
               )}
-            </div>
+
+              {/* Checklist */}
+              <div className="bg-white border border-gray-200 rounded-xl p-4">
+                <h2 className="text-sm font-semibold text-gray-900 mb-3">✅ Checklist</h2>
+                {loadingChecklist ? (
+                  <div className="space-y-2">
+                    {[1, 2].map((i) => <div key={i} className="h-6 bg-gray-100 rounded animate-pulse" />)}
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    {checklist.length === 0 && <p className="text-xs text-gray-500">Sin items</p>}
+                    {checklist.map((item) => (
+                      <label key={item._id} className="flex items-center gap-2 py-1 cursor-pointer">
+                        <input type="checkbox" checked={item.completed} onChange={() => toggleCheckItem(item)} className="w-4 h-4 rounded text-brand-600" />
+                        <span className={`text-sm ${item.completed ? 'line-through text-gray-400' : 'text-gray-700'}`}>{item.description}</span>
+                      </label>
+                    ))}
+                    <div className="flex gap-2 pt-2">
+                      <input type="text" value={newCheckItem} onChange={(e) => setNewCheckItem(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCheckItem(); } }} placeholder="Nuevo item..." className="flex-1 text-sm border rounded px-2 py-1" />
+                      <button onClick={addCheckItem} disabled={addingCheckItem || !newCheckItem.trim()} className="text-xs bg-brand-600 text-white px-3 py-1 rounded">{addingCheckItem ? '...' : 'Agregar'}</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {/* Pestaña: Cliente y Ubicación */}
+          {activeTab === 'cliente' && (
+            <>
+              {/* Cliente */}
+              {(workOrder.clientSnapshot?.name || workOrder.clientSnapshot?.phone) && (
+                <div className="bg-white border border-gray-200 rounded-xl p-4">
+                  <h2 className="text-sm font-semibold text-gray-900 mb-3">👤 Cliente</h2>
+                  <dl className="space-y-2 text-sm">
+                    {workOrder.clientSnapshot?.name && (
+                      <div><dt className="text-xs text-gray-500">Nombre</dt><dd className="font-medium">{workOrder.clientSnapshot.name}</dd></div>
+                    )}
+                    {workOrder.clientSnapshot?.phone && (
+                      <div><dt className="text-xs text-gray-500">Teléfono</dt><dd className="font-medium">{workOrder.clientSnapshot.phone}</dd></div>
+                    )}
+                    {workOrder.clientSnapshot?.email && (
+                      <div><dt className="text-xs text-gray-500">Email</dt><dd className="font-medium">{workOrder.clientSnapshot.email}</dd></div>
+                    )}
+                  </dl>
+                </div>
+              )}
+
+              {/* Ubicación */}
+              {workOrder.locationSnapshot?.address && (
+                <div className="bg-white border border-gray-200 rounded-xl p-4">
+                  <h2 className="text-sm font-semibold text-gray-900 mb-3">📍 Dónde ir</h2>
+                  <dl className="space-y-2 text-sm">
+                    {workOrder.locationSnapshot.name && (
+                      <div><dt className="text-xs text-gray-500">Lugar</dt><dd className="font-medium">{workOrder.locationSnapshot.name}</dd></div>
+                    )}
+                    <div><dt className="text-xs text-gray-500">Dirección</dt><dd className="font-medium">{workOrder.locationSnapshot.address}</dd></div>
+                    {workOrder.locationSnapshot.city && (
+                      <div><dt className="text-xs text-gray-500">Ciudad</dt><dd className="font-medium">{workOrder.locationSnapshot.city}</dd></div>
+                    )}
+                    {workOrder.locationSnapshot.province && (
+                      <div><dt className="text-xs text-gray-500">Provincia</dt><dd className="font-medium">{workOrder.locationSnapshot.province}</dd></div>
+                    )}
+                    {workOrder.locationSnapshot.details?.reference && (
+                      <div><dt className="text-xs text-gray-500">Referencias</dt><dd className="font-medium">{workOrder.locationSnapshot.details.reference}</dd></div>
+                    )}
+                  </dl>
+                  
+                  {/* Google Maps button - uses full address */}
+                  {(() => {
+                    const fullAddress = [
+                      workOrder.locationSnapshot.address,
+                      workOrder.locationSnapshot.city,
+                      workOrder.locationSnapshot.province
+                    ].filter(Boolean).join(', ');
+                    return (
+                      <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="mt-3 inline-flex items-center gap-2 px-4 py-2 text-sm rounded-lg border border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100 transition-colors">
+                        📍 Abrir en Google Maps
+                      </a>
+                    );
+                  })()}
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -525,14 +559,14 @@ export default function WorkOrderDetailPage() {
           <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
             <h3 className="text-sm font-semibold text-gray-900 mb-2">Acciones</h3>
 
-            {!isTerminal && (
+            {!isTerminal && isAdmin && (
               <button onClick={() => router.push(`/work-orders/${id}/edit`)}
                 className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
                 Editar OT
               </button>
             )}
 
-            {nextStatuses.length > 0 && (
+            {nextStatuses.length > 0 && isAdmin && (
               <div className="relative">
                 <button onClick={() => setShowStatusMenu(!showStatusMenu)} disabled={changingStatus}
                   className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors">
@@ -551,39 +585,37 @@ export default function WorkOrderDetailPage() {
               </div>
             )}
 
-            {!isTerminal && (
-              <>
-                {/* Current technician info */}
-                {workOrder.assignedTechnicians && workOrder.assignedTechnicians.length > 0 && (
-                  <div className="rounded-lg bg-brand-50 border border-brand-100 p-3 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-medium text-brand-700">Técnico Asignado</span>
-                      <span className="text-xs text-brand-600">{technicianName(workOrder)}</span>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => { setShowAssignInput(!showAssignInput); if (!showAssignInput) loadTechnicians(); }}
-                        className="flex-1 rounded-lg border border-brand-200 px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-100 transition-colors"
-                      >
-                        Reasignar
-                      </button>
-                      <button
-                        onClick={() => {
-                          const tech = workOrder.assignedTechnicians![0];
-                          const techId = typeof tech === 'string' ? tech : tech._id;
-                          handleUnassign(techId);
-                        }}
-                        disabled={unassigning}
-                        className="flex-1 rounded-lg border border-danger-200 px-3 py-1.5 text-xs font-medium text-danger-600 hover:bg-danger-50 disabled:opacity-50 transition-colors"
-                      >
-                        {unassigning ? '...' : 'Desasignar'}
-                      </button>
-                    </div>
+            {/* Technician info - visible to all, but buttons only for non-technicians */}
+            {workOrder.assignedTechnicians && workOrder.assignedTechnicians.length > 0 && (
+              <div className="rounded-lg bg-brand-50 border border-brand-100 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-brand-700">Técnico Asignado</span>
+                  <span className="text-xs text-brand-600">{technicianName(workOrder)}</span>
+                </div>
+                {isAdmin && !isTerminal && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { setShowAssignInput(!showAssignInput); if (!showAssignInput) loadTechnicians(); }}
+                      className="flex-1 rounded-lg border border-brand-200 px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-100 transition-colors"
+                    >
+                      Reasignar
+                    </button>
+                    <button
+                      onClick={() => {
+                        const tech = workOrder.assignedTechnicians![0];
+                        const techId = typeof tech === 'string' ? tech : tech._id;
+                        handleUnassign(techId);
+                      }}
+                      disabled={unassigning}
+                      className="flex-1 rounded-lg border border-danger-200 px-3 py-1.5 text-xs font-medium text-danger-600 hover:bg-danger-50 disabled:opacity-50 transition-colors"
+                    >
+                      {unassigning ? '...' : 'Desasignar'}
+                    </button>
                   </div>
                 )}
 
-                {/* Assign / Reassign dropdown */}
-                {(!workOrder.assignedTechnicians || workOrder.assignedTechnicians.length === 0 || showAssignInput) && (
+                {/* Assign / Reassign dropdown - only for admins */}
+                {isAdmin && !isTerminal && (!workOrder.assignedTechnicians || workOrder.assignedTechnicians.length === 0 || showAssignInput) && (
                   <div className="space-y-2">
                     {workOrder.assignedTechnicians && workOrder.assignedTechnicians.length > 0 && (
                       <p className="text-xs text-gray-500">Seleccionar nuevo técnico:</p>
@@ -618,28 +650,30 @@ export default function WorkOrderDetailPage() {
                     </div>
                   </div>
                 )}
-              </>
+              </div>
             )}
 
-            {!showDeleteConfirm ? (
-              <button onClick={() => setShowDeleteConfirm(true)}
-                className="w-full rounded-lg border border-danger-200 px-4 py-2 text-sm font-medium text-danger-600 hover:bg-danger-50 transition-colors">
-                Eliminar
-              </button>
-            ) : (
-              <div className="space-y-2 p-3 bg-danger-50 rounded-lg">
-                <p className="text-xs text-danger-700 font-medium">¿Eliminar esta OT?</p>
-                <div className="flex gap-2">
-                  <button onClick={handleDelete} disabled={deleting}
-                    className="flex-1 rounded-lg bg-danger-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-danger-600 disabled:opacity-50 transition-colors">
-                    {deleting ? 'Eliminando...' : 'Sí, eliminar'}
-                  </button>
-                  <button onClick={() => setShowDeleteConfirm(false)}
-                    className="flex-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-                    Cancelar
-                  </button>
+            {isAdmin && (
+              !showDeleteConfirm ? (
+                <button onClick={() => setShowDeleteConfirm(true)}
+                  className="w-full rounded-lg border border-danger-200 px-4 py-2 text-sm font-medium text-danger-600 hover:bg-danger-50 transition-colors">
+                  Eliminar
+                </button>
+              ) : (
+                <div className="space-y-2 p-3 bg-danger-50 rounded-lg">
+                  <p className="text-xs text-danger-700 font-medium">¿Eliminar esta OT?</p>
+                  <div className="flex gap-2">
+                    <button onClick={handleDelete} disabled={deleting}
+                      className="flex-1 rounded-lg bg-danger-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-danger-600 disabled:opacity-50 transition-colors">
+                      {deleting ? 'Eliminando...' : 'Sí, eliminar'}
+                    </button>
+                    <button onClick={() => setShowDeleteConfirm(false)}
+                      className="flex-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+                      Cancelar
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )
             )}
           </div>
         </div>

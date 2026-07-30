@@ -1,8 +1,17 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+export const dynamic = 'force-dynamic';
+
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api-client';
+import { useRole } from '@/dashboard/context/role-context';
+
+// Helper to get short visit number (last 7 chars)
+function shortVT(number: string): string {
+  if (!number) return '';
+  return number.slice(-7);
+}
 
 interface TechnicalVisit {
   _id: string;
@@ -94,6 +103,7 @@ function technicianName(visit: TechnicalVisit): string {
 
 export default function TechnicalVisitsPage() {
   const router = useRouter();
+  const { isAdmin } = useRole();
   const [visits, setVisits] = useState<TechnicalVisit[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -104,6 +114,9 @@ export default function TechnicalVisitsPage() {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [total, setTotal] = useState(0);
+  const [technicians, setTechnicians] = useState<{ _id: string; name: string }[]>([]);
+  const [technicianFilter, setTechnicianFilter] = useState('');
+  const mountedRef = useRef(false);
 
   const fetchVisits = useCallback(async () => {
     try {
@@ -117,27 +130,39 @@ export default function TechnicalVisitsPage() {
       if (categoryFilter) params.category = categoryFilter;
       if (fromDate) params.from = fromDate;
       if (toDate) params.to = toDate;
+      if (technicianFilter) params.technicianId = technicianFilter;
 
       const result = await api.get<ListResponse>('/api/operations/technical-visits', params);
       setVisits(result.data);
       setTotal(result.total);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al cargar visitas');
+      setError(err instanceof Error ? err.message: 'Error al cargar visitas');
     } finally {
       setLoading(false);
     }
-  }, [search, statusFilter, priorityFilter, categoryFilter, fromDate, toDate]);
+  }, [search, statusFilter, priorityFilter, categoryFilter, fromDate, toDate, technicianFilter]);
 
   useEffect(() => {
-    fetchVisits();
-  }, [statusFilter, priorityFilter, categoryFilter, fromDate, toDate]);
-
-  useEffect(() => {
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      fetchVisits();
+      loadTechnicians();
+      return;
+    }
     const timer = setTimeout(() => {
       fetchVisits();
-    }, 400);
+    }, search ? 400 : 0);
     return () => clearTimeout(timer);
-  }, [search]);
+  }, [search, statusFilter, priorityFilter, categoryFilter, fromDate, toDate, technicianFilter]);
+
+  async function loadTechnicians() {
+    try {
+      const data = await api.get<{ data: { _id: string; name: string }[] }>('/api/operations/technicians');
+      setTechnicians(data.data || []);
+    } catch (err) {
+      // ignore
+    }
+  }
 
   function handleRowClick(id: string) {
     router.push(`/technical-visits/${id}`);
@@ -179,10 +204,20 @@ export default function TechnicalVisitsPage() {
             type="text"
             value={search}
             onChange={(e) => setSearch((e.target as any).value)}
-            placeholder="Buscar..."
+            placeholder="Buscar por título o cliente..."
             className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
           />
         </div>
+        <select
+          value={technicianFilter}
+          onChange={(e) => setTechnicianFilter((e.target as any).value)}
+          className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
+        >
+          <option value="">Todos los técnicos</option>
+          {technicians.map((tech) => (
+            <option key={tech._id} value={tech._id}>{tech.name}</option>
+          ))}
+        </select>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter((e.target as any).value)}
@@ -193,11 +228,11 @@ export default function TechnicalVisitsPage() {
           ))}
         </select>
         <select
-          value={categoryFilter}
-          onChange={(e) => setCategoryFilter((e.target as any).value)}
+          value={priorityFilter}
+          onChange={(e) => setPriorityFilter((e.target as any).value)}
           className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
         >
-          {CATEGORY_OPTIONS.map((opt) => (
+          {PRIORITY_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </select>
@@ -224,10 +259,35 @@ export default function TechnicalVisitsPage() {
       )}
 
       {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />
-          ))}
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50">
+                <th className="text-left px-5 py-3 font-semibold text-gray-600">#</th>
+                <th className="text-left px-5 py-3 font-semibold text-gray-600">Título</th>
+                <th className="text-left px-5 py-3 font-semibold text-gray-600">Categoría</th>
+                <th className="text-left px-5 py-3 font-semibold text-gray-600">Estado</th>
+                <th className="text-left px-5 py-3 font-semibold text-gray-600">Prioridad</th>
+                <th className="text-left px-5 py-3 font-semibold text-gray-600">Fecha</th>
+                <th className="text-left px-5 py-3 font-semibold text-gray-600">Técnico</th>
+                <th className="text-left px-5 py-3 font-semibold text-gray-600"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {[1, 2, 3, 4, 5].map((i) => (
+                <tr key={i} className="border-b border-gray-100">
+                  <td className="px-5 py-3"><div className="h-4 w-20 bg-gray-200 rounded animate-pulse" /></td>
+                  <td className="px-5 py-3"><div className="h-4 w-32 bg-gray-200 rounded animate-pulse" /></td>
+                  <td className="px-5 py-3"><div className="h-5 w-20 bg-gray-200 rounded-full animate-pulse" /></td>
+                  <td className="px-5 py-3"><div className="h-5 w-20 bg-gray-200 rounded-full animate-pulse" /></td>
+                  <td className="px-5 py-3"><div className="h-5 w-20 bg-gray-200 rounded-full animate-pulse" /></td>
+                  <td className="px-5 py-3"><div className="h-4 w-24 bg-gray-200 rounded animate-pulse" /></td>
+                  <td className="px-5 py-3"><div className="h-4 w-28 bg-gray-200 rounded animate-pulse" /></td>
+                  <td className="px-5 py-3"><div className="h-6 w-12 bg-gray-200 rounded animate-pulse" /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       ) : visits.length === 0 ? (
         <div className="text-center py-12">
@@ -253,10 +313,9 @@ export default function TechnicalVisitsPage() {
               {visits.map((visit) => (
                 <tr
                   key={visit._id}
-                  onClick={() => handleRowClick(visit._id)}
-                  className="border-b border-gray-100 last:border-0 hover:bg-gray-50 cursor-pointer transition-colors"
+                  className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors"
                 >
-                  <td className="px-5 py-3 font-medium text-gray-900">{visit.visitNumber}</td>
+                  <td className="px-5 py-3 font-medium text-gray-900">#{shortVT(visit.visitNumber)}</td>
                   <td className="px-5 py-3 font-medium text-gray-900">{visit.title}</td>
                   <td className="px-5 py-3">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${CATEGORY_VARIANT[visit.category] || 'bg-gray-100 text-gray-700'}`}>
@@ -275,6 +334,17 @@ export default function TechnicalVisitsPage() {
                   </td>
                   <td className="px-5 py-3 text-gray-500">{formatDate(visit.scheduledDate)}</td>
                   <td className="px-5 py-3 text-gray-700">{technicianName(visit)}</td>
+                  <td className="px-5 py-3">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/technical-visits/${visit._id}`);
+                      }}
+                      className="text-xs font-medium text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      Ver
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

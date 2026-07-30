@@ -4,6 +4,7 @@ import { IWorkOrderAssignment } from '../models/work-order-assignment';
 import WorkOrderModel from '../models/work-order';
 import { TechnicianModel } from '../models/technician';
 import { NotFoundError, ValidationError } from '@/core/errors';
+import { logActivity } from '@/audit/activity-logger';
 
 export class WorkAssignmentService {
   /**
@@ -52,7 +53,49 @@ export class WorkAssignmentService {
       deletedAt: null,
     });
 
-    // If replacing, mark old one as replaced
+    // Check if this technician already has ANY assignment (even replaced)
+    const technicianPreviousAssignment = await WorkOrderAssignmentModel.findOne({
+      workOrderId: new Types.ObjectId(workOrderId),
+      technicianId: new Types.ObjectId(technicianId),
+      tenantId: new Types.ObjectId(tenantId),
+      deletedAt: null,
+    });
+
+    // If technician already has assignment (any status), update it instead of creating new
+    if (technicianPreviousAssignment) {
+      // Mark old active assignment as replaced first
+      if (existingAssignment && existingAssignment._id.toString() !== technicianPreviousAssignment._id.toString()) {
+        await WorkOrderAssignmentModel.findByIdAndUpdate(existingAssignment._id, {
+          $set: {
+            status: 'replaced',
+            replacedAt: new Date(),
+            replacedByAssignmentId: null,
+          },
+        });
+      }
+
+      // Update existing record instead of creating new
+      await WorkOrderAssignmentModel.findByIdAndUpdate(technicianPreviousAssignment._id, {
+        $set: {
+          status: 'assigned',
+          assignedAt: new Date(),
+          assignedBy: new Types.ObjectId(assignedBy),
+          assignmentType: options.assignmentType,
+          reason: options.reason as any,
+          reasonDetail: options.reasonDetail,
+          notes: options.notes,
+          previousTechnicianId: options.previousTechnicianId
+            ? new Types.ObjectId(options.previousTechnicianId)
+            : null,
+          replacedAt: null,
+          deletedAt: null,
+        },
+      });
+
+      return WorkOrderAssignmentModel.findById(technicianPreviousAssignment._id).populate('technicianId', 'name email phone availability');
+    }
+
+    // If replacing, mark old active one as replaced
     if (existingAssignment && options.assignmentType === 'replacement') {
       await WorkOrderAssignmentModel.findByIdAndUpdate(existingAssignment._id, {
         $set: {
@@ -99,6 +142,18 @@ export class WorkAssignmentService {
         $set: { status: 'assigned', updatedBy: new Types.ObjectId(assignedBy) },
       });
     }
+
+    // Log the activity
+    const tech = await TechnicianModel.findById(technicianId).lean();
+    const actionLabel = options.assignmentType === 'replacement' ? 'reasignó' : 'asignó';
+    await logActivity({
+      tenantId: new Types.ObjectId(tenantId),
+      entityType: 'WorkOrder',
+      entityId: workOrderId,
+      action: 'assigned',
+      actorId: new Types.ObjectId(assignedBy),
+      description: `Técnico ${tech?.name || technicianId} ${actionLabel} a ${workOrder.workOrderNumber}`,
+    });
 
     return assignment;
   }
@@ -153,8 +208,30 @@ export class WorkAssignmentService {
   ): Promise<any> {
     const currentAssignment = await this.getCurrentAssignment(workOrderId, tenantId);
     
+    // If no current assignment but workOrder has assigned technicians, use createAssignment instead
     if (!currentAssignment) {
+      // Check if work order has technicians assigned
+      const WorkOrderModel = (await import('@/operations/models/work-order')).default;
+      const wo = await WorkOrderModel.findById(workOrderId).lean();
+      
+      if (wo && wo.assignedTechnicians && wo.assignedTechnicians.length > 0) {
+        // Use createAssignment instead (it will handle existing technicians)
+        return this.createAssignment(workOrderId, newTechnicianId, replacedBy, tenantId, {
+          assignmentType: 'replacement',
+          reason,
+          reasonDetail,
+          notes,
+        });
+      }
+      
       throw new ValidationError('No active assignment to replace');
+    }
+
+    const currentTechId = String(currentAssignment.technicianId._id || currentAssignment.technicianId);
+    
+    // If same technician, skip
+    if (currentTechId === newTechnicianId) {
+      return { message: 'Technician already assigned', assignment: currentAssignment };
     }
 
     return this.createAssignment(workOrderId, newTechnicianId, replacedBy, tenantId, {
@@ -162,7 +239,7 @@ export class WorkAssignmentService {
       reason,
       reasonDetail,
       notes,
-      previousTechnicianId: String(currentAssignment.technicianId._id),
+      previousTechnicianId: currentTechId,
     });
   }
 

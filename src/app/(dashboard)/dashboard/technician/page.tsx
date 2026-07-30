@@ -39,7 +39,7 @@ export default function TechnicianPage() {
   }, []);
 
   const myLoad = dashboard?.technicianLoad[0];
-  const maxLoad = 8; // Max daily work orders
+  const maxLoad = dashboard?.maxDailyLoad || myLoad?.maxDailyLoad || 8; // Desde DB, fallback 8
 
   // All assigned items (work orders + technical visits)
   const allAssignedItems = dashboard?.workOrders ?? [];
@@ -91,6 +91,76 @@ export default function TechnicianPage() {
           <MetricCard label="Próximos 7 días" value={dashboard?.upcomingSevenDays ?? '-'} loading={loading} />
         </KpiGrid>
       </section>
+
+      {/* ─── Panel de Órdenes Disponibles (para auto-asignación) ─── */}
+      {dashboard?.globalStats && (
+        <section>
+          <SectionHeader 
+            title="Órdenes Disponibles" 
+            subtitle="Órdenes de trabajo en el CRM que podés tomar" 
+          />
+          <KpiGrid>
+            <MetricCard 
+              label="OTs Sin Asignar" 
+              value={dashboard.globalStats.totalUnassignedOrders} 
+              loading={loading}
+              href="/work-orders/calendar"
+              accentColor="text-brand-600"
+            />
+            <MetricCard 
+              label="Visitas Sin Asignar" 
+              value={dashboard.globalStats.totalUnassignedVisits} 
+              loading={loading}
+              href="/work-orders/calendar"
+              accentColor="text-brand-600"
+            />
+            <MetricCard 
+              label="OTs Por Vencer" 
+              value={dashboard.globalStats.ordersDueSoon} 
+              loading={loading}
+              accentColor={dashboard.globalStats.ordersDueSoon > 0 ? 'text-warning-600' : undefined}
+            />
+            <MetricCard 
+              label="VTs Por Vencer" 
+              value={dashboard.globalStats.visitsDueSoon} 
+              loading={loading}
+              accentColor={dashboard.globalStats.visitsDueSoon > 0 ? 'text-warning-600' : undefined}
+            />
+          </KpiGrid>
+        </section>
+      )}
+
+      {/* ─── Panel de Órdenes Vencidas ─── */}
+      {dashboard?.globalStats && (dashboard.globalStats.expiredOrders > 0 || dashboard.globalStats.expiredVisits > 0) && (
+        <section>
+          <SectionHeader 
+            title="⚠️ Vencidas" 
+            subtitle="Órdenes que pasaron su fecha programada" 
+          />
+          <KpiGrid>
+            <MetricCard 
+              label="OTs Vencidas" 
+              value={dashboard.globalStats.expiredOrders} 
+              loading={loading}
+              href="/work-orders/calendar?filter=expired"
+              accentColor="text-danger-600"
+            />
+            <MetricCard 
+              label="VTs Vencidas" 
+              value={dashboard.globalStats.expiredVisits} 
+              loading={loading}
+              href="/work-orders/calendar?filter=expired"
+              accentColor="text-danger-600"
+            />
+            <MetricCard 
+              label="Urgentes" 
+              value={dashboard.globalStats.urgentOrders} 
+              loading={loading}
+              accentColor={dashboard.globalStats.urgentOrders > 0 ? 'text-danger-600' : undefined}
+            />
+          </KpiGrid>
+        </section>
+      )}
 
       {/* ─── Mi Carga de Trabajo ─── */}
       <section>
@@ -196,6 +266,55 @@ function TaskCard({ item }: { item: TaskItem }) {
   const typeLabel = isWorkOrder ? 'OT' : 'VT';
   const typeColor = isWorkOrder ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700';
 
+  // Calcular fecha y estado de vencimiento
+  const getDateInfo = () => {
+    if (!item.scheduledDate) return null;
+    
+    const scheduled = typeof item.scheduledDate === 'string' 
+      ? new Date(item.scheduledDate + 'T00:00:00') 
+      : new Date(item.scheduledDate);
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    scheduled.setHours(0, 0, 0, 0);
+    
+    const diffTime = scheduled.getTime() - today.getTime();
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    
+    const formattedDate = typeof item.scheduledDate === 'string' 
+      ? item.scheduledDate 
+      : item.scheduledDate.toLocaleDateString('es-CL');
+    
+    if (diffDays < 0) {
+      return { 
+        text: `⚠️ Vencida hace ${Math.abs(diffDays)} día${Math.abs(diffDays) > 1 ? 's' : ''}`, 
+        color: 'text-danger-600 font-medium',
+        isExpired: true 
+      };
+    } else if (diffDays === 0) {
+      return { 
+        text: '📅 Hoy', 
+        color: 'text-warning-600 font-medium',
+        isExpired: false 
+      };
+    } else if (diffDays <= 3) {
+      return { 
+        text: `⏰ Faltan ${diffDays} día${diffDays > 1 ? 's' : ''}`, 
+        color: 'text-warning-600',
+        isExpired: false 
+      };
+    } else {
+      return { 
+        text: `📅 ${formattedDate}`, 
+        color: 'text-gray-500',
+        isExpired: false 
+      };
+    }
+  };
+
+  const dateInfo = getDateInfo();
+  const isExpired = dateInfo?.isExpired;
+
   // Get time info
   const getTimeInfo = () => {
     if (item.scheduledStart) {
@@ -204,16 +323,15 @@ function TaskCard({ item }: { item: TaskItem }) {
         : '—';
       return `🕐 ${time}`;
     }
-    if (item.scheduledDate) {
-      return `📅 ${item.scheduledDate}`;
-    }
     return '';
   };
 
   return (
     <Link
       href={link}
-      className="block bg-white border border-gray-200 rounded-lg p-3 hover:border-brand-300 hover:shadow-sm transition-all"
+      className={`block bg-white border rounded-lg p-3 hover:border-brand-300 hover:shadow-sm transition-all ${
+        isExpired ? 'border-danger-200 bg-danger-50' : 'border-gray-200'
+      }`}
     >
       <div className="flex items-center gap-3">
         {/* Type badge */}
@@ -230,8 +348,15 @@ function TaskCard({ item }: { item: TaskItem }) {
             </span>
           </div>
           <p className="text-sm font-medium text-gray-900 truncate">{item.title}</p>
-          <div className="flex items-center gap-3 mt-1">
-            <span className="text-xs text-gray-500">{getTimeInfo()}</span>
+          <div className="flex items-center gap-3 mt-1 flex-wrap">
+            {dateInfo && (
+              <span className={`text-xs ${dateInfo.color}`}>
+                {dateInfo.text}
+              </span>
+            )}
+            {getTimeInfo() && (
+              <span className="text-xs text-gray-500">{getTimeInfo()}</span>
+            )}
             {item.clientSnapshot?.name && (
               <span className="text-xs text-gray-400 truncate">
                 📍 {item.clientSnapshot.name}
@@ -242,6 +367,7 @@ function TaskCard({ item }: { item: TaskItem }) {
 
         {/* Status indicator */}
         <div className={`w-2 h-2 rounded-full ${
+          isExpired ? 'bg-danger-500' :
           ['en_route', 'on_site'].includes(item.status) ? 'bg-blue-500 animate-pulse' :
           item.status === 'paused' ? 'bg-yellow-500' :
           item.status === 'assigned' ? 'bg-brand-500' :

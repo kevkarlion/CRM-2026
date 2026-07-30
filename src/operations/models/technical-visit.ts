@@ -47,6 +47,12 @@ const technicalVisitSchema = new Schema<ITechnicalVisit>(
     convertedToWorkOrderId: { type: Schema.Types.ObjectId, ref: 'WorkOrder', default: null },
     convertedAt: { type: Date, default: null },
     assignedTechnicianId: { type: Schema.Types.ObjectId, ref: 'Technician', default: null },
+    // Campos adicionales para el técnico
+    technicianNotes: {
+      materials: String,
+      tools: String,
+      additionalNotes: String,
+    },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     updatedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   },

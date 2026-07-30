@@ -19,6 +19,8 @@ export async function GET(request: NextRequest) {
     const technicianId = searchParams.get('technicianId') || undefined;
     const from = searchParams.get('from') || undefined;
     const to = searchParams.get('to') || undefined;
+    const search = searchParams.get('search') || undefined;
+    const priority = searchParams.get('priority') || undefined;
 
     const filters: Record<string, unknown> = {};
     if (status) filters.status = status;
@@ -32,6 +34,8 @@ export async function GET(request: NextRequest) {
       filters.scheduledDateGte = from || undefined;
       filters.scheduledDateLte = to || undefined;
     }
+    if (search) filters.search = search;
+    if (priority) filters.priority = priority;
 
     const data = await service.findByTenant(tenantId, filters as any);
 

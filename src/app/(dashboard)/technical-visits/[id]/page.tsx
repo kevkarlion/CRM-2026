@@ -4,6 +4,12 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { api } from '@/lib/api-client';
 
+// Helper to get short visit number (last 7 chars)
+function shortVT(number: string): string {
+  if (!number) return '';
+  return number.slice(-7);
+}
+
 interface TechnicalVisit {
   _id: string;
   visitNumber: string;
@@ -33,6 +39,12 @@ interface TechnicalVisit {
     estimatedBudget?: number;
     nextSteps?: string;
   };
+  // Campos adicionales para el técnico
+  technicianNotes?: {
+    materials?: string;
+    tools?: string;
+    additionalNotes?: string;
+  };
   convertedToWorkOrderId?: string;
   convertedAt?: string;
   createdAt: string;
@@ -47,6 +59,13 @@ const STATUS_OPTIONS = [
   { value: 'cancelled', label: 'Cancelado' },
   { value: 'converted_to_work_order', label: 'Convertido a OT' },
 ];
+
+const NEXT_STATUSES: Record<string, Array<{ value: string; label: string }>> = {
+  draft: [{ value: 'scheduled', label: 'Programado' }],
+  scheduled: [{ value: 'confirmed', label: 'Confirmado' }, { value: 'cancelled', label: 'Cancelado' }],
+  confirmed: [{ value: 'in_progress', label: 'En Curso' }, { value: 'cancelled', label: 'Cancelado' }],
+  in_progress: [{ value: 'completed', label: 'Completado' }, { value: 'cancelled', label: 'Cancelado' }],
+};
 
 const PRIORITY_OPTIONS = [
   { value: 'low', label: 'Baja' },
@@ -73,6 +92,13 @@ const STATUS_VARIANT: Record<string, string> = {
   converted_to_work_order: 'bg-purple-50 text-purple-700',
 };
 
+const PRIORITY_VARIANT: Record<string, string> = {
+  low: 'bg-gray-100 text-gray-600',
+  normal: 'bg-blue-50 text-blue-700',
+  high: 'bg-orange-50 text-orange-700',
+  urgent: 'bg-red-50 text-red-700',
+};
+
 function toLocalDatetimeValue(dateStr?: string): string {
   if (!dateStr) return '';
   const d = new Date(dateStr);
@@ -94,6 +120,7 @@ export default function TechnicalVisitDetailPage() {
   const [visit, setVisit] = useState<TechnicalVisit | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'tecnico' | 'cliente'>('tecnico');
   const [saving, setSaving] = useState(false);
   const [newStatus, setNewStatus] = useState('');
 
@@ -109,6 +136,7 @@ export default function TechnicalVisitDetailPage() {
   const [assignTechId, setAssignTechId] = useState('');
   const [showAssignInput, setShowAssignInput] = useState(false);
   const [unassigning, setUnassigning] = useState(false);
+  const [showStatusMenu, setShowStatusMenu] = useState(false);
 
   const id = params.id as string;
 
@@ -179,11 +207,12 @@ export default function TechnicalVisitDetailPage() {
     }
   }
 
-  async function handleStatusChange() {
-    if (!newStatus || newStatus === visit?.status) return;
+  async function handleStatusChange(status?: string) {
+    const targetStatus = status || newStatus;
+    if (!targetStatus || targetStatus === visit?.status) return;
     setSaving(true);
     try {
-      await api.patch(`/api/operations/technical-visits/${id}`, { status: newStatus });
+      await api.patch(`/api/operations/technical-visits/${id}`, { status: targetStatus });
       await loadVisit();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al actualizar');
@@ -206,8 +235,8 @@ export default function TechnicalVisitDetailPage() {
     if (technicians.length > 0) return;
     setLoadingTechnicians(true);
     try {
-      const result = await api.get<Array<{ _id: string; name: string; email?: string; specialties?: string[] }>>('/api/operations/technicians');
-      setTechnicians(result || []);
+      const result = await api.get<{ data: Array<{ _id: string; name: string; email?: string; specialties?: string[] }> }>('/api/operations/technicians');
+      setTechnicians(result?.data || []);
     } catch {
       // silently ignore
     } finally {
@@ -263,332 +292,300 @@ export default function TechnicalVisitDetailPage() {
     );
   }
 
+  const isTerminal = ['completed', 'cancelled'].includes(visit?.status || '');
+  const nextStatuses = NEXT_STATUSES[visit?.status || ''] || [];
+
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <button onClick={() => router.push('/technical-visits')} className="text-gray-400 hover:text-gray-600">
-          ← Volver
-        </button>
-        <button onClick={handleDelete} className="text-sm text-danger-600 hover:text-danger-700">
-          Eliminar
-        </button>
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <button onClick={() => router.push('/technical-visits')} className="text-gray-400 hover:text-gray-600 transition-colors">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{visit.title}</h1>
+            <p className="text-sm text-gray-500">#{shortVT(visit.visitNumber)}</p>
+          </div>
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[visit.status]}`}>
+            {STATUS_OPTIONS.find(o => o.value === visit.status)?.label}
+          </span>
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${PRIORITY_VARIANT[visit.priority]}`}>
+            {PRIORITY_OPTIONS.find(o => o.value === visit.priority)?.label}
+          </span>
+        </div>
       </div>
 
       {error && (
         <div className="rounded-lg bg-danger-50 px-4 py-3 text-sm text-danger-700">{error}</div>
       )}
 
-      {/* Header */}
-      <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <span className="text-2xl font-bold text-gray-900">{visit.visitNumber}</span>
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[visit.status]}`}>
-                {STATUS_OPTIONS.find(o => o.value === visit.status)?.label}
-              </span>
-            </div>
-            <h1 className="text-xl font-bold text-gray-900">{visit.title}</h1>
-          </div>
-          <div className="flex gap-2">
-            <select
-              value={newStatus}
-              onChange={(e) => setNewStatus(e.target.value)}
-              className="rounded-lg border border-gray-200 px-3 py-2 text-sm"
-            >
-              {STATUS_OPTIONS.map(opt => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-            <button
-              onClick={handleStatusChange}
-              disabled={saving || newStatus === visit.status}
-              className="px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50"
-            >
-              {saving ? 'Guardando...' : 'Actualizar'}
-            </button>
-          </div>
-        </div>
+      {/* Tabs */}
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex space-x-4">
+          <button
+            onClick={() => setActiveTab('tecnico')}
+            className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+              activeTab === 'tecnico'
+                ? 'border-brand-500 text-brand-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            🔧 Información del Técnico
+          </button>
+          <button
+            onClick={() => setActiveTab('cliente')}
+            className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+              activeTab === 'cliente'
+                ? 'border-brand-500 text-brand-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            👤 Cliente y Ubicación
+          </button>
+        </nav>
+      </div>
 
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div>
-            <span className="text-gray-500">Tipo</span>
-            <p className="font-medium">{CATEGORY_OPTIONS.find(o => o.value === visit.category)?.label}</p>
-          </div>
-          <div>
-            <span className="text-gray-500">Prioridad</span>
-            <p className="font-medium">{PRIORITY_OPTIONS.find(o => o.value === visit.priority)?.label}</p>
-          </div>
-          <div>
-            <span className="text-gray-500">Fecha Programada</span>
-            <p className="font-medium">{visit.scheduledDate ? new Date(visit.scheduledDate).toLocaleDateString('es-CL') : '—'}</p>
-          </div>
-          <div>
-            <span className="text-gray-500">Horario</span>
-            <p className="font-medium">
-              {visit.scheduledStart ? new Date(visit.scheduledStart).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : '—'}
-              {visit.scheduledEnd && ` - ${new Date(visit.scheduledEnd).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`}
-            </p>
-          </div>
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-4">
+          {/* Pestaña: Información del Técnico */}
+          {activeTab === 'tecnico' && (
+            <>
+              {/* Información para el Técnico */}
+              {(visit.technicianNotes?.materials || visit.technicianNotes?.tools || visit.technicianNotes?.additionalNotes) && (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                  <h2 className="text-sm font-semibold text-blue-900 mb-3">📋 Lo que necesitás saber</h2>
+                  <dl className="space-y-2">
+                    {visit.technicianNotes.materials && (
+                      <div className="flex flex-col">
+                        <dt className="text-xs font-medium text-blue-700">🎒 Materiales</dt>
+                        <dd className="text-sm text-blue-900">{visit.technicianNotes.materials}</dd>
+                      </div>
+                    )}
+                    {visit.technicianNotes.tools && (
+                      <div className="flex flex-col">
+                        <dt className="text-xs font-medium text-blue-700">🔧 Herramientas</dt>
+                        <dd className="text-sm text-blue-900">{visit.technicianNotes.tools}</dd>
+                      </div>
+                    )}
+                    {visit.technicianNotes.additionalNotes && (
+                      <div className="flex flex-col">
+                        <dt className="text-xs font-medium text-blue-700">📝 Notas</dt>
+                        <dd className="text-sm text-blue-900">{visit.technicianNotes.additionalNotes}</dd>
+                      </div>
+                    )}
+                  </dl>
+                </div>
+              )}
 
-        {/* Assignment section */}
-        {visit.status !== 'completed' && visit.status !== 'cancelled' && (
-          <div className="border-t border-gray-100 pt-4 space-y-3">
-            {visit.assignedTechnicianId ? (
-              <>
-                <div className="flex items-center justify-between">
+              {/* Programación */}
+              <div className="bg-white border border-gray-200 rounded-xl p-4">
+                <h2 className="text-sm font-semibold text-gray-900 mb-3">📅 Cuándo ir</h2>
+                <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
-                    <span className="text-xs font-medium text-gray-500">Técnico Asignado</span>
-                    <p className="text-sm font-medium text-gray-900">
-                      {typeof visit.assignedTechnicianId === 'object' ? visit.assignedTechnicianId.name : '—'}
+                    <span className="text-gray-500 text-xs">Fecha</span>
+                    <p className="font-medium">{visit.scheduledDate ? new Date(visit.scheduledDate).toLocaleDateString('es-CL') : '—'}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 text-xs">Horario</span>
+                    <p className="font-medium">
+                      {visit.scheduledStart ? new Date(visit.scheduledStart).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : '—'}
+                      {visit.scheduledEnd && ` - ${new Date(visit.scheduledEnd).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}`}
                     </p>
                   </div>
-                  <div className="flex gap-2">
+                  <div>
+                    <span className="text-gray-500 text-xs">Categoría</span>
+                    <p className="font-medium">{CATEGORY_OPTIONS.find(o => o.value === visit.category)?.label}</p>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 text-xs">Prioridad</span>
+                    <p className="font-medium">{PRIORITY_OPTIONS.find(o => o.value === visit.priority)?.label}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Descripción del trabajo */}
+              {visit.description && (
+                <div className="bg-white border border-gray-200 rounded-xl p-4">
+                  <h2 className="text-sm font-semibold text-gray-900 mb-2">📋 Descripción</h2>
+                  <p className="text-sm text-gray-700">{visit.description}</p>
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Pestaña: Cliente y Ubicación */}
+          {activeTab === 'cliente' && (
+            <>
+              {/* Cliente */}
+              {(visit.clientSnapshot?.name || visit.clientSnapshot?.phone) && (
+                <div className="bg-white border border-gray-200 rounded-xl p-4">
+                  <h2 className="text-sm font-semibold text-gray-900 mb-3">👤 Cliente</h2>
+                  <dl className="space-y-2 text-sm">
+                    {visit.clientSnapshot?.name && (
+                      <div><dt className="text-xs text-gray-500">Nombre</dt><dd className="font-medium">{visit.clientSnapshot.name}</dd></div>
+                    )}
+                    {visit.clientSnapshot?.phone && (
+                      <div><dt className="text-xs text-gray-500">Teléfono</dt><dd className="font-medium">{visit.clientSnapshot.phone}</dd></div>
+                    )}
+                    {visit.clientSnapshot?.email && (
+                      <div><dt className="text-xs text-gray-500">Email</dt><dd className="font-medium">{visit.clientSnapshot.email}</dd></div>
+                    )}
+                  </dl>
+                </div>
+              )}
+
+              {/* Ubicación */}
+              {visit.locationSnapshot?.address && (
+                <div className="bg-white border border-gray-200 rounded-xl p-4">
+                  <h2 className="text-sm font-semibold text-gray-900 mb-3">📍 Dónde ir</h2>
+                  <dl className="space-y-2 text-sm">
+                    {visit.locationSnapshot.name && (
+                      <div><dt className="text-xs text-gray-500">Lugar</dt><dd className="font-medium">{visit.locationSnapshot.name}</dd></div>
+                    )}
+                    <div><dt className="text-xs text-gray-500">Dirección</dt><dd className="font-medium">{visit.locationSnapshot.address}</dd></div>
+                    {visit.locationSnapshot.city && (
+                      <div><dt className="text-xs text-gray-500">Ciudad</dt><dd className="font-medium">{visit.locationSnapshot.city}</dd></div>
+                    )}
+                    {visit.locationSnapshot.province && (
+                      <div><dt className="text-xs text-gray-500">Provincia</dt><dd className="font-medium">{visit.locationSnapshot.province}</dd></div>
+                    )}
+                  </dl>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        <div className="space-y-4">
+          <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
+            <h3 className="text-sm font-semibold text-gray-900 mb-2">Acciones</h3>
+
+            {nextStatuses.length > 0 && (
+              <div className="relative">
+                <button onClick={() => setShowStatusMenu(!showStatusMenu)} disabled={saving}
+                  className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors">
+                  {saving ? 'Cambiando...' : 'Cambiar Estado'}
+                </button>
+                {showStatusMenu && (
+                  <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
+                    {nextStatuses.map((opt) => (
+                      <button key={opt.value} onClick={() => { handleStatusChange(opt.value); setShowStatusMenu(false); }}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Technician info */}
+            {visit.assignedTechnicianId && (
+              <div className="rounded-lg bg-brand-50 border border-brand-100 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-brand-700">Técnico Asignado</span>
+                </div>
+                <span className="text-sm font-medium text-brand-900">
+                  {typeof visit.assignedTechnicianId === 'object' ? visit.assignedTechnicianId.name : '—'}
+                </span>
+                {!isTerminal && (
+                  <div className="flex gap-2 pt-2">
                     <button
                       onClick={() => { setShowAssignInput(!showAssignInput); if (!showAssignInput) loadTechnicians(); }}
-                      className="px-3 py-1.5 text-xs font-medium text-brand-600 border border-brand-200 rounded-lg hover:bg-brand-50 transition-colors"
+                      className="flex-1 rounded-lg border border-brand-200 px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-100 transition-colors"
                     >
                       Reasignar
                     </button>
                     <button
                       onClick={handleUnassign}
                       disabled={unassigning}
-                      className="px-3 py-1.5 text-xs font-medium text-danger-600 border border-danger-200 rounded-lg hover:bg-danger-50 disabled:opacity-50 transition-colors"
+                      className="rounded-lg border border-danger-200 px-3 py-1.5 text-xs font-medium text-danger-700 hover:bg-danger-50 disabled:opacity-50 transition-colors"
                     >
-                      {unassigning ? '...' : 'Desasignar'}
+                      {unassigning ? '...' : 'Quitar'}
                     </button>
                   </div>
-                </div>
-                {showAssignInput && (
-                  <div className="space-y-2">
-                    <p className="text-xs text-gray-500">Seleccionar nuevo técnico:</p>
-                    {loadingTechnicians ? (
-                      <div className="text-xs text-gray-500 py-2">Cargando técnicos...</div>
-                    ) : (
-                      <select
-                        value={assignTechId}
-                        onChange={(e) => setAssignTechId(e.target.value)}
-                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
-                      >
-                        <option value="">Seleccionar técnico...</option>
-                        {technicians.map((tech) => (
-                          <option key={tech._id} value={tech._id}>
-                            {tech.name}{tech.specialties?.length ? ` — ${tech.specialties.slice(0, 2).join(', ')}` : ''}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                    <div className="flex gap-2">
-                      <button onClick={handleAssign} disabled={assigning || !assignTechId.trim()}
-                        className="flex-1 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50 transition-colors">
-                        {assigning ? 'Asignando...' : 'Reasignar'}
-                      </button>
-                      <button onClick={() => { setShowAssignInput(false); setAssignTechId(''); }}
-                        className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
-                        Cancelar
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </>
-            ) : (
-              <div className="space-y-2">
-                <button
-                  onClick={() => { setShowAssignInput(!showAssignInput); if (!showAssignInput) loadTechnicians(); }}
-                  className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-                >
-                  Asignar Técnico
-                </button>
-                {showAssignInput && (
-                  <div className="space-y-2">
-                    {loadingTechnicians ? (
-                      <div className="text-xs text-gray-500 py-2">Cargando técnicos...</div>
-                    ) : (
-                      <select
-                        value={assignTechId}
-                        onChange={(e) => setAssignTechId(e.target.value)}
-                        className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
-                      >
-                        <option value="">Seleccionar técnico...</option>
-                        {technicians.map((tech) => (
-                          <option key={tech._id} value={tech._id}>
-                            {tech.name}{tech.specialties?.length ? ` — ${tech.specialties.slice(0, 2).join(', ')}` : ''}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                    <div className="flex gap-2">
-                      <button onClick={handleAssign} disabled={assigning || !assignTechId.trim()}
-                        className="flex-1 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50 transition-colors">
-                        {assigning ? 'Asignando...' : 'Asignar'}
-                      </button>
-                      <button onClick={() => { setShowAssignInput(false); setAssignTechId(''); }}
-                        className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
-                        Cancelar
-                      </button>
-                    </div>
-                  </div>
                 )}
               </div>
             )}
-          </div>
-        )}
 
-        {visit.description && (
-          <div>
-            <h3 className="text-sm font-medium text-gray-500 mb-1">Descripción</h3>
-            <p className="text-gray-700">{visit.description}</p>
-          </div>
-        )}
-      </div>
+            {!visit.assignedTechnicianId && !isTerminal && (
+              <button
+                onClick={() => { setShowAssignInput(!showAssignInput); if (!showAssignInput) loadTechnicians(); }}
+                className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Asignar Técnico
+              </button>
+            )}
 
-      {/* Reschedule card */}
-      <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Reprogramar</h2>
-          {!editing ? (
-            <button
-              onClick={enterEdit}
-              disabled={visit.status === 'completed' || visit.status === 'cancelled'}
-              className="px-4 py-2 text-sm font-medium text-brand-600 hover:text-brand-700 hover:bg-brand-50 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Editar fecha y hora
-            </button>
-          ) : (
-            <div className="flex gap-2">
-              <button
-                onClick={cancelEdit}
-                disabled={saving}
-                className="px-3 py-1.5 text-sm font-medium text-gray-600 hover:text-gray-800 rounded-lg transition-colors"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleReschedule}
-                disabled={saving}
-                className="px-4 py-1.5 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
-              >
-                {saving ? 'Guardando...' : 'Guardar'}
-              </button>
+            {showAssignInput && (
+              <div className="space-y-2 pt-2 border-t border-gray-100">
+                {loadingTechnicians ? (
+                  <div className="text-xs text-gray-500 py-2">Cargando...</div>
+                ) : (
+                  <select
+                    value={assignTechId}
+                    onChange={(e) => setAssignTechId(e.target.value)}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
+                  >
+                    <option value="">Seleccionar técnico...</option>
+                    {technicians.map((tech) => (
+                      <option key={tech._id} value={tech._id}>
+                        {tech.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                <div className="flex gap-2">
+                  <button onClick={handleAssign} disabled={assigning || !assignTechId.trim()}
+                    className="flex-1 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50 transition-colors">
+                    {assigning ? '...' : 'Asignar'}
+                  </button>
+                  <button onClick={() => { setShowAssignInput(false); setAssignTechId(''); }}
+                    className="rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">
+                    ✕
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Result card for completed visits */}
+          {visit.status === 'completed' && visit.result && (
+            <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">📊 Resultado</h3>
+              {visit.result.findings && (
+                <div>
+                  <span className="text-xs text-gray-500">Hallazgos</span>
+                  <p className="text-sm text-gray-700">{visit.result.findings}</p>
+                </div>
+              )}
+              {visit.result.recommendation && (
+                <div>
+                  <span className="text-xs text-gray-500">Recomendación</span>
+                  <p className="text-sm text-gray-700">{visit.result.recommendation}</p>
+                </div>
+              )}
+              {visit.result.estimatedBudget && (
+                <div>
+                  <span className="text-xs text-gray-500">Presupuesto Est.</span>
+                  <p className="text-lg font-bold text-green-600">${visit.result.estimatedBudget.toLocaleString('es-CL')}</p>
+                </div>
+              )}
             </div>
           )}
-        </div>
 
-        {!editing ? (
-          <div className="grid grid-cols-2 gap-4 text-sm">
-            <div>
-              <span className="text-gray-500">Fecha</span>
-              <p className="font-medium">{visit.scheduledDate ? new Date(visit.scheduledDate).toLocaleDateString('es-CL') : '—'}</p>
-            </div>
-            <div>
-              <span className="text-gray-500">Hora</span>
-              <p className="font-medium">
-                {visit.scheduledStart ? new Date(visit.scheduledStart).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' }) : '—'}
+          {/* Converted banner */}
+          {visit.convertedToWorkOrderId && (
+            <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
+              <p className="text-sm text-purple-700">
+                ✓ Convertida a OT el {visit.convertedAt ? new Date(visit.convertedAt).toLocaleDateString('es-CL') : ''}
               </p>
             </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nueva fecha *</label>
-              <input
-                type="date"
-                value={editDate}
-                onChange={(e) => setEditDate(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nueva hora *</label>
-              <input
-                type="time"
-                value={editTime}
-                onChange={(e) => setEditTime(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Client card */}
-      <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
-        <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Cliente</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <span className="text-sm text-gray-500">Nombre</span>
-            <p className="font-medium">{visit.clientSnapshot.name}</p>
-          </div>
-          {visit.clientSnapshot.email && (
-            <div>
-              <span className="text-sm text-gray-500">Email</span>
-              <p className="font-medium">{visit.clientSnapshot.email}</p>
-            </div>
-          )}
-          {visit.clientSnapshot.phone && (
-            <div>
-              <span className="text-sm text-gray-500">Teléfono</span>
-              <p className="font-medium">{visit.clientSnapshot.phone}</p>
-            </div>
           )}
         </div>
       </div>
-
-      {/* Location card */}
-      {visit.locationSnapshot && (
-        <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Ubicación</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {visit.locationSnapshot.name && (
-              <div>
-                <span className="text-sm text-gray-500">Nombre</span>
-                <p className="font-medium">{visit.locationSnapshot.name}</p>
-              </div>
-            )}
-            {visit.locationSnapshot.address && (
-              <div>
-                <span className="text-sm text-gray-500">Dirección</span>
-                <p className="font-medium">{visit.locationSnapshot.address}</p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* Result card (only for completed visits) */}
-      {visit.status === 'completed' && visit.result && (
-        <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4">
-          <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Resultado de la Visita</h2>
-          {visit.result.findings && (
-            <div>
-              <span className="text-sm text-gray-500">Hallazgos</span>
-              <p className="text-gray-700">{visit.result.findings}</p>
-            </div>
-          )}
-          {visit.result.recommendation && (
-            <div>
-              <span className="text-sm text-gray-500">Recomendación</span>
-              <p className="text-gray-700">{visit.result.recommendation}</p>
-            </div>
-          )}
-          {visit.result.estimatedBudget && (
-            <div>
-              <span className="text-sm text-gray-500">Presupuesto Estimado</span>
-              <p className="text-lg font-bold text-green-600">${visit.result.estimatedBudget.toLocaleString('es-CL')}</p>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Converted banner */}
-      {visit.convertedToWorkOrderId && (
-        <div className="bg-purple-50 border border-purple-200 rounded-xl p-4">
-          <p className="text-sm text-purple-700">
-            ✓ Convertida a Orden de Trabajo el {new Date(visit.convertedAt!).toLocaleDateString('es-CL')}
-          </p>
-        </div>
-      )}
     </div>
   );
 }

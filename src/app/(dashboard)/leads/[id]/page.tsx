@@ -27,6 +27,7 @@ interface Lead {
   estimatedValue?: number;
   notes?: string;
   convertedToClient?: string;
+  convertedToWorkOrder?: string;
   convertedAt?: string;
   createdAt: string;
   updatedAt: string;
@@ -37,7 +38,7 @@ interface Quote {
   _id: string;
   number: string;
   title: string;
-  status: 'draft' | 'sent' | 'approved' | 'rejected' | 'expired' | 'cancelled';
+  status: 'draft' | 'sent' | 'approved' | 'rejected' | 'expired' | 'cancelled' | 'direct_sale';
   total: number;
   validUntil: string | null;
   createdAt: string;
@@ -83,6 +84,7 @@ const QUOTE_STATUS_LABELS: Record<string, string> = {
   rejected: 'Rechazado',
   expired: 'Expirado',
   cancelled: 'Cancelado',
+  direct_sale: 'Venta Directa',
 };
 
 const QUOTE_STATUS_VARIANT: Record<string, string> = {
@@ -92,6 +94,7 @@ const QUOTE_STATUS_VARIANT: Record<string, string> = {
   rejected: 'bg-danger-50 text-danger-700',
   expired: 'bg-warning-50 text-warning-700',
   cancelled: 'bg-gray-100 text-gray-500',
+  direct_sale: 'bg-success-50 text-success-700',
 };
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -187,6 +190,14 @@ export default function LeadDetailPage() {
   const [visits, setVisits] = useState<WorkOrder[]>([]);
   const [loadingRelated, setLoadingRelated] = useState(false);
   const [timelineRefreshKey, setTimelineRefreshKey] = useState(0);
+  
+  // Sale detail for converted leads
+  const [saleDetail, setSaleDetail] = useState<{
+    hasSale: boolean;
+    workOrder?: { _id: string; workOrderNumber: string; status: string };
+    quote?: { _id: string; number: string; title: string; status: string; total: number };
+  } | null>(null);
+  const [loadingSaleDetail, setLoadingSaleDetail] = useState(false);
 
   // Chat state
   const [activeDetailTab, setActiveDetailTab] = useState<'info' | 'chat' | 'timeline'>('info');
@@ -227,8 +238,14 @@ export default function LeadDetailPage() {
         setLoading(true);
         const data = await api.get<Lead>(`/api/crm/leads/${id}`);
         setLead(data);
+        
         if (data.status === 'contacted' || data.status === 'quote_sent' || data.status === 'technical_visit') {
           loadRelatedData();
+        }
+        
+        // Load sale detail if converted
+        if (data.convertedToClient || data.convertedToWorkOrder) {
+          loadSaleDetail(data.convertedToClient, data.convertedToWorkOrder);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error al cargar lead');
@@ -252,6 +269,19 @@ export default function LeadDetailPage() {
       console.error('Error loading related data:', err);
     } finally {
       setLoadingRelated(false);
+    }
+  }
+
+  async function loadSaleDetail(convertedClientId?: string, convertedWorkOrderId?: string) {
+    if (!convertedClientId && !convertedWorkOrderId) return;
+    setLoadingSaleDetail(true);
+    try {
+      const data = await api.get<typeof saleDetail>(`/api/crm/leads/${id}/sale-detail`);
+      setSaleDetail(data);
+    } catch (err) {
+      console.error('Error loading sale detail:', err);
+    } finally {
+      setLoadingSaleDetail(false);
     }
   }
 
@@ -409,7 +439,50 @@ export default function LeadDetailPage() {
               {isConverted && (
                 <>
                   <DetailRow label="Convertido" value={lead.convertedAt ? new Date(lead.convertedAt).toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' }) : 'Sí'} />
+                  {lead.convertedToWorkOrder && (
+                    <div className="flex items-center py-3 border-b border-gray-100 last:border-0">
+                      <dt className="text-sm font-medium text-gray-500 sm:w-40 shrink-0">OT Creada</dt>
+                      <dd className="text-sm mt-0.5 sm:mt-0">
+                        <a
+                          href={`/work-orders/${lead.convertedToWorkOrder}`}
+                          className="text-brand-600 hover:text-brand-700 font-medium"
+                        >
+                          Ver Orden de Trabajo →
+                        </a>
+                      </dd>
+                    </div>
+                  )}
                 </>
+              )}
+
+              {/* Detalle de venta para leads convertidos */}
+              {isConverted && (
+                loadingSaleDetail ? (
+                  <div className="flex items-center py-3 border-b border-gray-100">
+                    <dt className="text-sm font-medium text-gray-500 sm:w-40 shrink-0">Detalle de Venta</dt>
+                    <dd className="text-sm text-gray-400">Cargando...</dd>
+                  </div>
+                ) : saleDetail?.hasSale && saleDetail.quote ? (
+                  <div className="space-y-2 py-3 border-b border-gray-100">
+                    <dt className="text-sm font-medium text-gray-500">Detalle de Venta</dt>
+                    <dd className="text-sm">
+                      <div className="flex items-center gap-3">
+                        <a
+                          href={`/quotes/${saleDetail.quote._id}`}
+                          className="text-brand-600 hover:text-brand-700 font-medium flex-1"
+                        >
+                          {saleDetail.quote.title} (${saleDetail.quote.total.toLocaleString()}) →
+                        </a>
+                        <button
+                          onClick={() => handleViewQuoteDetail(saleDetail.quote!._id)}
+                          className="text-xs text-gray-500 hover:text-gray-700 underline"
+                        >
+                          Ver
+                        </button>
+                      </div>
+                    </dd>
+                  </div>
+                ) : null
               )}
             </dl>
           </div>
@@ -572,7 +645,7 @@ export default function LeadDetailPage() {
           {/* Lista de Presupuestos */}
           {quotes.length > 0 && (
             <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
-              <h3 className="text-sm font-semibold text-gray-900 mb-2">Presupuestos</h3>
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">Presupuestos ({quotes.length})</h3>
               <div className="space-y-2">
                 {quotes.map((quote) => (
                   <div key={quote._id} className="p-3 bg-gray-50 rounded-lg">

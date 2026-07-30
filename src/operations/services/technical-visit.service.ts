@@ -14,9 +14,19 @@ export class TechnicalVisitService {
     if (filters.status) query.status = filters.status;
     if (filters.priority) query.priority = filters.priority;
     if (filters.leadId) query.leadId = new Types.ObjectId(filters.leadId as string);
+    if (filters.technicianId) query.assignedTechnicianId = new Types.ObjectId(filters.technicianId as string);
     
     if (filters.scheduledDateGte || filters.scheduledDateLte) {
       query.scheduledDate = { $gte: filters.scheduledDateGte as Date, $lte: filters.scheduledDateLte as Date } as any;
+    }
+
+    // Search by title or client name
+    if (filters.search) {
+      const searchRegex = new RegExp(filters.search as string, 'i');
+      query.$or = [
+        { title: searchRegex },
+        { 'clientSnapshot.name': searchRegex },
+      ];
     }
     
     return TechnicalVisitModel.find(query)

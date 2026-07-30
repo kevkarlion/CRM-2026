@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { api } from '@/lib/api-client';
+import {
+  LocationActions,
+} from '@/components/location';
 
 interface WorkOrderData {
   _id: string;
@@ -14,13 +17,38 @@ interface WorkOrderData {
   status: string;
   quoteId?: string | null;
   clientSnapshot?: { name?: string; email?: string; phone?: string };
-  locationSnapshot?: { name?: string; address?: string };
+  locationSnapshot?: {
+    name?: string;
+    address?: string;
+    city?: string;
+    province?: string;
+    latitude?: number;
+    longitude?: number;
+    placeId?: string;
+    details?: {
+      floor?: string;
+      apartment?: string;
+      tower?: string;
+      office?: string;
+      neighborhood?: string;
+      block?: string;
+      lot?: string;
+      reference?: string;
+      observations?: string;
+    };
+  };
   equipmentSnapshot?: { equipmentType?: string; brand?: string; model?: string; serialNumber?: string } | null;
   scheduledDate?: string;
   scheduledStart?: string;
   scheduledEnd?: string;
   estimatedDuration?: number;
   version?: number;
+  technicianNotes?: {
+    materials?: string;
+    tools?: string;
+    additionalNotes?: string;
+  };
+  assignedTechnicians?: Array<{ _id: string; name: string; email?: string } | string>;
 }
 
 function extractLocalTime(dateStr: string): string {
@@ -64,6 +92,7 @@ export default function EditWorkOrderPage() {
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [workOrder, setWorkOrder] = useState<WorkOrderData | null>(null);
+  const [technicians, setTechnicians] = useState<Array<{ _id: string; name: string; email?: string }>>([]);
   const [form, setForm] = useState({
     title: '',
     priority: 'normal',
@@ -73,20 +102,45 @@ export default function EditWorkOrderPage() {
     startTime: '',
     endTime: '',
     estimatedDuration: '',
+    assignedTechnician: '',
+    materials: '',
+    tools: '',
+    additionalNotes: '',
+    // Location fields
+    locationAddress: '',
+    locationCity: '',
+    locationProvince: '',
+    locationReference: '',
   });
 
   useEffect(() => {
     async function load() {
       try {
         setLoading(true);
-        const result = await api.get<{ data: any }>(`/api/operations/work-orders/${id}`);
-        const wo = result.data;
+        
+        // Load work order and technicians in parallel
+        const [woResult, techResult] = await Promise.all([
+          api.get<{ data: any }>(`/api/operations/work-orders/${id}`),
+          api.get<Array<{ _id: string; name: string; email?: string }>>('/api/operations/technicians').catch(() => []),
+        ]);
+        
+        const wo = woResult.data;
+        setTechnicians(techResult || []);
+        
         if (!wo) {
           setNotFound(true);
           setLoading(false);
           return;
         }
         setWorkOrder(wo);
+        
+        // Get assigned technician ID
+        let assignedTechId = '';
+        if (wo.assignedTechnicians && wo.assignedTechnicians.length > 0) {
+          const first = wo.assignedTechnicians[0];
+          assignedTechId = typeof first === 'string' ? first : (first as any)._id;
+        }
+        
         function datePart(dt?: string) {
           if (!dt) return '';
           try { return dt.substring(0, 10); }
@@ -101,6 +155,28 @@ export default function EditWorkOrderPage() {
           startTime: wo.scheduledStart ? extractLocalTime(wo.scheduledStart) : '',
           endTime: wo.scheduledEnd ? extractLocalTime(wo.scheduledEnd) : '',
           estimatedDuration: wo.estimatedDuration ? String(wo.estimatedDuration) : '',
+          assignedTechnician: assignedTechId,
+          materials: wo.technicianNotes?.materials || '',
+          tools: wo.technicianNotes?.tools || '',
+          additionalNotes: wo.technicianNotes?.additionalNotes || '',
+          locationAddress: wo.locationSnapshot?.address || '',
+          locationCity: wo.locationSnapshot?.city || '',
+          locationProvince: wo.locationSnapshot?.province || '',
+          locationReference: wo.locationSnapshot?.details?.reference || wo.locationSnapshot?.details?.observations || '',
+          latitude: wo.locationSnapshot?.latitude,
+          longitude: wo.locationSnapshot?.longitude,
+          placeId: wo.locationSnapshot?.placeId,
+          locationDetails: {
+            floor: wo.locationSnapshot?.details?.floor || '',
+            apartment: wo.locationSnapshot?.details?.apartment || '',
+            tower: wo.locationSnapshot?.details?.tower || '',
+            office: wo.locationSnapshot?.details?.office || '',
+            neighborhood: wo.locationSnapshot?.details?.neighborhood || '',
+            block: wo.locationSnapshot?.details?.block || '',
+            lot: wo.locationSnapshot?.details?.lot || '',
+            reference: wo.locationSnapshot?.details?.reference || '',
+            observations: wo.locationSnapshot?.details?.observations || '',
+          },
         });
       } catch {
         setNotFound(true);
@@ -110,6 +186,9 @@ export default function EditWorkOrderPage() {
     }
     load();
   }, [id]);
+
+  // Use browser GPS to get current location
+  // Removed - not needed without geocoding API
 
   async function handleSubmit(approve: boolean) {
     setError(null);
@@ -129,6 +208,43 @@ export default function EditWorkOrderPage() {
       if (form.scheduledDate && form.startTime) body.scheduledStart = toISOStringWithLocalTime(form.scheduledDate, form.startTime);
       if (form.scheduledDate && form.endTime) body.scheduledEnd = toISOStringWithLocalTime(form.scheduledDate, form.endTime);
       if (form.estimatedDuration) body.estimatedDuration = parseInt(form.estimatedDuration, 10);
+      
+      // Technician assignment
+      if (form.assignedTechnician) {
+        body.assignedTechnicians = [form.assignedTechnician];
+      }
+      
+      // Technician notes
+      if (form.materials.trim() || form.tools.trim() || form.additionalNotes.trim()) {
+        body.technicianNotes = {
+          materials: form.materials.trim() || undefined,
+          tools: form.tools.trim() || undefined,
+          additionalNotes: form.additionalNotes.trim() || undefined,
+        };
+      }
+      
+      // Location - include all new fields
+      if (form.locationAddress.trim() || form.locationCity.trim() || form.locationProvince.trim() || form.latitude || form.longitude) {
+        const locationDetails = {
+          floor: form.locationDetails.floor || undefined,
+          apartment: form.locationDetails.apartment || undefined,
+          tower: form.locationDetails.tower || undefined,
+          office: form.locationDetails.office || undefined,
+          neighborhood: form.locationDetails.neighborhood || undefined,
+          block: form.locationDetails.block || undefined,
+          lot: form.locationDetails.lot || undefined,
+          reference: form.locationDetails.reference || undefined,
+          observations: form.locationDetails.observations || undefined,
+        };
+
+        // Simple location with reference/observations
+        body.locationSnapshot = {
+          address: form.locationAddress.trim(),
+          city: form.locationCity.trim() || undefined,
+          province: form.locationProvince.trim() || undefined,
+          details: form.locationReference.trim() ? { reference: form.locationReference.trim() } : undefined,
+        };
+      }
 
       body.version = workOrder?.version ?? 0;
 
@@ -256,23 +372,56 @@ export default function EditWorkOrderPage() {
           </div>
         </div>
 
-        {workOrder?.locationSnapshot?.name && (
-          <div className="space-y-5">
-            <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Ubicación</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre/Lugar</label>
-                <div className={readonlyClass}>{workOrder.locationSnapshot.name}</div>
-              </div>
-              {workOrder.locationSnapshot.address && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
-                  <div className={readonlyClass}>{workOrder.locationSnapshot.address}</div>
-                </div>
-              )}
+        {/* Location - simple manual entry */}
+        <div className="space-y-5">
+          <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">📍 Ubicación del servicio</h2>
+          
+          {/* Address - simple input */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
+            <input type="text" name="locationAddress" value={form.locationAddress}
+              onChange={(e) => setForm((p) => ({ ...p, locationAddress: e.target.value }))}
+              className={inputClass} placeholder="Ej: Av. San Martín 1250, General Roca, Río Negro" />
+            
+            {/* Build full address for Google Maps */}
+            {(() => {
+              const fullAddress = [form.locationAddress, form.locationCity, form.locationProvince]
+                .filter(Boolean).join(', ');
+              return (
+                <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`}
+                  target="_blank" rel="noopener noreferrer"
+                  className="mt-2 inline-flex items-center gap-1 text-sm text-brand-600 hover:text-brand-800 underline">
+                  📍 Ver en Google Maps
+                </a>
+              );
+            })()}
+          </div>
+
+          {/* City and Province */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Ciudad</label>
+              <input type="text" name="locationCity" value={form.locationCity}
+                onChange={(e) => setForm((p) => ({ ...p, locationCity: e.target.value }))}
+                className={inputClass} placeholder="Ej: General Roca" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Región/Provincia</label>
+              <input type="text" name="locationProvince" value={form.locationProvince}
+                onChange={(e) => setForm((p) => ({ ...p, locationProvince: e.target.value }))}
+                className={inputClass} placeholder="Ej: Río Negro" />
             </div>
           </div>
-        )}
+
+          {/* Additional Location Details */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Referencias / Observaciones</label>
+            <textarea name="locationReference" value={form.locationReference || ''}
+              onChange={(e) => setForm((p) => ({ ...p, locationReference: e.target.value }))}
+              className={inputClass} rows={2}
+              placeholder="Ej: Portón gris, timbre 4, casa del fondo..." />
+          </div>
+        </div>
 
         {workOrder?.equipmentSnapshot && (
           <div className="space-y-5">
@@ -305,6 +454,52 @@ export default function EditWorkOrderPage() {
             </div>
           </div>
         )}
+
+        {/* Technician Assignment */}
+        <div className="space-y-5">
+          <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Técnico</h2>
+          <div className="grid grid-cols-1 gap-5">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Asignar técnico</label>
+              <select value={form.assignedTechnician}
+                onChange={(e) => setForm((p) => ({ ...p, assignedTechnician: e.target.value }))}
+                className={inputClass}>
+                <option value="">Seleccionar técnico...</option>
+                {technicians.map((tech) => (
+                  <option key={tech._id} value={tech._id}>{tech.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Technician Notes */}
+        <div className="space-y-5">
+          <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Notas del Técnico</h2>
+          <div className="grid grid-cols-1 gap-5">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Materiales necesarios</label>
+              <textarea value={form.materials}
+                onChange={(e) => setForm((p) => ({ ...p, materials: e.target.value }))}
+                rows={3}
+                className={inputClass} placeholder="Ej: Cables UTP, Conectores RJ45, Canaletas..." />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Herramientas necesarias</label>
+              <textarea value={form.tools}
+                onChange={(e) => setForm((p) => ({ ...p, tools: e.target.value }))}
+                rows={3}
+                className={inputClass} placeholder="Ej: Taladro, Destornillador, Crimpeadora..." />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Notas adicionales</label>
+              <textarea value={form.additionalNotes}
+                onChange={(e) => setForm((p) => ({ ...p, additionalNotes: e.target.value }))}
+                rows={3}
+                className={inputClass} placeholder="Ej: El portón está dañado, entrar a pie..." />
+            </div>
+          </div>
+        </div>
 
         <div className="space-y-5">
           <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Programación</h2>

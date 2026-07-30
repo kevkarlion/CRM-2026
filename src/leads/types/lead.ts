@@ -29,6 +29,7 @@ export interface ILead extends Document {
   notes?: string;
   qualificationStatus?: QualificationStatus;
   convertedToClient?: Types.ObjectId;
+  convertedToWorkOrder?: Types.ObjectId;
   convertedAt?: Date;
   lostReason?: LostReason;
   lostDescription?: string;

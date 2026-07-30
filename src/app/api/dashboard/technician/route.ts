@@ -119,7 +119,22 @@ export async function GET(request: NextRequest) {
       .limit(50)
       .lean();
 
-    // Get technical visits for this technician
+    // Map work orders to TechnicianWorkOrder format
+    const workOrdersData = workOrders.map((wo) => ({
+      _id: String(wo._id),
+      workOrderNumber: wo.workOrderNumber,
+      title: wo.title,
+      status: wo.status,
+      priority: wo.priority,
+      category: wo.category,
+      scheduledDate: wo.scheduledDate,
+      scheduledStart: wo.scheduledStart,
+      scheduledEnd: wo.scheduledEnd,
+      clientSnapshot: wo.clientSnapshot,
+      locationSnapshot: wo.locationSnapshot,
+      assignedTechnicians: wo.assignedTechnicians,
+    }));
+
     const technicalVisits = await TechnicalVisitModel.find({
       tenantId: tenantObjectId,
       assignedTechnicianId: technicianId,
@@ -128,6 +143,88 @@ export async function GET(request: NextRequest) {
       .sort({ scheduledDate: 1, scheduledStart: 1 })
       .limit(50)
       .lean();
+
+    // === NUEVO: Datos globales para el técnico ===
+    // Órdenes totales en el CRM (sin asignar) - para auto-asignación
+    const totalUnassignedOrders = await WorkOrderModel.countDocuments({
+      tenantId: tenantObjectId,
+      deletedAt: null,
+      status: { $in: ['scheduled', 'confirmed'] },
+      assignedTechnicians: { $size: 0 },
+    });
+
+    // Órdenes por vencer (próximos 2 días, no asignadas al técnico actual)
+    const twoDaysFromNow = new Date();
+    twoDaysFromNow.setDate(twoDaysFromNow.getDate() + 2);
+    const ordersExpiringSoon = await WorkOrderModel.countDocuments({
+      tenantId: tenantObjectId,
+      deletedAt: null,
+      status: { $in: ['scheduled', 'confirmed'] },
+      scheduledDate: { 
+        $gte: now.toISOString().split('T')[0], 
+        $lte: twoDaysFromNow.toISOString().split('T')[0] 
+      },
+    });
+
+    // Órdenes urgentes (prioridad high, urgent, emergency) - no completadas
+    const urgentOrders = await WorkOrderModel.countDocuments({
+      tenantId: tenantObjectId,
+      deletedAt: null,
+      status: { $nin: ['completed', 'cancelled', 'closed'] },
+      priority: { $in: ['high', 'urgent', 'emergency'] },
+    });
+
+    // Visitas técnicas totales (sin asignar o del técnico)
+    const totalUnassignedVisits = await TechnicalVisitModel.countDocuments({
+      tenantId: tenantObjectId,
+      deletedAt: null,
+      status: { $in: ['scheduled', 'confirmed'] },
+      assignedTechnicianId: null,
+    });
+
+    // === Órdenes y Visitas Vencidas ===
+    const todayStr = now.toISOString().split('T')[0];
+    
+    // Órdenes de trabajo vencidas (fecha programada < hoy Y no completada)
+    const expiredOrders = await WorkOrderModel.countDocuments({
+      tenantId: tenantObjectId,
+      deletedAt: null,
+      status: { $nin: ['completed', 'cancelled', 'closed'] },
+      scheduledDate: { $lt: todayStr },
+    });
+
+    // Visitas técnicas vencidas (el campo es Date en el modelo)
+    const todayStartDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const expiredVisits = await TechnicalVisitModel.countDocuments({
+      tenantId: tenantObjectId,
+      deletedAt: null,
+      status: { $nin: ['completed', 'cancelled', 'converted_to_work_order'] },
+      scheduledDate: { $lt: todayStartDate },
+    });
+
+    // Órdenes por vencer (próximos 3 días, no asignadas al técnico actual)
+    const threeDaysFromNow = new Date();
+    threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
+    const ordersDueSoon = await WorkOrderModel.countDocuments({
+      tenantId: tenantObjectId,
+      deletedAt: null,
+      status: { $nin: ['completed', 'cancelled', 'closed'] },
+      scheduledDate: { 
+        $gte: todayStr, 
+        $lte: threeDaysFromNow.toISOString().split('T')[0] 
+      },
+    });
+
+    // Visitas por vencer (próximos 3 días)
+    const visitsDueSoon = await TechnicalVisitModel.countDocuments({
+      tenantId: tenantObjectId,
+      deletedAt: null,
+      status: { $nin: ['completed', 'cancelled', 'converted_to_work_order'] },
+      scheduledDate: { 
+        $gte: todayStartDate, 
+        $lte: threeDaysFromNow 
+      },
+    });
 
     const technicalVisitsData = technicalVisits.map((tv) => ({
       _id: String(tv._id),
@@ -147,10 +244,12 @@ export async function GET(request: NextRequest) {
     const allWorkOrders = [...workOrdersData, ...technicalVisitsData];
 
     // Get technician load (just this technician)
+    const maxDailyLoad = (technician as any).maxDailyWorkOrders || 8;
     const technicianLoad = [{
       techId: String(technicianId),
       name: technician.name || `${technician.firstName || ''} ${technician.lastName || ''}`.trim() || 'Técnico',
       assignedCount: inProgressOrders + pendingOrders + (technicalVisits?.length || 0),
+      maxDailyLoad,
     }];
 
     return NextResponse.json({
@@ -159,6 +258,19 @@ export async function GET(request: NextRequest) {
       pendingOrders,
       inProgressOrders,
       upcomingSevenDays,
+      // Nuevos campos para el técnico
+      globalStats: {
+        totalUnassignedOrders,
+        totalUnassignedVisits,
+        ordersExpiringSoon,
+        urgentOrders,
+        // Nuevos: vencidas y por vencer
+        expiredOrders,
+        expiredVisits,
+        ordersDueSoon,
+        visitsDueSoon,
+      },
+      maxDailyLoad, // Límite diario del técnico desde la DB
       sla: {
         onTime,
         delayed,

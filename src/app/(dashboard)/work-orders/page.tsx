@@ -1,10 +1,19 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+export const dynamic = 'force-dynamic';
+
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api-client';
+import { useRole } from '@/dashboard/context/role-context';
 import { SelfAssignmentDrawer } from '@/operations/components/SelfAssignmentDrawer';
 import { formatDateShort as formatDate } from '@/operations/helpers/date-utils';
+
+// Helper to get short WO number (last 7 chars)
+function shortWO(number: string): string {
+  if (!number) return '';
+  return number.slice(-7);
+}
 
 interface WorkOrder {
   _id: string;
@@ -35,12 +44,6 @@ const STATUS_OPTIONS = [
   { value: 'completed', label: 'Completado' },
   { value: 'cancelled', label: 'Cancelado' },
   { value: 'closed', label: 'Cerrado' },
-];
-
-const TYPE_OPTIONS = [
-  { value: '', label: 'Todos los tipos' },
-  { value: 'technical_visit', label: 'Visitas Técnicas' },
-  { value: 'work_order', label: 'Órdenes de Trabajo' },
 ];
 
 const PRIORITY_OPTIONS = [
@@ -98,54 +101,69 @@ function sourceBadge(source: string): { label: string; variant: string } {
 
 export default function WorkOrdersPage() {
   const router = useRouter();
+  const { isAdmin } = useRole();
   const [orders, setOrders] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [priorityFilter, setPriorityFilter] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [total, setTotal] = useState(0);
+  const [technicians, setTechnicians] = useState<{ _id: string; name: string }[]>([]);
+  const [technicianFilter, setTechnicianFilter] = useState('');
 
   // Self-assignment drawer state
   const [selfAssignOpen, setSelfAssignOpen] = useState(false);
   const [selfAssignWO, setSelfAssignWO] = useState<{ id: string; number: string } | null>(null);
+  const mountedRef = useRef(false);
 
   const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const params: Record<string, string> = {};
+const params: Record<string, string> = {};
       if (search) params.search = search;
-      if (typeFilter) params.type = typeFilter;
       if (statusFilter) params.status = statusFilter;
       if (priorityFilter) params.priority = priorityFilter;
       if (fromDate) params.from = fromDate;
       if (toDate) params.to = toDate;
+      if (technicianFilter) params.technicianId = technicianFilter;
 
       const result = await api.get<ListResponse>('/api/operations/work-orders', params);
       setOrders(result.data);
       setTotal(result.total);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al cargar órdenes');
+      setError(err instanceof Error ? err.message: 'Error al cargar órdenes');
     } finally {
       setLoading(false);
     }
-  }, [search, typeFilter, statusFilter, priorityFilter, fromDate, toDate]);
+  }, [search, statusFilter, priorityFilter, fromDate, toDate, technicianFilter]);
 
+  // Initial load + filter changes (debounced search)
   useEffect(() => {
-    fetchOrders();
-  }, [typeFilter, statusFilter, priorityFilter, fromDate, toDate]);
-
-  useEffect(() => {
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      fetchOrders();
+      loadTechnicians();
+      return;
+    }
     const timer = setTimeout(() => {
       fetchOrders();
-    }, 400);
+    }, search ? 400 : 0);
     return () => clearTimeout(timer);
-  }, [search]);
+  }, [search, statusFilter, priorityFilter, fromDate, toDate, technicianFilter]);
+
+  async function loadTechnicians() {
+    try {
+      const data = await api.get<{ data: { _id: string; name: string }[] }>('/api/operations/technicians');
+      setTechnicians(data.data || []);
+    } catch (err) {
+      // ignore
+    }
+  }
 
   function handleRowClick(id: string) {
     router.push(`/work-orders/${id}`);
@@ -187,17 +205,18 @@ export default function WorkOrdersPage() {
             type="text"
             value={search}
             onChange={(e) => setSearch((e.target as any).value)}
-            placeholder="Buscar por título..."
+            placeholder="Buscar por título o cliente..."
             className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
           />
         </div>
         <select
-          value={typeFilter}
-          onChange={(e) => setTypeFilter((e.target as any).value)}
+          value={technicianFilter}
+          onChange={(e) => setTechnicianFilter((e.target as any).value)}
           className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
         >
-          {TYPE_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>{opt.label}</option>
+          <option value="">Todos los técnicos</option>
+          {technicians.map((tech) => (
+            <option key={tech._id} value={tech._id}>{tech.name}</option>
           ))}
         </select>
         <select
@@ -241,10 +260,31 @@ export default function WorkOrdersPage() {
       )}
 
       {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />
-          ))}
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-gray-100 bg-gray-50">
+                <th className="text-left px-5 py-3 font-semibold text-gray-600">Tipo</th>
+                <th className="text-left px-5 py-3 font-semibold text-gray-600">#</th>
+                <th className="text-left px-5 py-3 font-semibold text-gray-600">Cliente</th>
+                <th className="text-left px-5 py-3 font-semibold text-gray-600">Técnico</th>
+                <th className="text-left px-5 py-3 font-semibold text-gray-600">Estado</th>
+                <th className="text-left px-5 py-3 font-semibold text-gray-600">Fecha</th>
+              </tr>
+            </thead>
+            <tbody>
+              {[1, 2, 3, 4, 5].map((i) => (
+                <tr key={i} className="border-b border-gray-100">
+                  <td className="px-5 py-3"><div className="h-4 w-16 bg-gray-200 rounded animate-pulse" /></td>
+                  <td className="px-5 py-3"><div className="h-4 w-24 bg-gray-200 rounded animate-pulse" /></td>
+                  <td className="px-5 py-3"><div className="h-4 w-32 bg-gray-200 rounded animate-pulse" /></td>
+                  <td className="px-5 py-3"><div className="h-4 w-28 bg-gray-200 rounded animate-pulse" /></td>
+                  <td className="px-5 py-3"><div className="h-5 w-20 bg-gray-200 rounded-full animate-pulse" /></td>
+                  <td className="px-5 py-3"><div className="h-4 w-24 bg-gray-200 rounded animate-pulse" /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       ) : orders.length === 0 ? (
         <div className="text-center py-16">
@@ -278,15 +318,14 @@ export default function WorkOrdersPage() {
                 {orders.map((wo) => (
                   <tr
                     key={wo._id}
-                    onClick={() => handleRowClick(wo._id)}
-                    className="border-b border-gray-100 last:border-0 hover:bg-gray-50 cursor-pointer transition-colors"
+                    className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors"
                   >
                     <td className="px-5 py-3">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${sourceBadge(wo.source).variant}`}>
                         {sourceBadge(wo.source).label}
                       </span>
                     </td>
-                    <td className="px-5 py-3 font-medium text-gray-900">{wo.workOrderNumber}</td>
+                    <td className="px-5 py-3 font-medium text-gray-900">#{shortWO(wo.workOrderNumber)}</td>
                     <td className="px-5 py-3 font-medium text-gray-900">{wo.title}</td>
                     <td className="px-5 py-3 text-gray-700">{clientName(wo)}</td>
                     <td className="px-5 py-3">
@@ -302,7 +341,16 @@ export default function WorkOrdersPage() {
                     <td className="px-5 py-3 text-gray-500">{formatDate(wo.scheduledDate)}</td>
                     <td className="px-5 py-3 text-gray-500">{technicianName(wo)}</td>
                     <td className="px-5 py-3">
-                      {(wo.status === 'scheduled' || wo.status === 'assigned') && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          router.push(`/work-orders/${wo._id}`);
+                        }}
+                        className="text-xs font-medium text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 px-3 py-1.5 rounded-lg transition-colors"
+                      >
+                        Ver
+                      </button>
+                      {!isAdmin && (wo.status === 'scheduled' || wo.status === 'assigned') && (
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
@@ -321,17 +369,16 @@ export default function WorkOrdersPage() {
             </table>
           </div>
 
-          <div className="sm:hidden space-y-3">
+<div className="sm:hidden space-y-3">
             {orders.map((wo) => (
               <div
                 key={wo._id}
-                onClick={() => handleRowClick(wo._id)}
-                className="bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:border-gray-300 transition-colors"
+                className="bg-white border border-gray-200 rounded-xl p-4 hover:border-gray-300 transition-colors"
               >
                 <div className="flex items-start justify-between mb-2">
                   <div>
                     <p className="font-medium text-gray-900">{wo.title}</p>
-                    <p className="text-xs text-gray-400">{wo.workOrderNumber}</p>
+                    <p className="text-xs text-gray-400">#{shortWO(wo.workOrderNumber)}</p>
                   </div>
                   <div className="flex gap-1">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[wo.status] || 'bg-gray-100 text-gray-700'}`}>
@@ -347,20 +394,29 @@ export default function WorkOrdersPage() {
                   <span>Programado: {formatDate(wo.scheduledDate)}</span>
                   <span>Técnico: {technicianName(wo)}</span>
                 </div>
-                {(wo.status === 'scheduled' || wo.status === 'assigned') && (
-                  <div className="mt-2 pt-2 border-t border-gray-100">
+                <div className="mt-2 pt-2 border-t border-gray-100 flex gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      router.push(`/work-orders/${wo._id}`);
+                    }}
+                    className="flex-1 text-xs font-medium text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 px-3 py-1.5 rounded-lg text-center transition-colors"
+                  >
+                    Ver
+                  </button>
+                  {!isAdmin && (wo.status === 'scheduled' || wo.status === 'assigned') && (
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         setSelfAssignWO({ id: wo._id, number: wo.workOrderNumber });
                         setSelfAssignOpen(true);
                       }}
-                      className="text-xs font-medium text-brand-600 hover:text-brand-700 transition-colors"
+                      className="flex-1 text-xs font-medium text-brand-600 hover:text-brand-700 transition-colors"
                     >
                       Auto-asignar
                     </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             ))}
           </div>

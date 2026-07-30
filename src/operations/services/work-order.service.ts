@@ -144,6 +144,10 @@ export class WorkOrderService {
       query.status = filters.status;
     }
 
+    if (filters.priority) {
+      query.priority = filters.priority;
+    }
+
     if (filters.technicianId) {
       query.assignedTechnicians = new Types.ObjectId(filters.technicianId);
     }
@@ -153,6 +157,15 @@ export class WorkOrderService {
       if (filters.scheduledDateGte) dateFilter.$gte = filters.scheduledDateGte;
       if (filters.scheduledDateLte) dateFilter.$lte = filters.scheduledDateLte;
       query.scheduledDate = dateFilter;
+    }
+
+    // Search by title or client name
+    if (filters.search) {
+      const searchRegex = new RegExp(filters.search, 'i');
+      query.$or = [
+        { title: searchRegex },
+        { 'clientSnapshot.name': searchRegex },
+      ];
     }
 
     return WorkOrderModel.find(query)

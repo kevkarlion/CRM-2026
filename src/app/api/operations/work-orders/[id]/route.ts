@@ -1,25 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
 import { WorkOrderService, ValidationError, ConflictError } from '@/operations/services/work-order.service';
+import { workAssignmentService } from '@/operations/services/work-assignment.service';
 import { TransitionError } from '@/operations/helpers/state-machine';
 import type { TransitionContext } from '@/operations/helpers/state-machine';
 import type { WorkOrderStatus } from '@/operations/types/work-order';
+import { Types } from 'mongoose';
 
 const service = new WorkOrderService();
 
+// Helper: resolve workOrderId from param (could be _id or workOrderNumber)
+async function resolveWorkOrderId(id: string, tenantId: string): Promise<string> {
+  const WorkOrderModel = (await import('@/operations/models/work-order')).default;
+  // Try as ObjectId first
+  if (Types.ObjectId.isValid(id) && id.length === 24) {
+    const wo = await WorkOrderModel.findOne({ _id: id, tenantId, deletedAt: null }).select('_id').lean();
+    if (wo) return id;
+  }
+  // Try as workOrderNumber
+  const woByNumber = await WorkOrderModel.findOne({ workOrderNumber: id, tenantId, deletedAt: null }).select('_id').lean();
+  if (woByNumber) return String(woByNumber._id);
+  // Return original - let it fail downstream
+  return id;
+}
+
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     await connectDB();
     const { id } = await params;
-    const tenantId = _request.headers.get('x-tenant-id') || '';
+    const tenantId = request.headers.get('x-tenant-id') || '';
     if (!tenantId) {
       return NextResponse.json({ error: 'x-tenant-id header is required' }, { status: 400 });
     }
 
-    const data = await service.findById(id, tenantId);
+    const workOrderId = await resolveWorkOrderId(id, tenantId);
+    const data = await service.findById(workOrderId, tenantId);
     if (!data) {
       return NextResponse.json({ error: 'WorkOrder not found' }, { status: 404 });
     }
@@ -46,6 +64,9 @@ export async function PATCH(
       return NextResponse.json({ error: 'x-tenant-id and x-user-id headers are required' }, { status: 400 });
     }
 
+    // Resolve workOrderId (could be _id or workOrderNumber)
+    const workOrderId = await resolveWorkOrderId(id, tenantId);
+
     const body = await request.json() as { version: number; status?: string; [key: string]: unknown };
     const { version, status: targetStatus, ...data } = body;
 
@@ -53,7 +74,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'version is required for OCC' }, { status: 400 });
     }
 
-    const updated = await service.update(id, data, tenantId, userId, version);
+    const updated = await service.update(workOrderId, data, tenantId, userId, version);
     if (!updated) {
       return NextResponse.json({ error: 'WorkOrder not found' }, { status: 404 });
     }
@@ -63,10 +84,10 @@ export async function PATCH(
       if (data.scheduledDate || data.scheduledStart || data.scheduledEnd) {
         context.hasSchedule = true;
       }
-      await service.changeStatus(id, targetStatus as WorkOrderStatus, context, tenantId, userId, updated.version);
+      await service.changeStatus(workOrderId, targetStatus as WorkOrderStatus, context, tenantId, userId, updated.version);
     }
 
-    const refreshed = await service.findById(id, tenantId);
+    const refreshed = await service.findById(workOrderId, tenantId);
     return NextResponse.json({ data: refreshed });
   } catch (error) {
     if (error instanceof ConflictError) {
@@ -98,7 +119,8 @@ export async function DELETE(
       return NextResponse.json({ error: 'x-tenant-id and x-user-id headers are required' }, { status: 400 });
     }
 
-    const deleted = await service.softDelete(id, tenantId, userId);
+    const workOrderId = await resolveWorkOrderId(id, tenantId);
+    const deleted = await service.softDelete(workOrderId, tenantId, userId);
     if (!deleted) {
       return NextResponse.json({ error: 'WorkOrder not found' }, { status: 404 });
     }

@@ -1,0 +1,7 @@
+Vista /work-orders/6a6a5808a7a2c92b3d0124ed/edit
+debe contener la nueva información relevante. Nuevos campos a la entidad.
+LUGAR, NOTAS, ETC.
+
+Funcionalidad para agregar el técnico que se encarga de la OT.
+
+DEBE SER EN RAMA NUEVA
