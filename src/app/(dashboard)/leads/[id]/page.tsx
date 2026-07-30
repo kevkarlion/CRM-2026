@@ -66,15 +66,27 @@ const STATUS_OPTIONS = [
 ];
 
 const STATUS_VARIANT: Record<string, string> = {
-  new: 'bg-info-50 text-info-700',
-  contacted: 'bg-brand-50 text-brand-700',
-  quote_sent: 'bg-purple-50 text-purple-700',
-  technical_visit: 'bg-orange-50 text-orange-700',
-  negotiation: 'bg-yellow-50 text-yellow-700',
-  qualified: 'bg-warning-50 text-warning-700',
-  won: 'bg-success-50 text-success-700',
-  lost: 'bg-danger-50 text-danger-700',
-  disqualified: 'bg-gray-100 text-gray-700',
+  new: 'bg-blue-50 border-blue-200 text-blue-700',
+  contacted: 'bg-indigo-50 border-indigo-200 text-indigo-700',
+  quote_sent: 'bg-purple-50 border-purple-200 text-purple-700',
+  technical_visit: 'bg-orange-50 border-orange-200 text-orange-700',
+  negotiation: 'bg-amber-50 border-amber-200 text-amber-700',
+  qualified: 'bg-emerald-50 border-emerald-200 text-emerald-700',
+  won: 'bg-green-50 border-green-200 text-green-700',
+  lost: 'bg-red-50 border-red-200 text-red-700',
+  disqualified: 'bg-gray-50 border-gray-200 text-gray-500',
+};
+
+const STATUS_DOT_COLOR: Record<string, string> = {
+  new: 'bg-blue-500',
+  contacted: 'bg-indigo-500',
+  quote_sent: 'bg-purple-500',
+  technical_visit: 'bg-orange-500',
+  negotiation: 'bg-amber-500',
+  qualified: 'bg-emerald-500',
+  won: 'bg-green-500',
+  lost: 'bg-red-500',
+  disqualified: 'bg-gray-400',
 };
 
 const QUOTE_STATUS_LABELS: Record<string, string> = {
@@ -167,13 +179,6 @@ export default function LeadDetailPage() {
   const [lead, setLead] = useState<Lead | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [changingStatus, setChangingStatus] = useState(false);
-  const [showStatusMenu, setShowStatusMenu] = useState(false);
-  const [assigning, setAssigning] = useState(false);
-  const [assignUserId, setAssignUserId] = useState('');
-  const [showAssignInput, setShowAssignInput] = useState(false);
 
   // Drawer states
   const [showQuoteDrawer, setShowQuoteDrawer] = useState(false);
@@ -285,59 +290,6 @@ export default function LeadDetailPage() {
     }
   }
 
-  async function handleDelete() {
-    setDeleting(true);
-    try {
-      await api.del(`/api/crm/leads/${id}`);
-      router.push('/leads');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al eliminar');
-    } finally {
-      setDeleting(false);
-      setShowDeleteConfirm(false);
-    }
-  }
-
-  async function handleStatusChange(newStatus: string) {
-    setChangingStatus(true);
-    try {
-      const updated = await api.patch<Lead>(`/api/crm/leads/${id}/status`, { status: newStatus });
-      setLead(updated);
-      setShowStatusMenu(false);
-      setTimelineRefreshKey((k) => k + 1);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al cambiar estado');
-    } finally {
-      setChangingStatus(false);
-    }
-  }
-
-  async function handleConvert() {
-    try {
-      const result = await api.post<{ clientId: string }>(`/api/crm/leads/${id}/convert`, {});
-      setTimelineRefreshKey((k) => k + 1);
-      router.push(`/contracts`); // or wherever client detail is
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al convertir');
-    }
-  }
-
-  async function handleAssign() {
-    if (!assignUserId.trim()) return;
-    setAssigning(true);
-    try {
-      await api.post(`/api/crm/leads/${id}/assign`, { userId: assignUserId.trim() });
-      setShowAssignInput(false);
-      setAssignUserId('');
-      const refreshed = await api.get<Lead>(`/api/crm/leads/${id}`);
-      setLead(refreshed);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al asignar');
-    } finally {
-      setAssigning(false);
-    }
-  }
-
   async function handleSendQuote(quoteId: string) {
     setSendingQuoteId(quoteId);
     try {
@@ -403,11 +355,13 @@ export default function LeadDetailPage() {
               <p className="text-sm text-gray-500">{lead.companyName}</p>
             )}
           </div>
-          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[lead.status]}`}>
+          <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-sm font-medium border ${STATUS_VARIANT[lead.status] || 'bg-gray-50 border-gray-200 text-gray-500'}`}>
+            <span className={`w-2 h-2 rounded-full ${STATUS_DOT_COLOR[lead.status] || 'bg-gray-400'}`} />
             {STATUS_OPTIONS.find((o) => o.value === lead.status)?.label || lead.status}
           </span>
           {isConverted && (
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-success-50 text-success-700">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-sm font-medium border bg-green-50 border-green-200 text-green-700">
+              <span className="w-2 h-2 rounded-full bg-green-500" />
               Convertido
             </span>
           )}
@@ -547,74 +501,10 @@ export default function LeadDetailPage() {
         <div className="space-y-4">
           <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
             <h3 className="text-sm font-semibold text-gray-900 mb-2">Acciones</h3>
-
             <button onClick={() => router.push(`/leads/${id}/edit`)}
-              className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
+              className="w-full rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 transition-colors">
               Editar Lead
             </button>
-
-            <div className="relative">
-              <button onClick={() => setShowStatusMenu(!showStatusMenu)} disabled={changingStatus}
-                className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors">
-                {changingStatus ? 'Cambiando...' : 'Cambiar Estado'}
-              </button>
-              {showStatusMenu && (
-                <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
-                  {STATUS_OPTIONS.filter((o) => o.value !== lead.status).map((opt) => (
-                    <button key={opt.value} onClick={() => handleStatusChange(opt.value)}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="relative">
-              <button onClick={() => setShowAssignInput(!showAssignInput)}
-                className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-                Asignar a...
-              </button>
-              {showAssignInput && (
-                <div className="mt-2 space-y-2">
-                  <input type="text" value={assignUserId} onChange={(e) => setAssignUserId((e.target as any).value)}
-                    placeholder="ID del usuario"
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none" />
-                  <button onClick={handleAssign} disabled={assigning || !assignUserId.trim()}
-                    className="w-full rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50 transition-colors">
-                    {assigning ? 'Asignando...' : 'Confirmar'}
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {!isConverted && (
-              <button onClick={handleConvert}
-                className="w-full rounded-lg bg-success-500 px-4 py-2 text-sm font-medium text-white hover:bg-success-600 transition-colors">
-                Convertir a Cliente
-              </button>
-            )}
-
-            {!showDeleteConfirm ? (
-              <button onClick={() => setShowDeleteConfirm(true)}
-                className="w-full rounded-lg border border-danger-200 px-4 py-2 text-sm font-medium text-danger-600 hover:bg-danger-50 transition-colors">
-                Eliminar
-              </button>
-            ) : (
-              <div className="space-y-2 p-3 bg-danger-50 rounded-lg">
-                <p className="text-xs text-danger-700 font-medium">¿Eliminar este lead?</p>
-                <div className="flex gap-2">
-                  <button onClick={handleDelete} disabled={deleting}
-                    className="flex-1 rounded-lg bg-danger-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-danger-600 disabled:opacity-50 transition-colors">
-                    {deleting ? 'Eliminando...' : 'Sí, eliminar'}
-                  </button>
-                  <button onClick={() => setShowDeleteConfirm(false)}
-                    className="flex-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-                    Cancelar
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Acciones de Lead Contactado */}

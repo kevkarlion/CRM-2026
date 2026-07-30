@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, unwrapData } from '@/lib/api-client';
 
@@ -119,6 +119,11 @@ export default function LeadsPage() {
     router.push('/leads/new');
   }
 
+  const sortedLeads = useMemo(
+    () => [...leads].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' })),
+    [leads],
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -186,39 +191,37 @@ export default function LeadsPage() {
         </div>
       ) : (
         <>
-          <div className="hidden sm:block bg-white border border-gray-200 rounded-xl overflow-hidden">
+            <div className="hidden sm:block bg-white border border-gray-200 rounded-xl overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50">
-                  <th className="text-left px-5 py-3 font-semibold text-gray-600">Nombre</th>
-                  <th className="text-left px-5 py-3 font-semibold text-gray-600">Empresa</th>
-                  <th className="text-left px-5 py-3 font-semibold text-gray-600">Email</th>
-                  <th className="text-left px-5 py-3 font-semibold text-gray-600">Teléfono</th>
-                  <th className="text-left px-5 py-3 font-semibold text-gray-600">Estado</th>
-                  <th className="text-left px-5 py-3 font-semibold text-gray-600">Origen</th>
-                  <th className="text-left px-5 py-3 font-semibold text-gray-600">Asignado</th>
-                  <th className="text-left px-5 py-3 font-semibold text-gray-600">Creado</th>
+                  <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nombre</th>
+                  <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Empresa</th>
+                  <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Email</th>
+                  <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Teléfono</th>
+                  <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Estado</th>
+                  <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Origen</th>
+                  <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Creado</th>
                 </tr>
               </thead>
               <tbody>
-                {leads.map((lead) => (
+                {sortedLeads.map((lead, i) => (
                   <tr
                     key={lead._id}
                     onClick={() => handleRowClick(lead._id)}
-                    className="border-b border-gray-100 last:border-0 hover:bg-gray-50 cursor-pointer transition-colors"
+                    className={`cursor-pointer transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-gray-100`}
                   >
-                    <td className="px-5 py-3 font-medium text-gray-900">{lead.name}</td>
-                    <td className="px-5 py-3 text-gray-700">{lead.companyName || '—'}</td>
-                    <td className="px-5 py-3 text-gray-500">{lead.email || '—'}</td>
-                    <td className="px-5 py-3 text-gray-500">{lead.phone || '—'}</td>
-                    <td className="px-5 py-3">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[lead.status] || 'bg-gray-100 text-gray-700'}`}>
+                    <td className="px-3 py-2 text-sm font-medium text-gray-900">{lead.name}</td>
+                    <td className="px-3 py-2 text-sm text-gray-600">{lead.companyName || '—'}</td>
+                    <td className="px-3 py-2 text-sm text-gray-500">{lead.email || '—'}</td>
+                    <td className="px-3 py-2 text-sm text-gray-500">{lead.phone || '—'}</td>
+                    <td className="px-3 py-2">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[lead.status] || 'bg-gray-100 text-gray-700'}`}>
                         {STATUS_OPTIONS.find((o) => o.value === lead.status)?.label || lead.status}
                       </span>
                     </td>
-                    <td className="px-5 py-3 text-gray-500 capitalize">{lead.source}</td>
-                    <td className="px-5 py-3 text-gray-500">{assigneeName(lead)}</td>
-                    <td className="px-5 py-3 text-gray-500">{formatDate(lead.createdAt)}</td>
+                    <td className="px-3 py-2 text-sm text-gray-500 capitalize">{lead.source}</td>
+                    <td className="px-3 py-2 text-sm text-gray-500 whitespace-nowrap">{formatDate(lead.createdAt)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -226,7 +229,7 @@ export default function LeadsPage() {
           </div>
 
           <div className="sm:hidden space-y-3">
-            {leads.map((lead) => (
+            {sortedLeads.map((lead) => (
               <div
                 key={lead._id}
                 onClick={() => handleRowClick(lead._id)}
