@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { MetricCard, KpiGrid, SectionHeader } from '@/dashboard/components';
 import { fetchTechnicianDashboard } from '@/dashboard/services/client-index';
+import { useRole } from '@/dashboard/context/role-context';
 import type { TechnicianDashboardResponse, TechnicianWorkOrder } from '@/dashboard/types/metrics';
 
 type TaskItem = TechnicianWorkOrder;
@@ -44,7 +45,8 @@ export default function TechnicianPage() {
   // All assigned items (work orders + technical visits)
   const allAssignedItems = dashboard?.workOrders ?? [];
 
-  const techName = myLoad?.name?.split(' ')[0] || 'Técnico';
+  const { user } = useRole();
+  const techName = user.name?.split(' ')[0] || 'Técnico';
 
   // Separate items by status
   const urgentItems = allAssignedItems.filter(item => 

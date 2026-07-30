@@ -43,6 +43,15 @@ function LoginForm() {
       if (data.tenantId) {
         localStorage.setItem('tenantId', data.tenantId as string);
       }
+      // Cache user profile from login response (JWT may lack name/email)
+      if (data.user) {
+        const userToCache = {
+          name: (data.user as any).name ?? (data.user as any).email ?? 'Admin',
+          email: (data.user as any).email ?? '',
+          role: ((data.user as any).roles?.[0] as string) || 'Admin',
+        };
+        sessionStorage.setItem('crm_user_info', JSON.stringify(userToCache));
+      }
 
       // Determine redirect based on user role
       const userRoles = (data.user as any)?.roles || [];

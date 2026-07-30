@@ -97,6 +97,15 @@ export function RoleProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
+      // If we already have a cached user (set from login response), prefer it over JWT decoding
+      const existing = getCachedUser();
+      if (existing && !existing._isDefault && existing.name && existing.name !== 'Admin') {
+        // Normalize role from cache — login response may have 'technician' instead of 'Technician'
+        setUser({ ...existing, role: normalizeRole(existing.role) });
+        setLoading(false);
+        return;
+      }
+
       const data = decodeToken(token);
       
       // Normalize role: convert 'admin' -> 'Administrator', etc.
