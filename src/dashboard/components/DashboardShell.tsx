@@ -88,7 +88,7 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
     <RoleProvider>
       <div className="min-h-screen bg-gray-50 dark:bg-slate-900 flex">
         <Sidebar />
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 lg:ml-56">
           <HeaderBar />
           {/* Page content */}
           <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8">

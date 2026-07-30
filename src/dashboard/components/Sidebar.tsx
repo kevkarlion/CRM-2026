@@ -77,17 +77,17 @@ export function Sidebar() {
   // Don't render sidebar content until mounted
   if (!mounted || loading) {
     return (
-      <aside className="fixed top-0 left-0 z-40 h-full w-56 bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-slate-700">
-        <div className="p-4 border-b border-gray-100 dark:border-slate-700">
+      <aside className="fixed top-0 left-0 z-40 h-full w-56 bg-gray-950 border-r border-gray-800">
+        <div className="p-4 border-b border-gray-800">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gray-200 dark:bg-slate-700 animate-pulse" />
-            <div className="h-4 w-20 bg-gray-200 dark:bg-slate-700 rounded animate-pulse" />
+            <div className="w-8 h-8 rounded-lg bg-gray-800 animate-pulse" />
+            <div className="h-4 w-20 bg-gray-800 rounded animate-pulse" />
           </div>
-          <div className="h-3 w-16 bg-gray-200 dark:bg-slate-700 rounded animate-pulse mt-2" />
+          <div className="h-3 w-16 bg-gray-800 rounded animate-pulse mt-2" />
         </div>
         <div className="p-3 space-y-2">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="h-10 bg-gray-100 dark:bg-slate-700 rounded-lg animate-pulse" />
+            <div key={i} className="h-10 bg-gray-800 rounded-lg animate-pulse" />
           ))}
         </div>
       </aside>
@@ -107,16 +107,16 @@ export function Sidebar() {
         {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
       </button>
 
-      {/* Desktop sidebar */}
-      <aside className={`fixed top-0 left-0 z-40 h-full w-56 bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-slate-700 transform transition-transform duration-200 lg:translate-x-0 lg:static lg:h-auto ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="p-4 border-b border-gray-100 dark:border-slate-700">
+      {/* Desktop sidebar — fixed, always black */}
+      <aside className={`fixed top-0 left-0 z-40 h-full w-56 bg-gray-950 border-r border-gray-800 transform transition-transform duration-200 lg:translate-x-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="p-4 border-b border-gray-800">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center">
               <span className="text-white font-bold text-sm">C</span>
             </div>
-            <span className="font-semibold text-gray-900 dark:text-slate-100 text-sm">CRM</span>
+            <span className="font-semibold text-white text-sm">CRM</span>
           </div>
-          <span className="text-xs text-gray-400 dark:text-slate-500 mt-1 block capitalize">{role}</span>
+          <span className="text-xs text-gray-500 mt-1 block capitalize">{role}</span>
         </div>
 
         <nav className="p-3 space-y-1">
@@ -130,8 +130,8 @@ export function Sidebar() {
                 onClick={() => setMobileOpen(false)}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   active
-                    ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300'
-                    : 'text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-700/50 hover:text-gray-900 dark:hover:text-slate-200'
+                    ? 'bg-brand-600 text-white'
+                    : 'text-gray-400 hover:bg-gray-800 hover:text-white'
                 }`}
               >
                 <ItemIcon className="w-5 h-5 flex-shrink-0" />
