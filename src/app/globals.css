@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --color-brand-50: #eff6ff;
   --color-brand-100: #dbeafe;
@@ -66,18 +68,29 @@
     --color-border-light: #f3f4f6;
   }
 
+  .dark {
+    --color-bg-primary: #0f172a;
+    --color-bg-secondary: #1e293b;
+    --color-bg-tertiary: #334155;
+    --color-text-primary: #f1f5f9;
+    --color-text-secondary: #94a3b8;
+    --color-text-muted: #64748b;
+    --color-border: #334155;
+    --color-border-light: #1e293b;
+  }
+
   html {
     @apply antialiased;
     -webkit-text-size-adjust: 100%;
   }
 
   body {
-    @apply bg-gray-50 text-gray-900 font-sans;
+    @apply bg-gray-50 text-gray-900 font-sans dark:bg-slate-900 dark:text-slate-100;
     min-height: 100dvh;
   }
 
   * {
-    @apply border-gray-200;
+    @apply border-gray-200 dark:border-slate-700;
   }
 }
 
@@ -85,7 +98,7 @@
   /* ── KPI Card ───────────────────────────────── */
   .kpi-card {
     @apply bg-white rounded-xl border border-gray-100 p-4 sm:p-5
-           transition-shadow duration-200;
+           transition-shadow duration-200 dark:bg-slate-800 dark:border-slate-700;
   }
 
   .kpi-card:hover {
@@ -93,24 +106,24 @@
   }
 
   .kpi-label {
-    @apply text-xs sm:text-sm text-gray-500 font-medium uppercase tracking-wide;
+    @apply text-xs sm:text-sm text-gray-500 font-medium uppercase tracking-wide dark:text-slate-400;
   }
 
   .kpi-value {
-    @apply text-xl sm:text-2xl font-bold text-gray-900 mt-1;
+    @apply text-xl sm:text-2xl font-bold text-gray-900 mt-1 dark:text-slate-100;
   }
 
   .kpi-trend-up {
-    @apply text-success-700 bg-success-50;
+    @apply text-success-700 bg-success-50 dark:text-green-400 dark:bg-green-900/30;
   }
 
   .kpi-trend-down {
-    @apply text-danger-700 bg-danger-50;
+    @apply text-danger-700 bg-danger-50 dark:text-red-400 dark:bg-red-900/30;
   }
 
   /* ── Metric Card ────────────────────────────── */
   .metric-card {
-    @apply bg-white rounded-xl border border-gray-100 p-4 sm:p-5;
+    @apply bg-white rounded-xl border border-gray-100 p-4 sm:p-5 dark:bg-slate-800 dark:border-slate-700;
   }
 
   .metric-card-header {
@@ -118,7 +131,7 @@
   }
 
   .metric-card-title {
-    @apply text-sm font-medium text-gray-700;
+    @apply text-sm font-medium text-gray-700 dark:text-slate-300;
   }
 
   /* ── Status Badge ───────────────────────────── */
@@ -128,28 +141,28 @@
   }
 
   .badge-success {
-    @apply bg-success-50 text-success-700;
+    @apply bg-success-50 text-success-700 dark:bg-green-900/30 dark:text-green-400;
   }
 
   .badge-warning {
-    @apply bg-warning-50 text-warning-700;
+    @apply bg-warning-50 text-warning-700 dark:bg-yellow-900/30 dark:text-yellow-400;
   }
 
   .badge-danger {
-    @apply bg-danger-50 text-danger-700;
+    @apply bg-danger-50 text-danger-700 dark:bg-red-900/30 dark:text-red-400;
   }
 
   .badge-info {
-    @apply bg-info-50 text-info-700;
+    @apply bg-info-50 text-info-700 dark:bg-blue-900/30 dark:text-blue-400;
   }
 
   .badge-neutral {
-    @apply bg-gray-100 text-gray-700;
+    @apply bg-gray-100 text-gray-700 dark:bg-slate-700 dark:text-slate-300;
   }
 
   /* ── Progress Bar ───────────────────────────── */
   .progress-bar {
-    @apply w-full bg-gray-100 rounded-full overflow-hidden;
+    @apply w-full bg-gray-100 rounded-full overflow-hidden dark:bg-slate-700;
     height: 8px;
   }
 
@@ -175,12 +188,12 @@
 
   /* ── List Card ──────────────────────────────── */
   .list-card {
-    @apply bg-white rounded-xl border border-gray-100 divide-y divide-gray-50;
+    @apply bg-white rounded-xl border border-gray-100 divide-y divide-gray-50 dark:bg-slate-800 dark:border-slate-700 dark:divide-slate-700;
   }
 
   .list-card-item {
     @apply flex items-center justify-between px-4 py-3 sm:px-5
-           hover:bg-gray-50 transition-colors duration-150;
+           hover:bg-gray-50 transition-colors duration-150 dark:hover:bg-slate-700/50;
   }
 
   /* ── Section ────────────────────────────────── */
@@ -189,11 +202,11 @@
   }
 
   .section-title {
-    @apply text-base sm:text-lg font-semibold text-gray-900;
+    @apply text-base sm:text-lg font-semibold text-gray-900 dark:text-slate-100;
   }
 
   .section-subtitle {
-    @apply text-sm text-gray-500;
+    @apply text-sm text-gray-500 dark:text-slate-400;
   }
 
   /* ── Grid ───────────────────────────────────── */
@@ -205,21 +218,21 @@
     @apply grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3;
   }
 
-  /* ── Skeleton loading ───────────────────────── */
+  /* ── Skeleton loading ────────────────────────── */
   .skeleton {
-    @apply bg-gray-200 rounded animate-pulse;
+    @apply bg-gray-200 rounded animate-pulse dark:bg-slate-700;
   }
 
   .skeleton-text {
-    @apply bg-gray-200 rounded animate-pulse h-4 w-3/4;
+    @apply bg-gray-200 rounded animate-pulse h-4 w-3/4 dark:bg-slate-700;
   }
 
   .skeleton-title {
-    @apply bg-gray-200 rounded animate-pulse h-5 w-1/2 mb-2;
+    @apply bg-gray-200 rounded animate-pulse h-5 w-1/2 mb-2 dark:bg-slate-700;
   }
 
   .skeleton-card {
-    @apply bg-gray-200 rounded animate-pulse h-24 w-full;
+    @apply bg-gray-200 rounded animate-pulse h-24 w-full dark:bg-slate-700;
   }
 }
 

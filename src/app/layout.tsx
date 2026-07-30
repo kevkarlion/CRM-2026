@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { initAuth } from '@/lib/auth-config';
 import { setupEventHandlers } from '@/infrastructure/events/setup';
+import { ThemeProvider } from '@/app/providers/ThemeProvider';
 
 initAuth();
 setupEventHandlers();
@@ -17,7 +18,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es">
+    <html lang="es" suppressHydrationWarning>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -27,8 +28,10 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-screen bg-gray-50">
-        {children}
+      <body className="min-h-screen bg-gray-50 dark:bg-slate-900">
+        <ThemeProvider>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

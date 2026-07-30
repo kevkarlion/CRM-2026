@@ -7,31 +7,60 @@ import { usePathname } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { useRole } from '@/dashboard/context/role-context';
 import type { TenantRoleName } from '@/rbac/permissions';
+import {
+  LayoutDashboard,
+  Wrench,
+  BarChart3,
+  Users,
+  Settings,
+  Target,
+  FileText,
+  Building2,
+  ClipboardList,
+  Calendar,
+  ClipboardCheck,
+  Menu,
+  X,
+  type LucideIcon,
+} from 'lucide-react';
 
 interface NavItem {
   label: string;
   href: string;
-  icon: string;
+  icon: LucideIcon;
   roles: TenantRoleName[];
 }
 
+const iconMap: Record<string, LucideIcon> = {
+  Resumen: LayoutDashboard,
+  'Mi Panel': Wrench,
+  Operaciones: Building2,
+  Comercial: BarChart3,
+  Pipeline: ClipboardList,
+  Técnicos: Users,
+  Admin: Settings,
+  Leads: Target,
+  Quotes: FileText,
+  'Centro Operativo': ClipboardCheck,
+  'Work Orders': Wrench,
+  'Mi Calendario': Calendar,
+  'Visitas Técnicas': ClipboardCheck,
+};
+
 const navItems: NavItem[] = [
-  // Resumen solo para roles administrativos, no para técnico
-  { label: 'Resumen', href: '/dashboard', icon: '⊟', roles: ['Owner', 'Administrator', 'Supervisor', 'Sales', 'Accounting', 'Dispatcher'] },
-  // Panel del Técnico
-  { label: 'Mi Panel', href: '/dashboard/technician', icon: '🔧', roles: ['Technician'] },
-  { label: 'Operaciones', href: '/dashboard/supervisor', icon: '⚙', roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher'] },
-  { label: 'Comercial', href: '/dashboard/commercial', icon: '📊', roles: ['Owner', 'Administrator', 'Sales', 'Supervisor'] },
-  { label: 'Pipeline', href: '/leads/pipeline', icon: '📋', roles: ['Owner', 'Administrator', 'Supervisor', 'Sales'] },
-  // Lista de técnicos - solo para supervisor/dispatcher
-  { label: 'Técnicos', href: '/dashboard/technicians', icon: '👥', roles: ['Supervisor', 'Dispatcher'] },
-  { label: 'Admin', href: '/dashboard/admin', icon: '⚙', roles: ['Owner', 'Administrator'] },
-  { label: 'Leads', href: '/leads', icon: '📋', roles: ['Sales', 'Administrator', 'Owner', 'Supervisor'] },
-  { label: 'Quotes', href: '/quotes', icon: '📄', roles: ['Sales', 'Administrator', 'Owner', 'Supervisor'] },
-  { label: 'Centro Operativo', href: '/centro-operativo', icon: '⚙', roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Technician'] },
-  { label: 'Work Orders', href: '/work-orders', icon: '🔧', roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Technician', 'Sales', 'Accounting'] },
-  { label: 'Mi Calendario', href: '/work-orders/calendar', icon: '📅', roles: ['Technician', 'Supervisor', 'Dispatcher', 'Owner', 'Administrator'] },
-  { label: 'Visitas Técnicas', href: '/technical-visits', icon: '📅', roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Sales', 'Technician'] },
+  { label: 'Resumen', href: '/dashboard', icon: iconMap['Resumen'], roles: ['Owner', 'Administrator', 'Supervisor', 'Sales', 'Accounting', 'Dispatcher'] },
+  { label: 'Mi Panel', href: '/dashboard/technician', icon: iconMap['Mi Panel'], roles: ['Technician'] },
+  { label: 'Operaciones', href: '/dashboard/supervisor', icon: iconMap['Operaciones'], roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher'] },
+  { label: 'Comercial', href: '/dashboard/commercial', icon: iconMap['Comercial'], roles: ['Owner', 'Administrator', 'Sales', 'Supervisor'] },
+  { label: 'Pipeline', href: '/leads/pipeline', icon: iconMap['Pipeline'], roles: ['Owner', 'Administrator', 'Supervisor', 'Sales'] },
+  { label: 'Técnicos', href: '/dashboard/technicians', icon: iconMap['Técnicos'], roles: ['Supervisor', 'Dispatcher'] },
+  { label: 'Admin', href: '/dashboard/admin', icon: iconMap['Admin'], roles: ['Owner', 'Administrator'] },
+  { label: 'Leads', href: '/leads', icon: iconMap['Leads'], roles: ['Sales', 'Administrator', 'Owner', 'Supervisor'] },
+  { label: 'Quotes', href: '/quotes', icon: iconMap['Quotes'], roles: ['Sales', 'Administrator', 'Owner', 'Supervisor'] },
+  { label: 'Centro Operativo', href: '/centro-operativo', icon: iconMap['Centro Operativo'], roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Technician'] },
+  { label: 'Work Orders', href: '/work-orders', icon: iconMap['Work Orders'], roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Technician', 'Sales', 'Accounting'] },
+  { label: 'Mi Calendario', href: '/work-orders/calendar', icon: iconMap['Mi Calendario'], roles: ['Technician', 'Supervisor', 'Dispatcher', 'Owner', 'Administrator'] },
+  { label: 'Visitas Técnicas', href: '/technical-visits', icon: iconMap['Visitas Técnicas'], roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Sales', 'Technician'] },
 ];
 
 export function Sidebar() {
@@ -48,17 +77,17 @@ export function Sidebar() {
   // Don't render sidebar content until mounted
   if (!mounted || loading) {
     return (
-      <aside className="fixed top-0 left-0 z-40 h-full w-56 bg-white border-r border-gray-200">
-        <div className="p-4 border-b border-gray-100">
+      <aside className="fixed top-0 left-0 z-40 h-full w-56 bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-slate-700">
+        <div className="p-4 border-b border-gray-100 dark:border-slate-700">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gray-200 animate-pulse" />
-            <div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
+            <div className="w-8 h-8 rounded-lg bg-gray-200 dark:bg-slate-700 animate-pulse" />
+            <div className="h-4 w-20 bg-gray-200 dark:bg-slate-700 rounded animate-pulse" />
           </div>
-          <div className="h-3 w-16 bg-gray-200 rounded animate-pulse mt-2" />
+          <div className="h-3 w-16 bg-gray-200 dark:bg-slate-700 rounded animate-pulse mt-2" />
         </div>
         <div className="p-3 space-y-2">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="h-10 bg-gray-100 rounded-lg animate-pulse" />
+            <div key={i} className="h-10 bg-gray-100 dark:bg-slate-700 rounded-lg animate-pulse" />
           ))}
         </div>
       </aside>
@@ -75,29 +104,25 @@ export function Sidebar() {
         className="lg:hidden fixed bottom-4 right-4 z-50 w-12 h-12 bg-brand-600 text-white rounded-full shadow-lg flex items-center justify-center"
         aria-label="Menú"
       >
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          {mobileOpen
-            ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-          }
-        </svg>
+        {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
       </button>
 
       {/* Desktop sidebar */}
-      <aside className={`fixed top-0 left-0 z-40 h-full w-56 bg-white border-r border-gray-200 transform transition-transform duration-200 lg:translate-x-0 lg:static lg:h-auto ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="p-4 border-b border-gray-100">
+      <aside className={`fixed top-0 left-0 z-40 h-full w-56 bg-white dark:bg-slate-800 border-r border-gray-200 dark:border-slate-700 transform transition-transform duration-200 lg:translate-x-0 lg:static lg:h-auto ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="p-4 border-b border-gray-100 dark:border-slate-700">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center">
               <span className="text-white font-bold text-sm">C</span>
             </div>
-            <span className="font-semibold text-gray-900 text-sm">CRM 2026</span>
+            <span className="font-semibold text-gray-900 dark:text-slate-100 text-sm">CRM</span>
           </div>
-          <span className="text-xs text-gray-400 mt-1 block capitalize">{role}</span>
+          <span className="text-xs text-gray-400 dark:text-slate-500 mt-1 block capitalize">{role}</span>
         </div>
 
         <nav className="p-3 space-y-1">
           {visibleItems.map((item) => {
             const active = pathname === item.href;
+            const ItemIcon = item.icon;
             return (
               <Link
                 key={item.href}
@@ -105,11 +130,11 @@ export function Sidebar() {
                 onClick={() => setMobileOpen(false)}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   active
-                    ? 'bg-brand-50 text-brand-700'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+                    ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300'
+                    : 'text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-700/50 hover:text-gray-900 dark:hover:text-slate-200'
                 }`}
               >
-                <span className="text-lg">{item.icon}</span>
+                <ItemIcon className="w-5 h-5 flex-shrink-0" />
                 {item.label}
               </Link>
             );

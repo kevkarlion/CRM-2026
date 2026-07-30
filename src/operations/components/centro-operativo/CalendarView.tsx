@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import { CALENDAR_PRIORITY_COLORS } from '@/operations/constants/status-colors';
 import { parseLocalDate } from '@/operations/helpers/date-utils';
 import type { CalendarEvent, TechnicianWorkload } from '@/operations/types/centro-operativo';
@@ -105,20 +106,20 @@ function EventBlock({ event, onClick, compact }: { event: CalendarEvent; onClick
   
   // Different styling for OT vs VT
   const typeBadge = isVisit 
-    ? { bg: 'bg-emerald-100', text: 'text-emerald-700', label: 'VT', icon: '🔧' }
-    : { bg: 'bg-blue-100', text: 'text-blue-700', label: 'OT', icon: '📋' };
+    ? { bg: 'bg-emerald-100 dark:bg-emerald-900/40', text: 'text-emerald-700 dark:text-emerald-300', label: 'VT' }
+    : { bg: 'bg-blue-100 dark:bg-blue-900/40', text: 'text-blue-700 dark:text-blue-300', label: 'OT' };
   const typeColors = isVisit
-    ? { border: 'border-l-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-800' }
-    : { border: 'border-l-blue-500', bg: 'bg-blue-50', text: 'text-blue-800' };
+    ? { border: 'border-l-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-900/10', text: 'text-emerald-800 dark:text-emerald-200' }
+    : { border: 'border-l-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/10', text: 'text-blue-800 dark:text-blue-200' };
 
   // Priority badge
   const priorityInfo = (() => {
     switch (event.priority) {
-      case 'urgent': return { label: 'Urgente', color: 'text-red-600', bg: 'bg-red-50', dot: '🔴' };
-      case 'high': return { label: 'Alta', color: 'text-orange-600', bg: 'bg-orange-50', dot: '🟠' };
-      case 'emergency': return { label: 'Emergencia', color: 'text-red-700', bg: 'bg-red-100', dot: '🚨' };
-      case 'normal': return { label: 'Normal', color: 'text-blue-600', bg: 'bg-blue-50', dot: '🔵' };
-      case 'low': return { label: 'Baja', color: 'text-gray-500', bg: 'bg-gray-50', dot: '⚪' };
+      case 'urgent': return { label: 'Urgente', color: 'text-red-600 dark:text-red-400', bg: 'bg-red-50 dark:bg-red-900/20' };
+      case 'high': return { label: 'Alta', color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-50 dark:bg-orange-900/20' };
+      case 'emergency': return { label: 'Emergencia', color: 'text-red-700 dark:text-red-300', bg: 'bg-red-100 dark:bg-red-900/30' };
+      case 'normal': return { label: 'Normal', color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-900/20' };
+      case 'low': return { label: 'Baja', color: 'text-gray-500 dark:text-slate-400', bg: 'bg-gray-50 dark:bg-slate-800' };
       default: return null;
     }
   })();
@@ -126,11 +127,10 @@ function EventBlock({ event, onClick, compact }: { event: CalendarEvent; onClick
   // Status badge for unscheduled/draft items
   const statusInfo = (() => {
     if (!event.scheduledDate || event.scheduledDate === '') {
-      // No scheduled date = not scheduled yet
       switch (event.status) {
-        case 'draft': return { label: 'Borrador', color: 'text-gray-600', bg: 'bg-gray-100', dot: '📝' };
-        case 'pending': return { label: 'Pendiente', color: 'text-yellow-600', bg: 'bg-yellow-50', dot: '⏳' };
-        default: return { label: 'Sin fecha', color: 'text-gray-500', bg: 'bg-gray-50', dot: '📅' };
+        case 'draft': return { label: 'Borrador', color: 'text-gray-600 dark:text-slate-300', bg: 'bg-gray-100 dark:bg-slate-700' };
+        case 'pending': return { label: 'Pendiente', color: 'text-yellow-600 dark:text-yellow-400', bg: 'bg-yellow-50 dark:bg-yellow-900/20' };
+        default: return { label: 'Sin fecha', color: 'text-gray-500 dark:text-slate-400', bg: 'bg-gray-50 dark:bg-slate-800' };
       }
     }
     return null;
@@ -143,13 +143,13 @@ function EventBlock({ event, onClick, compact }: { event: CalendarEvent; onClick
         className={`w-full text-left px-1.5 py-0.5 rounded border-l-2 ${typeColors.border} ${typeColors.bg} ${typeColors.text} hover:opacity-80 transition-opacity cursor-pointer`}
       >
         <div className="flex items-center gap-1">
-          <span className="text-[9px] font-bold">{typeBadge.icon} {shortNumber || typeBadge.label}</span>
-          {statusInfo && <span className="text-[9px]">{statusInfo.dot}</span>}
-          {priorityInfo && <span className="text-[9px]">{priorityInfo.dot}</span>}
+          <span className="text-[9px] font-bold">{shortNumber || typeBadge.label}</span>
+          {statusInfo && <span className={`text-[8px] px-1 rounded ${statusInfo.bg} ${statusInfo.color}`}>{statusInfo.label}</span>}
+          {priorityInfo && <span className={`w-1.5 h-1.5 rounded-full ${priorityInfo.bg.replace('bg-', 'bg-').replace(/\/\d+/, '')}`} />}
         </div>
         {timeRange && <p className="text-[9px] truncate opacity-75">{timeRange}</p>}
         <p className="text-[9px] truncate opacity-75">{clientName}</p>
-        {techName && <p className="text-[8px] truncate opacity-60">👤 {techName}</p>}
+        {techName && <p className="text-[8px] truncate opacity-60">{techName}</p>}
       </button>
     );
   }
@@ -161,28 +161,28 @@ function EventBlock({ event, onClick, compact }: { event: CalendarEvent; onClick
     >
       <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
         <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${typeBadge.bg} ${typeBadge.text}`}>
-          {typeBadge.icon} {shortNumber || typeBadge.label}
+          {shortNumber || typeBadge.label}
         </span>
         {statusInfo && (
           <span className={`text-[8px] px-1.5 py-0.5 rounded font-medium ${statusInfo.bg} ${statusInfo.color}`}>
-            {statusInfo.dot} {statusInfo.label}
+            {statusInfo.label}
           </span>
         )}
         {priorityInfo && (
           <span className={`text-[8px] px-1.5 py-0.5 rounded font-medium ${priorityInfo.bg} ${priorityInfo.color}`}>
-            {priorityInfo.dot} {priorityInfo.label}
+            {priorityInfo.label}
           </span>
         )}
         {techName && (
-          <span className="text-[8px] px-1 py-0.5 rounded bg-gray-100 text-gray-600">
-            👤 {techName}
+          <span className="text-[8px] px-1 py-0.5 rounded bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300">
+            {techName}
           </span>
         )}
       </div>
       {timeRange && <p className="text-[10px] font-medium">{timeRange}</p>}
       <p className="text-xs font-bold truncate">{event.title}</p>
       {clientName && <p className="text-[10px] truncate opacity-75">{clientName}</p>}
-      {address && <p className="text-[9px] truncate opacity-60">📍 {address}</p>}
+      {address && <p className="text-[9px] truncate opacity-60">{address}</p>}
     </button>
   );
 }
@@ -196,15 +196,15 @@ function DayView({ events, date, onEventClick }: { events: CalendarEvent[]; date
   }, []);
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl overflow-hidden">
       <div className="overflow-y-auto max-h-[600px]">
         <div className="relative">
           {hours.map((h) => (
-            <div key={h} className="flex border-b border-gray-100" style={{ minHeight: '48px' }}>
-              <div className="w-14 flex-shrink-0 text-[10px] text-gray-400 font-medium pr-2 pt-0.5 text-right">
+            <div key={h} className="flex border-b border-gray-100 dark:border-slate-700" style={{ minHeight: '48px' }}>
+              <div className="w-14 flex-shrink-0 text-[10px] text-gray-400 dark:text-slate-500 font-medium pr-2 pt-0.5 text-right">
                 {formatHour(h)}
               </div>
-              <div className="flex-1 border-l border-gray-100 px-1 py-0.5 min-h-[48px]" />
+              <div className="flex-1 border-l border-gray-100 dark:border-slate-700 px-1 py-0.5 min-h-[48px]" />
             </div>
           ))}
 
@@ -248,16 +248,16 @@ function WeekView({ events, date, onEventClick }: { events: CalendarEvent[]; dat
   const today = new Date();
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+    <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl overflow-hidden">
       <div className="overflow-x-auto">
         <div className="min-w-[700px]">
-          <div className="grid grid-cols-7 border-b border-gray-200">
+          <div className="grid grid-cols-7 border-b border-gray-200 dark:border-slate-700">
             {weekDays.map((day, i) => {
               const isToday = isSameDay(day, today);
               return (
-                <div key={i} className={`text-center py-2 border-r border-gray-100 last:border-r-0 ${isToday ? 'bg-blue-50' : ''}`}>
-                  <p className="text-[10px] text-gray-500 font-medium">{DAY_NAMES_SHORT[i]}</p>
-                  <p className={`text-lg font-bold ${isToday ? 'text-blue-600' : 'text-gray-900'}`}>
+                <div key={i} className={`text-center py-2 border-r border-gray-100 dark:border-slate-700 last:border-r-0 ${isToday ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
+                  <p className="text-[10px] text-gray-500 dark:text-slate-400 font-medium">{DAY_NAMES_SHORT[i]}</p>
+                  <p className={`text-lg font-bold ${isToday ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-slate-100'}`}>
                     {day.getDate()}
                   </p>
                 </div>
@@ -272,7 +272,7 @@ function WeekView({ events, date, onEventClick }: { events: CalendarEvent[]; dat
               return (
                 <div
                   key={i}
-                  className={`border-r border-gray-100 last:border-r-0 p-1 ${isToday ? 'bg-blue-50/30' : ''}`}
+                  className={`border-r border-gray-100 dark:border-slate-700 last:border-r-0 p-1 ${isToday ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''}`}
                 >
                   <div className="space-y-1">
                     {dayEvts.length === 0 && (
@@ -287,7 +287,7 @@ function WeekView({ events, date, onEventClick }: { events: CalendarEvent[]; dat
                       />
                     ))}
                     {dayEvts.length > 6 && (
-                      <p className="text-[9px] text-gray-400 text-center font-medium">
+                      <p className="text-[9px] text-gray-400 dark:text-slate-500 text-center font-medium">
                         +{dayEvts.length - 6} más
                       </p>
                     )}
@@ -341,10 +341,10 @@ function MonthView({ events, date, onEventClick }: { events: CalendarEvent[]; da
   }, [events]);
 
   return (
-    <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-      <div className="grid grid-cols-7 border-b border-gray-200">
+    <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl overflow-hidden">
+      <div className="grid grid-cols-7 border-b border-gray-200 dark:border-slate-700">
         {DAY_NAMES_SHORT.map((name) => (
-          <div key={name} className="text-center py-2 text-[10px] font-medium text-gray-500 uppercase tracking-wide">
+          <div key={name} className="text-center py-2 text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide">
             {name}
           </div>
         ))}
@@ -359,12 +359,12 @@ function MonthView({ events, date, onEventClick }: { events: CalendarEvent[]; da
           return (
             <div
               key={i}
-              className={`min-h-[72px] sm:min-h-[80px] border-b border-r border-gray-100 last:border-r-0 p-1 ${
-                !currentMonth ? 'bg-gray-50/50' : ''
-              } ${isToday ? 'bg-blue-50/40' : ''}`}
+              className={`min-h-[72px] sm:min-h-[80px] border-b border-r border-gray-100 dark:border-slate-700 last:border-r-0 p-1 ${
+                !currentMonth ? 'bg-gray-50/50 dark:bg-slate-800/50' : ''
+              } ${isToday ? 'bg-blue-50/40 dark:bg-blue-900/10' : ''}`}
             >
               <p className={`text-xs font-medium mb-1 ${
-                isToday ? 'text-blue-600 font-bold' : currentMonth ? 'text-gray-700' : 'text-gray-300'
+                isToday ? 'text-blue-600 dark:text-blue-400 font-bold' : currentMonth ? 'text-gray-700 dark:text-slate-300' : 'text-gray-300 dark:text-slate-600'
               }`}>
                 {day.getDate()}
               </p>
@@ -381,8 +381,8 @@ function MonthView({ events, date, onEventClick }: { events: CalendarEvent[]; da
                   
                   // Different colors for OT vs VT
                   const typeColors = isVisit
-                    ? { border: 'border-l-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-700' }
-                    : { border: 'border-l-blue-500', bg: 'bg-blue-50', text: 'text-blue-700' };
+                    ? { border: 'border-l-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-900/10', text: 'text-emerald-700 dark:text-emerald-300' }
+                    : { border: 'border-l-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/10', text: 'text-blue-700 dark:text-blue-300' };
                   
                   return (
                     <button
@@ -390,14 +390,14 @@ function MonthView({ events, date, onEventClick }: { events: CalendarEvent[]; da
                       onClick={() => onEventClick(event)}
                       className={`w-full text-left px-1 py-0.5 rounded text-[9px] font-medium truncate border-l-2 ${typeColors.border} ${typeColors.bg} ${typeColors.text} hover:opacity-80 cursor-pointer`}
                     >
-                      <span className="font-bold">{isVisit ? '🔧' : '📋'}</span>
-                      {timeStr && <span className="opacity-75">{timeStr} </span>}
-                      {shortNumber || clientName || event.title}
+                      <span className="font-bold">{isVisit ? 'VT' : 'OT'}</span>
+                      {timeStr && <span className="opacity-75"> {timeStr}</span>}
+                      {' '}{shortNumber || clientName || event.title}
                     </button>
                   );
                 })}
                 {dayEvts.length > 3 && (
-                  <p className="text-[9px] text-gray-400 text-center font-medium">
+                  <p className="text-[9px] text-gray-400 dark:text-slate-500 text-center font-medium">
                     +{dayEvts.length - 3}
                   </p>
                 )}
@@ -461,27 +461,27 @@ export function CalendarView({ events, onEventClick, className = '' }: CalendarV
   return (
     <div className={`space-y-3 ${className}`}>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h2 className="text-sm font-semibold text-gray-900">Calendario</h2>
+        <h2 className="text-sm font-semibold text-gray-900 dark:text-slate-100">Calendario</h2>
 
         <div className="flex items-center gap-2">
           <button
             onClick={goToToday}
-            className="px-3 py-1.5 text-xs font-medium text-brand-600 border border-brand-200 rounded-lg hover:bg-brand-50 transition-colors"
+            className="px-3 py-1.5 text-xs font-medium text-brand-600 dark:text-brand-400 border border-brand-200 dark:border-brand-800 rounded-lg hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-colors"
           >
             Hoy
           </button>
 
-          <div className="inline-flex rounded-lg border border-gray-200 bg-white">
+          <div className="inline-flex rounded-lg border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800">
             {(['day', 'week', 'month'] as ViewMode[]).map((mode) => (
               <button
                 key={mode}
                 onClick={() => setViewMode(mode)}
                 className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                  mode === 'day' ? 'rounded-l-lg' : mode === 'month' ? 'rounded-r-lg border-l border-gray-200' : 'border-l border-gray-200'
+                  mode === 'day' ? 'rounded-l-lg' : mode === 'month' ? 'rounded-r-lg border-l border-gray-200 dark:border-slate-600' : 'border-l border-gray-200 dark:border-slate-600'
                 } ${
                   viewMode === mode
-                    ? 'bg-gray-100 text-gray-900'
-                    : 'text-gray-500 hover:text-gray-700'
+                    ? 'bg-gray-100 dark:bg-slate-700 text-gray-900 dark:text-slate-100'
+                    : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                 }`}
               >
                 {VIEW_LABELS[mode]}
@@ -494,20 +494,16 @@ export function CalendarView({ events, onEventClick, className = '' }: CalendarV
       <div className="flex items-center justify-between">
         <button
           onClick={() => navigateDate(-1)}
-          className="p-1.5 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+          className="p-1.5 rounded-lg text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
-          </svg>
+          <ChevronLeft className="w-4 h-4" />
         </button>
-        <p className="text-sm font-semibold text-gray-900">{headerLabel}</p>
+        <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">{headerLabel}</p>
         <button
           onClick={() => navigateDate(1)}
-          className="p-1.5 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+          className="p-1.5 rounded-lg text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors"
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
-          </svg>
+          <ChevronRight className="w-4 h-4" />
         </button>
       </div>
 
@@ -522,12 +518,10 @@ export function CalendarView({ events, onEventClick, className = '' }: CalendarV
       )}
 
       {events.length === 0 && (
-        <div className="text-center py-8 bg-white border border-gray-200 rounded-xl">
-          <svg className="w-10 h-10 text-gray-300 mx-auto mb-2" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
-          </svg>
-          <p className="text-sm font-medium text-gray-900">No hay eventos programados</p>
-          <p className="text-xs text-gray-500 mt-1">No se encontraron OTs en el calendario</p>
+        <div className="text-center py-8 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl">
+          <Calendar className="w-10 h-10 text-gray-300 dark:text-slate-600 mx-auto mb-2" />
+          <p className="text-sm font-medium text-gray-900 dark:text-slate-100">No hay eventos programados</p>
+          <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">No se encontraron OTs en el calendario</p>
         </div>
       )}
     </div>

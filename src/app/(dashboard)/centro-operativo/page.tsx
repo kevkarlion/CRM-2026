@@ -7,6 +7,7 @@ import { WorkOrderListView } from '@/operations/components/centro-operativo/Work
 import { CalendarView } from '@/operations/components/centro-operativo/CalendarView';
 import { TechnicianWorkloadPanel } from '@/operations/components/centro-operativo/TechnicianWorkloadPanel';
 import { TechnicalVisitsView } from '@/operations/components/centro-operativo/TechnicalVisitsView';
+import { RefreshCw, ClipboardList, ClipboardCheck, Calendar, Users } from 'lucide-react';
 import type {
   CentroOperativoDashboardResponse,
   CalendarEvent,
@@ -16,11 +17,11 @@ import type {
 
 type Tab = 'orders' | 'visits' | 'calendar' | 'technicians';
 
-const TABS: { id: Tab; label: string; icon: string }[] = [
-  { id: 'orders', label: 'Órdenes', icon: '📋' },
-  { id: 'visits', label: 'Visitas', icon: '🔧' },
-  { id: 'calendar', label: 'Calendario', icon: '📅' },
-  { id: 'technicians', label: 'Técnicos', icon: '👥' },
+const TABS: { id: Tab; label: string; icon: React.ReactNode }[] = [
+  { id: 'orders', label: 'Órdenes', icon: <ClipboardList className="w-4 h-4" /> },
+  { id: 'visits', label: 'Visitas', icon: <ClipboardCheck className="w-4 h-4" /> },
+  { id: 'calendar', label: 'Calendario', icon: <Calendar className="w-4 h-4" /> },
+  { id: 'technicians', label: 'Técnicos', icon: <Users className="w-4 h-4" /> },
 ];
 
 function mapWorkOrderToRow(wo: any): WorkOrderRow {
@@ -147,41 +148,29 @@ export default function CentroOperativoPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-900">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-4">
+      <div className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-4 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Centro Operativo</h1>
-            <p className="text-sm text-gray-500 mt-0.5">
+            <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100">Centro Operativo</h1>
+            <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">
               {loading ? 'Cargando...' : `${workOrders.length} órdenes`}
             </p>
           </div>
           <button
             onClick={fetchAll}
             disabled={loading}
-            className="p-2 rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50"
+            className="p-2 rounded-lg text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
             title="Actualizar"
           >
-            <svg
-              className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`}
-              fill="none"
-              viewBox="0 0 24 24"
-              strokeWidth={1.5}
-              stroke="currentColor"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182"
-              />
-            </svg>
+            <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
           </button>
         </div>
       </div>
 
       {/* Tabs — mobile-first: scrollable at top */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
+      <div className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 sticky top-0 z-10">
         <div className="flex overflow-x-auto scrollbar-hide">
           {TABS.map((tab) => (
             <button
@@ -189,12 +178,12 @@ export default function CentroOperativoPage() {
               onClick={() => setActiveTab(tab.id)}
               className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium transition-colors ${
                 activeTab === tab.id
-                  ? 'text-brand-600 border-b-2 border-brand-600 bg-brand-50'
-                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                  ? 'text-brand-600 dark:text-brand-400 border-b-2 border-brand-600 dark:border-brand-400 bg-brand-50 dark:bg-brand-900/20'
+                  : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700/50'
               }`}
             >
               <span className="inline-flex items-center gap-2">
-                <span>{tab.icon}</span>
+                {tab.icon}
                 <span className="hidden sm:inline">{tab.label}</span>
               </span>
             </button>
@@ -206,7 +195,7 @@ export default function CentroOperativoPage() {
       <div className="p-4 space-y-4">
         {/* Error */}
         {error && (
-          <div className="rounded-lg bg-danger-50 px-4 py-3 text-sm text-danger-700">
+          <div className="rounded-lg bg-danger-50 dark:bg-danger-900/20 px-4 py-3 text-sm text-danger-700 dark:text-danger-300">
             {error}
           </div>
         )}
@@ -216,12 +205,12 @@ export default function CentroOperativoPage() {
           <div className="space-y-4">
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
               {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className="h-24 bg-gray-100 rounded-xl animate-pulse" />
+                <div key={i} className="h-24 bg-gray-100 dark:bg-slate-800 rounded-xl animate-pulse" />
               ))}
             </div>
             <div className="space-y-3">
               {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="h-16 bg-gray-100 rounded-xl animate-pulse" />
+                <div key={i} className="h-16 bg-gray-100 dark:bg-slate-800 rounded-xl animate-pulse" />
               ))}
             </div>
           </div>
