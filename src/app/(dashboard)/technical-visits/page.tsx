@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api-client';
+import { api, unwrapData } from '@/lib/api-client';
 import { useRole } from '@/dashboard/context/role-context';
 
 // Helper to get short visit number (last 7 chars)
@@ -133,8 +133,8 @@ export default function TechnicalVisitsPage() {
       if (technicianFilter) params.technicianId = technicianFilter;
 
       const result = await api.get<ListResponse>('/api/operations/technical-visits', params);
-      setVisits(result.data);
-      setTotal(result.total);
+      setVisits(unwrapData(result));
+      setTotal((result as any).total);
     } catch (err) {
       setError(err instanceof Error ? err.message: 'Error al cargar visitas');
     } finally {

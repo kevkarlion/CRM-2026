@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { api } from '@/lib/api-client';
+import { api, unwrapData } from '@/lib/api-client';
 
 interface MaterialItem {
   item: string;
@@ -74,7 +74,7 @@ export function VisitReportForm({ workOrderId, report, onSaved }: VisitReportFor
         `/api/operations/work-orders/${workOrderId}/report`,
         payload
       );
-      onSaved(result.data);
+      onSaved(unwrapData(result));
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch {

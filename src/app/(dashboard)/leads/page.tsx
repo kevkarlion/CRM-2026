@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api-client';
+import { api, unwrapData } from '@/lib/api-client';
 
 interface Lead {
   _id: string;
@@ -63,6 +63,7 @@ export default function LeadsPage() {
   const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [total, setTotal] = useState(0);
   const [loadingMore, setLoadingMore] = useState(false);
+  const mountedRef = useRef(false);
 
   const fetchLeads = useCallback(async (reset = false) => {
     try {
@@ -80,14 +81,15 @@ export default function LeadsPage() {
       if (!reset && cursor) params.cursor = cursor;
 
       const result = await api.get<ListResponse>('/api/crm/leads', params);
+      const leadsData = unwrapData(result);
 
       if (reset) {
-        setLeads(result.data);
+        setLeads(leadsData);
       } else {
-        setLeads((prev) => [...prev, ...result.data]);
+        setLeads((prev) => [...prev, ...(leadsData as Lead[])]);
       }
-      setCursor(result.cursor);
-      setTotal(result.total);
+      setCursor((result as any).cursor);
+      setTotal((result as any).total);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar leads');
     } finally {
@@ -96,24 +98,18 @@ export default function LeadsPage() {
     }
   }, [search, statusFilter, cursor]);
 
+  // Initial load + filter changes (debounced search) - prevents double-fetch with mountedRef
   useEffect(() => {
-    fetchLeads(true);
-  }, [statusFilter]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (search !== undefined) fetchLeads(true);
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [search]);
-
-  // Real-time polling: refetch every 5 seconds for live WhatsApp leads
-  useEffect(() => {
-    const interval = setInterval(() => {
+    if (!mountedRef.current) {
+      mountedRef.current = true;
       fetchLeads(true);
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [fetchLeads]);
+      return;
+    }
+    const timer = setTimeout(() => {
+      fetchLeads(true);
+    }, search ? 400 : 0);
+    return () => clearTimeout(timer);
+  }, [search, statusFilter]);
 
   function handleRowClick(id: string) {
     router.push(`/leads/${id}`);

@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api-client';
+import { api, unwrapData } from '@/lib/api-client';
 import { useRole } from '@/dashboard/context/role-context';
 import { SelfAssignmentDrawer } from '@/operations/components/SelfAssignmentDrawer';
 import { formatDateShort as formatDate } from '@/operations/helpers/date-utils';
@@ -133,8 +133,8 @@ const params: Record<string, string> = {};
       if (technicianFilter) params.technicianId = technicianFilter;
 
       const result = await api.get<ListResponse>('/api/operations/work-orders', params);
-      setOrders(result.data);
-      setTotal(result.total);
+      setOrders(unwrapData(result));
+      setTotal((result as any).total);
     } catch (err) {
       setError(err instanceof Error ? err.message: 'Error al cargar órdenes');
     } finally {

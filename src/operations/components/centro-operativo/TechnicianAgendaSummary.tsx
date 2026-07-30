@@ -1,10 +1,25 @@
 interface TechnicianAgendaSummaryProps {
   todayCount: number;
   weekCount: number;
-  nextJob?: { title: string; time: string; client: string };
+  nextJob?: { 
+    type?: 'work_order' | 'technical_visit';
+    title: string; 
+    time: string; 
+    client: string;
+    address?: string;
+  };
 }
 
 export function TechnicianAgendaSummary({ todayCount, weekCount, nextJob }: TechnicianAgendaSummaryProps) {
+  // Get type label and color
+  const getTypeInfo = (type?: string) => {
+    if (type === 'technical_visit') {
+      return { label: 'VT', color: 'text-emerald-600', bg: 'bg-emerald-50', icon: '🔧' };
+    }
+    return { label: 'OT', color: 'text-blue-600', bg: 'bg-blue-50', icon: '📋' };
+  };
+  const typeInfo = getTypeInfo(nextJob?.type);
+
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-3 sm:p-4">
       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
@@ -36,9 +51,15 @@ export function TechnicianAgendaSummary({ todayCount, weekCount, nextJob }: Tech
             <div className="flex items-center gap-2 min-w-0">
               <div className="w-2 h-2 rounded-full bg-green-500 flex-shrink-0" />
               <div className="min-w-0">
-                <p className="text-xs font-medium text-gray-900 truncate">{nextJob.client}</p>
-                <p className="text-[10px] text-gray-400">
-                  {nextJob.time} &middot; {nextJob.title}
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${typeInfo.bg} ${typeInfo.color}`}>
+                    {typeInfo.icon} {typeInfo.label}
+                  </span>
+                  <p className="text-xs font-medium text-gray-900 truncate">{nextJob.time}</p>
+                </div>
+                <p className="text-[10px] font-medium text-gray-900 truncate">{nextJob.title}</p>
+                <p className="text-[9px] text-gray-500 truncate">
+                  {nextJob.client}{nextJob.address && ` • ${nextJob.address}`}
                 </p>
               </div>
             </div>

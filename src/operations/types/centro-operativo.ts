@@ -27,7 +27,8 @@ export interface TechnicianWorkload {
 export interface CalendarEvent {
   _id: string;
   type: 'work_order' | 'technical_visit';
-  workOrderNumber: string;
+  workOrderNumber?: string;
+  visitNumber?: string;
   title: string;
   status: string;
   priority: string;
@@ -38,6 +39,7 @@ export interface CalendarEvent {
   clientSnapshot?: { name?: string; email?: string; phone?: string };
   locationSnapshot?: { name?: string; address?: string; city?: string };
   technicians: { _id: string; name: string; email?: string; phone?: string }[];
+  technician?: { _id: string; name: string; email?: string; phone?: string };
 }
 
 export interface WorkOrderRow {

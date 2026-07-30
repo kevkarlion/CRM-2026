@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api-client';
+import { api, unwrapData } from '@/lib/api-client';
 
 function getBrowserTimezone(): string {
   const offset = new Date().getTimezoneOffset();
@@ -116,7 +116,8 @@ export default function NewWorkOrderPage() {
       if (form.estimatedDuration) body.estimatedDuration = parseInt(form.estimatedDuration, 10);
 
       const result = await api.post<{ data: { _id: string } }>('/api/operations/work-orders', body);
-      router.push(`/work-orders/${result.data._id}`);
+      const created = unwrapData<{ _id: string }>(result);
+      router.push(`/work-orders/${created._id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al crear orden de trabajo');
     } finally {

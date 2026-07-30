@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api-client';
+import { api, unwrapData } from '@/lib/api-client';
 
 const PRIORITY_OPTIONS = [
   { value: 'low', label: 'Baja' },
@@ -81,7 +81,8 @@ export default function NewTechnicalVisitPage() {
       }
 
       const result = await api.post<{ data: { _id: string } }>('/api/operations/technical-visits', body);
-      router.push(`/technical-visits/${result.data._id}`);
+      const created = unwrapData<{ _id: string }>(result);
+      router.push(`/technical-visits/${created._id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al crear visita técnica');
     } finally {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { api } from '@/lib/api-client';
+import { api, unwrapData } from '@/lib/api-client';
 
 // Helper to get short visit number (last 7 chars)
 function shortVT(number: string): string {
@@ -148,9 +148,10 @@ export default function TechnicalVisitDetailPage() {
     try {
       setLoading(true);
       const result = await api.get<{ data: TechnicalVisit }>(`/api/operations/technical-visits/${id}`);
-      setVisit(result.data);
-      setNewStatus(result.data.status);
-      syncEditFields(result.data);
+      const visit = unwrapData<TechnicalVisit>(result);
+      setVisit(visit);
+      setNewStatus(visit.status);
+      syncEditFields(visit);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar');
     } finally {
@@ -236,7 +237,7 @@ export default function TechnicalVisitDetailPage() {
     setLoadingTechnicians(true);
     try {
       const result = await api.get<{ data: Array<{ _id: string; name: string; email?: string; specialties?: string[] }> }>('/api/operations/technicians');
-      setTechnicians(result?.data || []);
+      setTechnicians(unwrapData(result) || []);
     } catch {
       // silently ignore
     } finally {

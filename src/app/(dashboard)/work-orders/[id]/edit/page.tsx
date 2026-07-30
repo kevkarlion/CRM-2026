@@ -121,11 +121,11 @@ export default function EditWorkOrderPage() {
         // Load work order and technicians in parallel
         const [woResult, techResult] = await Promise.all([
           api.get<{ data: any }>(`/api/operations/work-orders/${id}`),
-          api.get<Array<{ _id: string; name: string; email?: string }>>('/api/operations/technicians').catch(() => []),
+          api.get<{ data: Array<{ _id: string; name: string; email?: string }> }>('/api/operations/technicians').catch(() => ({ data: [] })),
         ]);
         
         const wo = woResult.data;
-        setTechnicians(techResult || []);
+        setTechnicians(techResult?.data || []);
         
         if (!wo) {
           setNotFound(true);

@@ -82,9 +82,18 @@ export default function CentroOperativoPage() {
       setLoading(true);
       setError(null);
 
+      // Calculate date range for calendar (current month + next 2 months)
+      const now = new Date();
+      const startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+      const endDate = new Date(now.getFullYear(), now.getMonth() + 2, 0);
+
       const [dashboardData, calendarData, workOrdersData, visitsData] = await Promise.allSettled([
         api.get<CentroOperativoDashboardResponse>('/api/operations/centro-operativo'),
-        api.get<CalendarEvent[]>('/api/operations/centro-operativo/calendar'),
+        // Use work-orders/all-calendar with date params like work-orders/calendar
+        api.get<CalendarEvent[]>('/api/operations/work-orders/all-calendar', {
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString(),
+        }),
         api.get<{ data: any[]; total: number }>('/api/operations/work-orders'),
         api.get<{ data: any[]; total: number }>('/api/operations/technical-visits'),
       ]);
@@ -95,7 +104,9 @@ export default function CentroOperativoPage() {
 
       if (calendarData.status === 'fulfilled') {
         const raw = calendarData.value;
-        setCalendarEvents(Array.isArray(raw) ? raw : []);
+        // API returns { data: [...], total: n } format
+        const events = Array.isArray(raw) ? raw : raw?.data || [];
+        setCalendarEvents(events);
       }
 
       if (workOrdersData.status === 'fulfilled') {

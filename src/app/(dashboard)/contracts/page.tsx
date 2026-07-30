@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { api } from '@/lib/api-client';
+import { api, unwrapData } from '@/lib/api-client';
 
 interface Contract {
   _id: string;
@@ -82,14 +82,15 @@ export default function ContractsPage() {
       if (!reset && cursor) params.cursor = cursor;
 
       const result = await api.get<ListResponse>('/api/crm/contracts', params);
+      const contractsData = unwrapData(result);
 
       if (reset) {
-        setContracts(result.data);
+        setContracts(contractsData);
       } else {
-        setContracts((prev) => [...prev, ...result.data]);
+        setContracts((prev) => [...prev, ...(contractsData as Contract[])]);
       }
-      setCursor(result.cursor);
-      setTotal(result.total);
+      setCursor((result as any).cursor);
+      setTotal((result as any).total);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar contratos');
     } finally {

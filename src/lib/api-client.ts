@@ -6,6 +6,30 @@ interface ApiClient {
   del<T>(path: string): Promise<T>;
 }
 
+/**
+ * Normalizes API response to handle double-wrapping:
+ * - { data: [...] } -> [...]
+ * - { data: { data: [...] } } -> [...]
+ * - [...] -> [...]
+ */
+export function unwrapData<T>(response: unknown): T {
+  if (!response || typeof response !== 'object') {
+    return [] as T;
+  }
+  const resp = response as Record<string, unknown>;
+  const data = resp.data;
+  // If data is another wrapper, unwrap again
+  if (data && typeof data === 'object' && 'data' in data) {
+    return (data as Record<string, unknown>).data as T;
+  }
+  // If data is an array, return it
+  if (Array.isArray(data)) {
+    return data as T;
+  }
+  // If data is already the direct value
+  return data as T;
+}
+
 function getToken(): string | null {
   try {
     const storage = (globalThis as Record<string, unknown>).localStorage as { getItem(k: string): string | null } | undefined;

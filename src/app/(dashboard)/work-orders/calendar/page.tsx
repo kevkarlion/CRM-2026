@@ -62,19 +62,7 @@ export default function TechnicianCalendarPage() {
   const [selfAssignOpen, setSelfAssignOpen] = useState(false);
   const [selfAssignWO, setSelfAssignWO] = useState<{ id: string; number: string; type: 'work_order' | 'technical_visit' } | null>(null);
 
-  // Show loading while role is being determined
-  if (roleLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 p-4">
-        <div className="space-y-4">
-          <div className="h-8 w-48 bg-gray-200 rounded animate-pulse" />
-          <div className="h-10 bg-gray-200 rounded-xl animate-pulse" />
-          <div className="h-[500px] bg-gray-100 rounded-xl animate-pulse" />
-        </div>
-      </div>
-    );
-  }
-
+  // Always define fetchData - don't conditionalize hooks
   const fetchData = useCallback(async () => {
     // Don't fetch until role is determined
     if (roleLoading) return;
@@ -180,17 +168,20 @@ export default function TechnicianCalendarPage() {
       return d >= weekStart && d < weekEnd;
     });
 
-    const upcoming = events
-      .filter((e) => parseLocalDate(e.scheduledDate) >= now)
-      .sort((a, b) => parseLocalDate(a.scheduledDate).getTime() - parseLocalDate(b.scheduledDate).getTime());
-
-    const next = upcoming[0];
+    // Next job: FIRST event of TODAY (not from all upcoming)
+    const todaySorted = todayEvents.sort((a, b) => {
+      if (!a.scheduledStart) return 1;
+      if (!b.scheduledStart) return -1;
+      return new Date(a.scheduledStart).getTime() - new Date(b.scheduledStart).getTime();
+    });
+    const next = todaySorted[0];
 
     return {
       todayCount: todayEvents.length,
       weekCount: weekEvents.length,
       nextJob: next
         ? {
+            type: next.type,
             title: next.title,
             time: next.scheduledStart
               ? new Date(next.scheduledStart).toLocaleTimeString('es-CL', {
@@ -204,6 +195,7 @@ export default function TechnicianCalendarPage() {
                   });
                 })(),
             client: next.clientSnapshot?.name || '',
+            address: next.locationSnapshot?.address || '',
           }
         : undefined,
     };
@@ -223,13 +215,50 @@ export default function TechnicianCalendarPage() {
     ? `${events.length} órdenes y visitas técnicas`
     : `${events.length} órdenes asignadas`;
 
+  // Show loading skeleton while role is being determined (after all hooks are called)
+  if (roleLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-4">
+        <div className="bg-white border-b border-gray-200 px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="h-8 w-48 bg-gray-200 rounded animate-pulse text-transparent">Mis Órdenes</h1>
+              <p className="h-5 w-64 bg-gray-100 rounded animate-pulse mt-2 text-transparent">0 órdenes y visitas técnicas</p>
+            </div>
+            <div className="w-10 h-10 bg-gray-100 rounded animate-pulse" />
+          </div>
+        </div>
+        <div className="p-4 space-y-4">
+          <div className="bg-white border border-gray-200 rounded-xl p-3 sm:p-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="flex items-center gap-4 flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-gray-100 animate-pulse" />
+                  <div className="h-4 w-20 bg-gray-100 rounded animate-pulse" />
+                </div>
+                <div className="w-px h-6 bg-gray-200" />
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-gray-100 animate-pulse" />
+                  <div className="h-4 w-20 bg-gray-100 rounded animate-pulse" />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="bg-white border border-gray-200 rounded-xl p-4">
+            <div className="h-[500px] bg-gray-100 rounded-xl animate-pulse" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 p-4">
       <div className="bg-white border-b border-gray-200 px-4 py-4">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">{pageTitle}</h1>
-            <p className="text-sm text-gray-500 mt-0.5">
+          <div suppressHydrationWarning>
+            <h1 className="text-xl font-bold text-gray-900" suppressHydrationWarning>{pageTitle}</h1>
+            <p className="text-sm text-gray-500 mt-0.5" suppressHydrationWarning>
               {loading ? 'Cargando...' : description}
             </p>
           </div>
@@ -273,8 +302,26 @@ export default function TechnicianCalendarPage() {
 
         {loading ? (
           <div className="space-y-4">
-            <div className="h-10 bg-gray-100 rounded-xl animate-pulse" />
-            <div className="h-[500px] bg-gray-100 rounded-xl animate-pulse" />
+            {/* Same structure as TechnicianAgendaSummary */}
+            <div className="bg-white border border-gray-200 rounded-xl p-3 sm:p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex items-center gap-4 flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-gray-100 animate-pulse" />
+                    <div className="h-4 w-20 bg-gray-100 rounded animate-pulse" />
+                  </div>
+                  <div className="w-px h-6 bg-gray-200" />
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-lg bg-gray-100 animate-pulse" />
+                    <div className="h-4 w-20 bg-gray-100 rounded animate-pulse" />
+                  </div>
+                </div>
+              </div>
+            </div>
+            {/* Same structure as CalendarView */}
+            <div className="bg-white border border-gray-200 rounded-xl p-4">
+              <div className="h-[500px] bg-gray-100 rounded-xl animate-pulse" />
+            </div>
           </div>
         ) : (
           <CalendarView events={events} onEventClick={handleEventClick} />

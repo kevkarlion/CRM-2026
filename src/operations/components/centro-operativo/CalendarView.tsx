@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { CALENDAR_PRIORITY_COLORS } from '@/operations/constants/status-colors';
 import { parseLocalDate } from '@/operations/helpers/date-utils';
 import type { CalendarEvent, TechnicianWorkload } from '@/operations/types/centro-operativo';
@@ -89,19 +89,66 @@ function EventBlock({ event, onClick, compact }: { event: CalendarEvent; onClick
     ? `${formatTimeShort(event.scheduledStart)}${event.scheduledEnd ? ` - ${formatTimeShort(event.scheduledEnd)}` : ''}`
     : '';
   const clientName = event.clientSnapshot?.name || '';
-  const techName = event.technicians?.[0]?.name || '';
+  const address = event.locationSnapshot?.address || '';
+  const isVisit = event.type === 'technical_visit';
+  
+  // Get assigned technician name
+  const techName = isVisit 
+    ? event.technician?.name || ''
+    : event.technicians?.[0]?.name || '';
+  
+  // Get short number (last 7 chars for WO, last 7 for VT)
+  const shortNumber = isVisit 
+    ? (event as any).visitNumber?.slice(-7) || event.workOrderNumber?.slice(-7) || ''
+    : event.workOrderNumber?.slice(-7) || '';
+  
+  // Different styling for OT vs VT
+  const typeBadge = isVisit 
+    ? { bg: 'bg-emerald-100', text: 'text-emerald-700', label: 'VT', icon: '🔧' }
+    : { bg: 'bg-blue-100', text: 'text-blue-700', label: 'OT', icon: '📋' };
+  const typeColors = isVisit
+    ? { border: 'border-l-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-800' }
+    : { border: 'border-l-blue-500', bg: 'bg-blue-50', text: 'text-blue-800' };
+
+  // Priority badge
+  const priorityInfo = (() => {
+    switch (event.priority) {
+      case 'urgent': return { label: 'Urgente', color: 'text-red-600', bg: 'bg-red-50', dot: '🔴' };
+      case 'high': return { label: 'Alta', color: 'text-orange-600', bg: 'bg-orange-50', dot: '🟠' };
+      case 'emergency': return { label: 'Emergencia', color: 'text-red-700', bg: 'bg-red-100', dot: '🚨' };
+      case 'normal': return { label: 'Normal', color: 'text-blue-600', bg: 'bg-blue-50', dot: '🔵' };
+      case 'low': return { label: 'Baja', color: 'text-gray-500', bg: 'bg-gray-50', dot: '⚪' };
+      default: return null;
+    }
+  })();
+
+  // Status badge for unscheduled/draft items
+  const statusInfo = (() => {
+    if (!event.scheduledDate || event.scheduledDate === '') {
+      // No scheduled date = not scheduled yet
+      switch (event.status) {
+        case 'draft': return { label: 'Borrador', color: 'text-gray-600', bg: 'bg-gray-100', dot: '📝' };
+        case 'pending': return { label: 'Pendiente', color: 'text-yellow-600', bg: 'bg-yellow-50', dot: '⏳' };
+        default: return { label: 'Sin fecha', color: 'text-gray-500', bg: 'bg-gray-50', dot: '📅' };
+      }
+    }
+    return null;
+  })();
 
   if (compact) {
     return (
       <button
         onClick={onClick}
-        className={`w-full text-left px-1.5 py-0.5 rounded border-l-2 ${colors.bg} ${colors.border} ${colors.text} hover:opacity-80 transition-opacity cursor-pointer`}
+        className={`w-full text-left px-1.5 py-0.5 rounded border-l-2 ${typeColors.border} ${typeColors.bg} ${typeColors.text} hover:opacity-80 transition-opacity cursor-pointer`}
       >
-        <p className="text-[10px] font-bold truncate">
-          {event.type === 'technical_visit' && <span className="text-emerald-600">🔧 </span>}
-          {event.workOrderNumber}
-        </p>
+        <div className="flex items-center gap-1">
+          <span className="text-[9px] font-bold">{typeBadge.icon} {shortNumber || typeBadge.label}</span>
+          {statusInfo && <span className="text-[9px]">{statusInfo.dot}</span>}
+          {priorityInfo && <span className="text-[9px]">{priorityInfo.dot}</span>}
+        </div>
+        {timeRange && <p className="text-[9px] truncate opacity-75">{timeRange}</p>}
         <p className="text-[9px] truncate opacity-75">{clientName}</p>
+        {techName && <p className="text-[8px] truncate opacity-60">👤 {techName}</p>}
       </button>
     );
   }
@@ -109,15 +156,32 @@ function EventBlock({ event, onClick, compact }: { event: CalendarEvent; onClick
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left px-2 py-1 rounded border-l-2 ${colors.bg} ${colors.border} ${colors.text} hover:opacity-80 transition-opacity cursor-pointer`}
+      className={`w-full text-left px-2 py-1 rounded border-l-2 ${typeColors.border} ${typeColors.bg} ${typeColors.text} hover:opacity-80 transition-opacity cursor-pointer`}
     >
+      <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+        <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${typeBadge.bg} ${typeBadge.text}`}>
+          {typeBadge.icon} {shortNumber || typeBadge.label}
+        </span>
+        {statusInfo && (
+          <span className={`text-[8px] px-1.5 py-0.5 rounded font-medium ${statusInfo.bg} ${statusInfo.color}`}>
+            {statusInfo.dot} {statusInfo.label}
+          </span>
+        )}
+        {priorityInfo && (
+          <span className={`text-[8px] px-1.5 py-0.5 rounded font-medium ${priorityInfo.bg} ${priorityInfo.color}`}>
+            {priorityInfo.dot} {priorityInfo.label}
+          </span>
+        )}
+        {techName && (
+          <span className="text-[8px] px-1 py-0.5 rounded bg-gray-100 text-gray-600">
+            👤 {techName}
+          </span>
+        )}
+      </div>
       {timeRange && <p className="text-[10px] font-medium">{timeRange}</p>}
-      <p className="text-xs font-bold truncate">
-        {event.type === 'technical_visit' && <span className="text-emerald-600">🔧 </span>}
-        #{event.workOrderNumber}
-      </p>
+      <p className="text-xs font-bold truncate">{event.title}</p>
       {clientName && <p className="text-[10px] truncate opacity-75">{clientName}</p>}
-      {techName && <p className="text-[9px] truncate opacity-60">{techName}</p>}
+      {address && <p className="text-[9px] truncate opacity-60">📍 {address}</p>}
     </button>
   );
 }
@@ -305,14 +369,29 @@ function MonthView({ events, date, onEventClick }: { events: CalendarEvent[]; da
               </p>
               <div className="space-y-0.5">
                 {dayEvts.slice(0, 3).map((event) => {
-                  const colors = CALENDAR_PRIORITY_COLORS[event.priority] || CALENDAR_PRIORITY_COLORS.normal;
+                  const isVisit = event.type === 'technical_visit';
+                  const shortNumber = isVisit 
+                    ? (event as any).visitNumber?.slice(-7) || event.workOrderNumber?.slice(-7) || ''
+                    : event.workOrderNumber?.slice(-7) || '';
+                  const timeStr = event.scheduledStart 
+                    ? new Date(event.scheduledStart).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })
+                    : '';
+                  const clientName = event.clientSnapshot?.name || '';
+                  
+                  // Different colors for OT vs VT
+                  const typeColors = isVisit
+                    ? { border: 'border-l-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-700' }
+                    : { border: 'border-l-blue-500', bg: 'bg-blue-50', text: 'text-blue-700' };
+                  
                   return (
                     <button
                       key={event._id}
                       onClick={() => onEventClick(event)}
-                      className={`w-full text-left px-1 py-0.5 rounded text-[9px] font-medium truncate border-l-2 ${colors.bg} ${colors.border} ${colors.text} hover:opacity-80 cursor-pointer`}
+                      className={`w-full text-left px-1 py-0.5 rounded text-[9px] font-medium truncate border-l-2 ${typeColors.border} ${typeColors.bg} ${typeColors.text} hover:opacity-80 cursor-pointer`}
                     >
-                      {event.workOrderNumber}
+                      <span className="font-bold">{isVisit ? '🔧' : '📋'}</span>
+                      {timeStr && <span className="opacity-75">{timeStr} </span>}
+                      {shortNumber || clientName || event.title}
                     </button>
                   );
                 })}
@@ -331,9 +410,19 @@ function MonthView({ events, date, onEventClick }: { events: CalendarEvent[]; da
 }
 
 export function CalendarView({ events, onEventClick }: CalendarViewProps) {
-  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-  const [viewMode, setViewMode] = useState<ViewMode>(isMobile ? 'day' : 'week');
+  // Start with 'week' on server, then use useEffect to detect mobile after mount
+  const [viewMode, setViewMode] = useState<ViewMode>('week');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+
+  // Detect mobile after mount to avoid hydration mismatch
+  useEffect(() => {
+    const checkMobile = () => {
+      if (window.innerWidth < 768) {
+        setViewMode('day');
+      }
+    };
+    checkMobile();
+  }, []);
 
   const navigateDate = useCallback((direction: -1 | 1) => {
     setSelectedDate((prev) => {

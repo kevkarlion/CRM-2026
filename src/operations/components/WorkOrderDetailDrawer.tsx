@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Drawer } from '@/lib/components/Drawer';
-import { api } from '@/lib/api-client';
+import { api, unwrapData } from '@/lib/api-client';
 import { formatDateLong as formatDate } from '@/operations/helpers/date-utils';
 
 interface WorkOrder {
@@ -144,7 +144,7 @@ export function WorkOrderDetailDrawer({ isOpen, onClose, workOrderId }: WorkOrde
       setShowReschedule(false);
       setStatusError(null);
       const res = await api.get<{ data: WorkOrderDetailResponse }>(`/api/operations/work-orders/${workOrderId}`);
-      setData(res.data);
+      setData(unwrapData(res));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar datos');
     } finally {

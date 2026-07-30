@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { api } from '@/lib/api-client';
+import { api, unwrapData } from '@/lib/api-client';
 import { VisitReportForm } from '@/operations/components/VisitReportForm';
 import { formatDateLong as formatDate } from '@/operations/helpers/date-utils';
 import { useRole } from '@/dashboard/context/role-context';
@@ -173,7 +173,7 @@ export default function WorkOrderDetailPage() {
       try {
         setLoading(true);
         const result = await api.get<{ data: WorkOrder }>(`/api/operations/work-orders/${id}`);
-        setWorkOrder(result.data);
+        setWorkOrder(unwrapData(result));
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Error al cargar orden');
       } finally {
@@ -196,8 +196,8 @@ export default function WorkOrderDetailPage() {
     if (technicians.length > 0) return; // already loaded
     setLoadingTechnicians(true);
     try {
-      const result = await api.get<Array<{ _id: string; name: string; email?: string; specialties?: string[] }>>('/api/operations/technicians');
-      setTechnicians(result || []);
+      const result = await api.get<{ data: Array<{ _id: string; name: string; email?: string; specialties?: string[] }> }>('/api/operations/technicians');
+      setTechnicians(unwrapData(result) || []);
     } catch {
       // silently ignore
     } finally {
@@ -209,7 +209,11 @@ export default function WorkOrderDetailPage() {
     setLoadingChecklist(true);
     try {
       const result = await api.get<{ data: ChecklistItem[] }>(`/api/operations/work-orders/${id}/checklist`);
-      setChecklist(result.data || []);
+      const data = result?.data;
+      // Handle different response formats
+      const checklistData = Array.isArray(data) ? data :
+                   Array.isArray(data?.data) ? data.data : [];
+      setChecklist(checklistData);
     } catch {
       // silently ignore
     } finally {
@@ -244,7 +248,7 @@ export default function WorkOrderDetailPage() {
     setLoadingReport(true);
     try {
       const result = await api.get<{ data: VisitReport | null }>(`/api/operations/work-orders/${id}/report`);
-      setReport(result.data);
+      setReport(unwrapData(result));
     } catch {
       // silently ignore
     } finally {
@@ -269,7 +273,7 @@ export default function WorkOrderDetailPage() {
     setChangingStatus(true);
     try {
       const result = await api.patch<{ data: WorkOrder }>(`/api/operations/work-orders/${id}/status`, { status: newStatus });
-      setWorkOrder(result.data);
+      setWorkOrder(unwrapData(result));
       setShowStatusMenu(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cambiar estado');
@@ -302,7 +306,7 @@ export default function WorkOrderDetailPage() {
       setShowAssignInput(false);
       setAssignTechId('');
       const result = await api.get<{ data: WorkOrder }>(`/api/operations/work-orders/${id}`);
-      setWorkOrder(result.data);
+      setWorkOrder(unwrapData(result));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al asignar');
     } finally {
@@ -315,7 +319,7 @@ export default function WorkOrderDetailPage() {
     try {
       await api.post(`/api/operations/work-orders/${id}/assign`, { action: 'unassign', technicianId });
       const result = await api.get<{ data: WorkOrder }>(`/api/operations/work-orders/${id}`);
-      setWorkOrder(result.data);
+      setWorkOrder(unwrapData(result));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al desasignar');
     } finally {
@@ -362,8 +366,8 @@ export default function WorkOrderDetailPage() {
             </svg>
           </button>
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{workOrder.title}</h1>
-            <p className="text-sm text-gray-500">#{shortWO(workOrder.workOrderNumber)}</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">ORDEN DE TRABAJO</h1>
+            <p className="text-sm text-gray-500">{workOrder.title} • #{shortWO(workOrder.workOrderNumber)}</p>
           </div>
           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[workOrder.status]}`}>
             {STATUS_OPTIONS[workOrder.status] || workOrder.status}
