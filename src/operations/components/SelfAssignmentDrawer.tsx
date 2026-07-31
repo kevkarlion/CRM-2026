@@ -13,11 +13,12 @@ interface SelfAssignmentDrawerProps {
 }
 
 const REASON_OPTIONS = [
-  { value: 'near_client', label: 'Estoy cerca del cliente' },
-  { value: 'available_time', label: 'Tengo tiempo disponible' },
+  { value: 'proximity', label: 'Estoy cerca del cliente' },
+  { value: 'availability', label: 'Tengo tiempo disponible' },
   { value: 'replacement', label: 'Reemplazo a un compañero' },
-  { value: 'redistribution', label: 'Redistribución del trabajo' },
-  { value: 'high_priority', label: 'Prioridad alta' },
+  { value: 'coverage', label: 'Cobertura de zona' },
+  { value: 'priority', label: 'Prioridad alta' },
+  { value: 'specialty', label: 'Por mi especialidad' },
   { value: 'other', label: 'Otro' },
 ];
 

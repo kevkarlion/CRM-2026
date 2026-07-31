@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { api, unwrapData } from '@/lib/api-client';
+import { Drawer } from '@/lib/components/Drawer';
 import { VisitReportForm } from '@/operations/components/VisitReportForm';
 import { SelfAssignmentDrawer } from '@/operations/components/SelfAssignmentDrawer';
+import { WorkCompletionForm } from '@/operations/components/WorkCompletionForm';
 import { formatDateLong as formatDate } from '@/operations/helpers/date-utils';
 import { useRole } from '@/dashboard/context/role-context';
 
@@ -37,6 +39,12 @@ interface WorkOrder {
     tools?: string;
     additionalNotes?: string;
   };
+  // Work execution fields
+  startedAt?: string;
+  finishedAt?: string;
+  duration?: number;
+  startedBy?: string;
+  workReportId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -145,7 +153,7 @@ export default function WorkOrderDetailPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
-  const { isAdmin, isTechnician } = useRole();
+  const { isAdmin, isTechnician, user } = useRole();
 
   const [workOrder, setWorkOrder] = useState<WorkOrder | null>(null);
   const [loading, setLoading] = useState(true);
@@ -171,6 +179,70 @@ export default function WorkOrderDetailPage() {
   // Self-assignment drawer
   const [selfAssignOpen, setSelfAssignOpen] = useState(false);
   const [selfAssigning, setSelfAssigning] = useState(false);
+
+  // Work execution state
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [startingWork, setStartingWork] = useState(false);
+  const [startingWorkError, setStartingWorkError] = useState<string | null>(null);
+  const [showCompletionForm, setShowCompletionForm] = useState(false);
+  const [completingWork, setCompletingWork] = useState(false);
+
+  // Get current user ID from token
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const payload = token.split('.')[1];
+        const decoded = JSON.parse(atob(payload));
+        setCurrentUserId(decoded.userId ?? decoded.sub ?? null);
+      } catch {
+        // ignore
+      }
+    }
+  }, []);
+
+  // Check if current user is the assigned technician (only 1 technician per WO)
+  const isCurrentUserTheAssignedTech = (): boolean => {
+    if (!isTechnician) return false;
+    if (!workOrder?.assignedTechnicians || workOrder.assignedTechnicians.length === 0) return false;
+    
+    // Get the assigned technician from workOrder
+    const assignedTech = workOrder.assignedTechnicians[0];
+    const assignedTechEmail = typeof assignedTech === 'object' ? (assignedTech as any)?.email : null;
+    
+    // Compare with current user's email
+    if (!assignedTechEmail || !user.email) return false;
+    
+    return assignedTechEmail.toLowerCase() === user.email.toLowerCase();
+  };
+
+  // Start work handler
+  async function handleStartWork() {
+    setStartingWork(true);
+    setStartingWorkError(null);
+    try {
+      const result = await api.post<{ data: { status: string; startedAt: string } }>(
+        `/api/operations/work-orders/${id}/start`,
+        {}
+      );
+      // Reload work order to get updated status
+      const woResult = await api.get<{ data: WorkOrder }>(`/api/operations/work-orders/${id}`);
+      setWorkOrder(unwrapData(woResult));
+    } catch (err) {
+      setStartingWorkError(err instanceof Error ? err.message : 'Error al iniciar trabajo');
+    } finally {
+      setStartingWork(false);
+    }
+  }
+
+  // Completion success handler
+  function handleCompletionSuccess() {
+    setShowCompletionForm(false);
+    // Reload work order to get updated status
+    api.get<{ data: WorkOrder }>(`/api/operations/work-orders/${id}`).then((r) => {
+      setWorkOrder(unwrapData(r));
+    }).catch(() => {});
+  }
 
   useEffect(() => {
     async function load() {
@@ -417,30 +489,11 @@ export default function WorkOrderDetailPage() {
           {/* Pestaña: Información del Técnico */}
           {activeTab === 'tecnico' && (
             <>
-              {/* Información para el Técnico */}
-              {(workOrder.technicianNotes?.materials || workOrder.technicianNotes?.tools || workOrder.technicianNotes?.additionalNotes) && (
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                  <h2 className="text-sm font-semibold text-blue-900 mb-3">📋 Lo que necesitás saber</h2>
-                  <dl className="space-y-2">
-                    {workOrder.technicianNotes.materials && (
-                      <div className="flex flex-col">
-                        <dt className="text-xs font-medium text-blue-700">🎒 Materiales</dt>
-                        <dd className="text-sm text-blue-900">{workOrder.technicianNotes.materials}</dd>
-                      </div>
-                    )}
-                    {workOrder.technicianNotes.tools && (
-                      <div className="flex flex-col">
-                        <dt className="text-xs font-medium text-blue-700">🔧 Herramientas</dt>
-                        <dd className="text-sm text-blue-900">{workOrder.technicianNotes.tools}</dd>
-                      </div>
-                    )}
-                    {workOrder.technicianNotes.additionalNotes && (
-                      <div className="flex flex-col">
-                        <dt className="text-xs font-medium text-blue-700">📝 Notas</dt>
-                        <dd className="text-sm text-blue-900">{workOrder.technicianNotes.additionalNotes}</dd>
-                      </div>
-                    )}
-                  </dl>
+              {/* Descripción del trabajo */}
+              {workOrder.description && (
+                <div className="bg-white border border-gray-200 rounded-xl p-4">
+                  <h2 className="text-sm font-semibold text-gray-900 mb-2">📋 Descripción del Trabajo</h2>
+                  <p className="text-sm text-gray-700">{workOrder.description}</p>
                 </div>
               )}
 
@@ -467,37 +520,32 @@ export default function WorkOrderDetailPage() {
                 </div>
               </div>
 
-              {/* Descripción del trabajo */}
-              {workOrder.description && (
-                <div className="bg-white border border-gray-200 rounded-xl p-4">
-                  <h2 className="text-sm font-semibold text-gray-900 mb-2">📋 Descripción</h2>
-                  <p className="text-sm text-gray-700">{workOrder.description}</p>
+              {/* Información para el Técnico */}
+              {(workOrder.technicianNotes?.materials || workOrder.technicianNotes?.tools || workOrder.technicianNotes?.additionalNotes) && (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+                  <h2 className="text-sm font-semibold text-blue-900 mb-3">📋 Lo que necesitás saber</h2>
+                  <dl className="space-y-2">
+                    {workOrder.technicianNotes.materials && (
+                      <div className="flex flex-col">
+                        <dt className="text-xs font-medium text-blue-700">🎒 Materiales</dt>
+                        <dd className="text-sm text-blue-900">{workOrder.technicianNotes.materials}</dd>
+                      </div>
+                    )}
+                    {workOrder.technicianNotes.tools && (
+                      <div className="flex flex-col">
+                        <dt className="text-xs font-medium text-blue-700">🔧 Herramientas</dt>
+                        <dd className="text-sm text-blue-900">{workOrder.technicianNotes.tools}</dd>
+                      </div>
+                    )}
+                    {workOrder.technicianNotes.additionalNotes && (
+                      <div className="flex flex-col">
+                        <dt className="text-xs font-medium text-blue-700">📝 Notas</dt>
+                        <dd className="text-sm text-blue-900">{workOrder.technicianNotes.additionalNotes}</dd>
+                      </div>
+                    )}
+                  </dl>
                 </div>
               )}
-
-              {/* Checklist */}
-              <div className="bg-white border border-gray-200 rounded-xl p-4">
-                <h2 className="text-sm font-semibold text-gray-900 mb-3">✅ Checklist</h2>
-                {loadingChecklist ? (
-                  <div className="space-y-2">
-                    {[1, 2].map((i) => <div key={i} className="h-6 bg-gray-100 rounded animate-pulse" />)}
-                  </div>
-                ) : (
-                  <div className="space-y-1">
-                    {checklist.length === 0 && <p className="text-xs text-gray-500">Sin items</p>}
-                    {checklist.map((item) => (
-                      <label key={item._id} className="flex items-center gap-2 py-1 cursor-pointer">
-                        <input type="checkbox" checked={item.completed} onChange={() => toggleCheckItem(item)} className="w-4 h-4 rounded text-brand-600" />
-                        <span className={`text-sm ${item.completed ? 'line-through text-gray-400' : 'text-gray-700'}`}>{item.description}</span>
-                      </label>
-                    ))}
-                    <div className="flex gap-2 pt-2">
-                      <input type="text" value={newCheckItem} onChange={(e) => setNewCheckItem(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCheckItem(); } }} placeholder="Nuevo item..." className="flex-1 text-sm border rounded px-2 py-1" />
-                      <button onClick={addCheckItem} disabled={addingCheckItem || !newCheckItem.trim()} className="text-xs bg-brand-600 text-white px-3 py-1 rounded">{addingCheckItem ? '...' : 'Agregar'}</button>
-                    </div>
-                  </div>
-                )}
-              </div>
             </>
           )}
 
@@ -591,6 +639,81 @@ export default function WorkOrderDetailPage() {
                   </div>
                 )}
               </div>
+            )}
+
+            {/* Work Execution Status - Show when work has started */}
+            {(workOrder.status === 'in_progress' || workOrder.status === 'completed') && workOrder.startedAt && (
+              <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-amber-700">Estado del Trabajo</span>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                    workOrder.status === 'completed'
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-amber-100 text-amber-700'
+                  }`}>
+                    {workOrder.status === 'in_progress' ? 'En Curso' : 'Completado'}
+                  </span>
+                </div>
+                <div className="text-xs text-amber-800 space-y-1">
+                  <p>
+                    <span className="font-medium">Inicio:</span>{' '}
+                    {new Date(workOrder.startedAt).toLocaleString('es-CL', {
+                      day: '2-digit', month: '2-digit', year: 'numeric',
+                      hour: '2-digit', minute: '2-digit'
+                    })}
+                  </p>
+                  {workOrder.finishedAt && (
+                    <p>
+                      <span className="font-medium">Término:</span>{' '}
+                      {new Date(workOrder.finishedAt).toLocaleString('es-CL', {
+                        day: '2-digit', month: '2-digit', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit'
+                      })}
+                    </p>
+                  )}
+                  {workOrder.duration && (
+                    <p>
+                      <span className="font-medium">Duración:</span>{' '}
+                      {workOrder.duration >= 60
+                        ? `${Math.floor(workOrder.duration / 60)}h ${workOrder.duration % 60}min`
+                        : `${workOrder.duration} min`}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Work Execution Buttons - Only for technicians */}
+            {isCurrentUserTheAssignedTech() && !isTerminal && (
+              <>
+                {/* Start Work button - show when status is 'assigned' or 'scheduled' */}
+                {(workOrder.status === 'assigned' || workOrder.status === 'scheduled') && (
+                  <>
+                    {startingWorkError && (
+                      <div className="rounded-lg bg-danger-50 px-3 py-2 text-xs text-danger-700">
+                        {startingWorkError}
+                      </div>
+                    )}
+                    <button
+                      onClick={handleStartWork}
+                      disabled={startingWork}
+                      className="w-full rounded-lg bg-green-600 px-4 py-3 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-colors min-h-[48px]"
+                    >
+                      {startingWork ? 'Iniciando...' : '▶ Iniciar Trabajo'}
+                    </button>
+                  </>
+                )}
+
+                {/* Complete Work button - show when status is 'in_progress' */}
+                {workOrder.status === 'in_progress' && (
+                  <button
+                    onClick={() => setShowCompletionForm(true)}
+                    className="w-full rounded-lg bg-amber-600 px-4 py-3 text-sm font-medium text-white hover:bg-amber-700 transition-colors min-h-[48px]"
+                  >
+                    ✓ Finalizar Servicio
+                  </button>
+                )}
+              </>
             )}
 
             {/* Self-assign for technicians */}
@@ -709,6 +832,19 @@ export default function WorkOrderDetailPage() {
           }).catch(() => {});
         }}
       />
+
+      {/* Work Completion Drawer */}
+      <Drawer
+        isOpen={showCompletionForm}
+        onClose={() => setShowCompletionForm(false)}
+        title="Finalizar Servicio"
+      >
+        <WorkCompletionForm
+          workOrderId={id}
+          onSuccess={handleCompletionSuccess}
+          onCancel={() => setShowCompletionForm(false)}
+        />
+      </Drawer>
     </div>
   );
 }

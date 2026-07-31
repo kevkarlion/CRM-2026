@@ -33,6 +33,18 @@ export type {
   UpdateVisitReportInput,
 } from './visit-report';
 
+export type {
+  IWorkReport,
+  WorkResult,
+  WorkPerformed,
+  AdditionalIssue,
+  NextVisitRecommendation,
+  CreateWorkReportInput,
+  CreateWorkReportApiInput,
+  UpdateWorkReportInput,
+  WorkReportResponse,
+} from './work-report';
+
 export type { ITechnician } from './technician';
 
 export type {

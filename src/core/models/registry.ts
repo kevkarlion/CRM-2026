@@ -47,6 +47,7 @@ import '@/operations/models/pre-visit-checklist';
 import '@/operations/models/visit-report';
 import '@/operations/models/technician';
 import '@/operations/models/technical-visit';
+import '@/operations/models/work-report';
 
 // ─── Contracts ───────────────────────────────────────────────────────
 import '@/contracts/models/contract';

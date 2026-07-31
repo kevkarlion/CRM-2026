@@ -80,9 +80,9 @@ export async function POST(
         
         const { Types } = await import('mongoose');
         
-        // Add technician to work order's assignedTechnicians array
+        // Replace technician - only 1 technician allowed per WO
         await WorkOrderModel.findByIdAndUpdate(workOrderId, {
-          $addToSet: { assignedTechnicians: new Types.ObjectId(technicianId) },
+          $set: { assignedTechnicians: [new Types.ObjectId(technicianId)] },
         });
         
         const assignment = await workAssignmentService.createAssignment(workOrderId, technicianId, userId, tenantId, {
@@ -100,12 +100,9 @@ export async function POST(
         
         const { Types } = await import('mongoose');
         
-        // Update work order's assignedTechnicians array
+        // Replace technician - only 1 technician allowed per WO
         await WorkOrderModel.findByIdAndUpdate(workOrderId, {
-          $pull: { assignedTechnicians: new Types.ObjectId(oldTechnicianId) },
-        });
-        await WorkOrderModel.findByIdAndUpdate(workOrderId, {
-          $addToSet: { assignedTechnicians: new Types.ObjectId(newTechnicianId) },
+          $set: { assignedTechnicians: [new Types.ObjectId(newTechnicianId)] },
         });
         
         const assignment = await workAssignmentService.replaceTechnician(workOrderId, newTechnicianId, userId, tenantId, 'replacement');

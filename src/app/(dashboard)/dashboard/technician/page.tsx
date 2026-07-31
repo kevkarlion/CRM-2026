@@ -46,7 +46,14 @@ export default function TechnicianPage() {
   const allAssignedItems = dashboard?.workOrders ?? [];
 
   const { user } = useRole();
-  const techName = user.name?.split(' ')[0] || 'Técnico';
+  // Use useState to avoid hydration mismatch - default to 'Técnico' until client loads
+  const [techName, setTechName] = useState('Técnico');
+  
+  useEffect(() => {
+    // Only set on client after hydration
+    const name = user.name?.split(' ')[0] || 'Técnico';
+    setTechName(name);
+  }, [user.name]);
 
   // Separate items by status
   const urgentItems = allAssignedItems.filter(item => 

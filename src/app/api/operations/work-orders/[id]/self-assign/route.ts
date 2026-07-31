@@ -25,41 +25,48 @@ export async function POST(
     }
 
     const body = await request.json() as {
-      technicianId: string;
       reason: string;
       observations?: string;
     };
 
-    if (!body.technicianId || !body.reason) {
+    if (!body.reason) {
       return NextResponse.json(
-        { error: 'technicianId and reason are required' },
+        { error: 'reason is required' },
         { status: 400 },
+      );
+    }
+
+    // Find technician from current user session
+    const technician = await TechnicianModel.findOne({
+      userId: new Types.ObjectId(userId),
+      tenantId: new Types.ObjectId(tenantId),
+      deletedAt: null,
+    }).lean();
+
+    if (!technician) {
+      return NextResponse.json(
+        { error: 'No se encontró un técnico asociado a este usuario' },
+        { status: 404 },
       );
     }
 
     const assignment = await workAssignmentService.selfAssignTechnician(
       id,
-      body.technicianId,
+      String(technician._id),
       tenantId,
       body.reason,
       body.observations,
     );
 
     // Fetch technician name and work order number for the event payload
-    const [technician, workOrder] = await Promise.all([
-      TechnicianModel.findOne({
-        _id: new Types.ObjectId(body.technicianId),
-        tenantId: new Types.ObjectId(tenantId),
-      }).select('firstName lastName').lean(),
-      WorkOrderModel.findOne({
-        _id: new Types.ObjectId(id),
-        tenantId: new Types.ObjectId(tenantId),
-      }).select('workOrderNumber').lean(),
-    ]);
+    const workOrder = await WorkOrderModel.findOne({
+      _id: new Types.ObjectId(id),
+      tenantId: new Types.ObjectId(tenantId),
+    }).select('workOrderNumber').lean();
 
-    const technicianName = technician
-      ? `${(technician as any).firstName} ${(technician as any).lastName}`.trim()
-      : 'Técnico';
+    const technicianName = technician.firstName && technician.lastName
+      ? `${technician.firstName} ${technician.lastName}`.trim()
+      : technician.name || 'Técnico';
 
     try {
       await eventBus.publish({
@@ -71,7 +78,7 @@ export async function POST(
         timestamp: new Date(),
         payload: {
           workOrderId: id,
-          technicianId: body.technicianId,
+          technicianId: String(technician._id),
           technicianName,
           workOrderNumber: (workOrder as any)?.workOrderNumber || '',
           reason: body.reason,

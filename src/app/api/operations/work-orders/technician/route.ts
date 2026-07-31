@@ -67,12 +67,13 @@ export async function GET(request: NextRequest) {
       status: wo.status,
       priority: wo.priority,
       category: wo.category,
+      source: wo.source,
       scheduledDate: wo.scheduledDate,
       scheduledStart: wo.scheduledStart,
       scheduledEnd: wo.scheduledEnd,
       clientSnapshot: wo.clientSnapshot,
       locationSnapshot: wo.locationSnapshot,
-      technicians: wo.assignedTechnicians?.map((t: any) => ({
+      assignedTechnicians: wo.assignedTechnicians?.map((t: any) => ({
         _id: String(t._id),
         name: t.name,
         email: t.email,

@@ -7,6 +7,8 @@ import { useRouter } from 'next/navigation';
 import { api, unwrapData } from '@/lib/api-client';
 import { useRole } from '@/dashboard/context/role-context';
 
+type Tab = 'all' | 'mine';
+
 // Helper to get short visit number (last 7 chars)
 function shortVT(number: string): string {
   if (!number) return '';
@@ -84,6 +86,18 @@ const CATEGORY_VARIANT: Record<string, string> = {
   other: 'bg-gray-50 text-gray-700',
 };
 
+// Check if visit is overdue (past scheduled date and not completed/cancelled)
+function isOverdue(vt: TechnicalVisit): boolean {
+  if (!vt.scheduledDate) return false;
+  if (['completed', 'cancelled', 'converted_to_work_order'].includes(vt.status)) return false;
+  
+  const scheduled = new Date(vt.scheduledDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  return scheduled < today;
+}
+
 function formatDate(dateStr?: string) {
   if (!dateStr) return '—';
   return new Date(dateStr).toLocaleDateString('es-CL', {
@@ -101,9 +115,25 @@ function technicianName(visit: TechnicalVisit): string {
   return typeof t === 'object' ? t.name : '—';
 }
 
+// Check if visit is assigned to current technician session
+function isVisitAssignedToMe(visit: TechnicalVisit, currentUserEmail: string | null, currentUserName: string | null): boolean {
+  if (!currentUserEmail && !currentUserName) return false;
+  if (!visit.assignedTechnicianId) return false;
+  const t = visit.assignedTechnicianId;
+  if (typeof t !== 'object') return false;
+  if (currentUserEmail && t.email) {
+    return t.email.toLowerCase() === currentUserEmail.toLowerCase();
+  }
+  if (currentUserName && t.name) {
+    return t.name.toLowerCase() === currentUserName.toLowerCase();
+  }
+  return false;
+}
+
 export default function TechnicalVisitsPage() {
   const router = useRouter();
-  const { isAdmin } = useRole();
+  const { isAdmin, isTechnician, user } = useRole();
+  const [activeTab, setActiveTab] = useState<Tab>('all');
   const [visits, setVisits] = useState<TechnicalVisit[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -132,7 +162,12 @@ export default function TechnicalVisitsPage() {
       if (toDate) params.to = toDate;
       if (technicianFilter) params.technicianId = technicianFilter;
 
-      const result = await api.get<ListResponse>('/api/operations/technical-visits', params);
+      // Use different endpoint based on tab
+      const endpoint = activeTab === 'mine' && isTechnician
+        ? '/api/operations/technical-visits/technician'
+        : '/api/operations/technical-visits';
+
+      const result = await api.get<ListResponse>(endpoint, params);
       setVisits(unwrapData(result));
       setTotal((result as any).total);
     } catch (err) {
@@ -140,7 +175,7 @@ export default function TechnicalVisitsPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, statusFilter, priorityFilter, categoryFilter, fromDate, toDate, technicianFilter]);
+  }, [search, statusFilter, priorityFilter, categoryFilter, fromDate, toDate, technicianFilter, activeTab, isTechnician]);
 
   useEffect(() => {
     if (!mountedRef.current) {
@@ -153,7 +188,7 @@ export default function TechnicalVisitsPage() {
       fetchVisits();
     }, search ? 400 : 0);
     return () => clearTimeout(timer);
-  }, [search, statusFilter, priorityFilter, categoryFilter, fromDate, toDate, technicianFilter]);
+  }, [search, statusFilter, priorityFilter, categoryFilter, fromDate, toDate, technicianFilter, activeTab]);
 
   async function loadTechnicians() {
     try {
@@ -194,6 +229,32 @@ export default function TechnicalVisitsPage() {
           Nueva Visita Técnica
         </button>
       </div>
+
+      {/* Tabs - Only show for technicians */}
+      {isTechnician && (
+        <div className="bg-white border border-gray-200 rounded-xl p-1 inline-flex">
+          <button
+            onClick={() => setActiveTab('all')}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+              activeTab === 'all'
+                ? 'bg-purple-100 text-purple-700'
+                : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            Todas las Visitas
+          </button>
+          <button
+            onClick={() => setActiveTab('mine')}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+              activeTab === 'mine'
+                ? 'bg-purple-100 text-purple-700'
+                : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            MIS VISITAS ★
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="relative">
@@ -310,12 +371,19 @@ export default function TechnicalVisitsPage() {
               </tr>
             </thead>
             <tbody>
-              {visits.map((visit) => (
+              {visits.map((visit) => {
+                const isMyVisit = isTechnician && isVisitAssignedToMe(visit, user.email, user.name);
+                return (
                 <tr
                   key={visit._id}
                   className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors"
                 >
-                  <td className="px-5 py-3 font-medium text-gray-900">#{shortVT(visit.visitNumber)}</td>
+                  <td className="px-5 py-3">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-medium text-gray-900">#{shortVT(visit.visitNumber)}</span>
+                      {isMyVisit && <span className="text-yellow-500" title="Asignada a ti">★</span>}
+                    </div>
+                  </td>
                   <td className="px-5 py-3 font-medium text-gray-900">{visit.title}</td>
                   <td className="px-5 py-3">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${CATEGORY_VARIANT[visit.category] || 'bg-gray-100 text-gray-700'}`}>
@@ -323,9 +391,16 @@ export default function TechnicalVisitsPage() {
                     </span>
                   </td>
                   <td className="px-5 py-3">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[visit.status] || 'bg-gray-100 text-gray-700'}`}>
-                      {label(STATUS_OPTIONS, visit.status)}
-                    </span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[visit.status] || 'bg-gray-100 text-gray-700'}`}>
+                        {label(STATUS_OPTIONS, visit.status)}
+                      </span>
+                      {isOverdue(visit) && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold bg-red-600 text-white">
+                          VENCIDA
+                        </span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-5 py-3">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${PRIORITY_VARIANT[visit.priority] || 'bg-gray-100 text-gray-700'}`}>
@@ -344,9 +419,10 @@ export default function TechnicalVisitsPage() {
                     >
                       Ver
                     </button>
-                  </td>
+</td>
                 </tr>
-              ))}
+              );
+              })}
             </tbody>
           </table>
         </div>
@@ -354,14 +430,19 @@ export default function TechnicalVisitsPage() {
 
       {/* Mobile Cards */}
       <div className="sm:hidden space-y-3">
-        {visits.map((visit) => (
+        {visits.map((visit) => {
+          const isMyVisit = isTechnician && isVisitAssignedToMe(visit, user.email, user.name);
+          return (
           <div
             key={visit._id}
             onClick={() => handleRowClick(visit._id)}
             className="bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:bg-gray-50"
           >
             <div className="flex justify-between items-start mb-2">
-              <span className="font-medium text-gray-900">{visit.visitNumber}</span>
+              <div className="flex items-center gap-1.5">
+                <span className="font-medium text-gray-900">{visit.visitNumber}</span>
+                {isMyVisit && <span className="text-yellow-500 text-sm" title="Asignada a ti">★</span>}
+              </div>
               <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${PRIORITY_VARIANT[visit.priority] || 'bg-gray-100 text-gray-700'}`}>
                 {label(PRIORITY_OPTIONS, visit.priority)}
               </span>
@@ -374,13 +455,19 @@ export default function TechnicalVisitsPage() {
               <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${STATUS_VARIANT[visit.status] || 'bg-gray-100 text-gray-700'}`}>
                 {label(STATUS_OPTIONS, visit.status)}
               </span>
+              {isOverdue(visit) && (
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold bg-red-600 text-white">
+                  VENCIDA
+                </span>
+              )}
             </div>
             <div className="text-xs text-gray-500 mt-2">{formatDate(visit.scheduledDate)}</div>
             {visit.assignedTechnicianId && (
               <div className="text-xs text-gray-600 mt-1">Técnico: {technicianName(visit)}</div>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

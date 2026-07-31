@@ -98,7 +98,7 @@ export const workOrderSchema = new Schema<IWorkOrder>(
     },
     status: {
       type: String,
-      enum: ['draft', 'scheduled', 'confirmed', 'assigned', 'en_route', 'on_site', 'paused', 'completed', 'cancelled', 'closed'],
+      enum: ['draft', 'scheduled', 'confirmed', 'assigned', 'in_progress', 'paused', 'completed', 'cancelled', 'closed'],
       required: true,
       default: 'draft',
     },
@@ -109,6 +109,16 @@ export const workOrderSchema = new Schema<IWorkOrder>(
     responseDueAt: Date,
     resolutionDueAt: Date,
     assignedTechnicians: [{ type: Schema.Types.ObjectId, ref: 'Technician' }],
+    
+    // Tracking de ejecución del trabajo
+    startedAt: { type: Date, default: null },        // Cuándo se inició el trabajo
+    startedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null }, // Quién lo inició
+    finishedAt: { type: Date, default: null },       // Cuándo se terminó
+    duration: { type: Number, default: null },       // Duración en minutos (calculada automáticamente)
+    
+    // Referencia al WorkReport
+    workReportId: { type: Schema.Types.ObjectId, ref: 'WorkReport', default: null },
+    
     version: { type: Number, default: 0 },
     ...auditFields,
   },

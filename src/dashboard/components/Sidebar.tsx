@@ -21,6 +21,7 @@ import {
   ClipboardCheck,
   Menu,
   X,
+  Map,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -45,6 +46,7 @@ const iconMap: Record<string, LucideIcon> = {
   'Work Orders': Wrench,
   'Mi Calendario': Calendar,
   'Visitas Técnicas': ClipboardCheck,
+  Mapa: Map,
 };
 
 const navItems: NavItem[] = [
@@ -61,6 +63,7 @@ const navItems: NavItem[] = [
   { label: 'Work Orders', href: '/work-orders', icon: iconMap['Work Orders'], roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Technician', 'Sales', 'Accounting'] },
   { label: 'Mi Calendario', href: '/work-orders/calendar', icon: iconMap['Mi Calendario'], roles: ['Technician', 'Supervisor', 'Dispatcher', 'Owner', 'Administrator'] },
   { label: 'Visitas Técnicas', href: '/technical-visits', icon: iconMap['Visitas Técnicas'], roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Sales', 'Technician'] },
+  { label: 'Mapa Operativo', href: '/mapa', icon: iconMap['Mapa'], roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Technician'] },
 ];
 
 export function Sidebar() {

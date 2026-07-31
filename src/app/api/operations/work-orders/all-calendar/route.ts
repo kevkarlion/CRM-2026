@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
 import WorkOrderModel from '@/operations/models/work-order';
 import { TechnicalVisitModel } from '@/operations/models/technical-visit';
+import { TechnicianModel } from '@/operations/models/technician';
 import { Types } from 'mongoose';
 
 // Set timezone to Chile for consistent date handling
@@ -121,9 +122,22 @@ export async function GET(request: NextRequest) {
 
     console.log('[all-calendar] Total events:', allEvents.length);
 
+    // Get current technician ID if user is a technician
+    let technicianId: string | null = null;
+    const technician = await TechnicianModel.findOne({
+      userId: new Types.ObjectId(userId),
+      tenantId: tenantObjectId,
+      deletedAt: null,
+    }).lean();
+    
+    if (technician) {
+      technicianId = String(technician._id);
+    }
+
     return NextResponse.json({ 
       data: allEvents, 
       total: allEvents.length,
+      technicianId,
     });
   } catch (error) {
     console.error('[all-calendar] Error:', error);

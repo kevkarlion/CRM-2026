@@ -31,12 +31,15 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@heroicons/react": "^2.2.0",
+    "@types/leaflet": "^1.9.21",
     "bcryptjs": "^3.0.3",
     "jose": "^6.2.3",
+    "leaflet": "^1.9.4",
     "lucide-react": "^1.28.0",
     "mongoose": "^8.9.0",
     "next": "^16.2.9",
     "react": "^19.2.7",
-    "react-dom": "^19.2.7"
+    "react-dom": "^19.2.7",
+    "react-leaflet": "^5.0.0"
   }
 }

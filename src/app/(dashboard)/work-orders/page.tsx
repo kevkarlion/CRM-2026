@@ -9,6 +9,8 @@ import { useRole } from '@/dashboard/context/role-context';
 import { SelfAssignmentDrawer } from '@/operations/components/SelfAssignmentDrawer';
 import { formatDateShort as formatDate } from '@/operations/helpers/date-utils';
 
+type Tab = 'all' | 'mine';
+
 // Helper to get short WO number (last 7 chars)
 function shortWO(number: string): string {
   if (!number) return '';
@@ -92,6 +94,18 @@ const PRIORITY_VARIANT: Record<string, string> = {
   emergency: 'bg-red-100 text-red-900',
 };
 
+// Check if work order is overdue (past scheduled date and not completed/closed)
+function isOverdue(wo: WorkOrder): boolean {
+  if (!wo.scheduledDate) return false;
+  if (['completed', 'closed', 'cancelled'].includes(wo.status)) return false;
+  
+  const scheduled = new Date(wo.scheduledDate);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  return scheduled < today;
+}
+
 function clientName(wo: WorkOrder): string {
   return wo.clientSnapshot?.name || '—';
 }
@@ -109,6 +123,7 @@ function sourceBadge(_source: string): { label: string; variant: string } {
 export default function WorkOrdersPage() {
   const router = useRouter();
   const { isAdmin, isTechnician, user } = useRole();
+  const [activeTab, setActiveTab] = useState<Tab>('all');
   const [orders, setOrders] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -126,12 +141,12 @@ export default function WorkOrdersPage() {
   const [selfAssignWO, setSelfAssignWO] = useState<{ id: string; number: string } | null>(null);
   const mountedRef = useRef(false);
 
-  const fetchOrders = useCallback(async () => {
+const fetchOrders = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-const params: Record<string, string> = {};
+      const params: Record<string, string> = {};
       if (search) params.search = search;
       if (statusFilter) params.status = statusFilter;
       if (priorityFilter) params.priority = priorityFilter;
@@ -139,7 +154,12 @@ const params: Record<string, string> = {};
       if (toDate) params.to = toDate;
       if (technicianFilter) params.technicianId = technicianFilter;
 
-      const result = await api.get<ListResponse>('/api/operations/work-orders', params);
+      // Use different endpoint based on tab
+      const endpoint = activeTab === 'mine' && isTechnician
+        ? '/api/operations/work-orders/technician'
+        : '/api/operations/work-orders';
+
+      const result = await api.get<ListResponse>(endpoint, params);
       setOrders(unwrapData(result));
       setTotal((result as any).total);
     } catch (err) {
@@ -147,7 +167,7 @@ const params: Record<string, string> = {};
     } finally {
       setLoading(false);
     }
-  }, [search, statusFilter, priorityFilter, fromDate, toDate, technicianFilter]);
+  }, [search, statusFilter, priorityFilter, fromDate, toDate, technicianFilter, activeTab, isTechnician]);
 
   // Initial load + filter changes (debounced search)
   useEffect(() => {
@@ -161,7 +181,7 @@ const params: Record<string, string> = {};
       fetchOrders();
     }, search ? 400 : 0);
     return () => clearTimeout(timer);
-  }, [search, statusFilter, priorityFilter, fromDate, toDate, technicianFilter]);
+  }, [search, statusFilter, priorityFilter, fromDate, toDate, technicianFilter, activeTab]);
 
   async function loadTechnicians() {
     try {
@@ -202,6 +222,32 @@ const params: Record<string, string> = {};
           Nueva OT
         </button>
       </div>
+
+      {/* Tabs - Only show for technicians */}
+      {isTechnician && (
+        <div className="bg-white border border-gray-200 rounded-xl p-1 inline-flex">
+          <button
+            onClick={() => setActiveTab('all')}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+              activeTab === 'all'
+                ? 'bg-brand-100 text-brand-700'
+                : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            Todas las OT
+          </button>
+          <button
+            onClick={() => setActiveTab('mine')}
+            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+              activeTab === 'mine'
+                ? 'bg-brand-100 text-brand-700'
+                : 'text-gray-600 hover:bg-gray-50'
+            }`}
+          >
+            MIS OT ★
+          </button>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <div className="relative">
@@ -344,9 +390,16 @@ const params: Record<string, string> = {};
                       <td className="px-5 py-3 font-medium text-gray-900">{wo.title}</td>
                       <td className="px-5 py-3 text-gray-700">{clientName(wo)}</td>
                       <td className="px-5 py-3">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[wo.status] || 'bg-gray-100 text-gray-700'}`}>
-                          {label(STATUS_OPTIONS, wo.status)}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[wo.status] || 'bg-gray-100 text-gray-700'}`}>
+                            {label(STATUS_OPTIONS, wo.status)}
+                          </span>
+                          {isOverdue(wo) && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold bg-red-600 text-white">
+                              VENCIDA
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-5 py-3">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${PRIORITY_VARIANT[wo.priority] || 'bg-gray-100 text-gray-700'}`}>
@@ -365,7 +418,7 @@ const params: Record<string, string> = {};
                         >
                           Ver
                         </button>
-                        {!isAdmin && !isOwn && (wo.status === 'scheduled' || wo.status === 'assigned') && (
+{!isAdmin && !isOwn && activeTab === 'all' && (wo.status === 'scheduled' || wo.status === 'assigned') && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -407,6 +460,11 @@ const params: Record<string, string> = {};
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[wo.status] || 'bg-gray-100 text-gray-700'}`}>
                         {label(STATUS_OPTIONS, wo.status)}
                       </span>
+                      {isOverdue(wo) && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold bg-red-600 text-white">
+                          VENCIDA
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400">
@@ -427,7 +485,7 @@ const params: Record<string, string> = {};
                     >
                       Ver
                     </button>
-                    {!isAdmin && !isOwn && (wo.status === 'scheduled' || wo.status === 'assigned') && (
+                    {!isAdmin && !isOwn && activeTab === 'all' && (wo.status === 'scheduled' || wo.status === 'assigned') && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();

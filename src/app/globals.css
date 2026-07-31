@@ -240,4 +240,27 @@
   .text-balance {
     text-wrap: balance;
   }
+
+  /* ── Leaflet Map Custom Styles ─────────────────── */
+  .leaflet-container {
+    font-family: inherit;
+  }
+
+  .leaflet-popup-content-wrapper {
+    @apply rounded-lg shadow-lg;
+  }
+
+  .leaflet-popup-content {
+    margin: 12px;
+  }
+
+  .leaflet-popup-tip {
+    @apply shadow-sm;
+  }
+
+  /* Custom marker styles */
+  .custom-marker {
+    background: transparent;
+    border: none;
+  }
 }

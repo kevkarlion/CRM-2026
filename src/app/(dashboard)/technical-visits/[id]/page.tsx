@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { api, unwrapData } from '@/lib/api-client';
+import { Drawer } from '@/lib/components/Drawer';
+import { WorkCompletionForm } from '@/operations/components/WorkCompletionForm';
+import { useRole } from '@/dashboard/context/role-context';
 
 // Helper to get short visit number (last 7 chars)
 function shortVT(number: string): string {
@@ -47,6 +50,12 @@ interface TechnicalVisit {
   };
   convertedToWorkOrderId?: string;
   convertedAt?: string;
+  // Work execution fields
+  startedAt?: string;
+  finishedAt?: string;
+  duration?: number;
+  startedBy?: string;
+  workReportId?: string;
   createdAt: string;
 }
 
@@ -138,11 +147,83 @@ export default function TechnicalVisitDetailPage() {
   const [unassigning, setUnassigning] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState(false);
 
+  // Work execution state
+  const [startingWork, setStartingWork] = useState(false);
+  const [startingWorkError, setStartingWorkError] = useState<string | null>(null);
+  const [showCompletionForm, setShowCompletionForm] = useState(false);
+  
+  const { isAdmin, isTechnician, user } = useRole();
+
+  // Start work handler
+  async function handleStartWork() {
+    try {
+      await api.post<{ data: { status: string; startedAt: string } }>(
+        `/api/operations/technical-visits/${id}/start`,
+        {}
+      );
+      // Reload visit to get updated status
+      const result = await api.get<{ data: TechnicalVisit }>(`/api/operations/technical-visits/${id}`);
+      setVisit(unwrapData(result));
+    } catch (err) {
+      setStartingWorkError(err instanceof Error ? err.message : 'Error al iniciar trabajo');
+    } finally {
+      setStartingWork(false);
+    }
+  }
+
+  // Check if current user is the assigned technician
+  const isCurrentUserTheAssignedTech = (): boolean => {
+    if (!isTechnician) return false;
+    if (!visit?.assignedTechnicianId) return false;
+    
+    // First, try email comparison from populated field
+    const assignedTech = visit.assignedTechnicianId;
+    const assignedTechEmail = typeof assignedTech === 'object' ? (assignedTech as any)?.email : null;
+    
+    if (assignedTechEmail && user.email) {
+      if (assignedTechEmail.toLowerCase() === user.email.toLowerCase()) {
+        return true;
+      }
+    }
+    
+    // Fallback: find current user's technician in the loaded list and compare by ID
+    const currentUserTech = technicians.find(t => t.email?.toLowerCase() === user.email?.toLowerCase());
+    if (currentUserTech) {
+      const assignedTechId = typeof assignedTech === 'object' ? (assignedTech as any)?._id?.toString() : assignedTech?.toString();
+      return currentUserTech._id === assignedTechId;
+    }
+    
+    return false;
+  };
+
+  // Completion success handler
+  function handleCompletionSuccess() {
+    setShowCompletionForm(false);
+    // Reload visit to get updated status
+    api.get<{ data: TechnicalVisit }>(`/api/operations/technical-visits/${id}`).then((r) => {
+      setVisit(unwrapData(r));
+    }).catch(() => {});
+  }
+
   const id = params.id as string;
 
   useEffect(() => {
     loadVisit();
+    loadTechnicians();
   }, [id]);
+
+  async function loadTechnicians() {
+    if (technicians.length > 0) return; // already loaded
+    setLoadingTechnicians(true);
+    try {
+      const result = await api.get<{ data: Array<{ _id: string; name: string; email?: string }> }>('/api/operations/technicians');
+      setTechnicians(unwrapData(result) || []);
+    } catch {
+      // silently ignore
+    } finally {
+      setLoadingTechnicians(false);
+    }
+  }
 
   async function loadVisit() {
     try {
@@ -229,19 +310,6 @@ export default function TechnicalVisitDetailPage() {
       router.push('/technical-visits');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al eliminar');
-    }
-  }
-
-  async function loadTechnicians() {
-    if (technicians.length > 0) return;
-    setLoadingTechnicians(true);
-    try {
-      const result = await api.get<{ data: Array<{ _id: string; name: string; email?: string; specialties?: string[] }> }>('/api/operations/technicians');
-      setTechnicians(unwrapData(result) || []);
-    } catch {
-      // silently ignore
-    } finally {
-      setLoadingTechnicians(false);
     }
   }
 
@@ -482,6 +550,81 @@ export default function TechnicalVisitDetailPage() {
               </div>
             )}
 
+            {/* Work Execution Status - Show when work has started */}
+            {(visit.status === 'in_progress' || visit.status === 'completed') && visit.startedAt && (
+              <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-amber-700">Estado del Trabajo</span>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                    visit.status === 'completed'
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-amber-100 text-amber-700'
+                  }`}>
+                    {visit.status === 'in_progress' ? 'En Curso' : 'Completado'}
+                  </span>
+                </div>
+                <div className="text-xs text-amber-800 space-y-1">
+                  <p>
+                    <span className="font-medium">Inicio:</span>{' '}
+                    {new Date(visit.startedAt).toLocaleString('es-CL', {
+                      day: '2-digit', month: '2-digit', year: 'numeric',
+                      hour: '2-digit', minute: '2-digit'
+                    })}
+                  </p>
+                  {visit.finishedAt && (
+                    <p>
+                      <span className="font-medium">Término:</span>{' '}
+                      {new Date(visit.finishedAt).toLocaleString('es-CL', {
+                        day: '2-digit', month: '2-digit', year: 'numeric',
+                        hour: '2-digit', minute: '2-digit'
+                      })}
+                    </p>
+                  )}
+                  {visit.duration && (
+                    <p>
+                      <span className="font-medium">Duración:</span>{' '}
+                      {visit.duration >= 60
+                        ? `${Math.floor(visit.duration / 60)}h ${visit.duration % 60}min`
+                        : `${visit.duration} min`}
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Work Execution Buttons - Only for assigned technician */}
+            {isCurrentUserTheAssignedTech() && !isTerminal && (
+              <>
+                {/* Start Work button - show when status is 'assigned' or 'scheduled' or 'confirmed' */}
+                {(visit.status === 'assigned' || visit.status === 'scheduled' || visit.status === 'confirmed') && (
+                  <>
+                    {startingWorkError && (
+                      <div className="rounded-lg bg-danger-50 px-3 py-2 text-xs text-danger-700">
+                        {startingWorkError}
+                      </div>
+                    )}
+                    <button
+                      onClick={handleStartWork}
+                      disabled={startingWork}
+                      className="w-full rounded-lg bg-green-600 px-4 py-3 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-colors min-h-[48px]"
+                    >
+                      {startingWork ? 'Iniciando...' : '▶ Iniciar Trabajo'}
+                    </button>
+                  </>
+                )}
+
+                {/* Complete Work button - show when status is 'in_progress' */}
+                {visit.status === 'in_progress' && (
+                  <button
+                    onClick={() => setShowCompletionForm(true)}
+                    className="w-full rounded-lg bg-amber-600 px-4 py-3 text-sm font-medium text-white hover:bg-amber-700 transition-colors min-h-[48px]"
+                  >
+                    ✓ Finalizar Servicio
+                  </button>
+                )}
+              </>
+            )}
+
             {/* Technician info */}
             {visit.assignedTechnicianId && (
               <div className="rounded-lg bg-brand-50 border border-brand-100 p-3 space-y-2">
@@ -587,6 +730,19 @@ export default function TechnicalVisitDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Work Completion Drawer */}
+      <Drawer
+        isOpen={showCompletionForm}
+        onClose={() => setShowCompletionForm(false)}
+        title="Finalizar Servicio"
+      >
+        <WorkCompletionForm
+          technicalVisitId={id}
+          onSuccess={handleCompletionSuccess}
+          onCancel={() => setShowCompletionForm(false)}
+        />
+      </Drawer>
     </div>
   );
 }

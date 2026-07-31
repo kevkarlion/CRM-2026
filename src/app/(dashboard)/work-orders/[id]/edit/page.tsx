@@ -111,6 +111,13 @@ export default function EditWorkOrderPage() {
     locationCity: '',
     locationProvince: '',
     locationReference: '',
+    latitude: undefined as number | undefined,
+    longitude: undefined as number | undefined,
+    placeId: undefined as string | undefined,
+    locationDetails: {
+      floor: '', apartment: '', tower: '', office: '',
+      neighborhood: '', block: '', lot: '', reference: '', observations: '',
+    },
   });
 
   useEffect(() => {
@@ -162,9 +169,9 @@ export default function EditWorkOrderPage() {
           locationAddress: wo.locationSnapshot?.address || '',
           locationCity: wo.locationSnapshot?.city || '',
           locationProvince: wo.locationSnapshot?.province || '',
-          locationReference: wo.locationSnapshot?.details?.reference || wo.locationSnapshot?.details?.observations || '',
           latitude: wo.locationSnapshot?.latitude,
           longitude: wo.locationSnapshot?.longitude,
+          locationReference: wo.locationSnapshot?.details?.reference || wo.locationSnapshot?.details?.observations || '',
           placeId: wo.locationSnapshot?.placeId,
           locationDetails: {
             floor: wo.locationSnapshot?.details?.floor || '',
@@ -242,6 +249,8 @@ export default function EditWorkOrderPage() {
           address: form.locationAddress.trim(),
           city: form.locationCity.trim() || undefined,
           province: form.locationProvince.trim() || undefined,
+          latitude: form.latitude,
+          longitude: form.longitude,
           details: form.locationReference.trim() ? { reference: form.locationReference.trim() } : undefined,
         };
       }
@@ -297,7 +306,7 @@ export default function EditWorkOrderPage() {
 
       <form className="bg-white border border-gray-200 rounded-xl p-6 space-y-6">
         <div className="space-y-5">
-          <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Información General</h2>
+          <h2 className="text-lg font-bold text-gray-900 pb-3 border-b-2 border-gray-300 mt-6">Información General</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div className="sm:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -355,7 +364,7 @@ export default function EditWorkOrderPage() {
         )}
 
         <div className="space-y-5">
-          <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Cliente</h2>
+          <h2 className="text-lg font-bold text-gray-900 pb-3 border-b-2 border-gray-300 mt-6">Cliente</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
@@ -374,7 +383,7 @@ export default function EditWorkOrderPage() {
 
         {/* Location - simple manual entry */}
         <div className="space-y-5">
-          <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">📍 Ubicación del servicio</h2>
+          <h2 className="text-lg font-bold text-gray-900 pb-3 border-b-2 border-gray-300 mt-6">📍 Ubicación del servicio</h2>
           
           {/* Address - simple input */}
           <div>
@@ -413,6 +422,18 @@ export default function EditWorkOrderPage() {
             </div>
           </div>
 
+          {/* Link a Google Maps para obtener coordenadas */}
+          {form.locationAddress && form.locationCity && (
+            <a 
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([form.locationAddress, form.locationCity, form.locationProvince].filter(Boolean).join(', '))}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-sm text-brand-600 hover:text-brand-800 underline"
+            >
+              📍 Abrir en Google Maps para obtener coordenadas
+            </a>
+          )}
+
           {/* Additional Location Details */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Referencias / Observaciones</label>
@@ -420,6 +441,33 @@ export default function EditWorkOrderPage() {
               onChange={(e) => setForm((p) => ({ ...p, locationReference: e.target.value }))}
               className={inputClass} rows={2}
               placeholder="Ej: Portón gris, timbre 4, casa del fondo..." />
+          </div>
+
+          {/* Coordenadas */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Coordenadas <span className="text-gray-400">(lat, lng)</span>
+            </label>
+            <input 
+              type="text" 
+              name="coordinates" 
+              value={form.latitude && form.longitude ? `${form.latitude}, ${form.longitude}` : ''}
+              onChange={(e) => {
+                const value = e.target.value.trim();
+                const match = value.match(/^(-?\d+\.?\d*)[,\s]+(-?\d+\.?\d*)$/);
+                if (match) {
+                  setForm((p) => ({ 
+                    ...p, 
+                    latitude: parseFloat(match[1]), 
+                    longitude: parseFloat(match[2]) 
+                  }));
+                } else if (value === '') {
+                  setForm((p) => ({ ...p, latitude: undefined, longitude: undefined }));
+                }
+              }}
+              className={inputClass} 
+              placeholder="Ej: -33.4489, -70.6693" 
+            />
           </div>
         </div>
 
@@ -457,7 +505,7 @@ export default function EditWorkOrderPage() {
 
         {/* Technician Assignment */}
         <div className="space-y-5">
-          <h2 className="text-sm font-semibold text-gray-900 uppercase tracking-wide">Técnico</h2>
+          <h2 className="text-lg font-bold text-gray-900 pb-3 border-b-2 border-gray-300 mt-6">Técnico</h2>
           <div className="grid grid-cols-1 gap-5">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Asignar técnico</label>

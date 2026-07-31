@@ -18,7 +18,10 @@ interface UnassignedWorkOrder {
   status: string;
   priority: string;
   scheduledDate?: string;
+  scheduledStart?: string;
+  scheduledEnd?: string;
   clientSnapshot?: { name?: string };
+  locationSnapshot?: { address?: string; city?: string; name?: string };
   type: 'work_order';
 }
 
@@ -29,7 +32,10 @@ interface UnassignedVisit {
   status: string;
   priority: string;
   scheduledDate?: string;
+  scheduledStart?: string;
+  scheduledEnd?: string;
   clientSnapshot?: { name?: string };
+  locationSnapshot?: { address?: string; city?: string; name?: string };
   type: 'technical_visit';
 }
 
@@ -53,11 +59,12 @@ function getWeekStart(d: Date): Date {
 
 export default function TechnicianCalendarPage() {
   const router = useRouter();
-  const { isTechnician, isAdmin, loading: roleLoading } = useRole();
+  const { isTechnician, isAdmin, loading: roleLoading, user } = useRole();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [unassignedOrders, setUnassignedOrders] = useState<UnassignedItem[]>([]);
+  const [currentTechnicianId, setCurrentTechnicianId] = useState<string | null>(null);
 
   const [selfAssignOpen, setSelfAssignOpen] = useState(false);
   const [selfAssignWO, setSelfAssignWO] = useState<{ id: string; number: string; type: 'work_order' | 'technical_visit' } | null>(null);
@@ -105,8 +112,10 @@ export default function TechnicianCalendarPage() {
 
       if (calendarResult.status === 'fulfilled') {
         const data = calendarResult.value.data || [];
-        console.log('[Calendar] Received events:', data.length);
+        const techId = (calendarResult.value as any).technicianId || null;
+        console.log('[Calendar] Received events:', data.length, 'technicianId:', techId);
         setEvents(data);
+        setCurrentTechnicianId(techId);
       } else {
         console.error('[Calendar] Error fetching calendar:', calendarResult.reason);
         setError(calendarResult.reason instanceof Error ? calendarResult.reason.message : 'Error al cargar calendario');
@@ -114,13 +123,26 @@ export default function TechnicianCalendarPage() {
 
       // Combine unassigned work orders and visits
       const unassigned: UnassignedItem[] = [];
+      
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      // Helper to check if date is in the future (not overdue)
+      const isNotOverdue = (scheduledDate?: string) => {
+        if (!scheduledDate) return true; // Sin fecha = no está vencida
+        const date = new Date(scheduledDate);
+        return date >= today;
+      };
 
       if (workOrdersResult.status === 'fulfilled') {
         const rawWO = workOrdersResult.value;
         const listWO = Array.isArray(rawWO) ? rawWO : rawWO?.data || [];
         unassigned.push(
           ...listWO
-            .filter((wo: UnassignedWorkOrder) => wo.status === 'scheduled' || wo.status === 'confirmed')
+            .filter((wo: UnassignedWorkOrder) => 
+              (wo.status === 'scheduled' || wo.status === 'confirmed') &&
+              isNotOverdue(wo.scheduledDate)
+            )
             .map((wo: UnassignedWorkOrder) => ({ ...wo, type: 'work_order' as const }))
         );
       }
@@ -130,7 +152,10 @@ export default function TechnicianCalendarPage() {
         const listTV = Array.isArray(rawTV) ? rawTV : rawTV?.data || [];
         unassigned.push(
           ...listTV
-            .filter((tv: UnassignedVisit) => tv.status === 'scheduled' || tv.status === 'confirmed')
+            .filter((tv: UnassignedVisit) => 
+              (tv.status === 'scheduled' || tv.status === 'confirmed') &&
+              isNotOverdue(tv.scheduledDate)
+            )
             .map((tv: UnassignedVisit) => ({ ...tv, type: 'technical_visit' as const }))
         );
       }
@@ -319,6 +344,7 @@ export default function TechnicianCalendarPage() {
         <CalendarView 
           events={events} 
           onEventClick={handleEventClick} 
+          currentTechnicianId={currentTechnicianId}
           className={loading ? 'opacity-0 pointer-events-none' : ''}
         />
 
@@ -333,35 +359,81 @@ export default function TechnicianCalendarPage() {
             </div>
 
             <div className="space-y-2">
-              {unassignedOrders.slice(0, 8).map((item) => (
+              {unassignedOrders.slice(0, 8).map((item) => {
+                const isWO = item.type === 'work_order';
+                const wo = item as UnassignedWorkOrder;
+                const vt = item as UnassignedVisit;
+                
+                return (
                 <div
                   key={`${item.type}-${item._id}`}
-                  className="bg-white border border-gray-200 rounded-xl p-3 flex items-center justify-between gap-3"
+                  className="bg-white border border-gray-200 rounded-xl p-3 hover:border-gray-300 transition-colors"
                 >
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className={`text-xs px-1.5 py-0.5 rounded ${
-                        item.type === 'work_order' 
-                          ? 'bg-blue-50 text-blue-600' 
-                          : 'bg-orange-50 text-orange-600'
-                      }`}>
-                        {item.type === 'work_order' ? 'OT' : 'VT'}
-                      </span>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                          isWO 
+                            ? 'bg-blue-100 text-blue-700' 
+                            : 'bg-emerald-100 text-emerald-700'
+                        }`}>
+                          {isWO ? 'OT' : 'VT'}
+                        </span>
+                        <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                          item.priority === 'urgent' ? 'bg-red-100 text-red-700' :
+                          item.priority === 'high' ? 'bg-orange-100 text-orange-700' :
+                          'bg-gray-100 text-gray-600'
+                        }`}>
+                          {item.priority === 'urgent' ? 'Urgente' : 
+                           item.priority === 'high' ? 'Alta' : 
+                           item.priority === 'normal' ? 'Normal' : 'Baja'}
+                        </span>
+                      </div>
+                      
                       <p className="text-sm font-medium text-gray-900 truncate">{item.title}</p>
+                      
+                      <div className="mt-1.5 space-y-0.5 text-xs text-gray-500">
+                        <p className="flex items-center gap-1">
+                          <span className="font-medium">#{isWO ? wo.workOrderNumber : vt.visitNumber}</span>
+                          {item.clientSnapshot?.name && <span className="text-gray-400">• {item.clientSnapshot.name}</span>}
+                        </p>
+                        
+                        {item.scheduledDate && (
+                          <p className="flex items-center gap-1 text-brand-600">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            {new Date(item.scheduledDate).toLocaleDateString('es-CL', { weekday: 'short', day: '2-digit', month: 'short' })}
+                            {(isWO ? wo.scheduledStart : vt.scheduledStart) && (
+                              <span className="text-gray-400">
+                                {new Date(isWO ? wo.scheduledStart! : vt.scheduledStart!).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            )}
+                          </p>
+                        )}
+                        
+                        {(item as any).locationSnapshot?.address && (
+                          <p className="flex items-center gap-1 truncate">
+                            <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            <span className="truncate">{(item as any).locationSnapshot.address}</span>
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <p className="text-xs text-gray-400 ml-8">
-                      #{item.type === 'work_order' ? (item as UnassignedWorkOrder).workOrderNumber : (item as UnassignedVisit).visitNumber}
-                      {item.clientSnapshot?.name && ` · ${item.clientSnapshot.name}`}
-                    </p>
+                    
+                    <button
+                      onClick={() => handleSelfAssign(item)}
+                      className="px-3 py-1.5 rounded-lg bg-brand-600 text-white text-xs font-medium hover:bg-brand-700 transition-colors whitespace-nowrap"
+                    >
+                      Tomar
+                    </button>
                   </div>
-                  <button
-                    onClick={() => handleSelfAssign(item)}
-                    className="px-3 py-1.5 rounded-lg bg-brand-50 text-brand-600 text-xs font-medium hover:bg-brand-100 transition-colors whitespace-nowrap"
-                  >
-                    Tomar
-                  </button>
                 </div>
-              ))}
+              );
+              })}
             </div>
           </div>
         )}

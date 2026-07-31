@@ -132,16 +132,17 @@ export class WorkAssignmentService {
       });
     }
 
-    // Update work order's assignedTechnicians
-    const currentTechnicians = workOrder.assignedTechnicians || [];
+    // Update work order's assignedTechnicians - REPLACE (only 1 technician allowed)
     const newTechnicianId = new Types.ObjectId(technicianId);
     
-    if (!currentTechnicians.some(t => t.equals(newTechnicianId))) {
-      await WorkOrderModel.findByIdAndUpdate(workOrderId, {
-        $push: { assignedTechnicians: newTechnicianId },
-        $set: { status: 'assigned', updatedBy: new Types.ObjectId(assignedBy) },
-      });
-    }
+    // Always replace with single technician (1:1 relationship)
+    await WorkOrderModel.findByIdAndUpdate(workOrderId, {
+      $set: { 
+        assignedTechnicians: [newTechnicianId],
+        status: 'assigned', 
+        updatedBy: new Types.ObjectId(assignedBy) 
+      },
+    });
 
     // Log the activity
     const tech = await TechnicianModel.findById(technicianId).lean();

@@ -16,6 +16,9 @@ const technicalVisitSchema = new Schema<ITechnicalVisit>(
       address: String,
       city: String,
       province: String,
+      // Google Maps coordinates
+      latitude: Number,
+      longitude: Number,
     },
     visitNumber: { type: String, required: true },
     title: { type: String, required: true },
@@ -47,6 +50,12 @@ const technicalVisitSchema = new Schema<ITechnicalVisit>(
     convertedToWorkOrderId: { type: Schema.Types.ObjectId, ref: 'WorkOrder', default: null },
     convertedAt: { type: Date, default: null },
     assignedTechnicianId: { type: Schema.Types.ObjectId, ref: 'Technician', default: null },
+    // Tracking de ejecución del trabajo
+    startedAt: { type: Date, default: null },
+    startedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    finishedAt: { type: Date, default: null },
+    duration: { type: Number, default: null },
+    workReportId: { type: Schema.Types.ObjectId, ref: 'WorkReport', default: null },
     // Campos adicionales para el técnico
     technicianNotes: {
       materials: String,
@@ -64,6 +73,8 @@ technicalVisitSchema.index({ tenantId: 1, status: 1 });
 technicalVisitSchema.index({ tenantId: 1, visitNumber: 1 }, { unique: true });
 technicalVisitSchema.index({ tenantId: 1, leadId: 1 });
 technicalVisitSchema.index({ tenantId: 1, scheduledDate: 1 });
+// Coordinate index for map queries
+technicalVisitSchema.index({ 'locationSnapshot.latitude': 1, 'locationSnapshot.longitude': 1 });
 
 export const TechnicalVisitModel: Model<ITechnicalVisit> =
   mongoose.models.TechnicalVisit || mongoose.model<ITechnicalVisit>('TechnicalVisit', technicalVisitSchema);

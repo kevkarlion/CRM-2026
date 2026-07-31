@@ -3,3 +3,4 @@ export { WorkAssignmentService, workAssignmentService } from './work-assignment.
 export { SchedulingService } from './scheduling.service';
 export { ChecklistService } from './checklist.service';
 export { VisitReportService } from './visit-report.service';
+export { WorkReportService, workReportService } from './work-report.service';

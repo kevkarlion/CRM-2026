@@ -21,6 +21,9 @@ export interface ITechnicalVisit {
     address: string;
     city?: string;
     province?: string;
+    // Google Maps coordinates
+    latitude?: number;
+    longitude?: number;
   };
   
   // Visit details
@@ -56,6 +59,13 @@ export interface ITechnicalVisit {
   
   // Assigned technician
   assignedTechnicianId?: import('mongoose').Types.ObjectId;
+  
+  // Tracking de ejecución del trabajo
+  startedAt?: Date | null;
+  startedBy?: import('mongoose').Types.ObjectId | null;
+  finishedAt?: Date | null;
+  duration?: number; // Duration in minutes
+  workReportId?: import('mongoose').Types.ObjectId | null;
   
   // Campos adicionales para el técnico
   technicianNotes?: {

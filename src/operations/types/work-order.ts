@@ -3,7 +3,7 @@ import { IAuditFields } from '../../crm/types/audit-fields';
 
 export type WorkOrderPriority = 'low' | 'normal' | 'high' | 'urgent' | 'emergency';
 export type WorkOrderCategory = 'installation' | 'maintenance' | 'repair' | 'inspection' | 'warranty' | 'emergency';
-export type WorkOrderStatus = 'draft' | 'scheduled' | 'confirmed' | 'assigned' | 'en_route' | 'on_site' | 'paused' | 'completed' | 'cancelled' | 'closed';
+export type WorkOrderStatus = 'draft' | 'scheduled' | 'confirmed' | 'assigned' | 'in_progress' | 'en_route' | 'on_site' | 'paused' | 'completed' | 'cancelled' | 'closed';
 
 export interface IClientSnapshot {
   name?: string;
@@ -78,7 +78,7 @@ export interface IWorkOrder extends Document, IAuditFields {
   locationSnapshot: ILocationSnapshot;
   equipmentSnapshot: IEquipmentSnapshot | null;
   contractSnapshot?: IContractSnapshot;
-  technicianNotes?: ITechnicianNotes; // Campos adicionales para el técnico
+  technicianNotes?: ITechnicianNotes;
   source: WorkOrderSource;
   workOrderNumber: string;
   title: string;
@@ -93,6 +93,13 @@ export interface IWorkOrder extends Document, IAuditFields {
   responseDueAt?: Date;
   resolutionDueAt?: Date;
   assignedTechnicians: Types.ObjectId[];
+  // Tracking de ejecución del trabajo
+  startedAt?: Date | null;
+  startedBy?: Types.ObjectId | null;
+  finishedAt?: Date | null;
+  duration?: number | null;
+  // Referencia al WorkReport
+  workReportId?: Types.ObjectId | null;
   version: number;
   createdAt: Date;
   updatedAt: Date;

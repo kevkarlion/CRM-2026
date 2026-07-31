@@ -1,6 +1,9 @@
 import mongoose from 'mongoose';
 import './models/registry'; // Register ALL models before any connection
 
+// Index fixing for work reports (run once after connection)
+import { ensureWorkReportIndexes } from '@/operations/models/work-report';
+
 interface CachedConnection {
   conn: typeof mongoose | null;
   promise: Promise<typeof mongoose> | null;
@@ -37,6 +40,10 @@ export async function connectDB(): Promise<typeof mongoose> {
 
   try {
     cached.conn = await cached.promise;
+    // Fix work report indexes after first connection
+    if (process.env.NODE_ENV !== 'test') {
+      ensureWorkReportIndexes().catch(err => console.error('[DB] Index fix failed:', err));
+    }
   } catch (error) {
     cached.promise = null;
     throw error;

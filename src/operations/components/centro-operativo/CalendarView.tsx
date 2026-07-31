@@ -13,6 +13,7 @@ interface CalendarViewProps {
   technicians?: TechnicianWorkload[];
   onEventClick: (event: CalendarEvent) => void;
   className?: string;
+  currentTechnicianId?: string | null;
 }
 
 const VIEW_LABELS: Record<ViewMode, string> = {
@@ -85,7 +86,7 @@ function getEventPosition(event: CalendarEvent): { top: number; height: number }
   return { top, height: Math.max(height, 2) };
 }
 
-function EventBlock({ event, onClick, compact }: { event: CalendarEvent; onClick: () => void; compact?: boolean }) {
+function EventBlock({ event, onClick, compact, currentTechnicianId }: { event: CalendarEvent; onClick: () => void; compact?: boolean; currentTechnicianId?: string | null }) {
   const colors = CALENDAR_PRIORITY_COLORS[event.priority] || CALENDAR_PRIORITY_COLORS.normal;
   const timeRange = event.scheduledStart
     ? `${formatTimeShort(event.scheduledStart)}${event.scheduledEnd ? ` - ${formatTimeShort(event.scheduledEnd)}` : ''}`
@@ -98,6 +99,15 @@ function EventBlock({ event, onClick, compact }: { event: CalendarEvent; onClick
   const techName = isVisit 
     ? event.technician?.name || ''
     : event.technicians?.[0]?.name || '';
+  
+  // Check if event is assigned to current technician
+  const isMyEvent = (() => {
+    if (!currentTechnicianId) return false;
+    if (isVisit) {
+      return event.technician?._id === currentTechnicianId;
+    }
+    return event.technicians?.some(t => t._id === currentTechnicianId);
+  })();
   
   // Get short number (last 7 chars for WO, last 7 for VT)
   const shortNumber = isVisit 
@@ -144,6 +154,7 @@ function EventBlock({ event, onClick, compact }: { event: CalendarEvent; onClick
       >
         <div className="flex items-center gap-1">
           <span className="text-[9px] font-bold">{shortNumber || typeBadge.label}</span>
+          {isMyEvent && <span className="text-[8px] px-1 rounded bg-yellow-400 text-yellow-900 font-bold">MÍA</span>}
           {statusInfo && <span className={`text-[8px] px-1 rounded ${statusInfo.bg} ${statusInfo.color}`}>{statusInfo.label}</span>}
           {priorityInfo && <span className={`w-1.5 h-1.5 rounded-full ${priorityInfo.bg.replace('bg-', 'bg-').replace(/\/\d+/, '')}`} />}
         </div>
@@ -163,6 +174,11 @@ function EventBlock({ event, onClick, compact }: { event: CalendarEvent; onClick
         <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${typeBadge.bg} ${typeBadge.text}`}>
           {shortNumber || typeBadge.label}
         </span>
+        {isMyEvent && (
+          <span className="text-[8px] px-1.5 py-0.5 rounded bg-yellow-400 text-yellow-900 font-bold">
+            MÍA ★
+          </span>
+        )}
         {statusInfo && (
           <span className={`text-[8px] px-1.5 py-0.5 rounded font-medium ${statusInfo.bg} ${statusInfo.color}`}>
             {statusInfo.label}
@@ -187,7 +203,7 @@ function EventBlock({ event, onClick, compact }: { event: CalendarEvent; onClick
   );
 }
 
-function DayView({ events, date, onEventClick }: { events: CalendarEvent[]; date: Date; onEventClick: (event: CalendarEvent) => void }) {
+function DayView({ events, date, onEventClick, currentTechnicianId }: { events: CalendarEvent[]; date: Date; onEventClick: (event: CalendarEvent) => void; currentTechnicianId?: string | null }) {
   const dayEvents = useMemo(() => getEventsForDay(events, date), [events, date]);
   const hours = useMemo(() => {
     const arr: number[] = [];
@@ -218,7 +234,7 @@ function DayView({ events, date, onEventClick }: { events: CalendarEvent[]; date
                   className="absolute left-1 right-1 pointer-events-auto"
                   style={{ top: `${pos.top}%`, height: `${pos.height}%` }}
                 >
-                  <EventBlock event={event} onClick={() => onEventClick(event)} />
+                  <EventBlock event={event} onClick={() => onEventClick(event)} currentTechnicianId={currentTechnicianId} />
                 </div>
               );
             })}
@@ -229,7 +245,7 @@ function DayView({ events, date, onEventClick }: { events: CalendarEvent[]; date
   );
 }
 
-function WeekView({ events, date, onEventClick }: { events: CalendarEvent[]; date: Date; onEventClick: (event: CalendarEvent) => void }) {
+function WeekView({ events, date, onEventClick, currentTechnicianId }: { events: CalendarEvent[]; date: Date; onEventClick: (event: CalendarEvent) => void; currentTechnicianId?: string | null }) {
   const weekStart = useMemo(() => getWeekStart(date), [date]);
   const weekDays = useMemo(() => {
     const days: Date[] = [];
@@ -284,6 +300,7 @@ function WeekView({ events, date, onEventClick }: { events: CalendarEvent[]; dat
                         event={event}
                         onClick={() => onEventClick(event)}
                         compact
+                        currentTechnicianId={currentTechnicianId}
                       />
                     ))}
                     {dayEvts.length > 6 && (
@@ -302,7 +319,7 @@ function WeekView({ events, date, onEventClick }: { events: CalendarEvent[]; dat
   );
 }
 
-function MonthView({ events, date, onEventClick }: { events: CalendarEvent[]; date: Date; onEventClick: (event: CalendarEvent) => void }) {
+function MonthView({ events, date, onEventClick, currentTechnicianId }: { events: CalendarEvent[]; date: Date; onEventClick: (event: CalendarEvent) => void; currentTechnicianId?: string | null }) {
   const today = new Date();
   const year = date.getFullYear();
   const month = date.getMonth();
@@ -410,7 +427,7 @@ function MonthView({ events, date, onEventClick }: { events: CalendarEvent[]; da
   );
 }
 
-export function CalendarView({ events, onEventClick, className = '' }: CalendarViewProps) {
+export function CalendarView({ events, onEventClick, className = '', currentTechnicianId }: CalendarViewProps) {
   // Start with 'week' on server, then use useEffect to detect mobile after mount
   const [viewMode, setViewMode] = useState<ViewMode>('week');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
@@ -508,13 +525,13 @@ export function CalendarView({ events, onEventClick, className = '' }: CalendarV
       </div>
 
       {viewMode === 'day' && (
-        <DayView events={events} date={selectedDate} onEventClick={onEventClick} />
+        <DayView events={events} date={selectedDate} onEventClick={onEventClick} currentTechnicianId={currentTechnicianId} />
       )}
       {viewMode === 'week' && (
-        <WeekView events={events} date={selectedDate} onEventClick={onEventClick} />
+        <WeekView events={events} date={selectedDate} onEventClick={onEventClick} currentTechnicianId={currentTechnicianId} />
       )}
       {viewMode === 'month' && (
-        <MonthView events={events} date={selectedDate} onEventClick={onEventClick} />
+        <MonthView events={events} date={selectedDate} onEventClick={onEventClick} currentTechnicianId={currentTechnicianId} />
       )}
 
       {events.length === 0 && (
