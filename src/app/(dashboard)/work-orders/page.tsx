@@ -429,7 +429,7 @@ const fetchOrders = useCallback(async () => {
               <tbody>
                 {sortedOrders.map((wo, idx) => {
                   const isOwn = isTechAssigned(wo, isTechnician ? user.name : null, isTechnician ? user.email : null);
-                  const rowBg = idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/60';
+                  const rowBg = idx % 2 === 0 ? 'bg-white' : 'bg-gray-100';
                   return (
                     <tr
                       key={wo._id}

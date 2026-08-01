@@ -435,12 +435,13 @@ export default function TechnicalVisitsPage() {
               </tr>
             </thead>
             <tbody>
-              {sortedVisits.map((visit) => {
+              {sortedVisits.map((visit, idx) => {
                 const isMyVisit = isTechnician && isVisitAssignedToMe(visit, user.email, user.name);
+                const rowBg = idx % 2 === 0 ? 'bg-white' : 'bg-gray-100';
                 return (
                 <tr
                   key={visit._id}
-                  className="border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors"
+                  className={`${rowBg} border-b border-gray-100 last:border-0 hover:bg-gray-50 transition-colors`}
                 >
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-1.5">
