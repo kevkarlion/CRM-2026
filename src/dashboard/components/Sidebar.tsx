@@ -43,7 +43,7 @@ const iconMap: Record<string, LucideIcon> = {
   Leads: Target,
   Quotes: FileText,
   'Centro Operativo': ClipboardCheck,
-  'Work Orders': Wrench,
+  'Órdenes de Trabajo': Wrench,
   'Mi Calendario': Calendar,
   'Visitas Técnicas': ClipboardCheck,
   Mapa: Map,
@@ -59,10 +59,11 @@ const navItems: NavItem[] = [
   { label: 'Admin', href: '/dashboard/admin', icon: iconMap['Admin'], roles: ['Owner', 'Administrator'] },
   { label: 'Leads', href: '/leads', icon: iconMap['Leads'], roles: ['Sales', 'Administrator', 'Owner', 'Supervisor'] },
   { label: 'Quotes', href: '/quotes', icon: iconMap['Quotes'], roles: ['Sales', 'Administrator', 'Owner', 'Supervisor'] },
+  // Order for technicians/operations
   { label: 'Centro Operativo', href: '/centro-operativo', icon: iconMap['Centro Operativo'], roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Technician'] },
-  { label: 'Work Orders', href: '/work-orders', icon: iconMap['Work Orders'], roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Technician', 'Sales', 'Accounting'] },
-  { label: 'Mi Calendario', href: '/work-orders/calendar', icon: iconMap['Mi Calendario'], roles: ['Technician', 'Supervisor', 'Dispatcher', 'Owner', 'Administrator'] },
+  { label: 'Órdenes de Trabajo', href: '/work-orders', icon: iconMap['Órdenes de Trabajo'], roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Technician', 'Sales', 'Accounting'] },
   { label: 'Visitas Técnicas', href: '/technical-visits', icon: iconMap['Visitas Técnicas'], roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Sales', 'Technician'] },
+  { label: 'Mi Calendario', href: '/work-orders/calendar', icon: iconMap['Mi Calendario'], roles: ['Technician', 'Supervisor', 'Dispatcher', 'Owner', 'Administrator'] },
   { label: 'Mapa Operativo', href: '/mapa', icon: iconMap['Mapa'], roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Technician'] },
 ];
 
