@@ -190,7 +190,7 @@ function WorkOrderCard({ wo }: { wo: WorkOrderRow }) {
 export function WorkOrderListView({ workOrders, onRefresh }: WorkOrderListViewProps) {
   const router = useRouter();
   const [sortPriority, setSortPriority] = useState(true);
-  const [sortDate, setSortDate] = useState<'asc' | 'desc' | null>(null);
+  const [sortDate, setSortDate] = useState<'asc' | 'desc'>('desc');
   const [orderFilter, setOrderFilter] = useState<OrderFilter>('all');
 
   // Compute counts per filter from the raw workOrders data
@@ -237,7 +237,7 @@ export function WorkOrderListView({ workOrders, onRefresh }: WorkOrderListViewPr
           <button
             key={pill.key}
             onClick={() => setOrderFilter(pill.key)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all whitespace-nowrap ${
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all whitespace-nowrap cursor-pointer ${
               orderFilter === pill.key ? pill.activeColor : pill.color
             }`}
           >
@@ -262,10 +262,11 @@ export function WorkOrderListView({ workOrders, onRefresh }: WorkOrderListViewPr
           >
             <RefreshCw className="w-4 h-4" />
           </button>
+          <span className="text-xs font-medium text-gray-500 dark:text-slate-400">Filtrar por:</span>
           <div className="inline-flex rounded-lg border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800">
             <button
               onClick={() => setSortPriority((p) => !p)}
-              className={`px-3 py-1 text-xs font-medium rounded-l-lg transition-colors ${
+              className={`px-3 py-1 text-xs font-medium rounded-l-lg transition-colors cursor-pointer ${
                 sortPriority
                   ? 'bg-gray-100 dark:bg-slate-700 text-gray-900 dark:text-slate-100'
                   : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
@@ -275,23 +276,14 @@ export function WorkOrderListView({ workOrders, onRefresh }: WorkOrderListViewPr
               Prioridad
             </button>
             <button
-              onClick={() => {
-                setSortDate((prev) => {
-                  if (prev === null) return 'asc';
-                  if (prev === 'asc') return 'desc';
-                  return null;
-                });
-              }}
-              className={`px-3 py-1 text-xs font-medium rounded-r-lg border-l border-gray-200 dark:border-slate-600 transition-colors flex items-center gap-1 ${
-                sortDate
-                  ? 'bg-gray-100 dark:bg-slate-700 text-gray-900 dark:text-slate-100'
-                  : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
+              onClick={() => setSortDate((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+              className={`px-3 py-1 text-xs font-medium rounded-r-lg border-l border-gray-200 dark:border-slate-600 transition-colors flex items-center gap-1 cursor-pointer ${
+                'bg-gray-100 dark:bg-slate-700 text-gray-900 dark:text-slate-100'
               }`}
-              title={sortDate === null ? 'Ordenar por fecha' : sortDate === 'asc' ? 'Más vieja → más nueva' : 'Más nueva → más vieja'}
+              title={sortDate === 'asc' ? 'Más vieja → más nueva' : 'Más nueva → más vieja'}
             >
               Fecha
-              {sortDate === 'asc' && <ArrowUp10 className="w-3 h-3" />}
-              {sortDate === 'desc' && <ArrowDown10 className="w-3 h-3" />}
+              {sortDate === 'asc' ? <ArrowUp10 className="w-3 h-3" /> : <ArrowDown10 className="w-3 h-3" />}
             </button>
           </div>
         </div>
@@ -303,16 +295,16 @@ export function WorkOrderListView({ workOrders, onRefresh }: WorkOrderListViewPr
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-100 dark:border-slate-700">
-                <th className="text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-3 px-4">Tipo</th>
-                <th className="text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-3 px-4">#</th>
-                <th className="text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-3 px-4">Título</th>
-                <th className="text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-3 px-4">Cliente</th>
-                <th className="text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-3 px-4">Estado</th>
-                <th className="text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-3 px-4">Prioridad</th>
-                <th className="text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-3 px-4">Programado</th>
-                <th className="text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-3 px-4">Técnico</th>
-                <th className="text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-3 px-4">Días restantes</th>
-                <th className="text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-3 px-4">Acción</th>
+<th className="text-left text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-2 px-3">Tipo</th>
+                  <th className="text-left text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-2 px-3">#</th>
+                  <th className="text-left text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-2 px-3">Título</th>
+                  <th className="text-left text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-2 px-3">Cliente</th>
+                  <th className="text-left text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-2 px-3">Estado</th>
+                  <th className="text-left text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-2 px-3">Prioridad</th>
+                  <th className="text-left text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-2 px-3">Programado</th>
+                  <th className="text-left text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-2 px-3">Técnico</th>
+                  <th className="text-left text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-2 px-3">Días restantes</th>
+                  <th className="text-left text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-2 px-3">Acción</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 dark:divide-slate-700/50">
@@ -321,37 +313,37 @@ export function WorkOrderListView({ workOrders, onRefresh }: WorkOrderListViewPr
                   key={wo._id}
                   className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
                 >
-                  <td className="py-3 px-4">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${sourceBadge(wo.source).variant}`}>
+                  <td className="py-2 px-3">
+                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ${sourceBadge(wo.source).variant}`}>
                       {sourceBadge(wo.source).label}
                     </span>
                   </td>
-                  <td className="py-3 px-4">
-                    <span className="text-sm font-medium text-gray-900 dark:text-slate-100">#{shortWO(wo.workOrderNumber)}</span>
+                  <td className="py-2 px-3">
+                    <span className="text-xs font-medium text-gray-900 dark:text-slate-100">#{shortWO(wo.workOrderNumber)}</span>
                   </td>
-                  <td className="py-3 px-4">
-                    <span className="text-sm text-gray-900 dark:text-slate-100 max-w-[200px] truncate block">{wo.title}</span>
+                  <td className="py-2 px-3">
+                    <span className="text-xs text-gray-900 dark:text-slate-100 max-w-[200px] truncate block">{wo.title}</span>
                   </td>
-                  <td className="py-3 px-4">
-                    <span className="text-sm text-gray-600 dark:text-slate-300">{wo.clientSnapshot?.name || '—'}</span>
+                  <td className="py-2 px-3">
+                    <span className="text-xs text-gray-600 dark:text-slate-300">{wo.clientSnapshot?.name || '—'}</span>
                   </td>
-                  <td className="py-3 px-4">
+                  <td className="py-2 px-3">
                     <Badge variant={WORK_ORDER_STATUS_VARIANT[wo.status] || 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300'}>
                       {STATUS_LABELS[wo.status] || wo.status}
                     </Badge>
                   </td>
-                  <td className="py-3 px-4">
+                  <td className="py-2 px-3">
                     <Badge variant={WORK_ORDER_PRIORITY_VARIANT[wo.priority] || 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300'}>
                       {PRIORITY_LABELS[wo.priority] || wo.priority}
                     </Badge>
                   </td>
-                  <td className="py-3 px-4">
-                    <div className="text-sm text-gray-600 dark:text-slate-300 whitespace-nowrap">
+                  <td className="py-2 px-3">
+                    <div className="text-xs text-gray-600 dark:text-slate-300 whitespace-nowrap">
                       {wo.scheduledDate ? (
                         <div>
                           <p>{formatDate(wo.scheduledDate)}</p>
                           {wo.scheduledStart && (
-                            <p className="text-xs text-gray-400 dark:text-slate-500">{formatTime(wo.scheduledStart)}</p>
+                            <p className="text-[10px] text-gray-400 dark:text-slate-500">{formatTime(wo.scheduledStart)}</p>
                           )}
                         </div>
                       ) : (
@@ -359,30 +351,30 @@ export function WorkOrderListView({ workOrders, onRefresh }: WorkOrderListViewPr
                       )}
                     </div>
                   </td>
-                  <td className="py-3 px-4">
+                  <td className="py-2 px-3">
                     {wo.assignedTechnicians?.length > 0 ? (
                       <div className="flex items-center gap-2">
                         <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/50 text-[10px] font-medium text-blue-700 dark:text-blue-300">
                           {getInitials(wo.assignedTechnicians[0])}
                         </span>
-                        <span className="text-sm text-gray-600 dark:text-slate-300">{wo.assignedTechnicians[0]}</span>
+                        <span className="text-xs text-gray-600 dark:text-slate-300">{wo.assignedTechnicians[0]}</span>
                       </div>
                     ) : (
-                      <span className="text-sm text-gray-400 dark:text-slate-500">Sin asignar</span>
+                      <span className="text-xs text-gray-400 dark:text-slate-500">Sin asignar</span>
                     )}
                   </td>
-                  <td className="py-3 px-4">
+                  <td className="py-2 px-3">
                     {(() => {
                       const badge = daysRemaining(wo.scheduledStart, wo.scheduledDate);
-                      if (!badge) return <span className="text-xs text-gray-400 dark:text-slate-500">—</span>;
+                      if (!badge) return <span className="text-[10px] text-gray-400 dark:text-slate-500">—</span>;
                       return (
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${badge.variant}`}>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${badge.variant}`}>
                           {badge.label}
                         </span>
                       );
                     })()}
                   </td>
-                  <td className="py-3 px-4">
+                  <td className="py-2 px-3">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();

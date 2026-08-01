@@ -71,6 +71,7 @@ const PRIORITY_OPTIONS = [
   { value: 'normal', label: 'Normal' },
   { value: 'high', label: 'Alta' },
   { value: 'urgent', label: 'Urgente' },
+  { value: 'emergency', label: 'Emergencia' },
 ];
 
 const CATEGORY_OPTIONS = [
@@ -98,6 +99,7 @@ const PRIORITY_VARIANT: Record<string, string> = {
   normal: 'bg-blue-50 text-blue-700',
   high: 'bg-orange-50 text-orange-700',
   urgent: 'bg-red-50 text-red-700',
+  emergency: 'bg-red-100 text-red-900',
 };
 
 const CATEGORY_VARIANT: Record<string, string> = {
@@ -384,35 +386,75 @@ export default function TechnicalVisitsPage() {
       )}
 
       {loading ? (
-        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-gray-100 bg-gray-50">
-                <th className="text-left px-5 py-3 font-semibold text-gray-600">#</th>
-                <th className="text-left px-5 py-3 font-semibold text-gray-600">Título</th>
-                <th className="text-left px-5 py-3 font-semibold text-gray-600">Categoría</th>
-                <th className="text-left px-5 py-3 font-semibold text-gray-600">Estado</th>
-                <th className="text-left px-5 py-3 font-semibold text-gray-600">Prioridad</th>
-                <th className="text-left px-5 py-3 font-semibold text-gray-600">Fecha</th>
-                <th className="text-left px-5 py-3 font-semibold text-gray-600">Técnico</th>
-                <th className="text-left px-5 py-3 font-semibold text-gray-600"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {[1, 2, 3, 4, 5].map((i) => (
-                <tr key={i} className="border-b border-gray-100">
-                  <td className="px-5 py-3"><div className="h-4 w-20 bg-gray-200 rounded animate-pulse" /></td>
-                  <td className="px-5 py-3"><div className="h-4 w-32 bg-gray-200 rounded animate-pulse" /></td>
-                  <td className="px-5 py-3"><div className="h-5 w-20 bg-gray-200 rounded-full animate-pulse" /></td>
-                  <td className="px-5 py-3"><div className="h-5 w-20 bg-gray-200 rounded-full animate-pulse" /></td>
-                  <td className="px-5 py-3"><div className="h-5 w-20 bg-gray-200 rounded-full animate-pulse" /></td>
-                  <td className="px-5 py-3"><div className="h-4 w-24 bg-gray-200 rounded animate-pulse" /></td>
-                  <td className="px-5 py-3"><div className="h-4 w-28 bg-gray-200 rounded animate-pulse" /></td>
-                  <td className="px-5 py-3"><div className="h-6 w-12 bg-gray-200 rounded animate-pulse" /></td>
+        <div className="space-y-4">
+          {/* Header skeleton */}
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <div className="h-7 w-48 bg-gray-200 rounded animate-pulse" />
+              <div className="h-4 w-64 bg-gray-200 rounded animate-pulse mt-2" />
+            </div>
+            <div className="h-10 w-28 bg-gray-200 rounded-lg animate-pulse" />
+          </div>
+
+          {/* Tabs skeleton */}
+          <div className="h-10 w-56 bg-gray-200 rounded-xl animate-pulse" />
+
+          {/* Filters skeleton */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="h-10 bg-gray-200 rounded-lg animate-pulse" />
+            <div className="h-10 bg-gray-200 rounded-lg animate-pulse" />
+            <div className="h-10 bg-gray-200 rounded-lg animate-pulse" />
+            <div className="h-10 bg-gray-200 rounded-lg animate-pulse" />
+          </div>
+
+          {/* Desktop table skeleton */}
+          <div className="hidden sm:block bg-white border border-gray-200 rounded-xl overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-100 bg-gray-50">
+                  <th className="text-left px-5 py-3"><div className="h-4 w-12 bg-gray-200 rounded animate-pulse" /></th>
+                  <th className="text-left px-5 py-3"><div className="h-4 w-24 bg-gray-200 rounded animate-pulse" /></th>
+                  <th className="text-left px-5 py-3"><div className="h-4 w-28 bg-gray-200 rounded animate-pulse" /></th>
+                  <th className="text-left px-5 py-3"><div className="h-4 w-20 bg-gray-200 rounded animate-pulse" /></th>
+                  <th className="text-left px-5 py-3"><div className="h-4 w-16 bg-gray-200 rounded animate-pulse" /></th>
+                  <th className="text-left px-5 py-3"><div className="h-4 w-24 bg-gray-200 rounded animate-pulse" /></th>
+                  <th className="text-left px-5 py-3"><div className="h-4 w-20 bg-gray-200 rounded animate-pulse" /></th>
+                  <th className="text-left px-5 py-3"><div className="h-4 w-12 bg-gray-200 rounded animate-pulse" /></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <tr key={i} className="border-b border-gray-100">
+                    <td className="px-5 py-3"><div className="h-4 w-16 bg-gray-200 rounded animate-pulse" /></td>
+                    <td className="px-5 py-3"><div className="h-4 w-32 bg-gray-200 rounded animate-pulse" /></td>
+                    <td className="px-5 py-3"><div className="h-4 w-28 bg-gray-200 rounded animate-pulse" /></td>
+                    <td className="px-5 py-3"><div className="h-5 w-20 bg-gray-200 rounded-full animate-pulse" /></td>
+                    <td className="px-5 py-3"><div className="h-5 w-16 bg-gray-200 rounded-full animate-pulse" /></td>
+                    <td className="px-5 py-3"><div className="h-4 w-24 bg-gray-200 rounded animate-pulse" /></td>
+                    <td className="px-5 py-3"><div className="h-4 w-24 bg-gray-200 rounded animate-pulse" /></td>
+                    <td className="px-5 py-3"><div className="h-6 w-12 bg-gray-200 rounded animate-pulse" /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile cards skeleton */}
+          <div className="sm:hidden space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-white border border-gray-200 rounded-xl p-4">
+                <div className="flex justify-between items-start mb-3">
+                  <div className="h-5 w-20 bg-gray-200 rounded animate-pulse" />
+                  <div className="h-5 w-16 bg-gray-200 rounded-full animate-pulse" />
+                </div>
+                <div className="h-4 w-3/4 bg-gray-200 rounded animate-pulse mb-2" />
+                <div className="flex gap-2">
+                  <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+                  <div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       ) : visits.length === 0 ? (
         <div className="text-center py-12">
@@ -427,10 +469,10 @@ export default function TechnicalVisitsPage() {
               <tr className="border-b border-gray-100 bg-gray-50">
                 <th className="text-left px-5 py-3 font-semibold text-gray-600">#</th>
                 <th className="text-left px-5 py-3 font-semibold text-gray-600">Título</th>
-                <th className="text-left px-5 py-3 font-semibold text-gray-600">Categoría</th>
+                <th className="text-left px-5 py-3 font-semibold text-gray-600">Cliente</th>
                 <th className="text-left px-5 py-3 font-semibold text-gray-600">Estado</th>
                 <th className="text-left px-5 py-3 font-semibold text-gray-600">Prioridad</th>
-                <th className="text-left px-5 py-3 font-semibold text-gray-600 cursor-pointer hover:text-brand-600" onClick={() => handleSort('scheduledDate')}>Fecha ejecución<SortIcon field="scheduledDate" /></th>
+                <th className="text-left px-5 py-3 font-semibold text-gray-600 cursor-pointer hover:text-brand-600" onClick={() => handleSort('scheduledDate')}>Fecha ejecución <SortIcon field="scheduledDate" /></th>
                 <th className="text-left px-5 py-3 font-semibold text-gray-600">Técnico</th>
               </tr>
             </thead>
@@ -450,11 +492,7 @@ export default function TechnicalVisitsPage() {
                     </div>
                   </td>
                   <td className="px-5 py-3 font-medium text-gray-900">{visit.title}</td>
-                  <td className="px-5 py-3">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${CATEGORY_VARIANT[visit.category] || 'bg-gray-100 text-gray-700'}`}>
-                      {label(CATEGORY_OPTIONS, visit.category)}
-                    </span>
-                  </td>
+                  <td className="px-5 py-3 text-gray-500">{visit.clientSnapshot?.name || '—'}</td>
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[visit.status] || 'bg-gray-100 text-gray-700'}`}>
@@ -480,7 +518,7 @@ export default function TechnicalVisitsPage() {
                         e.stopPropagation();
                         router.push(`/technical-visits/${visit._id}`);
                       }}
-                      className="text-xs font-medium text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 px-3 py-1.5 rounded-lg transition-colors"
+                      className="text-xs font-medium text-brand-600 hover:text-brand-700 bg-brand-50 hover:bg-brand-100 px-3 py-1.5 rounded-lg transition-colors cursor-pointer"
                     >
                       Ver
                     </button>

@@ -176,7 +176,7 @@ export default function CentroOperativoPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium transition-colors ${
+              className={`flex-1 min-w-0 px-4 py-3 text-sm font-medium transition-colors cursor-pointer ${
                 activeTab === tab.id
                   ? 'text-brand-600 dark:text-brand-400 border-b-2 border-brand-600 dark:border-brand-400 bg-brand-50 dark:bg-brand-900/20'
                   : 'text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-700/50'

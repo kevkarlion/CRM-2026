@@ -138,7 +138,7 @@ export function TechnicalVisitsView({ visits, onRefresh }: TechnicalVisitsViewPr
           <button
             key={pill.key}
             onClick={() => setVisitFilter(pill.key)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all whitespace-nowrap ${
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all whitespace-nowrap cursor-pointer ${
               visitFilter === pill.key ? pill.activeColor : pill.color
             }`}
           >
