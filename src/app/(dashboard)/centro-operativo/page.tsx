@@ -74,6 +74,7 @@ export default function CentroOperativoPage() {
 
   const [dashboard, setDashboard] = useState<CentroOperativoDashboardResponse | null>(null);
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
+  const [currentTechnicianId, setCurrentTechnicianId] = useState<string | null>(null);
   const [workOrders, setWorkOrders] = useState<WorkOrderRow[]>([]);
   const [technicalVisits, setTechnicalVisits] = useState<TechnicalVisitRow[]>([]);
 
@@ -104,9 +105,13 @@ export default function CentroOperativoPage() {
 
       if (calendarData.status === 'fulfilled') {
         const raw = calendarData.value;
-        // API returns { data: [...], total: n } format
+        // API returns { data: [...], total: n, technicianId } format
         const events = Array.isArray(raw) ? raw : raw?.data || [];
         setCalendarEvents(events);
+        // Pass current user's technician ID so the CalendarView can show the "MÍA" badge
+        // on events assigned to the current technician (same behavior as /work-orders/calendar)
+        const techId = !Array.isArray(raw) ? (raw as any)?.technicianId || null : null;
+        setCurrentTechnicianId(techId);
       }
 
       if (workOrdersData.status === 'fulfilled') {
@@ -235,6 +240,7 @@ export default function CentroOperativoPage() {
               <CalendarView
                 events={calendarEvents}
                 technicians={dashboard?.technicians || []}
+                currentTechnicianId={currentTechnicianId}
                 onEventClick={handleEventClick}
               />
             )}
