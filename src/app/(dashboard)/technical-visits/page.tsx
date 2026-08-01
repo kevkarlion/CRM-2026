@@ -430,7 +430,7 @@ export default function TechnicalVisitsPage() {
                 <th className="text-left px-5 py-3 font-semibold text-gray-600">Categoría</th>
                 <th className="text-left px-5 py-3 font-semibold text-gray-600">Estado</th>
                 <th className="text-left px-5 py-3 font-semibold text-gray-600">Prioridad</th>
-                <th className="text-left px-5 py-3 font-semibold text-gray-600 cursor-pointer hover:text-brand-600" onClick={() => handleSort('scheduledDate')}>Programado<SortIcon field="scheduledDate" /></th>
+                <th className="text-left px-5 py-3 font-semibold text-gray-600 cursor-pointer hover:text-brand-600" onClick={() => handleSort('scheduledDate')}>Fecha ejecución<SortIcon field="scheduledDate" /></th>
                 <th className="text-left px-5 py-3 font-semibold text-gray-600">Técnico</th>
               </tr>
             </thead>

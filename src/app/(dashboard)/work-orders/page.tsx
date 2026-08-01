@@ -107,6 +107,14 @@ const PRIORITY_VARIANT: Record<string, string> = {
   emergency: 'bg-red-100 text-red-900',
 };
 
+const PRIORITY_LABELS: Record<string, string> = {
+  low: 'Baja',
+  normal: 'Normal',
+  high: 'Alta',
+  urgent: 'Urgente',
+  emergency: 'Emergencia',
+};
+
 // Check if work order is overdue (past scheduled date and not completed/closed)
 function isOverdue(wo: WorkOrder): boolean {
   if (!wo.scheduledDate) return false;
@@ -413,7 +421,7 @@ const fetchOrders = useCallback(async () => {
                   <th className="text-left px-5 py-3 font-semibold text-gray-600">Cliente</th>
                   <th className="text-left px-5 py-3 font-semibold text-gray-600">Estado</th>
                   <th className="text-left px-5 py-3 font-semibold text-gray-600">Prioridad</th>
-                  <th className="text-left px-5 py-3 font-semibold text-gray-600 cursor-pointer hover:text-brand-600" onClick={() => handleSort('scheduledDate')}>Programado<SortIcon field="scheduledDate" /></th>
+                  <th className="text-left px-5 py-3 font-semibold text-gray-600 cursor-pointer hover:text-brand-600" onClick={() => handleSort('scheduledDate')}>Fecha ejecución<SortIcon field="scheduledDate" /></th>
                   <th className="text-left px-5 py-3 font-semibold text-gray-600">Técnico</th>
                   <th className="text-left px-5 py-3 font-semibold text-gray-600"></th>
                 </tr>
