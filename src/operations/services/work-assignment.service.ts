@@ -23,6 +23,8 @@ export class WorkAssignmentService {
       previousTechnicianId?: string;
     }
   ): Promise<any> {
+    console.log('[createAssignment] Starting for workOrderId:', workOrderId, 'assignmentType:', options.assignmentType);
+    
     // Verify work order exists
     const workOrder = await WorkOrderModel.findOne({
       _id: new Types.ObjectId(workOrderId),
@@ -52,6 +54,22 @@ export class WorkAssignmentService {
       status: { $in: ['assigned', 'acknowledged'] },
       deletedAt: null,
     });
+
+    // BUSINESS RULE: Only ONE active assignment allowed per WorkOrder
+    // If there's an existing assignment with a DIFFERENT technician, reject unless it's a replacement
+    if (existingAssignment) {
+      const existingTechnicianId = (existingAssignment.technicianId as any)?.toString();
+      const newTechnicianId = technicianId.toString();
+      
+      if (existingTechnicianId !== newTechnicianId) {
+        // Different technician trying to assign - only allowed if explicitly replacing
+        if (options.assignmentType !== 'replacement' && options.assignmentType !== 'redistribution') {
+          throw new ValidationError(
+            'Ya existe un técnico asignado a esta orden de trabajo. Use la acción "reassign" para reasignar.'
+          );
+        }
+      }
+    }
 
     // Check if this technician already has ANY assignment (even replaced)
     const technicianPreviousAssignment = await WorkOrderAssignmentModel.findOne({
@@ -92,11 +110,23 @@ export class WorkAssignmentService {
         },
       });
 
+      // CRITICAL: Also update the WorkOrder's assignedTechnicians!
+      const newTechnicianId = new Types.ObjectId(technicianId);
+      console.log('[createAssignment] Updating WorkOrder for existing technician case:', workOrderId);
+      await WorkOrderModel.findByIdAndUpdate(workOrderId, {
+        $set: { 
+          assignedTechnicians: [newTechnicianId],
+          status: 'assigned', 
+          updatedBy: new Types.ObjectId(assignedBy) 
+        },
+      });
+
       return WorkOrderAssignmentModel.findById(technicianPreviousAssignment._id).populate('technicianId', 'name email phone availability');
     }
 
-    // If replacing, mark old active one as replaced
-    if (existingAssignment && options.assignmentType === 'replacement') {
+    // If replacing or redistribution, mark old active one as replaced
+    // This applies to: admin reassign (replacement) AND technician self-takeover (redistribution)
+    if (existingAssignment && (options.assignmentType === 'replacement' || options.assignmentType === 'redistribution')) {
       await WorkOrderAssignmentModel.findByIdAndUpdate(existingAssignment._id, {
         $set: {
           status: 'replaced',
@@ -124,7 +154,7 @@ export class WorkAssignmentService {
     });
 
     // Update the old assignment's replacedByAssignmentId
-    if (existingAssignment && options.assignmentType === 'replacement') {
+    if (existingAssignment && (options.assignmentType === 'replacement' || options.assignmentType === 'redistribution')) {
       await WorkOrderAssignmentModel.findByIdAndUpdate(existingAssignment._id, {
         $set: {
           replacedByAssignmentId: assignment._id,
@@ -135,6 +165,8 @@ export class WorkAssignmentService {
     // Update work order's assignedTechnicians - REPLACE (only 1 technician allowed)
     const newTechnicianId = new Types.ObjectId(technicianId);
     
+    console.log('[SelfAssign] Updating WorkOrder:', workOrderId, 'with technician:', newTechnicianId);
+    
     // Always replace with single technician (1:1 relationship)
     await WorkOrderModel.findByIdAndUpdate(workOrderId, {
       $set: { 
@@ -143,6 +175,8 @@ export class WorkAssignmentService {
         updatedBy: new Types.ObjectId(assignedBy) 
       },
     });
+
+    console.log('[SelfAssign] WorkOrder updated successfully!');
 
     // Log the activity
     const tech = await TechnicianModel.findById(technicianId).lean();
@@ -245,23 +279,6 @@ export class WorkAssignmentService {
   }
 
   /**
-   * Self-assign a technician to a work order (technician assigns themselves)
-   */
-  async selfAssignTechnician(
-    workOrderId: string,
-    technicianId: string,
-    tenantId: string,
-    reason: string,
-    observations?: string,
-  ): Promise<any> {
-    return this.createAssignment(workOrderId, technicianId, technicianId, tenantId, {
-      assignmentType: 'auto_assignment',
-      reason,
-      notes: observations,
-    });
-  }
-
-  /**
    * Get assignments by technician with filters
    */
   async getAssignmentsByTechnician(
@@ -341,6 +358,55 @@ export class WorkAssignmentService {
       autoAssignments,
       replacements,
     };
+  }
+
+  /**
+   * Self-assign a technician to a work order (technician assigns themselves)
+   * 
+   * Business rules:
+   * - Technician can self-assign to WorkOrders WITHOUT an active assignment
+   * - Technician CAN take a WorkOrder from another technician (redistribution)
+   */
+  async selfAssignTechnician(
+    workOrderId: string,
+    technicianId: string,
+    tenantId: string,
+    reason: string,
+    observations?: string,
+  ): Promise<any> {
+    // Check if there's already an active assignment
+    const existingAssignment = await WorkOrderAssignmentModel.findOne({
+      workOrderId: new Types.ObjectId(workOrderId),
+      tenantId: new Types.ObjectId(tenantId),
+      status: { $in: ['assigned', 'acknowledged'] },
+      deletedAt: null,
+    });
+
+    // If no active assignment - proceed with self-assign
+    if (!existingAssignment) {
+      return this.createAssignment(workOrderId, technicianId, technicianId, tenantId, {
+        assignmentType: 'auto_assignment',
+        reason,
+        notes: observations,
+      });
+    }
+
+    // There's an existing assignment
+    const existingTechId = (existingAssignment.technicianId as any)?.toString();
+    
+    // If same technician - already assigned, return success (idempotent)
+    if (existingTechId === technicianId) {
+      return existingAssignment;
+    }
+
+    // Different technician - can "take" the WorkOrder from another (redistribution)
+    console.log('[selfAssignTechnician] Calling createAssignment with redistribution...');
+    return this.createAssignment(workOrderId, technicianId, technicianId, tenantId, {
+      assignmentType: 'redistribution',
+      reason,
+      notes: observations,
+      previousTechnicianId: existingTechId,
+    });
   }
 }
 
