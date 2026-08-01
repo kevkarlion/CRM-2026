@@ -5,6 +5,7 @@ import { TechnicianModel } from '@/operations/models/technician';
 import { logActivity } from '@/audit/activity-logger';
 import mongoose from 'mongoose';
 
+const VALID_STATUSES = ['scheduled', 'assigned'] as const;
 const TARGET_STATUS = 'in_progress';
 
 /**
@@ -12,6 +13,7 @@ const TARGET_STATUS = 'in_progress';
  * 
  * Starts work execution on a TechnicalVisit.
  * - Validates user is the assigned technician
+ * - Allows start when status is 'scheduled' or 'assigned'
  * - Changes status to 'in_progress'
  * - Sets startedAt and startedBy
  * - Sets technician.availability to 'busy'
@@ -46,9 +48,8 @@ export async function POST(
       return NextResponse.json({ error: 'TechnicalVisit not found' }, { status: 404 });
     }
 
-    // Check status is 'scheduled' or 'confirmed' (both allow starting)
-    const validStatuses = ['scheduled', 'confirmed'];
-    if (!validStatuses.includes(visit.status)) {
+    // Check status is 'scheduled' or 'assigned'
+    if (!(VALID_STATUSES as readonly string[]).includes(visit.status)) {
       return NextResponse.json(
         { error: visit.status === 'in_progress' ? 'Work already in progress' : `Cannot start work from status: ${visit.status}` },
         { status: 400 }

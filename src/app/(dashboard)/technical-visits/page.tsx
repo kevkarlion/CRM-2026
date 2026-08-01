@@ -6,6 +6,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, unwrapData } from '@/lib/api-client';
 import { useRole } from '@/dashboard/context/role-context';
+import { SelfAssignmentVisitDrawer } from '@/operations/components/SelfAssignmentVisitDrawer';
 
 type Tab = 'all' | 'mine';
 
@@ -36,13 +37,33 @@ interface ListResponse {
 const STATUS_OPTIONS = [
   { value: '', label: 'Todos' },
   { value: 'draft', label: 'Borrador' },
-  { value: 'scheduled', label: 'Programado' },
-  { value: 'confirmed', label: 'Confirmado' },
-  { value: 'in_progress', label: 'En Curso' },
-  { value: 'completed', label: 'Completado' },
-  { value: 'cancelled', label: 'Cancelado' },
-  { value: 'converted_to_work_order', label: 'Convertido a OT' },
+  { value: 'scheduled', label: 'Programada' },
+  { value: 'in_progress', label: 'En Progreso' },
+  { value: 'completed', label: 'Completada' },
+  { value: 'cancelled', label: 'Cancelada' },
+  { value: 'converted_to_work_order', label: 'Convertida a OT' },
 ];
+
+// Status label helper - groups multiple internal statuses into simplified view
+function getStatusLabel(status: string): string {
+  switch (status) {
+    case 'draft': return 'Borrador';
+    case 'scheduled':
+    case 'confirmed':
+    case 'assigned':
+      return 'Programada';
+    case 'in_progress':
+      return 'En Progreso';
+    case 'completed':
+      return 'Completada';
+    case 'cancelled':
+      return 'Cancelada';
+    case 'converted_to_work_order':
+      return 'Convertida a OT';
+    default:
+      return status;
+  }
+}
 
 const PRIORITY_OPTIONS = [
   { value: '', label: 'Todas' },
@@ -64,7 +85,8 @@ const CATEGORY_OPTIONS = [
 const STATUS_VARIANT: Record<string, string> = {
   draft: 'bg-gray-100 text-gray-700',
   scheduled: 'bg-blue-50 text-blue-700',
-  confirmed: 'bg-teal-50 text-teal-700',
+  confirmed: 'bg-blue-50 text-blue-700',
+  assigned: 'bg-blue-50 text-blue-700',
   in_progress: 'bg-amber-50 text-amber-700',
   completed: 'bg-green-50 text-green-700',
   cancelled: 'bg-red-50 text-red-700',
@@ -146,7 +168,13 @@ export default function TechnicalVisitsPage() {
   const [total, setTotal] = useState(0);
   const [technicians, setTechnicians] = useState<{ _id: string; name: string }[]>([]);
   const [technicianFilter, setTechnicianFilter] = useState('');
-  const mountedRef = useRef(false);
+  const [sortField, setSortField] = useState<'scheduledDate' | 'createdAt' | 'visitNumber'>('scheduledDate');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const mountedRef = useRef<boolean>(false);
+  
+  // Self-assignment state for visits
+  const [selfAssignOpen, setSelfAssignOpen] = useState(false);
+  const [selfAssignVisit, setSelfAssignVisit] = useState<{ id: string; number: string } | null>(null);
 
   const fetchVisits = useCallback(async () => {
     try {
@@ -208,7 +236,43 @@ export default function TechnicalVisitsPage() {
   }
 
   const label = (opts: { value: string; label: string }[], val: string) =>
-    opts.find((o) => o.value === val)?.label || val;
+    opts === STATUS_OPTIONS ? getStatusLabel(val) : opts.find((o) => o.value === val)?.label || val;
+
+  // Sort visits client-side
+  const sortedVisits = [...visits].sort((a, b) => {
+    let aVal: any, bVal: any;
+    if (sortField === 'scheduledDate') {
+      aVal = a.scheduledDate ? new Date(a.scheduledDate).getTime() : 0;
+      bVal = b.scheduledDate ? new Date(b.scheduledDate).getTime() : 0;
+    } else if (sortField === 'createdAt') {
+      aVal = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      bVal = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    } else {
+      aVal = a.visitNumber || '';
+      bVal = b.visitNumber || '';
+    }
+    if (aVal < bVal) return sortDir === 'asc' ? -1 : 1;
+    if (aVal > bVal) return sortDir === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  function handleSort(field: 'scheduledDate' | 'createdAt' | 'visitNumber') {
+    if (sortField === field) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+  }
+
+  function SortIcon({ field }: { field: 'scheduledDate' | 'createdAt' | 'visitNumber' }) {
+    if (sortField !== field) return null;
+    return (
+      <span className="ml-1 inline-block text-brand-600">
+        {sortDir === 'asc' ? '↑' : '↓'}
+      </span>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -366,12 +430,12 @@ export default function TechnicalVisitsPage() {
                 <th className="text-left px-5 py-3 font-semibold text-gray-600">Categoría</th>
                 <th className="text-left px-5 py-3 font-semibold text-gray-600">Estado</th>
                 <th className="text-left px-5 py-3 font-semibold text-gray-600">Prioridad</th>
-                <th className="text-left px-5 py-3 font-semibold text-gray-600">Programado</th>
+                <th className="text-left px-5 py-3 font-semibold text-gray-600 cursor-pointer hover:text-brand-600" onClick={() => handleSort('scheduledDate')}>Programado<SortIcon field="scheduledDate" /></th>
                 <th className="text-left px-5 py-3 font-semibold text-gray-600">Técnico</th>
               </tr>
             </thead>
             <tbody>
-              {visits.map((visit) => {
+              {sortedVisits.map((visit) => {
                 const isMyVisit = isTechnician && isVisitAssignedToMe(visit, user.email, user.name);
                 return (
                 <tr
@@ -419,6 +483,20 @@ export default function TechnicalVisitsPage() {
                     >
                       Ver
                     </button>
+                    {/* Botón "Solicitar" para técnicos - en Visitas Programadas (sin técnico) o Asignadas (a otro técnico) */}
+                    {isTechnician && !isAdmin && !isMyVisit && activeTab === 'all' && 
+                     (visit.status === 'scheduled' || visit.status === 'assigned') && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelfAssignVisit({ id: visit._id, number: visit.visitNumber });
+                          setSelfAssignOpen(true);
+                        }}
+                        className="text-xs font-medium text-brand-600 hover:text-brand-700 transition-colors ml-2"
+                      >
+                        Solicitar
+                      </button>
+                    )}
 </td>
                 </tr>
               );
@@ -469,6 +547,30 @@ export default function TechnicalVisitsPage() {
           );
         })}
       </div>
+
+      {/* Self-assignment drawer for visits */}
+      {selfAssignVisit && (
+        <SelfAssignmentVisitDrawer
+          isOpen={selfAssignOpen}
+          onClose={() => {
+            setSelfAssignOpen(false);
+            setSelfAssignVisit(null);
+          }}
+          visitId={selfAssignVisit.id}
+          visitNumber={selfAssignVisit.number}
+          technicianName={user.name}
+          onAssigned={(visitId, technicianName) => {
+            // Update only the specific visit in local state - no full refetch
+            setVisits(prev => prev.map(vt => 
+              vt._id === visitId 
+                ? { ...vt, assignedTechnicianId: { name: technicianName } }
+                : vt
+            ));
+            setSelfAssignOpen(false);
+            setSelfAssignVisit(null);
+          }}
+        />
+      )}
     </div>
   );
 }

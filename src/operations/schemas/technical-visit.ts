@@ -37,7 +37,7 @@ export interface ITechnicalVisit {
   scheduledEnd?: Date;
   
   // Status
-  status: 'draft' | 'scheduled' | 'confirmed' | 'in_progress' | 'completed' | 'cancelled' | 'converted_to_work_order';
+  status: 'draft' | 'scheduled' | 'confirmed' | 'assigned' | 'in_progress' | 'completed' | 'cancelled' | 'converted_to_work_order';
   
   // Priority
   priority: 'low' | 'normal' | 'high' | 'urgent';

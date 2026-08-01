@@ -19,7 +19,8 @@ export type AssignmentReason =
   | 'replacement'         // Reemplazo de compañero
   | 'schedule_change'     // Cambio en agenda
   | 'performance'         // Por rendimiento/métricas
-  | 'other';              // Otro motivo
+  | 'other'               // Otro motivo
+  | 'data_reconciliation'; // Registro creado por el script de reconciliación de asignaciones
 
 export interface IWorkOrderAssignment extends Document {
   _id: Types.ObjectId;

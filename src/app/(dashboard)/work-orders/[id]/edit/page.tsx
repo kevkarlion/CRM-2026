@@ -258,7 +258,18 @@ export default function EditWorkOrderPage() {
       body.version = workOrder?.version ?? 0;
 
       if (approve) {
-        body.status = 'scheduled';
+        // Promote to 'assigned' when a technician is selected so approved+assigned
+        // orders are consistent. Only legal from 'scheduled'/'confirmed' per the state
+        // machine; an already-assigned order stays 'assigned' (never downgrade); draft
+        // orders go through 'scheduled' instead.
+        const currentStatus = workOrder?.status;
+        if (currentStatus === 'assigned') {
+          body.status = 'assigned';
+        } else {
+          body.status = form.assignedTechnician && (currentStatus === 'scheduled' || currentStatus === 'confirmed')
+            ? 'assigned'
+            : 'scheduled';
+        }
       }
 
       await api.patch(`/api/operations/work-orders/${id}`, body);

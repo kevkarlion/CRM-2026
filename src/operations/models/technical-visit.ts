@@ -28,7 +28,7 @@ const technicalVisitSchema = new Schema<ITechnicalVisit>(
     scheduledEnd: Date,
     status: {
       type: String,
-      enum: ['draft', 'scheduled', 'confirmed', 'in_progress', 'completed', 'cancelled', 'converted_to_work_order'],
+      enum: ['draft', 'scheduled', 'confirmed', 'assigned', 'in_progress', 'completed', 'cancelled', 'converted_to_work_order'],
       default: 'draft',
     },
     priority: {

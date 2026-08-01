@@ -9,7 +9,8 @@ interface SelfAssignmentVisitDrawerProps {
   onClose: () => void;
   visitId: string;
   visitNumber: string;
-  onAssigned: () => void;
+  technicianName: string;
+  onAssigned: (visitId: string, technicianName: string) => void;
 }
 
 const REASON_OPTIONS = [
@@ -27,6 +28,7 @@ export function SelfAssignmentVisitDrawer({
   onClose,
   visitId,
   visitNumber,
+  technicianName,
   onAssigned,
 }: SelfAssignmentVisitDrawerProps) {
   const [reason, setReason] = useState('');
@@ -61,8 +63,8 @@ export function SelfAssignmentVisitDrawer({
       });
 
       resetForm();
-      onAssigned();
-      onClose();
+      // Pass visitId and technicianName to update only that row locally
+      onAssigned(visitId, technicianName);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al auto-asignar');
     } finally {

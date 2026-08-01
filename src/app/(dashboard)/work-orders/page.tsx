@@ -53,16 +53,42 @@ interface ListResponse {
 const STATUS_OPTIONS = [
   { value: '', label: 'Todos' },
   { value: 'draft', label: 'Borrador' },
-  { value: 'scheduled', label: 'Programado' },
-  { value: 'confirmed', label: 'Confirmado' },
-  { value: 'assigned', label: 'Asignado' },
-  { value: 'en_route', label: 'En Ruta' },
-  { value: 'on_site', label: 'En Sitio' },
-  { value: 'paused', label: 'Pausado' },
-  { value: 'completed', label: 'Completado' },
-  { value: 'cancelled', label: 'Cancelado' },
-  { value: 'closed', label: 'Cerrado' },
+  { value: 'scheduled', label: 'Programada' },
+  { value: 'in_progress', label: 'En Progreso' },
+  { value: 'completed', label: 'Completada' },
+  { value: 'cancelled', label: 'Cancelada' },
 ];
+
+// Status label helper - groups multiple internal statuses into simplified view
+function getStatusLabel(status: string): string {
+  switch (status) {
+    case 'draft': return 'Borrador';
+    case 'scheduled':
+    case 'confirmed':
+    case 'assigned':
+      return 'Programada';
+    case 'in_progress':
+      return 'En Progreso';
+    case 'completed':
+      return 'Completada';
+    case 'cancelled':
+    case 'closed':
+      return 'Cancelada';
+    default:
+      return status;
+  }
+}
+
+// Simplified status badges for the table
+const STATUS_VARIANT: Record<string, string> = {
+  draft: 'bg-gray-100 text-gray-700',
+  scheduled: 'bg-blue-50 text-blue-700',
+  confirmed: 'bg-blue-50 text-blue-700',
+  assigned: 'bg-blue-50 text-blue-700',
+  in_progress: 'bg-amber-50 text-amber-700',
+  completed: 'bg-green-50 text-green-700',
+  cancelled: 'bg-red-50 text-red-700',
+};
 
 const PRIORITY_OPTIONS = [
   { value: '', label: 'Todas' },
@@ -72,19 +98,6 @@ const PRIORITY_OPTIONS = [
   { value: 'urgent', label: 'Urgente' },
   { value: 'emergency', label: 'Emergencia' },
 ];
-
-const STATUS_VARIANT: Record<string, string> = {
-  draft: 'bg-gray-100 text-gray-700',
-  scheduled: 'bg-blue-50 text-blue-700',
-  confirmed: 'bg-teal-50 text-teal-700',
-  assigned: 'bg-indigo-50 text-indigo-700',
-  en_route: 'bg-purple-50 text-purple-700',
-  on_site: 'bg-orange-50 text-orange-700',
-  paused: 'bg-yellow-50 text-yellow-700',
-  completed: 'bg-green-50 text-green-700',
-  cancelled: 'bg-red-50 text-red-700',
-  closed: 'bg-slate-50 text-slate-700',
-};
 
 const PRIORITY_VARIANT: Record<string, string> = {
   low: 'bg-gray-100 text-gray-700',
@@ -135,6 +148,8 @@ export default function WorkOrdersPage() {
   const [total, setTotal] = useState(0);
   const [technicians, setTechnicians] = useState<{ _id: string; name: string }[]>([]);
   const [technicianFilter, setTechnicianFilter] = useState('');
+  const [sortField, setSortField] = useState<'scheduledDate' | 'createdAt' | 'workOrderNumber'>('scheduledDate');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
 
   // Self-assignment drawer state
   const [selfAssignOpen, setSelfAssignOpen] = useState(false);
@@ -201,7 +216,43 @@ const fetchOrders = useCallback(async () => {
   }
 
   const label = (opts: { value: string; label: string }[], val: string) =>
-    opts.find((o) => o.value === val)?.label || val;
+    getStatusLabel(val);
+
+  // Sort orders client-side
+  const sortedOrders = [...orders].sort((a, b) => {
+    let aVal: any, bVal: any;
+    if (sortField === 'scheduledDate') {
+      aVal = a.scheduledDate ? new Date(a.scheduledDate).getTime() : 0;
+      bVal = b.scheduledDate ? new Date(b.scheduledDate).getTime() : 0;
+    } else if (sortField === 'createdAt') {
+      aVal = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      bVal = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    } else {
+      aVal = a.workOrderNumber || '';
+      bVal = b.workOrderNumber || '';
+    }
+    if (aVal < bVal) return sortDir === 'asc' ? -1 : 1;
+    if (aVal > bVal) return sortDir === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  function handleSort(field: 'scheduledDate' | 'createdAt' | 'workOrderNumber') {
+    if (sortField === field) {
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDir('asc');
+    }
+  }
+
+  function SortIcon({ field }: { field: 'scheduledDate' | 'createdAt' | 'workOrderNumber' }) {
+    if (sortField !== field) return null;
+    return (
+      <span className="ml-1 inline-block text-brand-600">
+        {sortDir === 'asc' ? '↑' : '↓'}
+      </span>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -357,18 +408,18 @@ const fetchOrders = useCallback(async () => {
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50">
                   <th className="text-left px-5 py-3 font-semibold text-gray-600">Tipo</th>
-                  <th className="text-left px-5 py-3 font-semibold text-gray-600">#</th>
+                  <th className="text-left px-5 py-3 font-semibold text-gray-600 cursor-pointer hover:text-brand-600" onClick={() => handleSort('workOrderNumber')}>#<SortIcon field="workOrderNumber" /></th>
                   <th className="text-left px-5 py-3 font-semibold text-gray-600">Título</th>
                   <th className="text-left px-5 py-3 font-semibold text-gray-600">Cliente</th>
                   <th className="text-left px-5 py-3 font-semibold text-gray-600">Estado</th>
                   <th className="text-left px-5 py-3 font-semibold text-gray-600">Prioridad</th>
-                  <th className="text-left px-5 py-3 font-semibold text-gray-600">Programado</th>
+                  <th className="text-left px-5 py-3 font-semibold text-gray-600 cursor-pointer hover:text-brand-600" onClick={() => handleSort('scheduledDate')}>Programado<SortIcon field="scheduledDate" /></th>
                   <th className="text-left px-5 py-3 font-semibold text-gray-600">Técnico</th>
                   <th className="text-left px-5 py-3 font-semibold text-gray-600"></th>
                 </tr>
               </thead>
               <tbody>
-                {orders.map((wo, idx) => {
+                {sortedOrders.map((wo, idx) => {
                   const isOwn = isTechAssigned(wo, isTechnician ? user.name : null, isTechnician ? user.email : null);
                   const rowBg = idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/60';
                   return (
@@ -418,16 +469,18 @@ const fetchOrders = useCallback(async () => {
                         >
                           Ver
                         </button>
-{!isAdmin && !isOwn && activeTab === 'all' && (wo.status === 'scheduled' || wo.status === 'assigned') && (
+                        {/* Botón "Solicitar" para técnicos - en OTs Programadas (sin técnico) o Asignadas (a otro técnico) */}
+                        {isTechnician && !isAdmin && !isOwn && activeTab === 'all' && 
+                         (wo.status === 'scheduled' || wo.status === 'assigned') && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               setSelfAssignWO({ id: wo._id, number: wo.workOrderNumber });
                               setSelfAssignOpen(true);
                             }}
-                            className="text-xs font-medium text-brand-600 hover:text-brand-700 transition-colors"
+                            className="text-xs font-medium text-brand-600 hover:text-brand-700 transition-colors ml-2"
                           >
-                            Auto-asignar
+                            Solicitar
                           </button>
                         )}
                       </td>
@@ -485,7 +538,9 @@ const fetchOrders = useCallback(async () => {
                     >
                       Ver
                     </button>
-                    {!isAdmin && !isOwn && activeTab === 'all' && (wo.status === 'scheduled' || wo.status === 'assigned') && (
+                    {/* Botón "Solicitar" para técnicos - en OTs Programadas (sin técnico) o Asignadas (a otro técnico) */}
+                    {isTechnician && !isAdmin && !isOwn && activeTab === 'all' && 
+                     (wo.status === 'scheduled' || wo.status === 'assigned') && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -494,7 +549,7 @@ const fetchOrders = useCallback(async () => {
                         }}
                         className="flex-1 text-xs font-medium text-brand-600 hover:text-brand-700 transition-colors"
                       >
-                        Auto-asignar
+                        Solicitar
                       </button>
                     )}
                   </div>
@@ -514,7 +569,15 @@ const fetchOrders = useCallback(async () => {
           }}
           workOrderId={selfAssignWO.id}
           workOrderNumber={selfAssignWO.number}
-          onAssigned={fetchOrders}
+          technicianName={user.name}
+          onAssigned={(workOrderId, technicianName) => {
+            // Update only the specific work order in local state - no full refetch
+            setOrders(prev => prev.map(wo => 
+              wo._id === workOrderId 
+                ? { ...wo, assignedTechnicians: [{ name: technicianName }] }
+                : wo
+            ));
+          }}
         />
       )}
     </div>

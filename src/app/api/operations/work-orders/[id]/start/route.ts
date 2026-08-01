@@ -6,7 +6,7 @@ import WorkOrderAssignmentModel from '@/operations/models/work-order-assignment'
 import { logActivity } from '@/audit/activity-logger';
 import mongoose from 'mongoose';
 
-const VALID_STATUSES = ['assigned'] as const;
+const VALID_STATUSES = ['scheduled', 'assigned'] as const;
 const TARGET_STATUS = 'in_progress';
 
 /**
@@ -14,6 +14,7 @@ const TARGET_STATUS = 'in_progress';
  * 
  * Starts work execution on a WorkOrder.
  * - Validates user is the assigned technician
+ * - Allows start when status is 'scheduled' or 'assigned'
  * - Changes status to 'in_progress'
  * - Sets startedAt and startedBy
  * - Sets technician.availability to 'busy'
@@ -48,8 +49,8 @@ export async function POST(
       return NextResponse.json({ error: 'WorkOrder not found' }, { status: 404 });
     }
 
-    // Check status is 'assigned'
-    if (workOrder.status !== 'assigned') {
+    // Check status is 'scheduled' or 'assigned'
+    if (!(VALID_STATUSES as readonly string[]).includes(workOrder.status)) {
       return NextResponse.json(
         { error: workOrder.status === 'in_progress' ? 'Work already in progress' : `Cannot start work from status: ${workOrder.status}` },
         { status: 400 }
@@ -107,7 +108,7 @@ export async function POST(
       action: 'work_started',
       actorId: new mongoose.Types.ObjectId(userId),
       metadata: {
-        previousStatus: 'assigned',
+        previousStatus: workOrder.status,
         newStatus: TARGET_STATUS,
         technicianId: technicianId.toString(),
       },

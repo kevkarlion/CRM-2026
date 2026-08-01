@@ -44,9 +44,10 @@ function isSameDay(a: Date, b: Date): boolean {
 
 function getWeekStart(d: Date): Date {
   const r = new Date(d);
-  const day = r.getDay();
+  const day = r.getDay(); // 0 = Sunday
   r.setDate(r.getDate() - day);
   r.setHours(0, 0, 0, 0);
+  console.log('[Calendar] getWeekStart:', d.toISOString(), '->', r.toISOString(), 'day:', day);
   return r;
 }
 
@@ -265,36 +266,38 @@ function WeekView({ events, date, onEventClick, currentTechnicianId }: { events:
 
   return (
     <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl overflow-hidden">
+      {/* Week header - scrollable on small screens */}
       <div className="overflow-x-auto">
-        <div className="min-w-[700px]">
-          <div className="grid grid-cols-7 border-b border-gray-200 dark:border-slate-700">
-            {weekDays.map((day, i) => {
-              const isToday = isSameDay(day, today);
-              return (
-                <div key={i} className={`text-center py-2 border-r border-gray-100 dark:border-slate-700 last:border-r-0 ${isToday ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
-                  <p className="text-[10px] text-gray-500 dark:text-slate-400 font-medium">{DAY_NAMES_SHORT[i]}</p>
-                  <p className={`text-lg font-bold ${isToday ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-slate-100'}`}>
-                    {day.getDate()}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
+        <div className="min-w-[600px] grid grid-cols-7 border-b border-gray-200 dark:border-slate-700">
+          {weekDays.map((day, i) => {
+            const isToday = isSameDay(day, today);
+            return (
+              <div key={i} className={`text-center py-2 border-r border-gray-100 dark:border-slate-700 last:border-r-0 ${isToday ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
+                <p className="text-[10px] text-gray-500 dark:text-slate-400 font-medium">{DAY_NAMES_SHORT[i]}</p>
+                <p className={`text-lg font-bold ${isToday ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-slate-100'}`}>
+                  {day.getDate()}
+                </p>
+              </div>
+            );
+          })}
+        </div>
 
-          <div className="grid grid-cols-7 min-h-[400px]">
+        {/* Week body - scrollable */}
+        <div className="overflow-x-auto">
+          <div className="min-w-[600px] grid grid-cols-7 min-h-[300px] sm:min-h-[400px]">
             {weekDays.map((day, i) => {
               const dayEvts = eventsByDay[i];
               const isToday = isSameDay(day, today);
               return (
                 <div
                   key={i}
-                  className={`border-r border-gray-100 dark:border-slate-700 last:border-r-0 p-1 ${isToday ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''}`}
+                  className={`border-r border-gray-100 dark:border-slate-700 last:border-r-0 p-1 sm:p-2 ${isToday ? 'bg-blue-50/30 dark:bg-blue-900/10' : ''}`}
                 >
                   <div className="space-y-1">
                     {dayEvts.length === 0 && (
-                      <div className="h-8" />
+                      <div className="h-6 sm:h-8" />
                     )}
-                    {dayEvts.slice(0, 6).map((event) => (
+                    {dayEvts.slice(0, 4).map((event) => (
                       <EventBlock
                         key={event._id}
                         event={event}
@@ -303,9 +306,9 @@ function WeekView({ events, date, onEventClick, currentTechnicianId }: { events:
                         currentTechnicianId={currentTechnicianId}
                       />
                     ))}
-                    {dayEvts.length > 6 && (
+                    {dayEvts.length > 4 && (
                       <p className="text-[9px] text-gray-400 dark:text-slate-500 text-center font-medium">
-                        +{dayEvts.length - 6} más
+                        +{dayEvts.length - 4}
                       </p>
                     )}
                   </div>
@@ -446,7 +449,12 @@ export function CalendarView({ events, onEventClick, className = '', currentTech
     setSelectedDate((prev) => {
       const d = new Date(prev);
       if (viewMode === 'day') d.setDate(d.getDate() + direction);
-      else if (viewMode === 'week') d.setDate(d.getDate() + direction * 7);
+      else if (viewMode === 'week') {
+        // Navigate from the start of the week, not from current date
+        const ws = getWeekStart(d);
+        ws.setDate(ws.getDate() + direction * 7);
+        return ws;
+      }
       else d.setMonth(d.getMonth() + direction);
       return d;
     });

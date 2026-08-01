@@ -201,6 +201,47 @@ export class TechnicalVisitService {
     });
     if (!technician) throw new ValidationError('Technician not found');
 
+    // BUSINESS RULE: Only ONE technician allowed per TechnicalVisit
+    // Check if there's already an assigned technician
+    const existingVisit = await TechnicalVisitModel.findOne({
+      _id: new Types.ObjectId(visitId),
+      tenantId: new Types.ObjectId(tenantId),
+      deletedAt: null,
+    }).select('assignedTechnicianId status');
+
+    if (existingVisit?.assignedTechnicianId) {
+      const existingTechId = existingVisit.assignedTechnicianId.toString();
+      
+      // Same technician - already assigned, return success (idempotent)
+      if (existingTechId === technicianId) {
+        return TechnicalVisitModel.findOne({
+          _id: new Types.ObjectId(visitId),
+          tenantId: new Types.ObjectId(tenantId),
+        }).populate('assignedTechnicianId', 'name email phone specialties').lean();
+      }
+      
+      // Different technician - can "take" the visit (redistribution)
+      // The existing assignment will be replaced by the service
+    }
+
+    // Only allow assignment from certain statuses
+    if (!['scheduled', 'confirmed', 'assigned'].includes(existingVisit?.status || '')) {
+      throw new ValidationError(
+        `No se puede asignar técnico desde el estado actual: ${existingVisit?.status}`
+      );
+    }
+
+    // Promote status to 'assigned' ONLY from 'scheduled' or 'confirmed' —
+    // never overwrite advanced statuses (in_progress, completed, cancelled, converted_to_work_order)
+    await TechnicalVisitModel.updateOne(
+      {
+        _id: new Types.ObjectId(visitId),
+        tenantId: new Types.ObjectId(tenantId),
+        status: { $in: ['scheduled', 'confirmed'] },
+      },
+      { $set: { status: 'assigned' } },
+    );
+
     return TechnicalVisitModel.findOneAndUpdate(
       { _id: new Types.ObjectId(visitId), tenantId: new Types.ObjectId(tenantId) },
       { $set: { assignedTechnicianId: new Types.ObjectId(technicianId), updatedBy: new Types.ObjectId(userId) } },
@@ -213,6 +254,17 @@ export class TechnicalVisitService {
     tenantId: string,
     userId: string,
   ): Promise<ITechnicalVisit | null> {
+    // Downgrade status to 'confirmed' ONLY from 'assigned' — never touch advanced
+    // statuses (in_progress, completed, cancelled, converted_to_work_order).
+    await TechnicalVisitModel.updateOne(
+      {
+        _id: new Types.ObjectId(visitId),
+        tenantId: new Types.ObjectId(tenantId),
+        status: 'assigned',
+      },
+      { $set: { status: 'confirmed', updatedBy: new Types.ObjectId(userId) } },
+    );
+
     return TechnicalVisitModel.findOneAndUpdate(
       { _id: new Types.ObjectId(visitId), tenantId: new Types.ObjectId(tenantId) },
       { $set: { assignedTechnicianId: null, updatedBy: new Types.ObjectId(userId) } },

@@ -110,7 +110,7 @@ export const workReportSchema = new Schema<IWorkReport>(
   { timestamps: true }
 );
 
-// Indexes - sparse makes unique index only apply when field is not null
+// Indexes - use sparse to handle null values correctly
 workReportSchema.index({ tenantId: 1, workOrderId: 1 }, { sparse: true });
-workReportSchema.index({ tenantId: 1, technicalVisitId: 1 }, { unique: true, sparse: true });
+workReportSchema.index({ tenantId: 1, technicalVisitId: 1 }, { sparse: true });
 workReportSchema.index({ tenantId: 1, technicianId: 1, createdAt: -1 });

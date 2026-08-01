@@ -17,7 +17,7 @@ export const workOrderAssignmentSchema = new Schema<IWorkOrderAssignment>(
     },
     reason: {
       type: String,
-      enum: ['customer_request', 'proximity', 'availability', 'coverage', 'specialty', 'priority', 'replacement', 'schedule_change', 'performance', 'other'],
+      enum: ['customer_request', 'proximity', 'availability', 'coverage', 'specialty', 'priority', 'replacement', 'schedule_change', 'performance', 'other', 'data_reconciliation'],
       required: true,
       default: 'other',
     },
@@ -47,3 +47,17 @@ workOrderAssignmentSchema.index({ tenantId: 1, workOrderId: 1, status: 1 });
 workOrderAssignmentSchema.index({ tenantId: 1, assignmentType: 1 });
 workOrderAssignmentSchema.index({ tenantId: 1, reason: 1 });
 workOrderAssignmentSchema.index({ workOrderId: 1, technicianId: 1 }, { unique: true, sparse: true });
+
+// CRITICAL: Only ONE active assignment (assigned/acknowledged) allowed per WorkOrder
+// This partial index ensures uniqueness ONLY for active statuses
+// Use $type: "null" to match documents where field is null or doesn't exist (BSON null)
+workOrderAssignmentSchema.index(
+  { workOrderId: 1 },
+  { 
+    unique: true, 
+    partialFilterExpression: { 
+      status: { $in: ['assigned', 'acknowledged'] },
+      deletedAt: { $type: 'null' }
+    } 
+  }
+);

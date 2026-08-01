@@ -63,6 +63,7 @@ const STATUS_OPTIONS = [
   { value: 'draft', label: 'Borrador' },
   { value: 'scheduled', label: 'Programado' },
   { value: 'confirmed', label: 'Confirmado' },
+  { value: 'assigned', label: 'Asignada' },
   { value: 'in_progress', label: 'En Curso' },
   { value: 'completed', label: 'Completado' },
   { value: 'cancelled', label: 'Cancelado' },
@@ -72,7 +73,7 @@ const STATUS_OPTIONS = [
 const NEXT_STATUSES: Record<string, Array<{ value: string; label: string }>> = {
   draft: [{ value: 'scheduled', label: 'Programado' }],
   scheduled: [{ value: 'confirmed', label: 'Confirmado' }, { value: 'cancelled', label: 'Cancelado' }],
-  confirmed: [{ value: 'in_progress', label: 'En Curso' }, { value: 'cancelled', label: 'Cancelado' }],
+  confirmed: [{ value: 'cancelled', label: 'Cancelado' }],
   in_progress: [{ value: 'completed', label: 'Completado' }, { value: 'cancelled', label: 'Cancelado' }],
 };
 
@@ -95,6 +96,7 @@ const STATUS_VARIANT: Record<string, string> = {
   draft: 'bg-gray-100 text-gray-700',
   scheduled: 'bg-blue-50 text-blue-700',
   confirmed: 'bg-teal-50 text-teal-700',
+  assigned: 'bg-indigo-50 text-indigo-700',
   in_progress: 'bg-amber-50 text-amber-700',
   completed: 'bg-green-50 text-green-700',
   cancelled: 'bg-red-50 text-red-700',
@@ -595,8 +597,8 @@ export default function TechnicalVisitDetailPage() {
             {/* Work Execution Buttons - Only for assigned technician */}
             {isCurrentUserTheAssignedTech() && !isTerminal && (
               <>
-                {/* Start Work button - show when status is 'assigned' or 'scheduled' or 'confirmed' */}
-                {(visit.status === 'assigned' || visit.status === 'scheduled' || visit.status === 'confirmed') && (
+                {/* Start Work button - show when status is 'assigned' or 'scheduled' */}
+                {(visit.status === 'assigned' || visit.status === 'scheduled') && (
                   <>
                     {startingWorkError && (
                       <div className="rounded-lg bg-danger-50 px-3 py-2 text-xs text-danger-700">

@@ -77,14 +77,19 @@ export async function POST(
         if (!technicianId) {
           return NextResponse.json({ error: 'technicianId is required for assign' }, { status: 400 });
         }
-        
-        const { Types } = await import('mongoose');
-        
-        // Replace technician - only 1 technician allowed per WO
-        await WorkOrderModel.findByIdAndUpdate(workOrderId, {
-          $set: { assignedTechnicians: [new Types.ObjectId(technicianId)] },
-        });
-        
+
+        // Promote status to 'assigned' ONLY from 'scheduled' or 'confirmed' —
+        // never overwrite advanced statuses (en_route, on_site, in_progress, completed, ...)
+        await WorkOrderModel.updateOne(
+          {
+            _id: new Types.ObjectId(workOrderId),
+            tenantId: new Types.ObjectId(tenantId),
+            status: { $in: ['scheduled', 'confirmed'] },
+          },
+          { $set: { status: 'assigned' } },
+        );
+
+        // createAssignment owns the denormalized `assignedTechnicians` write.
         const assignment = await workAssignmentService.createAssignment(workOrderId, technicianId, userId, tenantId, {
           assignmentType: 'manual',
           reason: 'other',
@@ -97,14 +102,19 @@ export async function POST(
         if (!oldTechnicianId || !newTechnicianId) {
           return NextResponse.json({ error: 'oldTechnicianId and newTechnicianId are required for reassign' }, { status: 400 });
         }
-        
-        const { Types } = await import('mongoose');
-        
-        // Replace technician - only 1 technician allowed per WO
-        await WorkOrderModel.findByIdAndUpdate(workOrderId, {
-          $set: { assignedTechnicians: [new Types.ObjectId(newTechnicianId)] },
-        });
-        
+
+        // Promote status to 'assigned' ONLY from 'scheduled' or 'confirmed' —
+        // never overwrite advanced statuses (en_route, on_site, in_progress, completed, ...)
+        await WorkOrderModel.updateOne(
+          {
+            _id: new Types.ObjectId(workOrderId),
+            tenantId: new Types.ObjectId(tenantId),
+            status: { $in: ['scheduled', 'confirmed'] },
+          },
+          { $set: { status: 'assigned' } },
+        );
+
+        // replaceTechnician owns the denormalized `assignedTechnicians` write.
         const assignment = await workAssignmentService.replaceTechnician(workOrderId, newTechnicianId, userId, tenantId, 'replacement');
         return NextResponse.json({ data: assignment }, { status: 201 });
       }
@@ -114,26 +124,7 @@ export async function POST(
         if (!technicianId) {
           return NextResponse.json({ error: 'technicianId is required for unassign' }, { status: 400 });
         }
-        const current = await workAssignmentService.getCurrentAssignment(workOrderId, tenantId);
-        if (current) {
-          const WorkOrderAssignmentModel = (await import('@/operations/models/work-order-assignment')).default;
-          await WorkOrderAssignmentModel.findByIdAndUpdate(current._id, {
-            $set: { status: 'declined', declinedAt: new Date() },
-          });
-        }
-        // Remove technician from assignedTechnicians
-        const { Types } = await import('mongoose');
-        await WorkOrderModel.findByIdAndUpdate(workOrderId, {
-          $pull: { assignedTechnicians: new Types.ObjectId(technicianId) },
-        });
-        // Check if any technicians remain — if not, downgrade status to confirmed
-        const wo = await WorkOrderModel.findById(id).select('assignedTechnicians status');
-        const remaining = (wo?.assignedTechnicians || []).length;
-        if (remaining === 0) {
-          await WorkOrderModel.findByIdAndUpdate(workOrderId, {
-            $set: { status: 'confirmed', updatedBy: new Types.ObjectId(userId) },
-          });
-        }
+        await workAssignmentService.unassignTechnician(workOrderId, technicianId, tenantId, userId);
         return NextResponse.json({ data: { success: true } });
       }
 

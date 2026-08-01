@@ -58,6 +58,9 @@ export async function POST(
       body.observations,
     );
 
+    console.log('[SelfAssign] Assignment result:', assignment);
+    console.log('[SelfAssign] Technician ID:', String(technician._id));
+
     // Fetch technician name and work order number for the event payload
     const workOrder = await WorkOrderModel.findOne({
       _id: new Types.ObjectId(id),

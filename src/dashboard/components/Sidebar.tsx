@@ -80,7 +80,7 @@ export function Sidebar() {
   // Don't render sidebar content until mounted
   if (!mounted || loading) {
     return (
-      <aside className="fixed top-0 left-0 z-40 h-full w-56 bg-gray-950 border-r border-gray-800">
+      <aside className="fixed top-0 left-0 z-50 h-full w-56 bg-gray-950 border-r border-gray-800">
         <div className="p-4 border-b border-gray-800">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-gray-800 animate-pulse" />
@@ -104,14 +104,14 @@ export function Sidebar() {
       {/* Mobile hamburger */}
       <button
         onClick={() => setMobileOpen(!mobileOpen)}
-        className="lg:hidden fixed bottom-4 right-4 z-50 w-12 h-12 bg-brand-600 text-white rounded-full shadow-lg flex items-center justify-center"
+        className="lg:hidden fixed bottom-4 right-4 z-[60] w-12 h-12 bg-brand-600 text-white rounded-full shadow-lg flex items-center justify-center"
         aria-label="Menú"
       >
         {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
       </button>
 
       {/* Desktop sidebar — fixed, always black */}
-      <aside className={`fixed top-0 left-0 z-40 h-full w-56 bg-gray-950 border-r border-gray-800 transform transition-transform duration-200 lg:translate-x-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`fixed top-0 left-0 z-50 h-full w-56 bg-gray-950 border-r border-gray-800 transform transition-transform duration-200 lg:translate-x-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-4 border-b border-gray-800">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center">

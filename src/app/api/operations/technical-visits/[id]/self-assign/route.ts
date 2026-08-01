@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
 import { TechnicalVisitModel } from '@/operations/models/technical-visit';
 import { TechnicianModel } from '@/operations/models/technician';
+import { technicalVisitService } from '@/operations/services/technical-visit.service';
 import { Types } from 'mongoose';
 
 export async function POST(
@@ -64,34 +65,29 @@ export async function POST(
       );
     }
 
-    // Check if already assigned
-    if (visit.assignedTechnicianId) {
-      return NextResponse.json(
-        { error: 'Esta visita técnica ya está asignada a otro técnico' },
-        { status: 400 },
-      );
-    }
-
     // Check if visit is in a valid status for assignment
-    if (!['scheduled', 'confirmed', 'draft'].includes(visit.status)) {
+    // Allow from scheduled, confirmed, or assigned (can take from another technician)
+    if (!['scheduled', 'confirmed', 'assigned'].includes(visit.status)) {
       return NextResponse.json(
         { error: 'No se puede asignar esta visita técnica en su estado actual' },
         { status: 400 },
       );
     }
 
-    // Update the visit with the technician
-    visit.assignedTechnicianId = technician._id as Types.ObjectId;
-    visit.status = 'confirmed';
-    visit.updatedBy = userObjectId;
-    await visit.save();
+    // Assign via the technical visit service - handles both new assignment and takeover
+    const assignedVisit = await technicalVisitService.assignTechnician(
+      id,
+      String(technician._id),
+      tenantId,
+      userId,
+    );
 
     return NextResponse.json({
       data: {
         _id: visit._id.toString(),
-        visitNumber: visit.visitNumber,
-        title: visit.title,
-        status: visit.status,
+        visitNumber: assignedVisit?.visitNumber || visit.visitNumber,
+        title: assignedVisit?.title || visit.title,
+        status: assignedVisit?.status || 'assigned',
         assignedTechnicianId: technician._id.toString(),
         technicianName: technician.name,
       },
