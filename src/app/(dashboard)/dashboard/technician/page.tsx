@@ -13,10 +13,18 @@ type TaskItem = TechnicianWorkOrder;
 
 const PRIORITY_COLORS: Record<string, string> = {
   low: 'bg-gray-100 text-gray-700',
-  normal: 'bg-blue-100 text-blue-700',
-  high: 'bg-warning-100 text-warning-700',
-  urgent: 'bg-orange-100 text-orange-700',
-  emergency: 'bg-danger-100 text-danger-700',
+  normal: 'bg-blue-50 text-blue-700',
+  high: 'bg-orange-50 text-orange-700',
+  urgent: 'bg-red-50 text-red-700',
+  emergency: 'bg-red-100 text-red-900',
+};
+
+const PRIORITY_LABELS: Record<string, string> = {
+  low: 'Baja',
+  normal: 'Normal',
+  high: 'Alta',
+  urgent: 'Urgente',
+  emergency: 'Emergencia',
 };
 
 export default function TechnicianPage() {
@@ -61,7 +69,7 @@ export default function TechnicianPage() {
   );
   
   const inProgressItems = allAssignedItems.filter(item => 
-    ['assigned', 'en_route', 'on_site', 'paused'].includes(item.status)
+    ['assigned', 'in_progress', 'paused'].includes(item.status)
   );
   
   const scheduledItems = allAssignedItems.filter(item => 
@@ -352,8 +360,8 @@ function TaskCard({ item }: { item: TaskItem }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <span className="text-xs font-mono text-gray-500">#{number}</span>
-            <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${PRIORITY_COLORS[item.priority]}`}>
-              {item.priority}
+            <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${PRIORITY_COLORS[item.priority] || PRIORITY_COLORS.normal}`}>
+              {PRIORITY_LABELS[item.priority] || item.priority}
             </span>
           </div>
           <p className="text-sm font-medium text-gray-900 truncate">{item.title}</p>
@@ -377,7 +385,7 @@ function TaskCard({ item }: { item: TaskItem }) {
         {/* Status indicator */}
         <div className={`w-2 h-2 rounded-full ${
           isExpired ? 'bg-danger-500' :
-          ['en_route', 'on_site'].includes(item.status) ? 'bg-blue-500 animate-pulse' :
+          item.status === 'in_progress' ? 'bg-blue-500 animate-pulse' :
           item.status === 'paused' ? 'bg-yellow-500' :
           item.status === 'assigned' ? 'bg-brand-500' :
           'bg-gray-300'

@@ -54,12 +54,12 @@ export async function GET(request: NextRequest) {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    // Get assigned work orders count (status: assigned, en_route, on_site, paused)
+    // Get assigned work orders count (status: assigned, in_progress, paused)
     const inProgressOrders = await WorkOrderModel.countDocuments({
       tenantId: tenantObjectId,
       assignedTechnicians: { $in: [technicianId] },
       deletedAt: null,
-      status: { $in: ['assigned', 'en_route', 'on_site', 'paused'] },
+      status: { $in: ['assigned', 'in_progress', 'paused'] },
     });
 
     // Get completed today
