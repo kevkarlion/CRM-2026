@@ -143,6 +143,7 @@ export interface TechnicianWorkOrder {
 
 export interface TechnicianDashboardResponse {
   assignedCount: number;
+  assignedBreakdown: { workOrders: number; visits: number };
   completedToday: number;
   pendingOrders: number;
   inProgressOrders: number;

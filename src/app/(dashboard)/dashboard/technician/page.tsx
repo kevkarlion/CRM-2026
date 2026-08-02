@@ -5,6 +5,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { MetricCard, KpiGrid, SectionHeader } from '@/dashboard/components';
+import { RoleGuard } from '@/dashboard/components/RoleGuard';
 import { fetchTechnicianDashboard } from '@/dashboard/services/client-index';
 import { useRole } from '@/dashboard/context/role-context';
 import type { TechnicianDashboardResponse, TechnicianWorkOrder } from '@/dashboard/types/metrics';
@@ -27,7 +28,57 @@ const PRIORITY_LABELS: Record<string, string> = {
   emergency: 'Emergencia',
 };
 
+// ── Helpers ────────────────────────────────────────────────
+
+// Info de fecha: vencimiento relativo a hoy
+function getTaskDateInfo(scheduledDate?: string | Date | null) {
+  if (!scheduledDate) return null;
+
+  const scheduled = typeof scheduledDate === 'string'
+    ? new Date(scheduledDate + 'T00:00:00')
+    : new Date(scheduledDate);
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  scheduled.setHours(0, 0, 0, 0);
+
+  const diffTime = scheduled.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  const formattedDate = typeof scheduledDate === 'string'
+    ? scheduledDate
+    : scheduledDate.toLocaleDateString('es-CL');
+
+  if (diffDays < 0) {
+    return {
+      text: `⚠️ Vencida hace ${Math.abs(diffDays)} día${Math.abs(diffDays) > 1 ? 's' : ''}`,
+      color: 'text-danger-600 font-medium',
+      isExpired: true,
+    };
+  }
+  if (diffDays === 0) {
+    return { text: '📅 Hoy', color: 'text-warning-600 font-medium', isExpired: false };
+  }
+  if (diffDays <= 3) {
+    return { text: `⏰ Faltan ${diffDays} día${diffDays > 1 ? 's' : ''}`, color: 'text-warning-600', isExpired: false };
+  }
+  return { text: `📅 ${formattedDate}`, color: 'text-gray-500', isExpired: false };
+}
+
+// ¿La tarea ya venció? (fecha programada < hoy)
+function isExpiredTask(item: TaskItem): boolean {
+  return getTaskDateInfo(item.scheduledDate)?.isExpired ?? false;
+}
+
 export default function TechnicianPage() {
+  return (
+    <RoleGuard allowedRoles={['Technician']}>
+      <TechnicianDashboardContent />
+    </RoleGuard>
+  );
+}
+
+function TechnicianDashboardContent() {
   const [dashboard, setDashboard] = useState<TechnicianDashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -63,17 +114,17 @@ export default function TechnicianPage() {
     setTechName(name);
   }, [user.name]);
 
-  // Separate items by status
-  const urgentItems = allAssignedItems.filter(item => 
+  // Only show tasks that haven't expired yet
+  const activeItems = allAssignedItems.filter(item => !isExpiredTask(item));
+
+  // Priority alerts shown as highlighted cards on top
+  const urgentItems = activeItems.filter(item => 
     item.priority === 'urgent' || item.priority === 'emergency'
   );
-  
-  const inProgressItems = allAssignedItems.filter(item => 
-    ['assigned', 'in_progress', 'paused'].includes(item.status)
-  );
-  
-  const scheduledItems = allAssignedItems.filter(item => 
-    ['scheduled', 'confirmed'].includes(item.status)
+
+  // Rest of assigned tasks (all statuses, non-expired)
+  const visibleItems = activeItems.filter(item => 
+    item.priority !== 'urgent' && item.priority !== 'emergency'
   );
 
   return (
@@ -102,7 +153,13 @@ export default function TechnicianPage() {
       <section>
         <SectionHeader title="Resumen del Día" subtitle="Tu carga de trabajo actual" />
         <KpiGrid>
-          <MetricCard label="Tareas Asignadas" value={dashboard?.assignedCount ?? '-'} loading={loading} />
+          <MetricCard
+            label="Tareas Asignadas"
+            value={dashboard?.assignedCount ?? '-'}
+            loading={loading}
+            href="/centro-operativo"
+            detail={dashboard ? `OT ${dashboard.assignedBreakdown?.workOrders ?? 0} · VT ${dashboard.assignedBreakdown?.visits ?? 0}` : undefined}
+          />
           <MetricCard label="Completadas Hoy" value={dashboard?.completedToday ?? '-'} loading={loading}
             trend={dashboard && dashboard.completedToday > 0 ? { direction: 'up', label: 'Hoy' } : undefined} />
           <MetricCard label="Próximos 7 días" value={dashboard?.upcomingSevenDays ?? '-'} loading={loading} />
@@ -121,14 +178,14 @@ export default function TechnicianPage() {
               label="OTs Sin Asignar" 
               value={dashboard.globalStats.totalUnassignedOrders} 
               loading={loading}
-              href="/work-orders/calendar"
+              href="/centro-operativo"
               accentColor="text-brand-600"
             />
             <MetricCard 
               label="Visitas Sin Asignar" 
               value={dashboard.globalStats.totalUnassignedVisits} 
               loading={loading}
-              href="/work-orders/calendar"
+              href="/centro-operativo"
               accentColor="text-brand-600"
             />
             <MetricCard 
@@ -159,14 +216,14 @@ export default function TechnicianPage() {
               label="OTs Vencidas" 
               value={dashboard.globalStats.expiredOrders} 
               loading={loading}
-              href="/work-orders/calendar?filter=expired"
+              href="/centro-operativo?filter=expired"
               accentColor="text-danger-600"
             />
             <MetricCard 
               label="VTs Vencidas" 
               value={dashboard.globalStats.expiredVisits} 
               loading={loading}
-              href="/work-orders/calendar?filter=expired"
+              href="/centro-operativo?filter=expired"
               accentColor="text-danger-600"
             />
             <MetricCard 
@@ -215,7 +272,7 @@ export default function TechnicianPage() {
       <section>
         <SectionHeader 
           title="Mis Tareas" 
-          subtitle={`${allAssignedItems.length} tareas asignadas`} 
+          subtitle={`${activeItems.length} tareas asignadas`} 
         />
         
         {/* Alerts / Priority Items */}
@@ -227,46 +284,31 @@ export default function TechnicianPage() {
           </div>
         )}
 
-        {/* In Progress Items */}
-        {inProgressItems.length > 0 && (
-          <div className="mb-4">
-            <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-              <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
-              En Progreso ({inProgressItems.length})
-            </h3>
-            <div className="space-y-2">
-              {inProgressItems.slice(0, 10).map(item => (
-                <TaskCard key={item._id} item={item} />
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Scheduled Items */}
-        {scheduledItems.length > 0 && (
+        {/* All assigned tasks (non-expired) */}
+        {visibleItems.length > 0 && (
           <div className="mb-4">
             <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
               <span className="w-2 h-2 bg-gray-400 rounded-full"></span>
-              Programadas ({scheduledItems.length})
+              Asignadas ({visibleItems.length})
             </h3>
             <div className="space-y-2">
-              {scheduledItems.slice(0, 10).map(item => (
+              {visibleItems.slice(0, 10).map(item => (
                 <TaskCard key={item._id} item={item} />
               ))}
             </div>
           </div>
         )}
 
-        {allAssignedItems.length === 0 && !loading && (
+        {activeItems.length === 0 && !loading && (
           <div className="bg-gray-50 rounded-xl p-8 text-center">
             <div className="text-4xl mb-3">📋</div>
             <p className="text-gray-600 font-medium">No tienes tareas asignadas</p>
-            <p className="text-sm text-gray-500 mt-1">Podés buscar órdenes disponibles en el Calendario</p>
+            <p className="text-sm text-gray-500 mt-1">Podés tomar órdenes disponibles en el Centro Operativo</p>
             <Link
-              href="/work-orders/calendar"
+              href="/centro-operativo"
               className="inline-block mt-4 px-4 py-2 rounded-lg bg-brand-600 text-white text-sm font-medium hover:bg-brand-700"
             >
-              Ver calendario
+              Ver centro operativo
             </Link>
           </div>
         )}
@@ -279,63 +321,17 @@ export default function TechnicianPage() {
 function TaskCard({ item }: { item: TaskItem }) {
   const isWorkOrder = 'workOrderNumber' in item;
   const number = isWorkOrder ? (item as any).workOrderNumber : (item as any).visitNumber;
+  const shortNumber = number ? number.slice(-7) : '';
   const link = isWorkOrder ? `/work-orders/${item._id}` : `/technical-visits/${item._id}`;
   const typeLabel = isWorkOrder ? 'OT' : 'VT';
-  const typeColor = isWorkOrder ? 'bg-blue-100 text-blue-700' : 'bg-orange-100 text-orange-700';
+  const typeColor = isWorkOrder ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-orange-50 text-orange-700 border-orange-200';
 
-  // Calcular fecha y estado de vencimiento
-  const getDateInfo = () => {
-    if (!item.scheduledDate) return null;
-    
-    const scheduled = typeof item.scheduledDate === 'string' 
-      ? new Date(item.scheduledDate + 'T00:00:00') 
-      : new Date(item.scheduledDate);
-    
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    scheduled.setHours(0, 0, 0, 0);
-    
-    const diffTime = scheduled.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
-    const formattedDate = typeof item.scheduledDate === 'string' 
-      ? item.scheduledDate 
-      : item.scheduledDate.toLocaleDateString('es-CL');
-    
-    if (diffDays < 0) {
-      return { 
-        text: `⚠️ Vencida hace ${Math.abs(diffDays)} día${Math.abs(diffDays) > 1 ? 's' : ''}`, 
-        color: 'text-danger-600 font-medium',
-        isExpired: true 
-      };
-    } else if (diffDays === 0) {
-      return { 
-        text: '📅 Hoy', 
-        color: 'text-warning-600 font-medium',
-        isExpired: false 
-      };
-    } else if (diffDays <= 3) {
-      return { 
-        text: `⏰ Faltan ${diffDays} día${diffDays > 1 ? 's' : ''}`, 
-        color: 'text-warning-600',
-        isExpired: false 
-      };
-    } else {
-      return { 
-        text: `📅 ${formattedDate}`, 
-        color: 'text-gray-500',
-        isExpired: false 
-      };
-    }
-  };
-
-  const dateInfo = getDateInfo();
-  const isExpired = dateInfo?.isExpired;
+  const dateInfo = getTaskDateInfo(item.scheduledDate);
 
   // Get time info
   const getTimeInfo = () => {
     if (item.scheduledStart) {
-      const time = typeof item.scheduledStart === 'string' 
+      const time = typeof item.scheduledStart === 'string'
         ? new Date(item.scheduledStart).toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })
         : '—';
       return `🕐 ${time}`;
@@ -346,25 +342,23 @@ function TaskCard({ item }: { item: TaskItem }) {
   return (
     <Link
       href={link}
-      className={`block bg-white border rounded-lg p-3 hover:border-brand-300 hover:shadow-sm transition-all ${
-        isExpired ? 'border-danger-200 bg-danger-50' : 'border-gray-200'
-      }`}
+      className="group block bg-white border border-gray-200 rounded-xl p-3.5 hover:border-brand-300 hover:shadow-sm hover:-translate-y-px transition-all"
     >
       <div className="flex items-center gap-3">
-        {/* Type badge */}
-        <span className={`px-2 py-1 rounded text-xs font-bold ${typeColor}`}>
-          {typeLabel}
-        </span>
-        
+        {/* Type badge + short number */}
+        <div className={`shrink-0 flex flex-col items-center justify-center w-12 h-12 rounded-lg border ${typeColor}`}>
+          <span className="text-xs font-bold leading-none">{typeLabel}</span>
+          <span className="mt-0.5 text-[10px] font-mono font-medium opacity-80">{shortNumber}</span>
+        </div>
+
         {/* Content */}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-mono text-gray-500">#{number}</span>
-            <span className={`px-1.5 py-0.5 rounded text-xs font-medium ${PRIORITY_COLORS[item.priority] || PRIORITY_COLORS.normal}`}>
+            <p className="text-sm font-semibold text-gray-900 truncate">{item.title}</p>
+            <span className={`shrink-0 px-1.5 py-0.5 rounded text-[10px] font-medium ${PRIORITY_COLORS[item.priority] || PRIORITY_COLORS.normal}`}>
               {PRIORITY_LABELS[item.priority] || item.priority}
             </span>
           </div>
-          <p className="text-sm font-medium text-gray-900 truncate">{item.title}</p>
           <div className="flex items-center gap-3 mt-1 flex-wrap">
             {dateInfo && (
               <span className={`text-xs ${dateInfo.color}`}>
@@ -382,14 +376,10 @@ function TaskCard({ item }: { item: TaskItem }) {
           </div>
         </div>
 
-        {/* Status indicator */}
-        <div className={`w-2 h-2 rounded-full ${
-          isExpired ? 'bg-danger-500' :
-          item.status === 'in_progress' ? 'bg-blue-500 animate-pulse' :
-          item.status === 'paused' ? 'bg-yellow-500' :
-          item.status === 'assigned' ? 'bg-brand-500' :
-          'bg-gray-300'
-        }`} />
+        {/* Chevron */}
+        <svg className="w-4 h-4 text-gray-300 group-hover:text-brand-500 transition-colors shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+        </svg>
       </div>
     </Link>
   );
@@ -399,8 +389,10 @@ function TaskCard({ item }: { item: TaskItem }) {
 function AlertCard({ item }: { item: TaskItem }) {
   const isWorkOrder = 'workOrderNumber' in item;
   const number = isWorkOrder ? (item as any).workOrderNumber : (item as any).visitNumber;
+  const shortNumber = number ? number.slice(-7) : '';
   const link = isWorkOrder ? `/work-orders/${item._id}` : `/technical-visits/${item._id}`;
   const isEmergency = item.priority === 'emergency';
+  const typeLabel = isWorkOrder ? 'OT' : 'VT';
   
   const alertColor = isEmergency 
     ? 'bg-danger-50 border-danger-200 text-danger-800' 
@@ -408,34 +400,30 @@ function AlertCard({ item }: { item: TaskItem }) {
   
   const alertIcon = isEmergency ? '🚨' : '⚠️';
 
+  const dateInfo = getTaskDateInfo(item.scheduledDate);
+
   return (
     <Link
       href={link}
-      className={`block ${alertColor} border rounded-xl p-4 hover:shadow-md transition-all`}
+      className={`group block ${alertColor} border rounded-xl p-4 hover:shadow-md hover:-translate-y-px transition-all`}
     >
       <div className="flex items-start gap-3">
-        <span className="text-2xl">{alertIcon}</span>
-        <div className="flex-1">
+        <span className="text-2xl leading-none">{alertIcon}</span>
+        <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs font-bold uppercase">
+            <span className="text-xs font-bold uppercase tracking-wide">
               {isEmergency ? 'EMERGENCIA' : 'URGENTE'}
             </span>
-            <span className="text-xs font-mono opacity-75">#{number}</span>
+            <span className="text-xs font-mono opacity-75">
+              {typeLabel} · {shortNumber}
+            </span>
           </div>
-          <h3 className="font-semibold">{item.title}</h3>
-          {item.clientSnapshot?.name && (
-            <p className="text-sm opacity-75 mt-1">
-              📍 {item.clientSnapshot.name}
-            </p>
-          )}
-          {item.scheduledDate && (
-            <p className="text-xs opacity-75 mt-1">
-              📅 {item.scheduledDate}
-              {item.scheduledStart && ` a las ${item.scheduledStart}`}
-            </p>
+          <h3 className="font-semibold truncate">{item.title}</h3>
+          {dateInfo && (
+            <p className={`text-xs mt-1 ${dateInfo.color}`}>{dateInfo.text}</p>
           )}
         </div>
-        <svg className="w-5 h-5 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-5 h-5 opacity-50 group-hover:opacity-100 transition-opacity shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
         </svg>
       </div>

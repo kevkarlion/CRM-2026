@@ -54,13 +54,16 @@ function LoginForm() {
       }
 
       // Determine redirect based on user role
-      const userRoles = (data.user as any)?.roles || [];
+      // Roles come from DB as lowercase (e.g. 'technician'), normalize before comparing
+      const userRoles = ((data.user as any)?.roles || []).map((r: string) => r.toLowerCase());
       let finalRedirect = redirectTo;
 
-      if (userRoles.includes('Technician')) {
+      if (userRoles.includes('technician')) {
         finalRedirect = '/dashboard/technician';
-      } else if (userRoles.includes('Supervisor') || userRoles.includes('Dispatcher')) {
+      } else if (userRoles.includes('supervisor') || userRoles.includes('dispatcher')) {
         finalRedirect = '/dashboard/supervisor';
+      } else if (userRoles.includes('sales') || userRoles.includes('commercial')) {
+        finalRedirect = '/dashboard/commercial';
       }
 
       window.location.href = finalRedirect;

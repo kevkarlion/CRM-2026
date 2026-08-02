@@ -97,6 +97,7 @@ export interface IWorkOrder extends Document, IAuditFields {
   startedAt?: Date | null;
   startedBy?: Types.ObjectId | null;
   finishedAt?: Date | null;
+  completedAt?: Date | null;
   duration?: number | null;
   // Referencia al WorkReport
   workReportId?: Types.ObjectId | null;

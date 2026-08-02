@@ -229,7 +229,14 @@ export class WorkOrderService {
 
       const updated = await WorkOrderModel.findOneAndUpdate(
         { _id: id, tenantId, status: currentStatus, version },
-        { $set: { status: targetStatus, updatedBy: userId }, $inc: { version: 1 } },
+        {
+          $set: {
+            status: targetStatus,
+            updatedBy: userId,
+            ...(targetStatus === 'completed' ? { completedAt: new Date() } : {}),
+          },
+          $inc: { version: 1 },
+        },
         { new: true },
       )
         .session(session)

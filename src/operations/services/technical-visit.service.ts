@@ -127,7 +127,13 @@ export class TechnicalVisitService {
 
       const visit = await TechnicalVisitModel.findOneAndUpdate(
         { _id: new Types.ObjectId(id), tenantId: new Types.ObjectId(tenantId) },
-        { $set: { status: status as any, updatedBy: new Types.ObjectId(userId) } },
+        {
+          $set: {
+            status: status as any,
+            updatedBy: new Types.ObjectId(userId),
+            ...(status === 'completed' ? { completedAt: new Date() } : {}),
+          },
+        },
         { new: true }
       ).session(session).lean();
 

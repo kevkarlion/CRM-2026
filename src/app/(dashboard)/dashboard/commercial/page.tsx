@@ -5,10 +5,19 @@
 import { useEffect, useState } from 'react';
 import { MetricCard, KpiGrid, SectionHeader } from '@/dashboard/components';
 import { DateRangePicker } from '@/dashboard/components/DateRangePicker';
+import { RoleGuard } from '@/dashboard/components/RoleGuard';
 import { fetchSummary, fetchCommercial, fetchContracts } from '@/dashboard/services/client-index';
 import type { SummaryResponse, CommercialResponse, ContractsResponse } from '@/dashboard/types/metrics';
 
 export default function CommercialPage() {
+  return (
+    <RoleGuard allowedRoles={['Owner', 'Administrator', 'Sales', 'Supervisor']}>
+      <CommercialDashboardContent />
+    </RoleGuard>
+  );
+}
+
+function CommercialDashboardContent() {
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
   const [summary, setSummary] = useState<SummaryResponse | null>(null);
   const [commercial, setCommercial] = useState<CommercialResponse | null>(null);

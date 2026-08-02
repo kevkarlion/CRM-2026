@@ -161,6 +161,7 @@ export async function POST(
       $set: {
         status: TARGET_STATUS,
         finishedAt: now,
+        completedAt: now,
         duration: duration,
         workReportId: workReport._id,
         updatedBy: new mongoose.Types.ObjectId(userId),

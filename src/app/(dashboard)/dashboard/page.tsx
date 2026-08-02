@@ -7,10 +7,19 @@ import { MetricCard, KpiGrid, SectionHeader } from '@/dashboard/components';
 import { StatusBadge } from '@/dashboard/components/StatusBadge';
 import { ProgressWidget } from '@/dashboard/components/ProgressWidget';
 import { ListCard } from '@/dashboard/components/ListCard';
+import { RoleGuard } from '@/dashboard/components/RoleGuard';
 import { fetchSummary, fetchOperations, fetchContracts } from '@/dashboard/services/client-index';
 import type { SummaryResponse, OperationsResponse, ContractsResponse } from '@/dashboard/types/metrics';
 
 export default function OverviewPage() {
+  return (
+    <RoleGuard allowedRoles={['Owner', 'Administrator', 'Supervisor', 'Sales', 'Accounting', 'Dispatcher']}>
+      <OverviewDashboardContent />
+    </RoleGuard>
+  );
+}
+
+function OverviewDashboardContent() {
   const [summary, setSummary] = useState<SummaryResponse | null>(null);
   const [operations, setOperations] = useState<OperationsResponse | null>(null);
   const [contracts, setContracts] = useState<ContractsResponse | null>(null);

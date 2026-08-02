@@ -54,6 +54,7 @@ const technicalVisitSchema = new Schema<ITechnicalVisit>(
     startedAt: { type: Date, default: null },
     startedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     finishedAt: { type: Date, default: null },
+    completedAt: { type: Date, default: null },
     duration: { type: Number, default: null },
     workReportId: { type: Schema.Types.ObjectId, ref: 'WorkReport', default: null },
     // Campos adicionales para el técnico
@@ -73,6 +74,7 @@ technicalVisitSchema.index({ tenantId: 1, status: 1 });
 technicalVisitSchema.index({ tenantId: 1, visitNumber: 1 }, { unique: true });
 technicalVisitSchema.index({ tenantId: 1, leadId: 1 });
 technicalVisitSchema.index({ tenantId: 1, scheduledDate: 1 });
+technicalVisitSchema.index({ tenantId: 1, status: 1, completedAt: 1 });
 // Coordinate index for map queries
 technicalVisitSchema.index({ 'locationSnapshot.latitude': 1, 'locationSnapshot.longitude': 1 });
 

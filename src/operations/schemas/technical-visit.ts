@@ -64,6 +64,7 @@ export interface ITechnicalVisit {
   startedAt?: Date | null;
   startedBy?: import('mongoose').Types.ObjectId | null;
   finishedAt?: Date | null;
+  completedAt?: Date | null;
   duration?: number; // Duration in minutes
   workReportId?: import('mongoose').Types.ObjectId | null;
   

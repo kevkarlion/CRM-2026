@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
     if (!technician) {
       return NextResponse.json({
         assignedCount: 0,
+        assignedBreakdown: { workOrders: 0, visits: 0 },
         completedToday: 0,
         pendingOrders: 0,
         inProgressOrders: 0,
@@ -51,6 +52,9 @@ export async function GET(request: NextRequest) {
     const todayEnd = new Date(todayStart);
     todayEnd.setDate(todayEnd.getDate() + 1);
 
+    const todayStr = now.toISOString().split('T')[0];
+    const todayStartDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
@@ -62,14 +66,24 @@ export async function GET(request: NextRequest) {
       status: { $in: ['assigned', 'in_progress', 'paused'] },
     });
 
-    // Get completed today
-    const completedToday = await WorkOrderModel.countDocuments({
+    // Get completed today (work orders + technical visits via completedAt)
+    const workOrdersCompletedToday = await WorkOrderModel.countDocuments({
       tenantId: tenantObjectId,
       assignedTechnicians: { $in: [technicianId] },
       deletedAt: null,
       status: 'completed',
-      updatedAt: { $gte: todayStart, $lt: todayEnd },
+      completedAt: { $gte: todayStart, $lt: todayEnd },
     });
+
+    const visitsCompletedToday = await TechnicalVisitModel.countDocuments({
+      tenantId: tenantObjectId,
+      assignedTechnicianId: technicianId,
+      deletedAt: null,
+      status: 'completed',
+      completedAt: { $gte: todayStart, $lt: todayEnd },
+    });
+
+    const completedToday = workOrdersCompletedToday + visitsCompletedToday;
 
     // Get pending (scheduled for future)
     const pendingOrders = await WorkOrderModel.countDocuments({
@@ -108,11 +122,13 @@ export async function GET(request: NextRequest) {
       else delayed++;
     }
 
-    // Get work orders for this technician
+    // Get work orders for this technician (solo asignadas, no completadas/canceladas, no vencidas)
     const workOrders = await WorkOrderModel.find({
       tenantId: tenantObjectId,
       assignedTechnicians: { $in: [technicianId] },
       deletedAt: null,
+      status: { $in: ['scheduled', 'confirmed', 'assigned', 'in_progress', 'paused'] },
+      scheduledDate: { $gte: todayStr },
     })
       .populate('assignedTechnicians', 'name email phone')
       .sort({ scheduledDate: 1, scheduledStart: 1 })
@@ -135,10 +151,13 @@ export async function GET(request: NextRequest) {
       assignedTechnicians: wo.assignedTechnicians,
     }));
 
+    // Get technical visits for this technician (solo asignadas, no completadas/canceladas, no vencidas)
     const technicalVisits = await TechnicalVisitModel.find({
       tenantId: tenantObjectId,
       assignedTechnicianId: technicianId,
       deletedAt: null,
+      status: { $in: ['scheduled', 'confirmed', 'assigned', 'in_progress', 'paused'] },
+      scheduledDate: { $gte: todayStartDate },
     })
       .sort({ scheduledDate: 1, scheduledStart: 1 })
       .limit(50)
@@ -183,8 +202,6 @@ export async function GET(request: NextRequest) {
     });
 
     // === Órdenes y Visitas Vencidas ===
-    const todayStr = now.toISOString().split('T')[0];
-    
     // Órdenes de trabajo vencidas (fecha programada < hoy Y no completada)
     const expiredOrders = await WorkOrderModel.countDocuments({
       tenantId: tenantObjectId,
@@ -194,7 +211,6 @@ export async function GET(request: NextRequest) {
     });
 
     // Visitas técnicas vencidas (el campo es Date en el modelo)
-    const todayStartDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const expiredVisits = await TechnicalVisitModel.countDocuments({
       tenantId: tenantObjectId,
       deletedAt: null,
@@ -226,6 +242,27 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // === Tareas asignadas activas (no vencidas) ===
+    // OT activas asignadas al técnico con fecha programada >= hoy (no vencidas)
+    const assignedOrdersWO = await WorkOrderModel.countDocuments({
+      tenantId: tenantObjectId,
+      deletedAt: null,
+      assignedTechnicians: { $in: [technicianId] },
+      status: { $in: ['scheduled', 'confirmed', 'assigned', 'in_progress', 'paused'] },
+      scheduledDate: { $gte: todayStr },
+    });
+
+    // VT activas asignadas al técnico con fecha programada >= hoy (no vencidas)
+    const assignedVisitsVT = await TechnicalVisitModel.countDocuments({
+      tenantId: tenantObjectId,
+      deletedAt: null,
+      assignedTechnicianId: technicianId,
+      status: { $in: ['scheduled', 'confirmed', 'assigned', 'in_progress', 'paused'] },
+      scheduledDate: { $gte: todayStartDate },
+    });
+
+    const assignedCount = assignedOrdersWO + assignedVisitsVT;
+
     const technicalVisitsData = technicalVisits.map((tv) => ({
       _id: String(tv._id),
       visitNumber: tv.visitNumber,
@@ -253,7 +290,8 @@ export async function GET(request: NextRequest) {
     }];
 
     return NextResponse.json({
-      assignedCount: inProgressOrders + pendingOrders + (technicalVisits?.length || 0),
+      assignedCount,
+      assignedBreakdown: { workOrders: assignedOrdersWO, visits: assignedVisitsVT },
       completedToday,
       pendingOrders,
       inProgressOrders,

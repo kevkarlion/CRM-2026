@@ -7,6 +7,8 @@ interface MetricCardProps {
   value: string | number;
   /** Optional trend indicator */
   trend?: { direction: 'up' | 'down'; label: string };
+  /** Optional extra detail shown under the value */
+  detail?: string;
   /** Optional loading state */
   loading?: boolean;
   /** Optional link to another page */
@@ -15,7 +17,7 @@ interface MetricCardProps {
   accentColor?: string;
 }
 
-export function MetricCard({ label, value, trend, loading, href, accentColor }: MetricCardProps) {
+export function MetricCard({ label, value, trend, detail, loading, href, accentColor }: MetricCardProps) {
   if (loading) {
     return (
       <div className="kpi-card">
@@ -29,6 +31,9 @@ export function MetricCard({ label, value, trend, loading, href, accentColor }: 
     <>
       <p className="kpi-label">{label}</p>
       <p className={`kpi-value ${accentColor || ''}`}>{value}</p>
+      {detail && (
+        <p className="mt-1 text-xs text-gray-500">{detail}</p>
+      )}
       {trend && (
         <p className={`mt-1 text-xs font-medium inline-flex items-center gap-1 px-1.5 py-0.5 rounded ${trend.direction === 'up' ? 'kpi-trend-up' : 'kpi-trend-down'}`}>
           {trend.direction === 'up' ? '↑' : '↓'} {trend.label}

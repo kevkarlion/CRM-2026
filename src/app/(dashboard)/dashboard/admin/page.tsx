@@ -6,10 +6,19 @@ import { useEffect, useState } from 'react';
 import { MetricCard, KpiGrid, SectionHeader } from '@/dashboard/components';
 import { ProgressWidget } from '@/dashboard/components/ProgressWidget';
 import { DateRangePicker } from '@/dashboard/components/DateRangePicker';
+import { RoleGuard } from '@/dashboard/components/RoleGuard';
 import { fetchSummary, fetchOperations, fetchCommercial, fetchContracts } from '@/dashboard/services/client-index';
 import type { SummaryResponse, OperationsResponse, CommercialResponse, ContractsResponse } from '@/dashboard/types/metrics';
 
 export default function AdminPage() {
+  return (
+    <RoleGuard allowedRoles={['Owner', 'Administrator']}>
+      <AdminDashboardContent />
+    </RoleGuard>
+  );
+}
+
+function AdminDashboardContent() {
   const [dateRange, setDateRange] = useState({ from: '', to: '' });
   const [summary, setSummary] = useState<SummaryResponse | null>(null);
   const [operations, setOperations] = useState<OperationsResponse | null>(null);
