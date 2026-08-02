@@ -52,8 +52,7 @@ const STATUS_COLORS: Record<string, string> = {
   scheduled: 'bg-blue-50 text-blue-600',
   confirmed: 'bg-teal-50 text-teal-600',
   assigned: 'bg-indigo-50 text-indigo-600',
-  en_route: 'bg-purple-50 text-purple-600',
-  on_site: 'bg-cyan-50 text-cyan-600',
+  in_progress: 'bg-amber-50 text-amber-600',
   completed: 'bg-green-50 text-green-600',
   cancelled: 'bg-red-50 text-red-600',
 };

@@ -46,8 +46,7 @@ const STATUS_CONFIG: Record<string, { variant: string; label: string }> = {
   scheduled: { variant: 'bg-blue-50 text-blue-700', label: 'Programado' },
   confirmed: { variant: 'bg-green-50 text-green-700', label: 'Confirmado' },
   assigned: { variant: 'bg-amber-50 text-amber-700', label: 'Asignado' },
-  en_route: { variant: 'bg-blue-50 text-blue-700', label: 'En Camino' },
-  on_site: { variant: 'bg-purple-50 text-purple-700', label: 'En Sitio' },
+  in_progress: { variant: 'bg-amber-50 text-amber-700', label: 'En Progreso' },
   paused: { variant: 'bg-yellow-50 text-yellow-700', label: 'Suspendido' },
   completed: { variant: 'bg-green-50 text-green-700', label: 'Completado' },
   cancelled: { variant: 'bg-red-50 text-red-700', label: 'Cancelado' },
@@ -74,8 +73,7 @@ const STATUS_ACTIONS: Record<string, { status: string; label: string }[]> = {
   cancelled: [],
   confirmed: [],
   assigned: [],
-  en_route: [],
-  on_site: [],
+  in_progress: [],
   closed: [],
 };
 
