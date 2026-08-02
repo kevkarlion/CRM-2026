@@ -79,7 +79,7 @@ export async function POST(
         }
 
         // Promote status to 'assigned' ONLY from 'scheduled' or 'confirmed' —
-        // never overwrite advanced statuses (en_route, on_site, in_progress, completed, ...)
+        // never overwrite advanced statuses (in_progress, paused, completed, ...)
         await WorkOrderModel.updateOne(
           {
             _id: new Types.ObjectId(workOrderId),
@@ -104,7 +104,7 @@ export async function POST(
         }
 
         // Promote status to 'assigned' ONLY from 'scheduled' or 'confirmed' —
-        // never overwrite advanced statuses (en_route, on_site, in_progress, completed, ...)
+        // never overwrite advanced statuses (in_progress, paused, completed, ...)
         await WorkOrderModel.updateOne(
           {
             _id: new Types.ObjectId(workOrderId),

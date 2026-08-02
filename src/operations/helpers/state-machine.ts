@@ -11,10 +11,9 @@ export const VALID_TRANSITIONS: Record<WorkOrderStatus, WorkOrderStatus[]> = {
   draft: ['scheduled', 'cancelled'],
   scheduled: ['confirmed', 'assigned', 'cancelled'],
   confirmed: ['assigned', 'cancelled'],
-  assigned: ['en_route', 'scheduled', 'cancelled'],
-  en_route: ['on_site', 'cancelled'],
-  on_site: ['paused', 'completed', 'cancelled'],
-  paused: ['on_site', 'cancelled'],
+  assigned: ['in_progress', 'scheduled', 'cancelled'],
+  in_progress: ['paused', 'completed', 'cancelled'],
+  paused: ['in_progress', 'cancelled'],
   completed: ['closed'],
   cancelled: [],
   closed: [],
@@ -23,7 +22,7 @@ export const VALID_TRANSITIONS: Record<WorkOrderStatus, WorkOrderStatus[]> = {
 export const TERMINAL_STATUSES: WorkOrderStatus[] = ['cancelled', 'closed'];
 
 export const ACTIVE_STATUSES: WorkOrderStatus[] = [
-  'scheduled', 'confirmed', 'assigned', 'en_route', 'on_site', 'paused',
+  'scheduled', 'confirmed', 'assigned', 'in_progress', 'paused',
 ];
 
 export function canTransition(from: WorkOrderStatus, to: WorkOrderStatus): boolean {
@@ -55,15 +54,15 @@ export function validateTransition(
     );
   }
 
-  if (from === 'assigned' && to === 'en_route' && !context.hasChecklist) {
+  if (from === 'assigned' && to === 'in_progress' && !context.hasChecklist) {
     throw new TransitionError(
       `Checklist required: ${from} → ${to}`,
       from, to,
-      'PreVisitChecklist must be completed before transitioning to en_route.',
+      'PreVisitChecklist must be completed before transitioning to in_progress.',
     );
   }
 
-  if (from === 'on_site' && to === 'completed' && !context.hasVisitReport) {
+  if (from === 'in_progress' && to === 'completed' && !context.hasVisitReport) {
     throw new TransitionError(
       `VisitReport required: ${from} → ${to}`,
       from, to,

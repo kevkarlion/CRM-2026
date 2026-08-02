@@ -3,7 +3,7 @@ import { IAuditFields } from '../../crm/types/audit-fields';
 
 export type WorkOrderPriority = 'low' | 'normal' | 'high' | 'urgent' | 'emergency';
 export type WorkOrderCategory = 'installation' | 'maintenance' | 'repair' | 'inspection' | 'warranty' | 'emergency';
-export type WorkOrderStatus = 'draft' | 'scheduled' | 'confirmed' | 'assigned' | 'in_progress' | 'en_route' | 'on_site' | 'paused' | 'completed' | 'cancelled' | 'closed';
+export type WorkOrderStatus = 'draft' | 'scheduled' | 'confirmed' | 'assigned' | 'in_progress' | 'paused' | 'completed' | 'cancelled' | 'closed';
 
 export interface IClientSnapshot {
   name?: string;

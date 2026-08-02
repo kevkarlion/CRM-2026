@@ -30,7 +30,7 @@ const STATUS_LABELS: Record<string, string> = {
   draft: 'Borrador', sent: 'Enviado', approved: 'Aprobado', rejected: 'Rechazado',
   expired: 'Expirado', cancelled: 'Cancelado',
   scheduled: 'Programado', confirmed: 'Confirmado', assigned: 'Asignado',
-  en_route: 'En ruta', on_site: 'En sitio', paused: 'Pausado',
+  in_progress: 'En progreso', paused: 'Pausado',
   completed: 'Completado', closed: 'Cerrado',
   installation: 'Instalación', maintenance: 'Mantenimiento', repair: 'Reparación',
   inspection: 'Inspección', warranty: 'Garantía', emergency: 'Emergencia',

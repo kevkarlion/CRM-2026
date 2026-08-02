@@ -30,7 +30,7 @@ export class DashboardOperationsService {
       }),
       WorkOrderModel.countDocuments({
         tenantId, deletedAt: null,
-        status: { $in: ['assigned', 'en_route', 'on_site', 'paused'] },
+        status: { $in: ['assigned', 'in_progress', 'paused'] },
       }),
       WorkOrderModel.countDocuments({
         tenantId, deletedAt: null,

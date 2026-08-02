@@ -9,7 +9,7 @@
  * Invariants enforced (mirrors the working tree's business rules):
  * - Assigning a tech promotes status to 'assigned' ONLY from 'scheduled'/'confirmed'.
  * - Unassigning the last tech downgrades to 'confirmed' ONLY from 'scheduled'/'assigned'.
- * - Advanced statuses (en_route, on_site, in_progress, completed, ...) are never touched.
+ * - Advanced statuses (in_progress, paused, completed, ...) are never touched.
  */
 
 export type AssignmentReconciliationAction =

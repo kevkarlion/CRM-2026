@@ -50,7 +50,7 @@ export class DashboardMetricsService {
       WorkOrderModel.countDocuments({ tenantId, status: 'scheduled', deletedAt: null }),
       WorkOrderModel.countDocuments({
         tenantId,
-        status: { $in: ['assigned', 'en_route', 'on_site', 'paused'] },
+        status: { $in: ['assigned', 'in_progress', 'paused'] },
         deletedAt: null,
       }),
       WorkOrderModel.countDocuments({

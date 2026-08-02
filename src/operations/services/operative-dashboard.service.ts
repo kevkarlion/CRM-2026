@@ -115,7 +115,7 @@ export class OperativeDashboardService {
       urgent: priorityMap.urgent + priorityMap.emergency,
       overdue: await this.countOverdue(tenantObjectId),
       withoutTechnician: await this.countWithoutTechnician(tenantObjectId),
-      inExecution: (statusMap.assigned || 0) + (statusMap.en_route || 0) + (statusMap.on_site || 0),
+      inExecution: (statusMap.assigned || 0) + (statusMap.in_progress || 0),
       pendingReport: pendingReports,
     };
 
