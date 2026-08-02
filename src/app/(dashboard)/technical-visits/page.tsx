@@ -286,15 +286,17 @@ export default function TechnicalVisitsPage() {
             {total > 0 ? `${total} visitas técnicas` : 'Inspecciones y presupuestos in-situ'}
           </p>
         </div>
-        <button
-          onClick={handleNew}
-          className="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 transition-colors"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Nueva Visita Técnica
-        </button>
+        {!isTechnician && (
+          <button
+            onClick={handleNew}
+            className="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white hover:bg-purple-700 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Nueva Visita Técnica
+          </button>
+        )}
       </div>
 
       {/* Tabs - Only show for technicians */}
