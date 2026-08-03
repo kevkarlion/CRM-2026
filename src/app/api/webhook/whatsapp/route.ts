@@ -61,55 +61,53 @@ export async function POST(req: NextRequest) {
       }
 
       const message = value.messages[0];
-        const fromNumber = message.from; // Número del cliente
-        const messageType = message.type; // 'text', 'image', etc.
-        const messageId = message.id; // ID del mensaje de Meta
+      const fromNumber = message.from;
+      const messageType = message.type;
+      const messageId = message.id;
 
-        console.log(`📩 Mensaje recibido de ${fromNumber}, tipo: ${messageType}, id: ${messageId}`);
+      console.log(`📩 Mensaje recibido de ${fromNumber}, tipo: ${messageType}, id: ${messageId}`);
 
-        // Procesar según el tipo de mensaje
-        let content = '';
-        
-        if (messageType === 'text') {
-          content = message.text.body;
-        } else if (messageType === 'interactive') {
-          // Botones interactivos
-          const buttonReply = message.button?.text || message.list_reply?.title;
-          content = buttonReply || 'Interactive message';
-        } else if (messageType === 'image') {
-          content = message.image?.caption || '[Imagen]';
-        } else if (messageType === 'audio') {
-          content = '[Audio]';
-        } else if (messageType === 'video') {
-          content = message.video?.caption || '[Video]';
-        } else if (messageType === 'document') {
-          content = `[Documento: ${message.document?.filename || 'archivo'}]`;
-        }
-
-        console.log(`📝 Contenido: "${content}"`);
-
-        // Obtener el tenant activo
-        const tenantId = await whatsappService.getActiveTenantId();
-
-        // Procesar mensaje con el servicio de WhatsApp
-        const result = await whatsappService.processIncomingMessage(
-          tenantId,
-          fromNumber,
-          messageId,
-          content,
-          messageType
-        );
-
-        console.log(`✅ Lead ${result.isNewLead ? 'creado' : 'encontrado'}:`, result.lead?._id);
-
-        // Si hay respuesta automática, enviarla
-        if (result.shouldRespond && result.responseText) {
-          console.log(`📤 Enviando respuesta automática: "${result.responseText}"`);
-          await whatsappService.sendMessage(tenantId, fromNumber, result.responseText, result.lead?._id?.toString());
-        }
+      // Procesar según el tipo de mensaje
+      let content = '';
+      
+      if (messageType === 'text') {
+        content = message.text.body;
+      } else if (messageType === 'interactive') {
+        const buttonReply = message.button?.text || message.list_reply?.title;
+        content = buttonReply || 'Interactive message';
+      } else if (messageType === 'image') {
+        content = message.image?.caption || '[Imagen]';
+      } else if (messageType === 'audio') {
+        content = '[Audio]';
+      } else if (messageType === 'video') {
+        content = message.video?.caption || '[Video]';
+      } else if (messageType === 'document') {
+        content = `[Documento: ${message.document?.filename || 'archivo'}]`;
       }
 
-      // Responder a Meta SIEMPRE con HTTP 200 para confirmar la recepción
+      console.log(`📝 Contenido: "${content}"`);
+
+      // Obtener el tenant activo
+      const tenantId = await whatsappService.getActiveTenantId();
+
+      // Procesar mensaje con el servicio de WhatsApp
+      const result = await whatsappService.processIncomingMessage(
+        tenantId,
+        fromNumber,
+        messageId,
+        content,
+        messageType
+      );
+
+      console.log(`✅ Lead ${result.isNewLead ? 'creado' : 'encontrado'}:`, result.lead?._id);
+
+      // Si hay respuesta automática, enviarla
+      if (result.shouldRespond && result.responseText) {
+        console.log(`📤 Enviando respuesta automática: "${result.responseText}"`);
+        await whatsappService.sendMessage(tenantId, fromNumber, result.responseText, result.lead?._id?.toString());
+      }
+
+      // Responder a Meta SIEMPRE con HTTP 200
       return NextResponse.json({ status: 'ok' }, { status: 200 });
     }
 
