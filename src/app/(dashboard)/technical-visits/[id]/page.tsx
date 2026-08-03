@@ -131,7 +131,7 @@ export default function TechnicalVisitDetailPage() {
   const [visit, setVisit] = useState<TechnicalVisit | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'tecnico' | 'cliente'>('tecnico');
+  const [activeTab, setActiveTab] = useState<'tecnico' | 'cliente' | 'registro'>('tecnico');
   const [saving, setSaving] = useState(false);
   const [newStatus, setNewStatus] = useState('');
 
@@ -153,6 +153,17 @@ export default function TechnicalVisitDetailPage() {
   const [startingWork, setStartingWork] = useState(false);
   const [startingWorkError, setStartingWorkError] = useState<string | null>(null);
   const [showCompletionForm, setShowCompletionForm] = useState(false);
+
+  // Timeline events for Registro tab
+  const [timelineEvents, setTimelineEvents] = useState<Array<{
+    _id: string;
+    eventType: string;
+    title: string;
+    description?: string;
+    performedBy: { name: string; email?: string } | null;
+    createdAt: string;
+  }>>([]);
+  const [loadingTimeline, setLoadingTimeline] = useState(false);
   
   const { isAdmin, isTechnician, user } = useRole();
 
@@ -214,6 +225,13 @@ export default function TechnicalVisitDetailPage() {
     loadTechnicians();
   }, [id]);
 
+  // Load timeline when Registro tab is active
+  useEffect(() => {
+    if (activeTab === 'registro' && timelineEvents.length === 0) {
+      loadTimeline();
+    }
+  }, [activeTab]);
+
   async function loadTechnicians() {
     if (technicians.length > 0) return; // already loaded
     setLoadingTechnicians(true);
@@ -224,6 +242,18 @@ export default function TechnicalVisitDetailPage() {
       // silently ignore
     } finally {
       setLoadingTechnicians(false);
+    }
+  }
+
+  async function loadTimeline() {
+    setLoadingTimeline(true);
+    try {
+      const result = await api.get<{ data: any[] }>(`/api/operations/technical-visits/${id}/timeline`);
+      setTimelineEvents(unwrapData(result) || []);
+    } catch {
+      // silently ignore
+    } finally {
+      setLoadingTimeline(false);
     }
   }
 
@@ -415,6 +445,18 @@ export default function TechnicalVisitDetailPage() {
           >
             👤 Cliente y Ubicación
           </button>
+          {isAdmin && (
+            <button
+              onClick={() => setActiveTab('registro')}
+              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+                activeTab === 'registro'
+                  ? 'border-brand-500 text-brand-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              📋 Registro
+            </button>
+          )}
         </nav>
       </div>
 
@@ -526,6 +568,68 @@ export default function TechnicalVisitDetailPage() {
                 </div>
               )}
             </>
+          )}
+
+          {/* Pestaña: Registro */}
+          {activeTab === 'registro' && (
+            <div className="bg-white border border-gray-200 rounded-xl p-6">
+              <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Historial de la Visita
+              </h2>
+              
+              {loadingTimeline ? (
+                <div className="text-center py-8">
+                  <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600"></div>
+                  <p className="mt-2 text-sm text-gray-500">Cargando registro...</p>
+                </div>
+              ) : timelineEvents.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">No hay eventos registrados aún.</p>
+                </div>
+              ) : (
+                <div className="relative">
+                  {/* Timeline vertical line */}
+                  <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200"></div>
+                  
+                  <div className="space-y-6">
+                    {timelineEvents.map((event, index) => (
+                      <div key={event._id || index} className="relative pl-10">
+                        {/* Timeline dot */}
+                        <div className="absolute left-2.5 w-3 h-3 rounded-full bg-brand-500 border-2 border-white ring-2 ring-brand-100"></div>
+                        
+                        <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <p className="font-medium text-gray-900">{event.title}</p>
+                              {event.description && (
+                                <p className="mt-1 text-sm text-gray-600">{event.description}</p>
+                              )}
+                            </div>
+                            <span className="text-xs text-gray-400 whitespace-nowrap ml-4">
+                              {new Date(event.createdAt).toLocaleString('es-CL', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          </div>
+                          {event.performedBy && (
+                            <p className="mt-2 text-xs text-gray-500">
+                              Por: {event.performedBy.name}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           )}
         </div>
 
