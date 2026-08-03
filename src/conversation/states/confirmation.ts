@@ -29,6 +29,7 @@ export class ConfirmationState implements IConversationState {
         terminal: true,
         data: {
           confirmed: true,
+          complete: true,
         },
       }
 
@@ -81,13 +82,13 @@ export class ConfirmationState implements IConversationState {
 *Cuándo:* ${priority}
 *Detalles:* ${description}
 
-¿Confirmás estos datos? Responde "Si" o "No"`
+¿Confirmás estos datos?`
   }
 
   getOptions(context: ConversationContext): string[] {
     return [
-      '1. Si, confirmar',
-      '2. No, empezar de nuevo',
+      '1 - Sí, confirmar',
+      '2 - Corregir',
     ]
   }
 }

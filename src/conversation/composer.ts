@@ -26,6 +26,15 @@ export class EngineReplyComposer implements ReplyComposer {
     state: IConversationState,
     context: ConversationContext
   ): { content: string; options?: string[] } {
+    // Check if this is a terminal state (confirmation was just completed)
+    const isComplete = context.get('complete') === true || context.get('confirmed') === true;
+    
+    if (isComplete && state.id === 'confirmation') {
+      return {
+        content: '✅ Gracias, tu solicitud ha sido registrada. Te contactaremos en breve. 😊',
+      };
+    }
+    
     // Use the state's own getMessage() and getOptions() methods
     const content = state.getMessage(context)
     const options = state.getOptions(context)
