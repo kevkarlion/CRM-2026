@@ -34,13 +34,13 @@ class MongoDBConversationStore implements ConversationStore {
       const doc = await ConversationModel.findOne({ phoneNumber }).lean();
       if (!doc) return null;
       
-      console.log('[Store] Found doc.context:', JSON.stringify(doc.context));
+      console.log('[Store] Found doc.engineData:', JSON.stringify(doc.engineData));
       
       // Reconstruct context from stored data
       const context = new ConversationContext(phoneNumber);
-      if (doc.context) {
-        // doc.context is already the flat data object: { currentState: "service", ... }
-        for (const [key, value] of Object.entries(doc.context)) {
+      if (doc.engineData) {
+        // doc.engineData contains: { currentState: "service", customerName: "...", etc. }
+        for (const [key, value] of Object.entries(doc.engineData)) {
           context.set(key, value);
         }
       }
@@ -66,7 +66,7 @@ class MongoDBConversationStore implements ConversationStore {
       // Insert fresh document with required fields
       await ConversationModel.create({
         phoneNumber,
-        context: contextData.data,
+        engineData: contextData.data,  // Store in flexible engineData field
         lastActivity: now,
         startedAt: now,
         lastMessageAt: now,
@@ -81,7 +81,9 @@ class MongoDBConversationStore implements ConversationStore {
   async delete(phoneNumber: string): Promise<void> {
     try {
       await connectDB();
-      await ConversationModel.deleteOne({ phoneNumber });
+      // Delete ALL documents for this phone (in case of duplicates)
+      const result = await ConversationModel.deleteMany({ phoneNumber });
+      console.log('[Store] Deleted', result.deletedCount, 'documents for', phoneNumber);
     } catch (error) {
       console.error('[Store] Error deleting conversation:', error);
     }
@@ -460,14 +462,10 @@ export class WhatsAppService {
     // Check if stored context is valid for conversation engine (has currentState)
     const hasValidContext = storedContext !== null && storedContext.get('currentState') !== undefined;
     const hasActive = hasValidContext;
-    console.log('[Engine] hasActive:', hasActive, '| storedContext:', storedContext ? 'yes' : 'no');
+    console.log('[Engine] hasActive:', hasActive, '| hasValidContext:', hasValidContext);
     
     if (hasActive && storedContext) {
       console.log('[Engine] Stored context data:', JSON.stringify(storedContext.data));
-    } else if (storedContext && !hasValidContext) {
-      // Old document without conversation engine data - clear it
-      console.log('[Engine] Old document found, clearing and starting fresh');
-      await conversationStore.clear(phoneNumber);
     }
     
     // Check if conversation was already completed
@@ -507,16 +505,10 @@ export class WhatsAppService {
       console.log('[Engine] Continuing conversation for:', phoneNumber);
       result = await engine.process(phoneNumber, normalizedInput);
     } else {
-      // No active conversation - start new one
-      console.log('[Engine] Starting FRESH conversation for:', phoneNumber);
+      // No active conversation - start new and just show greeting message
+      console.log('[Engine] Starting NEW conversation for:', phoneNumber);
       result = await engine.start(phoneNumber);
-      
-      // IMPORTANT: After starting, immediately process the user's input
-      // to simulate them responding to the first question
-      if (result.context && result.context.get('currentState') === 'greeting') {
-        console.log('[Engine] Auto-processing input in greeting state for fresh start');
-        result = await engine.process(phoneNumber, normalizedInput);
-      }
+      // Don't auto-process - let user respond naturally
     }
 
     // Update last activity timestamp and save

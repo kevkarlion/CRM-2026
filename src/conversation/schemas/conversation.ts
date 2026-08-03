@@ -27,6 +27,14 @@ const contextSchema = new Schema(
   { _id: false }
 );
 
+// Flexible schema for conversation engine data (stores currentState, customerName, etc.)
+const engineDataSchema = new Schema(
+  {
+    // Allow any key-value pairs for the conversation engine
+  },
+  { _id: false, strict: false }
+);
+
 export const conversationSchema = new Schema<IConversation>(
   {
     tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', index: true },
@@ -73,6 +81,9 @@ export const conversationSchema = new Schema<IConversation>(
     },
 
     context: { type: contextSchema, required: true },
+    
+    // Flexible field for conversation engine data (currentState, customerName, etc.)
+    engineData: { type: engineDataSchema, required: false },
 
     step: { type: Number, default: 0 },
     fallbackCount: { type: Number, default: 0 },
