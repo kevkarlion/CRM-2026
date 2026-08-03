@@ -435,17 +435,10 @@ export class WhatsAppService {
       // Continue existing conversation
       console.log('[Engine] Continuing conversation for:', phoneNumber);
       result = await engine.process(phoneNumber, normalizedInput);
-    } else if (isTimedOut || normalizedInput.toLowerCase().includes('hola') || isNewLead) {
-      // Start new conversation (timed out or greeting)
+    } else {
+      // No active conversation - start new one (unless it's a simple greeting keyword, process normally)
       console.log('[Engine] Starting new conversation for:', phoneNumber, '| isTimedOut:', isTimedOut);
       result = await engine.start(phoneNumber);
-    } else {
-      // Not a greeting and no active conversation - use simple fallback
-      console.log('[Engine] No greeting and no active conversation, using fallback');
-      return {
-        message: 'Gracias por contactarnos. Escribí "Hola" para iniciar una conversación con nuestro asistente virtual. 🤖',
-        isComplete: false,
-      };
     }
 
     // Update last activity timestamp
