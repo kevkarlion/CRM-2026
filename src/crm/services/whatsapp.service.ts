@@ -2,6 +2,7 @@ import { Types } from 'mongoose';
 import WhatsAppMessageModel from '../models/whatsapp-message';
 import LeadModel from '../../leads/models/lead';
 import TenantModel from '../../core/models/tenant';
+import connectDB from '@/core/db';
 import type { 
   IWhatsAppMessage, 
   CreateWhatsAppMessageInput,
@@ -31,6 +32,9 @@ export class WhatsAppService {
    */
   async getActiveTenantId(): Promise<string> {
     try {
+      // Ensure DB connection first
+      await connectDB();
+
       // Timeout de 3 segundos para evitar que se quede colgado
       const timeoutPromise = new Promise((_, reject) => 
         setTimeout(() => reject(new Error('Timeout')), 3000)
@@ -168,6 +172,9 @@ export class WhatsAppService {
     phone: string,
     messageContent?: string
   ): Promise<{ lead: ILead | null; isNew: boolean }> {
+    // Ensure DB connection
+    await connectDB();
+
     if (SKIP_DB_OPERATIONS) {
       console.log('[WhatsApp] Skip DB - Would find/create lead for:', phone);
       // Return mock lead for development with fake save method

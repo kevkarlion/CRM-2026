@@ -4,6 +4,7 @@ import whatsappService from '@/crm/services/whatsapp.service';
 import '@/crm/models/whatsapp-message';
 import '@/leads/models/lead';
 import '@/core/models/tenant';
+import connectDB from '@/core/db';
 
 // Token de verificación para validar la conexión con Meta
 const WEBHOOK_VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || 'mi_token_secreto_crm';
@@ -39,6 +40,9 @@ export async function GET(req: NextRequest) {
  */
 export async function POST(req: NextRequest) {
   try {
+    // Ensure database connection before any DB operation
+    await connectDB();
+
     const body = await req.json();
 
     console.log('📨 Webhook POST recibido - body:', JSON.stringify(body, null, 2));
