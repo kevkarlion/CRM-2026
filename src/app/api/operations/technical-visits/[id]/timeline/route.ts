@@ -43,7 +43,7 @@ export async function GET(
     // Fetch timeline events for this technical visit
     const events = await TimelineEventModel.find({
       tenantId,
-      entityType: 'TechnicalVisit',
+      entityType: 'visit',
       entityId: visitId,
     })
       .sort({ createdAt: 1 })

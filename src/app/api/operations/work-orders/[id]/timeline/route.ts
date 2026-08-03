@@ -43,7 +43,7 @@ export async function GET(
     // Fetch timeline events for this work order
     const events = await TimelineEventModel.find({
       tenantId,
-      entityType: 'WorkOrder',
+      entityType: 'work_order',
       entityId: workOrderId,
     })
       .sort({ createdAt: 1 })
