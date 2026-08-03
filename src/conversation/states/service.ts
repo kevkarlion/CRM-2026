@@ -19,7 +19,7 @@ const SERVICE_OPTIONS: Record<string, string> = {
 }
 
 const SERVICE_LABELS: Record<string, string> = {
-  'installation': 'Instalación de aire acondicionado',
+  'installation': 'Instalación',
   'repair': 'Reparación',
   'maintenance': 'Mantenimiento',
   'quote': 'Presupuesto',
