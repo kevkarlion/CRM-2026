@@ -53,9 +53,14 @@ export async function POST(req: NextRequest) {
       const changes = entry?.changes?.[0];
       const value = changes?.value;
 
-      // Verificar si hay mensajes entrantes
-      if (value?.messages && value.messages[0]) {
-        const message = value.messages[0];
+      // IGNORAR status updates (delivery receipts) - solo procesar mensajes entrantes
+      if (!value?.messages || !value.messages[0]) {
+        // Es solo un status update (delivered, sent, read) - ignorar
+        console.log('📭 Ignorando status update:', value?.statuses?.[0]?.status);
+        return NextResponse.json({ status: 'ok' }, { status: 200 });
+      }
+
+      const message = value.messages[0];
         const fromNumber = message.from; // Número del cliente
         const messageType = message.type; // 'text', 'image', etc.
         const messageId = message.id; // ID del mensaje de Meta
