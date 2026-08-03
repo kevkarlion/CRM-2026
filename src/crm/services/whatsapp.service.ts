@@ -56,17 +56,20 @@ class MongoDBConversationStore implements ConversationStore {
     try {
       await connectDB();
       const contextData = context.toJSON();
+      const now = new Date();
       
       console.log('[Store] Saving conversation for:', phoneNumber, '| contextData:', JSON.stringify(contextData));
       
       // DELETE first, then INSERT new - to avoid old data
       await ConversationModel.deleteMany({ phoneNumber });
       
-      // Insert fresh document
+      // Insert fresh document with required fields
       await ConversationModel.create({
         phoneNumber,
         context: contextData.data,
-        lastActivity: new Date(),
+        lastActivity: now,
+        startedAt: now,
+        lastMessageAt: now,
       });
       
       console.log('[Store] Saved NEW fresh document for:', phoneNumber);
