@@ -11,6 +11,84 @@ import type {
 } from '../types/whatsapp-message';
 import type { ILead } from '../../leads/types/lead';
 
+// Conversation Engine imports
+import {
+  ConversationEngine,
+  ConversationContext,
+  TransitionPolicy,
+  StateRegistry,
+  EngineReplyComposer,
+  getDefaultFlow,
+  ConversationStore,
+} from '@/conversation';
+
+// Flag for enabling new conversation engine
+const USE_NEW_ENGINE = process.env.USE_CONVERSATION_ENGINE === 'true';
+
+/**
+ * In-memory conversation store for the engine
+ * Uses a Map keyed by normalized phone number
+ */
+class MemoryConversationStore implements ConversationStore {
+  private store = new Map<string, ConversationContext>();
+
+  async get(phoneNumber: string): Promise<ConversationContext | null> {
+    return this.store.get(phoneNumber) ?? null;
+  }
+
+  async save(phoneNumber: string, context: ConversationContext): Promise<void> {
+    this.store.set(phoneNumber, context);
+  }
+
+  async delete(phoneNumber: string): Promise<void> {
+    this.store.delete(phoneNumber);
+  }
+
+  /**
+   * Check if there's an active conversation for a phone number
+   */
+  async hasActiveConversation(phoneNumber: string): Promise<boolean> {
+    const ctx = this.store.get(phoneNumber);
+    if (!ctx) return false;
+    return ctx.get('complete') !== true;
+  }
+}
+
+// Singleton store instance
+const conversationStore = new MemoryConversationStore();
+
+/**
+ * Create a configured ConversationEngine instance
+ */
+function createConversationEngine(): ConversationEngine {
+  const flowConfig = getDefaultFlow();
+  const stateRegistry = new StateRegistry();
+  const transitionPolicy = new TransitionPolicy();
+  const replyComposer = new EngineReplyComposer();
+
+  const engine = new ConversationEngine({
+    flowConfig,
+    stateRegistry,
+    transitionPolicy,
+    replyComposer,
+  });
+
+  // Set the persistence store
+  engine.setStore(conversationStore);
+
+  return engine;
+}
+
+// Lazy-initialized engine instance
+let conversationEngine: ConversationEngine | null = null;
+
+function getConversationEngine(): ConversationEngine {
+  if (!conversationEngine) {
+    conversationEngine = createConversationEngine();
+  }
+  return conversationEngine;
+}
+
 // Flag para modo desarrollo sin DB
 const SKIP_DB_OPERATIONS = process.env.SKIP_WHATSAPP_DB === 'true';
 
@@ -232,7 +310,7 @@ export class WhatsAppService {
    * 1. Guarda el mensaje
    * 2. Busca o crea el lead
    * 3. Actualiza el lead si es necesario
-   * 4. Genera respuesta automática
+   * 4. Genera respuesta automática (usa nuevo engine si USE_CONVERSATION_ENGINE=true)
    */
   async processIncomingMessage(
     tenantId: string,
@@ -242,10 +320,12 @@ export class WhatsAppService {
     messageType: WhatsAppMessageType = 'text'
   ): Promise<ProcessMessageResult> {
     
+    const normalizedPhone = this.normalizePhone(phone);
+
     // 1. Guardar el mensaje
     const message = await this.saveMessage({
       tenantId: new Types.ObjectId(tenantId),
-      phone: this.normalizePhone(phone),
+      phone: normalizedPhone,
       messageId,
       direction: 'inbound',
       type: messageType,
@@ -270,8 +350,41 @@ export class WhatsAppService {
       }
     }
 
-    // 4. Generar respuesta automática (lógica básica del bot)
-    const { shouldRespond, responseText } = this.generateAutoResponse(content, isNew);
+    // 4. Generar respuesta automática
+    // Use new conversation engine if enabled, otherwise fall back to old logic
+    let shouldRespond = false;
+    let responseText: string | undefined;
+
+    if (USE_NEW_ENGINE) {
+      console.log('[WhatsApp] Using new Conversation Engine');
+      
+      try {
+        const engineResult = await this.processWithEngine(normalizedPhone, content, isNew);
+        shouldRespond = true;
+        responseText = engineResult.message;
+        
+        // If complete or handoff, we might want to handle lead status
+        if (engineResult.isComplete) {
+          console.log('[WhatsApp] Conversation complete, context:', engineResult.context?.data);
+          // Could update lead status here if needed
+        }
+        
+        if (engineResult.handoff) {
+          console.log('[WhatsApp] Handoff to human triggered');
+        }
+      } catch (error) {
+        console.error('[WhatsApp] Engine error, falling back to old logic:', error);
+        // Fall back to old logic on error
+        const fallback = this.generateAutoResponse(content, isNew);
+        shouldRespond = fallback.shouldRespond;
+        responseText = fallback.responseText;
+      }
+    } else {
+      // Use legacy auto-response logic
+      const autoResponse = this.generateAutoResponse(content, isNew);
+      shouldRespond = autoResponse.shouldRespond;
+      responseText = autoResponse.responseText;
+    }
 
     return {
       message,
@@ -283,6 +396,91 @@ export class WhatsAppService {
   }
 
   /**
+   * Process message using the new Conversation Engine
+   * 
+   * Flow:
+   * 1. Check if phone has active conversation in context
+   * 2. If yes, route to engine.process()
+   * 3. If no, check if greeting keyword → start new conversation
+   * 4. Get response from engine and return
+   */
+  private async processWithEngine(
+    phoneNumber: string,
+    input: string,
+    isNewLead: boolean
+  ): Promise<{ message: string; isComplete: boolean; handoff?: boolean; context?: ConversationContext }> {
+    const engine = getConversationEngine();
+    const normalizedInput = input.trim();
+
+    // Check if there's an active conversation
+    const hasActive = await conversationStore.hasActiveConversation(phoneNumber);
+    
+    let result;
+    
+    if (hasActive) {
+      // Continue existing conversation
+      console.log('[Engine] Continuing conversation for:', phoneNumber);
+      result = await engine.process(phoneNumber, normalizedInput);
+    } else {
+      // Check if it's a greeting to start new conversation
+      const isGreeting = this.isGreetingKeyword(normalizedInput);
+      
+      if (isGreeting || isNewLead) {
+        // Start new conversation
+        console.log('[Engine] Starting new conversation for:', phoneNumber);
+        result = await engine.start(phoneNumber);
+      } else {
+        // Not a greeting and no active conversation - use legacy response
+        console.log('[Engine] No greeting and no active conversation, using legacy');
+        const legacyResponse = this.generateAutoResponse(normalizedInput, isNewLead);
+        return {
+          message: legacyResponse.responseText || 'Gracias por contactarnos. ¿En qué podemos ayudarte?',
+          isComplete: false,
+        };
+      }
+    }
+
+    return {
+      message: this.formatEngineMessage(result.message, result.options),
+      isComplete: result.isComplete,
+      handoff: result.handoff,
+      context: result.context,
+    };
+  }
+
+  /**
+   * Check if the input contains a greeting keyword
+   */
+  private isGreetingKeyword(text: string): boolean {
+    const lower = text.toLowerCase().trim();
+    return (
+      lower.includes('hola') ||
+      lower.includes('hello') ||
+      lower.includes('hi') ||
+      lower.includes('buenas') ||
+      lower.includes('buenos días') ||
+      lower.includes('buenas tardes') ||
+      lower.includes('buenas noches')
+    );
+  }
+
+  /**
+   * Format engine message with options if present
+   */
+  private formatEngineMessage(message: string, options?: string[]): string {
+    if (!options || options.length === 0) {
+      return message;
+    }
+
+    // Append options as numbered list
+    const optionsText = options
+      .map((opt, idx) => `${idx + 1}. ${opt}`)
+      .join('\n');
+
+    return `${message}\n\n${optionsText}`;
+  }
+
+  /**
    * Lógica básica del bot para generar respuestas automáticas
    */
   private generateAutoResponse(
@@ -290,9 +488,12 @@ export class WhatsAppService {
     isNewLead: boolean
   ): { shouldRespond: boolean; responseText?: string } {
     const text = messageContent.toLowerCase().trim();
+    console.log('[Bot] Processing:', messageContent, '| isNewLead:', isNewLead);
 
-    // Saludo inicial
-    if (['hola', 'hello', 'hi', 'buenas', 'buenos días', 'buenas tardes'].includes(text)) {
+    // Saludo inicial - usar includes para detectar "hola" aunque esté acompañado
+    if (text.includes('hola') || text.includes('hello') || text.includes('hi') || 
+        text.includes('buenas') || text.includes('buenos días') || text.includes('buenas tardes')) {
+      console.log('[Bot] Match: SALUDO');
       return {
         shouldRespond: true,
         responseText: isNewLead 
@@ -301,22 +502,62 @@ export class WhatsAppService {
       };
     }
 
-    // Consultas básicas
-    if (text.includes('presupuesto') || text.includes('cotizacion') || text.includes('cotizar')) {
+    // Horarios y disponibilidad
+    if (text.includes('trabajan') || text.includes('trabajando') || text.includes('abierto') || 
+        text.includes('horario') || text.includes('disponible') || text.includes('atención')) {
+      console.log('[Bot] Match: HORARIO');
+      return {
+        shouldRespond: true,
+        responseText: 'Nuestro horario de atención es de Lunes a Sábado de 8:00 a 20:00. ¿En qué podemos ayudarte?'
+      };
+    }
+
+    // Detectar intención de servicio - palabras clave
+    const hasServiceIntent = 
+      text.includes('reparar') || text.includes('reparación') || text.includes('service') || 
+      text.includes('arreglar') || text.includes('corregir') || text.includes('falla') || 
+      text.includes('fallo') || text.includes('roto') || text.includes('rotura') ||
+      text.includes('instalar') || text.includes('mantenimiento') || text.includes('Revision');
+    
+    const hasCaldera = text.includes('caldera') || text.includes('calefón') || text.includes('calefaccion');
+    const hasAire = text.includes('aire') || text.includes('acondicionado') || text.includes('split') || text.includes('frio') || text.includes('frío');
+    const hasAgua = text.includes('agua') || text.includes('calentador');
+
+    // Consultas de servicio técnico
+    if (hasServiceIntent || hasCaldera || hasAire || hasAgua) {
+      console.log('[Bot] Match: SERVICIO -', { hasServiceIntent, hasCaldera, hasAire, hasAgua });
+      let serviceType = 'el servicio';
+      if (hasCaldera) serviceType = 'la reparación de tu caldera';
+      if (hasAire) serviceType = 'el servicio de aire acondicionado';
+      if (hasAgua) serviceType = 'el calentador de agua';
+      
+      return {
+        shouldRespond: true,
+        responseText: `Entendido, podemos ayudarte con ${serviceType}. Para generar un presupuesto, necesito:\n\n1. ¿Qué tipo de equipo tienes?\n2. ¿Cuál es la dirección?\n3. ¿Describí brevemente el problema?`
+      };
+    }
+
+    // Consultas básicas de presupuesto
+    if (text.includes('presupuesto') || text.includes('cotizacion') || text.includes('cotizar') || text.includes('presupuesto')) {
+      console.log('[Bot] Match: PRESUPUESTO');
       return {
         shouldRespond: true,
         responseText: 'Para solicitar un presupuesto, necesito algunos datos:\n\n1. ¿Qué tipo de servicio necesitas? (instalación, reparación, mantenimiento)\n2. ¿Cuál es la dirección del lugar?\n3. ¿Tienes algún equipo existente que debamos revisar?'
       };
     }
 
-    if (text.includes('contacto') || text.includes('hablar') || text.includes('asesor')) {
+    // Solicitar contacto humano
+    if (text.includes('contacto') || text.includes('hablar') || text.includes('asesor') || text.includes(' humano')) {
+      console.log('[Bot] Match: CONTACTO');
       return {
         shouldRespond: true,
         responseText: 'Perfecto, un asesor te contactará pronto. ¿Podrías confirmarnos tu nombre y el servicio que necesitas?'
       };
     }
 
-    if (text.includes('gracias') || text.includes('ok') || text.includes('entendido')) {
+    // Agradecimientos
+    if (text.includes('gracias') || text.includes('ok') || text.includes('entendido') || text.includes('perfecto')) {
+      console.log('[Bot] Match: AGRADECIMIENTO');
       return {
         shouldRespond: true,
         responseText: '¡De nada! 😊 ¿Hay algo más en lo que pueda ayudarte?'
@@ -325,12 +566,14 @@ export class WhatsAppService {
 
     // Si no reconoce nada, respuesta genérica
     if (isNewLead) {
+      console.log('[Bot] Match: DEFAULT (new lead)');
       return {
         shouldRespond: true,
-        responseText: 'Gracias por contactarnos. Un asesor te ayudará pronto. Mientras tanto, cuéntanos más sobre lo que necesitas.'
+        responseText: 'Gracias por contactarnos. Cuéntanos más sobre lo que necesitas para ayudarte mejor.'
       };
     }
 
+    console.log('[Bot] NO MATCH');
     return { shouldRespond: false };
   }
 
