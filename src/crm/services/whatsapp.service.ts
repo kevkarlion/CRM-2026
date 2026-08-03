@@ -442,6 +442,8 @@ export class WhatsAppService {
     input: string,
     isNewLead: boolean
   ): Promise<{ message: string; isComplete: boolean; handoff?: boolean; context?: ConversationContext }> {
+    console.log('[Engine] === START === phone:', phoneNumber, '| input:', input);
+    
     // Ensure DB is connected
     await connectDB();
     
@@ -450,23 +452,28 @@ export class WhatsAppService {
     const now = new Date();
 
     // Check if there's an active conversation
+    console.log('[Engine] Checking store for:', phoneNumber);
     const storedContext = await conversationStore.get(phoneNumber);
     const hasActive = storedContext !== null;
+    console.log('[Engine] hasActive:', hasActive);
+    
+    if (hasActive && storedContext) {
+      console.log('[Engine] Stored context data:', JSON.stringify(storedContext.data));
+    }
     
     // Check if conversation was already completed
     const isComplete = storedContext?.get('complete') === true;
     
-    // Check for timeout (30 minutes) - only matters if conversation was completed
+    // Check for timeout (30 minutes)
     let isTimedOut = false;
-    if (hasActive && storedContext) {
+    if (hasActive && storedContext && isComplete) {
       const lastActivity = storedContext.get<string>('lastActivity');
       if (lastActivity) {
         const lastTime = new Date(lastActivity);
         const diffMs = now.getTime() - lastTime.getTime();
         const diffMinutes = diffMs / (1000 * 60);
         
-        // If conversation is complete and passed 30 min, restart it
-        if (isComplete && diffMinutes > 30) {
+        if (diffMinutes > 30) {
           console.log('[Engine] Completed conversation timed out after', diffMinutes, 'minutes, restarting');
           isTimedOut = true;
           await conversationStore.clear(phoneNumber);
@@ -477,7 +484,7 @@ export class WhatsAppService {
     let result;
     
     if (hasActive && !isTimedOut) {
-      // Check if conversation already completed - respond with processed message
+      // Check if conversation already completed
       if (isComplete) {
         console.log('[Engine] Conversation already completed, sending processed message');
         return {
@@ -492,14 +499,15 @@ export class WhatsAppService {
       result = await engine.process(phoneNumber, normalizedInput);
     } else {
       // No active conversation or timed out - start new one
-      console.log('[Engine] Starting new conversation for:', phoneNumber, '| isTimedOut:', isTimedOut);
+      console.log('[Engine] Starting new conversation for:', phoneNumber);
       result = await engine.start(phoneNumber);
     }
 
-    // Update last activity timestamp
+    // Update last activity timestamp and save
     if (result.context) {
       result.context.set('lastActivity', now.toISOString());
       await conversationStore.save(phoneNumber, result.context);
+      console.log('[Engine] Saved context, new state:', result.context.get('currentState'));
     }
 
     return {
