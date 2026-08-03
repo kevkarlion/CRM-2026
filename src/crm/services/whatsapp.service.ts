@@ -454,11 +454,18 @@ export class WhatsAppService {
     // Check if there's an active conversation
     console.log('[Engine] Checking store for:', phoneNumber);
     const storedContext = await conversationStore.get(phoneNumber);
-    const hasActive = storedContext !== null;
-    console.log('[Engine] hasActive:', hasActive);
+    
+    // Check if stored context is valid for conversation engine (has currentState)
+    const hasValidContext = storedContext !== null && storedContext.get('currentState') !== undefined;
+    const hasActive = hasValidContext;
+    console.log('[Engine] hasActive:', hasActive, '| storedContext:', storedContext ? 'yes' : 'no');
     
     if (hasActive && storedContext) {
       console.log('[Engine] Stored context data:', JSON.stringify(storedContext.data));
+    } else if (storedContext && !hasValidContext) {
+      // Old document without conversation engine data - clear it
+      console.log('[Engine] Old document found, clearing and starting fresh');
+      await conversationStore.clear(phoneNumber);
     }
     
     // Check if conversation was already completed
