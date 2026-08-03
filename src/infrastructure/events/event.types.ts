@@ -34,6 +34,9 @@ export const DOMAIN_EVENTS = {
   WORK_ORDER_STATUS_CHANGED: 'WORK_ORDER_STATUS_CHANGED',
   WORK_ORDER_COMPLETED: 'WORK_ORDER_COMPLETED',
   WORK_ORDER_SELF_ASSIGNED: 'WORK_ORDER_SELF_ASSIGNED',
+  WORK_ORDER_TECHNICIAN_ASSIGNED: 'WORK_ORDER_TECHNICIAN_ASSIGNED',
+  WORK_ORDER_TECHNICIAN_CHANGED: 'WORK_ORDER_TECHNICIAN_CHANGED',
+  WORK_ORDER_TECHNICIAN_UNASSIGNED: 'WORK_ORDER_TECHNICIAN_UNASSIGNED',
   VISIT_CREATED: 'VISIT_CREATED',
   VISIT_STATUS_CHANGED: 'VISIT_STATUS_CHANGED',
   VISIT_COMPLETED: 'VISIT_COMPLETED',
@@ -199,6 +202,25 @@ export interface WorkOrderSelfAssignedPayload {
   technicianName: string;
   workOrderNumber: string;
   reason: string;
+}
+
+export interface TechnicianAssignmentBasePayload {
+  technicianId: string;
+  technicianName: string;
+  previousTechnicianId?: string | null;
+  previousTechnicianName?: string | null;
+  assignmentType: string;
+  reason: string;
+  reasonDetail?: string;
+  fromStatus?: string;
+  toStatus?: string;
+  title?: string;
+}
+
+export interface WorkOrderTechnicianAssignmentPayload extends TechnicianAssignmentBasePayload {
+  workOrderId: string;
+  number: string;
+  leadId: string | null;
 }
 
 export interface SaleConfirmedPayload {
