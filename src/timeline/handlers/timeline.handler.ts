@@ -20,6 +20,7 @@ import {
   VisitStatusChangedPayload,
   VisitCompletedPayload,
   SaleConfirmedPayload,
+  WorkOrderTechnicianAssignmentPayload,
 } from '@/infrastructure/events/event.types';
 import { timelineService } from '../services/timeline.service';
 
@@ -63,6 +64,9 @@ export const timelineHandler = {
     on('WORK_ORDER_STATUS_CHANGED', timelineHandler.onWorkOrderStatusChanged as EventHandler);
     on('WORK_ORDER_COMPLETED', timelineHandler.onWorkOrderCompleted as EventHandler);
     on('WORK_ORDER_SELF_ASSIGNED', timelineHandler.onWorkOrderSelfAssigned as EventHandler);
+    on('WORK_ORDER_TECHNICIAN_ASSIGNED', timelineHandler.onTechnicianAssigned as EventHandler);
+    on('WORK_ORDER_TECHNICIAN_CHANGED', timelineHandler.onTechnicianChanged as EventHandler);
+    on('WORK_ORDER_TECHNICIAN_UNASSIGNED', timelineHandler.onTechnicianUnassigned as EventHandler);
     on('VISIT_CREATED', timelineHandler.onVisitCreated as EventHandler);
     on('VISIT_STATUS_CHANGED', timelineHandler.onVisitStatusChanged as EventHandler);
     on('VISIT_COMPLETED', timelineHandler.onVisitCompleted as EventHandler);
@@ -432,6 +436,97 @@ export const timelineHandler = {
         workOrderNumber: p.workOrderNumber,
         reason: p.reason,
         reasonLabel: label(p.reason) || p.reason,
+      },
+    });
+  },
+
+  async onTechnicianAssigned(event: DomainEvent<WorkOrderTechnicianAssignmentPayload>): Promise<void> {
+    const p = event.payload;
+    await timelineService.create({
+      tenantId: event.tenantId,
+      leadId: p.leadId ?? '',
+      entityType: 'work_order',
+      entityId: p.workOrderId,
+      eventType: 'workorder.technician_assigned',
+      title: `Técnico ${p.technicianName} asignado a OT #${p.number}`,
+      summary: p.reason ? `Motivo: ${label(p.reason) || p.reason}` : undefined,
+      icon: 'user-plus',
+      color: 'orange',
+      performedBy: event.userId,
+      metadata: {
+        workOrderId: p.workOrderId,
+        technicianId: p.technicianId,
+        technicianName: p.technicianName,
+        previousTechnicianId: p.previousTechnicianId ?? null,
+        previousTechnicianName: p.previousTechnicianName ?? null,
+        number: p.number,
+        reason: p.reason,
+        reasonDetail: p.reasonDetail,
+        assignmentType: p.assignmentType,
+        fromStatus: p.fromStatus,
+        toStatus: p.toStatus,
+        title: p.title,
+      },
+    });
+  },
+
+  async onTechnicianChanged(event: DomainEvent<WorkOrderTechnicianAssignmentPayload>): Promise<void> {
+    const p = event.payload;
+    const previousName = p.previousTechnicianName || p.previousTechnicianId || 'otro técnico';
+    await timelineService.create({
+      tenantId: event.tenantId,
+      leadId: p.leadId ?? '',
+      entityType: 'work_order',
+      entityId: p.workOrderId,
+      eventType: 'workorder.technician_changed',
+      title: `Técnico ${p.technicianName} reemplazó a ${previousName} en OT #${p.number}`,
+      summary: p.reason ? `Motivo: ${label(p.reason) || p.reason}` : undefined,
+      icon: 'refresh-cw',
+      color: 'indigo',
+      performedBy: event.userId,
+      metadata: {
+        workOrderId: p.workOrderId,
+        technicianId: p.technicianId,
+        technicianName: p.technicianName,
+        previousTechnicianId: p.previousTechnicianId ?? null,
+        previousTechnicianName: p.previousTechnicianName ?? null,
+        number: p.number,
+        reason: p.reason,
+        reasonDetail: p.reasonDetail,
+        assignmentType: p.assignmentType,
+        fromStatus: p.fromStatus,
+        toStatus: p.toStatus,
+        title: p.title,
+      },
+    });
+  },
+
+  async onTechnicianUnassigned(event: DomainEvent<WorkOrderTechnicianAssignmentPayload>): Promise<void> {
+    const p = event.payload;
+    await timelineService.create({
+      tenantId: event.tenantId,
+      leadId: p.leadId ?? '',
+      entityType: 'work_order',
+      entityId: p.workOrderId,
+      eventType: 'workorder.technician_unassigned',
+      title: `Técnico ${p.technicianName} desasignado de OT #${p.number}`,
+      summary: p.reason ? `Motivo: ${label(p.reason) || p.reason}` : undefined,
+      icon: 'user-minus',
+      color: 'gray',
+      performedBy: event.userId,
+      metadata: {
+        workOrderId: p.workOrderId,
+        technicianId: p.technicianId,
+        technicianName: p.technicianName,
+        previousTechnicianId: p.previousTechnicianId ?? null,
+        previousTechnicianName: p.previousTechnicianName ?? null,
+        number: p.number,
+        reason: p.reason,
+        reasonDetail: p.reasonDetail,
+        assignmentType: p.assignmentType,
+        fromStatus: p.fromStatus,
+        toStatus: p.toStatus,
+        title: p.title,
       },
     });
   },
