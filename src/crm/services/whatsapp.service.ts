@@ -22,11 +22,6 @@ import {
   ConversationStore,
 } from '@/conversation';
 
-// Flag for enabling new conversation engine
-const USE_NEW_ENGINE = process.env.USE_CONVERSATION_ENGINE === 'true';
-
-console.log('[WhatsApp] USE_CONVERSATION_ENGINE:', process.env.USE_CONVERSATION_ENGINE, '| New engine:', USE_NEW_ENGINE);
-
 /**
  * In-memory conversation store for the engine
  * Uses a Map keyed by normalized phone number
@@ -359,40 +354,31 @@ export class WhatsAppService {
       }
     }
 
-    // 4. Generar respuesta automática
-    // Use new conversation engine if enabled, otherwise fall back to old logic
+    // 4. Generar respuesta automática - siempre usar Conversation Engine
     let shouldRespond = false;
     let responseText: string | undefined;
 
-    if (USE_NEW_ENGINE) {
-      console.log('[WhatsApp] Using new Conversation Engine');
+    console.log('[WhatsApp] Using Conversation Engine');
+    
+    try {
+      const engineResult = await this.processWithEngine(normalizedPhone, content, isNew);
+      shouldRespond = true;
+      responseText = engineResult.message;
       
-      try {
-        const engineResult = await this.processWithEngine(normalizedPhone, content, isNew);
-        shouldRespond = true;
-        responseText = engineResult.message;
-        
-        // If complete or handoff, we might want to handle lead status
-        if (engineResult.isComplete) {
-          console.log('[WhatsApp] Conversation complete, context:', engineResult.context?.data);
-          // Could update lead status here if needed
-        }
-        
-        if (engineResult.handoff) {
-          console.log('[WhatsApp] Handoff to human triggered');
-        }
-      } catch (error) {
-        console.error('[WhatsApp] Engine error, falling back to old logic:', error);
-        // Fall back to old logic on error
-        const fallback = this.generateAutoResponse(content, isNew);
-        shouldRespond = fallback.shouldRespond;
-        responseText = fallback.responseText;
+      // If complete or handoff, we might want to handle lead status
+      if (engineResult.isComplete) {
+        console.log('[WhatsApp] Conversation complete, context:', engineResult.context?.data);
+        // Could update lead status here if needed
       }
-    } else {
-      // Use legacy auto-response logic
-      const autoResponse = this.generateAutoResponse(content, isNew);
-      shouldRespond = autoResponse.shouldRespond;
-      responseText = autoResponse.responseText;
+      
+      if (engineResult.handoff) {
+        console.log('[WhatsApp] Handoff to human triggered');
+      }
+    } catch (error) {
+      console.error('[WhatsApp] Engine error:', error);
+      // Fall back to simple error message
+      shouldRespond = true;
+      responseText = 'Estamos procesando tu solicitud. En breve un asesor se pondrá en contacto contigo. 😊';
     }
 
     return {
@@ -507,103 +493,6 @@ export class WhatsAppService {
       .join('\n');
 
     return `${message}\n\n${optionsText}`;
-  }
-
-  /**
-   * Lógica básica del bot para generar respuestas automáticas
-   */
-  private generateAutoResponse(
-    messageContent: string,
-    isNewLead: boolean
-  ): { shouldRespond: boolean; responseText?: string } {
-    const text = messageContent.toLowerCase().trim();
-    console.log('[Bot] Processing:', messageContent, '| isNewLead:', isNewLead);
-
-    // Saludo inicial - usar includes para detectar "hola" aunque esté acompañado
-    if (text.includes('hola') || text.includes('hello') || text.includes('hi') || 
-        text.includes('buenas') || text.includes('buenos días') || text.includes('buenas tardes')) {
-      console.log('[Bot] Match: SALUDO');
-      return {
-        shouldRespond: true,
-        responseText: isNewLead 
-          ? '¡Hola! 👋 Gracias por contactarte con Rolo Climatización. ¿En qué puedo ayudarte hoy?'
-          : '¡Hola de nuevo! 👋 ¿En qué puedo ayudarte?'
-      };
-    }
-
-    // Horarios y disponibilidad
-    if (text.includes('trabajan') || text.includes('trabajando') || text.includes('abierto') || 
-        text.includes('horario') || text.includes('disponible') || text.includes('atención')) {
-      console.log('[Bot] Match: HORARIO');
-      return {
-        shouldRespond: true,
-        responseText: 'Nuestro horario de atención es de Lunes a Sábado de 8:00 a 20:00. ¿En qué podemos ayudarte?'
-      };
-    }
-
-    // Detectar intención de servicio - palabras clave
-    const hasServiceIntent = 
-      text.includes('reparar') || text.includes('reparación') || text.includes('service') || 
-      text.includes('arreglar') || text.includes('corregir') || text.includes('falla') || 
-      text.includes('fallo') || text.includes('roto') || text.includes('rotura') ||
-      text.includes('instalar') || text.includes('mantenimiento') || text.includes('Revision');
-    
-    const hasCaldera = text.includes('caldera') || text.includes('calefón') || text.includes('calefaccion');
-    const hasAire = text.includes('aire') || text.includes('acondicionado') || text.includes('split') || text.includes('frio') || text.includes('frío');
-    const hasAgua = text.includes('agua') || text.includes('calentador');
-
-    // Consultas de servicio técnico
-    if (hasServiceIntent || hasCaldera || hasAire || hasAgua) {
-      console.log('[Bot] Match: SERVICIO -', { hasServiceIntent, hasCaldera, hasAire, hasAgua });
-      let serviceType = 'el servicio';
-      if (hasCaldera) serviceType = 'la reparación de tu caldera';
-      if (hasAire) serviceType = 'el servicio de aire acondicionado';
-      if (hasAgua) serviceType = 'el calentador de agua';
-      
-      return {
-        shouldRespond: true,
-        responseText: `Entendido, podemos ayudarte con ${serviceType}. Para generar un presupuesto, necesito:\n\n1. ¿Qué tipo de equipo tienes?\n2. ¿Cuál es la dirección?\n3. ¿Describí brevemente el problema?`
-      };
-    }
-
-    // Consultas básicas de presupuesto
-    if (text.includes('presupuesto') || text.includes('cotizacion') || text.includes('cotizar') || text.includes('presupuesto')) {
-      console.log('[Bot] Match: PRESUPUESTO');
-      return {
-        shouldRespond: true,
-        responseText: 'Para solicitar un presupuesto, necesito algunos datos:\n\n1. ¿Qué tipo de servicio necesitas? (instalación, reparación, mantenimiento)\n2. ¿Cuál es la dirección del lugar?\n3. ¿Tienes algún equipo existente que debamos revisar?'
-      };
-    }
-
-    // Solicitar contacto humano
-    if (text.includes('contacto') || text.includes('hablar') || text.includes('asesor') || text.includes(' humano')) {
-      console.log('[Bot] Match: CONTACTO');
-      return {
-        shouldRespond: true,
-        responseText: 'Perfecto, un asesor te contactará pronto. ¿Podrías confirmarnos tu nombre y el servicio que necesitas?'
-      };
-    }
-
-    // Agradecimientos
-    if (text.includes('gracias') || text.includes('ok') || text.includes('entendido') || text.includes('perfecto')) {
-      console.log('[Bot] Match: AGRADECIMIENTO');
-      return {
-        shouldRespond: true,
-        responseText: '¡De nada! 😊 ¿Hay algo más en lo que pueda ayudarte?'
-      };
-    }
-
-    // Si no reconoce nada, respuesta genérica
-    if (isNewLead) {
-      console.log('[Bot] Match: DEFAULT (new lead)');
-      return {
-        shouldRespond: true,
-        responseText: 'Gracias por contactarnos. Cuéntanos más sobre lo que necesitas para ayudarte mejor.'
-      };
-    }
-
-    console.log('[Bot] NO MATCH');
-    return { shouldRespond: false };
   }
 
   /**

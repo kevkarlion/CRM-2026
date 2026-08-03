@@ -37,7 +37,7 @@ export class GreetingState implements IConversationState {
       greeting = '¡Buenas noches! 🌙'
     }
 
-    return `${greeting} 👋 Soy el asistente virtual de Rolo Climatización. Te voy a hacer algunas preguntas para gestionar tu solicitud de servicio.`
+    return `${greeting} 👋🤖 Soy el asistente virtual de Rolo Climatización. Te voy a hacer algunas preguntas para gestionar tu solicitud de servicio.`
   }
 
   getOptions(context: ConversationContext): string[] {
