@@ -21,45 +21,77 @@ import {
   getDefaultFlow,
   ConversationStore,
 } from '@/conversation';
+import ConversationModel from '@/conversation/models/conversation';
 
 /**
- * In-memory conversation store for the engine
- * Uses a Map keyed by normalized phone number
+ * MongoDB-backed conversation store for the engine
+ * Persists conversations in MongoDB to survive server restarts
  */
-class MemoryConversationStore implements ConversationStore {
-  private store = new Map<string, ConversationContext>();
-
+class MongoDBConversationStore implements ConversationStore {
   async get(phoneNumber: string): Promise<ConversationContext | null> {
-    return this.store.get(phoneNumber) ?? null;
+    try {
+      await connectDB();
+      const doc = await ConversationModel.findOne({ phoneNumber, deletedAt: null }).lean();
+      if (!doc) return null;
+      
+      // Reconstruct context from stored data
+      const context = new ConversationContext(phoneNumber);
+      if (doc.context) {
+        for (const [key, value] of Object.entries(doc.context)) {
+          context.set(key, value);
+        }
+      }
+      return context;
+    } catch (error) {
+      console.error('[Store] Error getting conversation:', error);
+      return null;
+    }
   }
 
   async save(phoneNumber: string, context: ConversationContext): Promise<void> {
-    this.store.set(phoneNumber, context);
+    try {
+      await connectDB();
+      const contextData = context.toJSON();
+      
+      await ConversationModel.findOneAndUpdate(
+        { phoneNumber, deletedAt: null },
+        {
+          phoneNumber,
+          context: contextData,
+          lastActivity: new Date(),
+        },
+        { upsert: true, new: true }
+      );
+    } catch (error) {
+      console.error('[Store] Error saving conversation:', error);
+    }
   }
 
   async delete(phoneNumber: string): Promise<void> {
-    this.store.delete(phoneNumber);
+    try {
+      await connectDB();
+      await ConversationModel.findOneAndUpdate(
+        { phoneNumber, deletedAt: null },
+        { deletedAt: new Date() }
+      );
+    } catch (error) {
+      console.error('[Store] Error deleting conversation:', error);
+    }
   }
 
-  /**
-   * Clear conversation for a phone number (for timeouts)
-   */
   async clear(phoneNumber: string): Promise<void> {
-    this.store.delete(phoneNumber);
+    await this.delete(phoneNumber);
   }
 
-  /**
-   * Check if there's an active conversation for a phone number
-   */
   async hasActiveConversation(phoneNumber: string): Promise<boolean> {
-    const ctx = this.store.get(phoneNumber);
+    const ctx = await this.get(phoneNumber);
     if (!ctx) return false;
     return ctx.get('complete') !== true;
   }
 }
 
-// Singleton store instance
-const conversationStore = new MemoryConversationStore();
+// Singleton store instance - MongoDB backed
+const conversationStore = new MongoDBConversationStore();
 
 /**
  * Create a configured ConversationEngine instance
