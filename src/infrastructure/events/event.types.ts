@@ -32,6 +32,7 @@ export const DOMAIN_EVENTS = {
   // Operations
   WORK_ORDER_CREATED: 'WORK_ORDER_CREATED',
   WORK_ORDER_STATUS_CHANGED: 'WORK_ORDER_STATUS_CHANGED',
+  WORK_ORDER_STARTED: 'WORK_ORDER_STARTED',
   WORK_ORDER_COMPLETED: 'WORK_ORDER_COMPLETED',
   WORK_ORDER_SELF_ASSIGNED: 'WORK_ORDER_SELF_ASSIGNED',
   WORK_ORDER_TECHNICIAN_ASSIGNED: 'WORK_ORDER_TECHNICIAN_ASSIGNED',
@@ -163,7 +164,13 @@ export interface WorkOrderStatusChangedPayload {
   to: string;
   number?: string;
   title?: string;
-  category?: string;
+}
+
+export interface WorkOrderStartedPayload {
+  workOrderId: string;
+  number?: string;
+  technicianId: string;
+  technicianName: string;
 }
 
 export interface WorkOrderCompletedPayload {

@@ -14,6 +14,7 @@ import {
   NegotiationRejectedPayload,
   WorkOrderCreatedPayload,
   WorkOrderStatusChangedPayload,
+  WorkOrderStartedPayload,
   WorkOrderCompletedPayload,
   WorkOrderSelfAssignedPayload,
   VisitCreatedPayload,
@@ -62,6 +63,7 @@ export const timelineHandler = {
 
     on('WORK_ORDER_CREATED', timelineHandler.onWorkOrderCreated as EventHandler);
     on('WORK_ORDER_STATUS_CHANGED', timelineHandler.onWorkOrderStatusChanged as EventHandler);
+    on('WORK_ORDER_STARTED', timelineHandler.onWorkOrderStarted as EventHandler);
     on('WORK_ORDER_COMPLETED', timelineHandler.onWorkOrderCompleted as EventHandler);
     on('WORK_ORDER_SELF_ASSIGNED', timelineHandler.onWorkOrderSelfAssigned as EventHandler);
     on('WORK_ORDER_TECHNICIAN_ASSIGNED', timelineHandler.onTechnicianAssigned as EventHandler);
@@ -392,6 +394,29 @@ export const timelineHandler = {
         title: event.payload.title,
         category: event.payload.category,
         categoryLabel: label(event.payload.category),
+      },
+    });
+  },
+
+  async onWorkOrderStarted(event: DomainEvent<WorkOrderStartedPayload>): Promise<void> {
+    const p = event.payload;
+    await timelineService.create({
+      tenantId: event.tenantId,
+      leadId: '',
+      entityType: 'work_order',
+      entityId: p.workOrderId,
+      eventType: 'workorder.started',
+      title: `👷 Técnico ${p.technicianName} INICIÓ el trabajo`,
+      icon: 'play-circle',
+      color: 'green',
+      performedBy: event.userId,
+      metadata: {
+        workOrderId: p.workOrderId,
+        number: p.number,
+        technicianId: p.technicianId,
+        technicianName: p.technicianName,
+        status: 'in_progress',
+        statusLabel: 'En progreso',
       },
     });
   },

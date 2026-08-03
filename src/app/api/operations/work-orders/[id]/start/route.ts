@@ -4,6 +4,8 @@ import { WorkOrderModel } from '@/operations/models';
 import { TechnicianModel } from '@/operations/models/technician';
 import WorkOrderAssignmentModel from '@/operations/models/work-order-assignment';
 import { logActivity } from '@/audit/activity-logger';
+import { eventBus } from '@/infrastructure/events/event-bus';
+import { DOMAIN_EVENTS, WorkOrderStartedPayload } from '@/infrastructure/events/event.types';
 import mongoose from 'mongoose';
 
 const VALID_STATUSES = ['scheduled', 'assigned'] as const;
@@ -99,6 +101,27 @@ export async function POST(
         updatedBy: new mongoose.Types.ObjectId(userId),
       },
     });
+
+    // Publish WORK_ORDER_STARTED event for timeline
+    console.log('[WorkOrder Start] Publishing WORK_ORDER_STARTED for:', workOrderId, 'tech:', (technician as any).name);
+    try {
+      await eventBus.publish({
+        type: DOMAIN_EVENTS.WORK_ORDER_STARTED,
+        aggregateId: workOrderId,
+        aggregateType: 'WorkOrder',
+        tenantId,
+        userId,
+        timestamp: now,
+        payload: {
+          workOrderId,
+          number: workOrder.workOrderNumber,
+          technicianId: technicianId.toString(),
+          technicianName: (technician as any).name || 'Técnico',
+        } as WorkOrderStartedPayload,
+      });
+    } catch (eventError) {
+      console.error('[WorkOrder Start] Failed to publish event:', eventError);
+    }
 
     // Log activity
     await logActivity({

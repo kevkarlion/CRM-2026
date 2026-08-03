@@ -20,24 +20,21 @@ export async function GET(
     const { Types } = await import('mongoose');
     
     let workOrderId: string;
-    if (Types.ObjectId.isValid(id) && id.length === 24) {
+    
+    // First try to find by workOrderNumber directly
+    const woByNumber = await WorkOrderModel.findOne({ workOrderNumber: id, tenantId, deletedAt: null }).select('_id workOrderNumber').lean();
+    
+    if (woByNumber) {
+      workOrderId = String(woByNumber._id);
+    } else if (Types.ObjectId.isValid(id) && id.length === 24) {
       const wo = await WorkOrderModel.findOne({ _id: id, tenantId, deletedAt: null }).select('_id').lean();
       if (wo) {
         workOrderId = id;
       } else {
-        // Try as workOrderNumber
-        const woByNumber = await WorkOrderModel.findOne({ workOrderNumber: id, tenantId, deletedAt: null }).select('_id').lean();
-        if (!woByNumber) {
-          return NextResponse.json({ error: 'WorkOrder not found' }, { status: 404 });
-        }
-        workOrderId = String(woByNumber._id);
-      }
-    } else {
-      const woByNumber = await WorkOrderModel.findOne({ workOrderNumber: id, tenantId, deletedAt: null }).select('_id').lean();
-      if (!woByNumber) {
         return NextResponse.json({ error: 'WorkOrder not found' }, { status: 404 });
       }
-      workOrderId = String(woByNumber._id);
+    } else {
+      return NextResponse.json({ error: 'WorkOrder not found' }, { status: 404 });
     }
 
     // Fetch timeline events for this work order

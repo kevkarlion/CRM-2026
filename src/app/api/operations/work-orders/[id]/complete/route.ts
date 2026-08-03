@@ -5,6 +5,8 @@ import { TechnicianModel } from '@/operations/models/technician';
 import WorkOrderAssignmentModel from '@/operations/models/work-order-assignment';
 import { WorkReportService } from '@/operations/services/work-report.service';
 import { logActivity } from '@/audit/activity-logger';
+import { eventBus } from '@/infrastructure/events/event-bus';
+import { DOMAIN_EVENTS, WorkOrderCompletedPayload } from '@/infrastructure/events/event.types';
 import mongoose from 'mongoose';
 
 const VALID_STATUSES = ['in_progress'] as const;
@@ -178,6 +180,24 @@ export async function POST(
 
     // Commit transaction
     await session.commitTransaction();
+
+    // Publish WORK_ORDER_COMPLETED event for timeline
+    try {
+      await eventBus.publish({
+        type: DOMAIN_EVENTS.WORK_ORDER_COMPLETED,
+        aggregateId: workOrderId.toString(),
+        aggregateType: 'WorkOrder',
+        tenantId,
+        userId,
+        timestamp: now,
+        payload: {
+          workOrderId: workOrderId.toString(),
+          number: workOrder.workOrderNumber,
+        } as WorkOrderCompletedPayload,
+      });
+    } catch (eventError) {
+      console.error('[WorkOrder Complete] Failed to publish event:', eventError);
+    }
 
     // Log activities (outside transaction - best effort)
     try {

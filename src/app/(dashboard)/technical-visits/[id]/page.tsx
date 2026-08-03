@@ -177,6 +177,7 @@ export default function TechnicalVisitDetailPage() {
       // Reload visit to get updated status
       const result = await api.get<{ data: TechnicalVisit }>(`/api/operations/technical-visits/${id}`);
       setVisit(unwrapData(result));
+      loadTimeline(); // Refresh registro
     } catch (err) {
       setStartingWorkError(err instanceof Error ? err.message : 'Error al iniciar trabajo');
     } finally {
@@ -215,6 +216,7 @@ export default function TechnicalVisitDetailPage() {
     // Reload visit to get updated status
     api.get<{ data: TechnicalVisit }>(`/api/operations/technical-visits/${id}`).then((r) => {
       setVisit(unwrapData(r));
+      loadTimeline(); // Refresh registro
     }).catch(() => {});
   }
 
@@ -328,6 +330,7 @@ export default function TechnicalVisitDetailPage() {
     try {
       await api.patch(`/api/operations/technical-visits/${id}`, { status: targetStatus });
       await loadVisit();
+      loadTimeline(); // Refresh registro
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al actualizar');
     } finally {
@@ -354,6 +357,7 @@ export default function TechnicalVisitDetailPage() {
       setShowAssignInput(false);
       setAssignTechId('');
       await loadVisit();
+      loadTimeline(); // Refresh registro
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al asignar');
     } finally {
@@ -366,6 +370,7 @@ export default function TechnicalVisitDetailPage() {
     try {
       await api.post(`/api/operations/technical-visits/${id}/assign`, { action: 'unassign' });
       await loadVisit();
+      loadTimeline(); // Refresh registro
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al desasignar');
     } finally {
@@ -590,43 +595,132 @@ export default function TechnicalVisitDetailPage() {
                   <p className="text-gray-500">No hay eventos registrados aún.</p>
                 </div>
               ) : (
-                <div className="relative">
-                  {/* Timeline vertical line */}
-                  <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200"></div>
-                  
-                  <div className="space-y-6">
-                    {timelineEvents.map((event, index) => (
-                      <div key={event._id || index} className="relative pl-10">
-                        {/* Timeline dot */}
-                        <div className="absolute left-2.5 w-3 h-3 rounded-full bg-brand-500 border-2 border-white ring-2 ring-brand-100"></div>
+                <div className="space-y-3">
+                  {timelineEvents.map((event, index) => (
+                    <div key={event._id || index} className="bg-gradient-to-r from-gray-50 to-white rounded-xl p-4 border border-gray-100 shadow-sm">
+                      <div className="flex items-start gap-4">
+                        {/* Icon based on event type */}
+                        <div className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-lg ${
+                          event.eventType?.includes('created') ? 'bg-green-100 text-green-600' :
+                          event.eventType?.includes('status') ? 'bg-blue-100 text-blue-600' :
+                          event.eventType?.includes('technician') ? 'bg-purple-100 text-purple-600' :
+                          event.eventType?.includes('assigned') ? 'bg-purple-100 text-purple-600' :
+                          event.eventType?.includes('changed') ? 'bg-amber-100 text-amber-600' :
+                          event.eventType?.includes('unassigned') ? 'bg-red-100 text-red-600' :
+                          event.eventType?.includes('completed') ? 'bg-green-100 text-green-600' :
+                          'bg-gray-100 text-gray-600'
+                        }`}>
+                          {event.eventType?.includes('created') ? '✨' :
+                           event.eventType?.includes('status') ? '📊' :
+                           event.eventType?.includes('technician') ? '👷' :
+                           event.eventType?.includes('assigned') ? '👷' :
+                           event.eventType?.includes('changed') ? '🔄' :
+                           event.eventType?.includes('unassigned') ? '❌' :
+                           event.eventType?.includes('completed') ? '✅' :
+                           '📋'}
+                        </div>
                         
-                        <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <p className="font-medium text-gray-900">{event.title}</p>
-                              {event.description && (
-                                <p className="mt-1 text-sm text-gray-600">{event.description}</p>
-                              )}
-                            </div>
-                            <span className="text-xs text-gray-400 whitespace-nowrap ml-4">
-                              {new Date(event.createdAt).toLocaleString('es-CL', {
-                                day: '2-digit',
-                                month: '2-digit',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
+                        <div className="flex-1 min-w-0">
+                          {/* Event type label */}
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                              event.eventType?.includes('created') ? 'bg-green-100 text-green-700' :
+                              event.eventType?.includes('status') ? 'bg-blue-100 text-blue-700' :
+                              event.eventType === 'visit.started' ? 'bg-green-100 text-green-700' :
+                              event.eventType === 'visit.completed' ? 'bg-emerald-100 text-emerald-700' :
+                              event.eventType?.includes('technician') || event.eventType?.includes('assigned') ? 'bg-purple-100 text-purple-700' :
+                              event.eventType === 'visit.self_assigned' ? 'bg-indigo-100 text-indigo-700' :
+                              event.eventType?.includes('changed') ? 'bg-amber-100 text-amber-700' :
+                              event.eventType?.includes('unassigned') ? 'bg-red-100 text-red-700' :
+                              'bg-gray-100 text-gray-700'
+                            }`}>
+                              {event.eventType === 'visit.created' && 'Creación'}
+                              {event.eventType === 'visit.status_changed' && 'Estado'}
+                              {event.eventType === 'visit.started' && 'Inicio Trabajo'}
+                              {event.eventType === 'visit.completed' && 'Fin Trabajo'}
+                              {event.eventType === 'visit.technician_assigned' && 'Asignación Admin'}
+                              {event.eventType === 'visit.technician_changed' && 'Reasignación Admin'}
+                              {event.eventType === 'visit.technician_unassigned' && 'Desasignación Admin'}
+                              {event.eventType === 'visit.self_assigned' && 'Solicitud Técnico'}
+                              {!['visit.created', 'visit.status_changed', 'visit.started', 'visit.completed', 
+                                'visit.technician_assigned', 'visit.technician_changed', 
+                                'visit.technician_unassigned', 'visit.self_assigned'].includes(event.eventType || '') && 
+                               'Otro'}
                             </span>
                           </div>
-                          {event.performedBy && (
-                            <p className="mt-2 text-xs text-gray-500">
-                              Por: {event.performedBy.name}
-                            </p>
+                          
+                          <p className="font-semibold text-gray-900 text-base">
+                            {event.eventType === 'visit.created' && `Visita técnica creada`}
+                            {event.eventType === 'visit.status_changed' && `Estado actualizado a "${event.metadata?.toStatus || event.description || 'nuevo estado'}"`}
+                            {event.eventType === 'visit.started' && `👷 Técnico INICIÓ el trabajo: ${event.metadata?.technicianName || 'Técnico'}`}
+                            {event.eventType === 'visit.completed' && `✅ Técnico FINALIZÓ el trabajo`}
+                            {event.eventType === 'visit.technician_assigned' && `Técnico asignado por ADMIN: ${event.metadata?.technicianName || 'Técnico'}`}
+                            {event.eventType === 'visit.technician_changed' && `Técnico cambiado por ADMIN a: ${event.metadata?.technicianName || 'Técnico'}`}
+                            {event.eventType === 'visit.technician_unassigned' && `Técnico desasignado por ADMIN: ${event.metadata?.previousTechnicianName || 'Técnico'}`}
+                            {event.eventType === 'visit.self_assigned' && `👷 Técnico SOLICITÓ la Visita: ${event.metadata?.technicianName || 'Técnico'}`}
+                            {!['visit.created', 'visit.status_changed', 'visit.started', 'visit.completed', 
+                              'visit.technician_assigned', 'visit.technician_changed', 
+                              'visit.technician_unassigned', 'visit.self_assigned'].includes(event.eventType || '') && 
+                             event.title}
+                          </p>
+                          
+                          {event.description && (
+                            <p className="mt-1 text-sm text-gray-600">{event.description}</p>
                           )}
+                          {event.summary && (
+                            <p className="mt-1 text-sm text-gray-500">{event.summary}</p>
+                          )}
+                          
+                          {/* Metadata details */}
+                          {(event.metadata?.technicianName || event.metadata?.previousTechnicianName) && (
+                            <div className="mt-2 flex items-center gap-2 text-sm">
+                              <span className="text-gray-500">Técnico:</span>
+                              <span className="font-medium text-purple-700">
+                                {event.metadata?.technicianName || event.metadata?.previousTechnicianName}
+                              </span>
+                            </div>
+                          )}
+                          {event.metadata?.reason && (
+                            <div className="mt-1 flex items-center gap-2 text-sm">
+                              <span className="text-gray-500">Motivo:</span>
+                              <span className="text-gray-700">{event.metadata?.reason}</span>
+                            </div>
+                          )}
+                          
+                          {/* Date and user */}
+                          <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                            <div className="flex items-center gap-1.5 bg-amber-50 text-amber-700 px-2 py-1 rounded-md">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                              <span className="font-medium">
+                                {new Date(event.createdAt).toLocaleDateString('es-CL', {
+                                  day: '2-digit',
+                                  month: 'long',
+                                  year: 'numeric',
+                                })}
+                              </span>
+                              <span className="text-amber-600">•</span>
+                              <span>
+                                {new Date(event.createdAt).toLocaleTimeString('es-CL', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </span>
+                            </div>
+                            {event.performedBy && (
+                              <div className="flex items-center gap-1.5 text-gray-500">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                                <span>{event.performedBy.name}</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -636,25 +730,6 @@ export default function TechnicalVisitDetailPage() {
         <div className="space-y-4">
           <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
             <h3 className="text-sm font-semibold text-gray-900 mb-2">Acciones</h3>
-
-            {nextStatuses.length > 0 && (
-              <div className="relative">
-                <button onClick={() => setShowStatusMenu(!showStatusMenu)} disabled={saving}
-                  className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors">
-                  {saving ? 'Cambiando...' : 'Cambiar Estado'}
-                </button>
-                {showStatusMenu && (
-                  <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
-                    {nextStatuses.map((opt) => (
-                      <button key={opt.value} onClick={() => { handleStatusChange(opt.value); setShowStatusMenu(false); }}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
 
             {/* Work Execution Status - Show when work has started */}
             {(visit.status === 'in_progress' || visit.status === 'completed') && visit.startedAt && (

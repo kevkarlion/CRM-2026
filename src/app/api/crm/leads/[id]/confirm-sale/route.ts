@@ -259,6 +259,32 @@ export async function POST(
       
       const [workOrder] = await WorkOrderModel.create([workOrderData], { session });
 
+      // Publish WORK_ORDER_CREATED event for timeline/audit
+      try {
+        await eventBus.publish({
+          type: DOMAIN_EVENTS.WORK_ORDER_CREATED,
+          aggregateId: workOrder._id.toString(),
+          aggregateType: 'WorkOrder',
+          tenantId,
+          userId,
+          timestamp: new Date(),
+          payload: {
+            workOrderId: workOrder._id.toString(),
+            leadId: lead._id.toString(),
+            number: workOrder.workOrderNumber,
+            clientId: clientId.toString(),
+            title: workOrder.title,
+            category: workOrder.category,
+            priority: workOrder.priority,
+            scheduledDate: workOrder.scheduledDate,
+            clientName: lead.companyName || lead.name,
+            address: null,
+          } as any,
+        });
+      } catch (eventError) {
+        console.error('[ConfirmSale] Failed to publish WORK_ORDER_CREATED:', eventError);
+      }
+
       // Link work order to the lead
       await LeadModel.updateOne(
         { _id: lead._id, tenantId: new Types.ObjectId(tenantId) },

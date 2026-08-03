@@ -188,6 +188,10 @@ export default function WorkOrderDetailPage() {
   }>>([]);
   const [loadingTimeline, setLoadingTimeline] = useState(false);
 
+  // Work Report Drawer state - reuse existing loadingReport state
+  const [showReportDrawer, setShowReportDrawer] = useState(false);
+  const [workReport, setWorkReport] = useState<any>(null);
+
   // Work execution state
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [startingWork, setStartingWork] = useState(false);
@@ -229,13 +233,15 @@ export default function WorkOrderDetailPage() {
     setStartingWork(true);
     setStartingWorkError(null);
     try {
-      const result = await api.post<{ data: { status: string; startedAt: string } }>(
+      await api.post<{ data: { status: string; startedAt: string } }>(
         `/api/operations/work-orders/${id}/start`,
         {}
       );
-      // Reload work order to get updated status
-      const woResult = await api.get<{ data: WorkOrder }>(`/api/operations/work-orders/${id}`);
-      setWorkOrder(unwrapData(woResult));
+      // Reload work order with cache bypass
+      const woResult = await api.get<{ data: WorkOrder }>(`/api/operations/work-orders/${id}?nocache=${Date.now()}`);
+      const wo = unwrapData(woResult);
+      setWorkOrder(wo);
+      loadTimeline();
     } catch (err) {
       setStartingWorkError(err instanceof Error ? err.message : 'Error al iniciar trabajo');
     } finally {
@@ -246,9 +252,10 @@ export default function WorkOrderDetailPage() {
   // Completion success handler
   function handleCompletionSuccess() {
     setShowCompletionForm(false);
-    // Reload work order to get updated status
-    api.get<{ data: WorkOrder }>(`/api/operations/work-orders/${id}`).then((r) => {
-      setWorkOrder(unwrapData(r));
+    api.get<{ data: WorkOrder }>(`/api/operations/work-orders/${id}?nocache=${Date.now()}`).then((r) => {
+      const wo = unwrapData(r);
+      setWorkOrder(wo);
+      loadTimeline();
     }).catch(() => {});
   }
 
@@ -359,6 +366,21 @@ export default function WorkOrderDetailPage() {
     }
   }
 
+  // Load work report for drawer
+  async function loadWorkReport() {
+    try {
+      const result = await api.get<{ data: any }>(`/api/operations/work-orders/${id}/report-view`);
+      setWorkReport(unwrapData(result));
+    } catch {
+      // ignore
+    }
+  }
+
+  function handleOpenReport() {
+    loadWorkReport();
+    setShowReportDrawer(true);
+  }
+
   async function handleDelete() {
     setDeleting(true);
     try {
@@ -378,6 +400,7 @@ export default function WorkOrderDetailPage() {
       const result = await api.patch<{ data: WorkOrder }>(`/api/operations/work-orders/${id}/status`, { status: newStatus });
       setWorkOrder(unwrapData(result));
       setShowStatusMenu(false);
+      loadTimeline(); // Refresh registro
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cambiar estado');
     } finally {
@@ -410,6 +433,7 @@ export default function WorkOrderDetailPage() {
       setAssignTechId('');
       const result = await api.get<{ data: WorkOrder }>(`/api/operations/work-orders/${id}`);
       setWorkOrder(unwrapData(result));
+      loadTimeline(); // Refresh registro
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al asignar');
     } finally {
@@ -423,6 +447,7 @@ export default function WorkOrderDetailPage() {
       await api.post(`/api/operations/work-orders/${id}/assign`, { action: 'unassign', technicianId });
       const result = await api.get<{ data: WorkOrder }>(`/api/operations/work-orders/${id}`);
       setWorkOrder(unwrapData(result));
+      loadTimeline(); // Refresh registro
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al desasignar');
     } finally {
@@ -457,7 +482,7 @@ export default function WorkOrderDetailPage() {
   }
 
   const nextStatuses = NEXT_STATUSES[workOrder.status] || [];
-  const isTerminal = ['cancelled', 'closed'].includes(workOrder.status);
+  const isTerminal = ['completed', 'cancelled', 'closed'].includes(workOrder.status);
 
   return (
     <div className="space-y-6">
@@ -676,43 +701,133 @@ export default function WorkOrderDetailPage() {
                   <p className="text-gray-500">No hay eventos registrados aún.</p>
                 </div>
               ) : (
-                <div className="relative">
-                  {/* Timeline vertical line */}
-                  <div className="absolute left-4 top-0 bottom-0 w-0.5 bg-gray-200"></div>
-                  
-                  <div className="space-y-6">
-                    {timelineEvents.map((event, index) => (
-                      <div key={event._id || index} className="relative pl-10">
-                        {/* Timeline dot */}
-                        <div className="absolute left-2.5 w-3 h-3 rounded-full bg-brand-500 border-2 border-white ring-2 ring-brand-100"></div>
+                <div className="space-y-3">
+                  {timelineEvents.map((event, index) => (
+                    <div key={event._id || index} className="bg-gradient-to-r from-gray-50 to-white rounded-xl p-4 border border-gray-100 shadow-sm">
+                      <div className="flex items-start gap-4">
+                        {/* Icon based on event type */}
+                        <div className={`flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-lg ${
+                          event.eventType?.includes('created') ? 'bg-green-100 text-green-600' :
+                          event.eventType?.includes('status') ? 'bg-blue-100 text-blue-600' :
+                          event.eventType?.includes('technician') ? 'bg-purple-100 text-purple-600' :
+                          event.eventType?.includes('assigned') ? 'bg-purple-100 text-purple-600' :
+                          event.eventType?.includes('changed') ? 'bg-amber-100 text-amber-600' :
+                          event.eventType?.includes('unassigned') ? 'bg-red-100 text-red-600' :
+                          event.eventType?.includes('completed') ? 'bg-green-100 text-green-600' :
+                          'bg-gray-100 text-gray-600'
+                        }`}>
+                          {event.eventType?.includes('created') ? '✨' :
+                           event.eventType?.includes('status') ? '📊' :
+                           event.eventType?.includes('technician') ? '👷' :
+                           event.eventType?.includes('assigned') ? '👷' :
+                           event.eventType?.includes('changed') ? '🔄' :
+                           event.eventType?.includes('unassigned') ? '❌' :
+                           event.eventType?.includes('completed') ? '✅' :
+                           '📋'}
+                        </div>
                         
-                        <div className="bg-gray-50 rounded-lg p-4 border border-gray-100">
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <p className="font-medium text-gray-900">{event.title}</p>
-                              {event.description && (
-                                <p className="mt-1 text-sm text-gray-600">{event.description}</p>
-                              )}
-                            </div>
-                            <span className="text-xs text-gray-400 whitespace-nowrap ml-4">
-                              {new Date(event.createdAt).toLocaleString('es-CL', {
-                                day: '2-digit',
-                                month: '2-digit',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
+                        <div className="flex-1 min-w-0">
+                          {/* Event type label */}
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                              event.eventType?.includes('created') ? 'bg-green-100 text-green-700' :
+                              event.eventType?.includes('status') ? 'bg-blue-100 text-blue-700' :
+                              event.eventType === 'workorder.started' ? 'bg-green-100 text-green-700' :
+                              event.eventType === 'workorder.completed' ? 'bg-emerald-100 text-emerald-700' :
+                              event.eventType?.includes('technician') || event.eventType?.includes('assigned') ? 'bg-purple-100 text-purple-700' :
+                              event.eventType === 'workorder.self_assigned' ? 'bg-indigo-100 text-indigo-700' :
+                              event.eventType?.includes('changed') ? 'bg-amber-100 text-amber-700' :
+                              event.eventType?.includes('unassigned') ? 'bg-red-100 text-red-700' :
+                              'bg-gray-100 text-gray-700'
+                            }`}>
+                              {event.eventType === 'workorder.created' && 'Creación'}
+                              {event.eventType === 'workorder.status_changed' && 'Estado'}
+                              {event.eventType === 'workorder.started' && 'Inicio Trabajo'}
+                              {event.eventType === 'workorder.completed' && 'Fin Trabajo'}
+                              {event.eventType === 'workorder.technician_assigned' && 'Asignación Admin'}
+                              {event.eventType === 'workorder.technician_changed' && 'Reasignación Admin'}
+                              {event.eventType === 'workorder.technician_unassigned' && 'Desasignación Admin'}
+                              {event.eventType === 'workorder.self_assigned' && 'Solicitud Técnico'}
+                              {!['workorder.created', 'workorder.status_changed', 'workorder.started', 'workorder.completed', 
+                                'workorder.technician_assigned', 'workorder.technician_changed', 
+                                'workorder.technician_unassigned', 'workorder.self_assigned'].includes(event.eventType || '') && 
+                               'Otro'}
                             </span>
                           </div>
-                          {event.performedBy && (
-                            <p className="mt-2 text-xs text-gray-500">
-                              Por: {event.performedBy.name}
-                            </p>
+                          
+                          <p className="font-semibold text-gray-900 text-base">
+                            {event.eventType === 'workorder.created' && `Orden de trabajo creada`}
+                            {event.eventType === 'workorder.status_changed' && `Estado actualizado a "${event.metadata?.toStatus || event.description || 'nuevo estado'}"`}
+                            {event.eventType === 'workorder.started' && `👷 Técnico INICIÓ el trabajo: ${event.metadata?.technicianName || 'Técnico'}`}
+                            {event.eventType === 'workorder.completed' && `✅ Técnico FINALIZÓ el trabajo`}
+                            {event.eventType === 'workorder.technician_assigned' && `Técnico asignado por ADMIN: ${event.metadata?.technicianName || 'Técnico'}`}
+                            {event.eventType === 'workorder.technician_changed' && `Técnico cambiado por ADMIN a: ${event.metadata?.technicianName || 'Técnico'}`}
+                            {event.eventType === 'workorder.technician_unassigned' && `Técnico desasignado por ADMIN: ${event.metadata?.previousTechnicianName || 'Técnico'}`}
+                            {event.eventType === 'workorder.self_assigned' && `👷 Técnico SOLICITÓ la OT: ${event.metadata?.technicianName || 'Técnico'}`}
+                            {event.eventType === 'workorder.scheduled' && `Programación actualizada`}
+                            {!['workorder.created', 'workorder.status_changed', 'workorder.started', 'workorder.completed',
+                              'workorder.technician_assigned', 'workorder.technician_changed', 
+                              'workorder.technician_unassigned', 'workorder.self_assigned', 'workorder.scheduled'].includes(event.eventType || '') && 
+                             event.title}
+                          </p>
+                          
+                          {event.description && (
+                            <p className="mt-1 text-sm text-gray-600">{event.description}</p>
                           )}
+                          {event.summary && (
+                            <p className="mt-1 text-sm text-gray-500">{event.summary}</p>
+                          )}
+                          
+                          {/* Metadata details */}
+                          {(event.metadata?.technicianName || event.metadata?.previousTechnicianName) && (
+                            <div className="mt-2 flex items-center gap-2 text-sm">
+                              <span className="text-gray-500">Técnico:</span>
+                              <span className="font-medium text-purple-700">
+                                {event.metadata?.technicianName || event.metadata?.previousTechnicianName}
+                              </span>
+                            </div>
+                          )}
+                          {event.metadata?.reason && (
+                            <div className="mt-1 flex items-center gap-2 text-sm">
+                              <span className="text-gray-500">Motivo:</span>
+                              <span className="text-gray-700">{event.metadata?.reason}</span>
+                            </div>
+                          )}
+                          
+                          {/* Date and user */}
+                          <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                            <div className="flex items-center gap-1.5 bg-amber-50 text-amber-700 px-2 py-1 rounded-md">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                              <span className="font-medium">
+                                {new Date(event.createdAt).toLocaleDateString('es-CL', {
+                                  day: '2-digit',
+                                  month: 'long',
+                                  year: 'numeric',
+                                })}
+                              </span>
+                              <span className="text-amber-600">•</span>
+                              <span>
+                                {new Date(event.createdAt).toLocaleTimeString('es-CL', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </span>
+                            </div>
+                            {event.performedBy && (
+                              <div className="flex items-center gap-1.5 text-gray-500">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                                <span>{event.performedBy.name}</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -723,30 +838,12 @@ export default function WorkOrderDetailPage() {
           <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
             <h3 className="text-sm font-semibold text-gray-900 mb-2">Acciones</h3>
 
-            {!isTerminal && isAdmin && (
+            {/* Only allow edit when NOT completed/closed/cancelled */}
+            {!['completed', 'closed', 'cancelled'].includes(workOrder.status) && isAdmin && (
               <button onClick={() => router.push(`/work-orders/${id}/edit`)}
                 className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors">
                 Editar OT
               </button>
-            )}
-
-            {nextStatuses.length > 0 && isAdmin && (
-              <div className="relative">
-                <button onClick={() => setShowStatusMenu(!showStatusMenu)} disabled={changingStatus}
-                  className="w-full rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors">
-                  {changingStatus ? 'Cambiando...' : 'Cambiar Estado'}
-                </button>
-                {showStatusMenu && (
-                  <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg overflow-hidden">
-                    {nextStatuses.map((opt) => (
-                      <button key={opt.value} onClick={() => handleStatusChange(opt.value)}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors">
-                        {opt.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
             )}
 
             {/* Work Execution Status - Show when work has started */}
@@ -786,6 +883,21 @@ export default function WorkOrderDetailPage() {
                         ? `${Math.floor(workOrder.duration / 60)}h ${workOrder.duration % 60}min`
                         : `${workOrder.duration} min`}
                     </p>
+                  )}
+                  
+                  {/* Ver Reporte button - visible to admin or the technician who completed */}
+                  {workOrder.workReportId && (
+                    <div className="pt-2 border-t border-amber-200">
+                      <button
+                        onClick={handleOpenReport}
+                        className="inline-flex items-center gap-1 text-xs font-medium text-brand-700 hover:text-brand-800"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        Ver Reporte de Trabajo
+                      </button>
+                    </div>
                   )}
                 </div>
               </div>
@@ -902,28 +1014,6 @@ export default function WorkOrderDetailPage() {
               </div>
             )}
 
-            {isAdmin && (
-              !showDeleteConfirm ? (
-                <button onClick={() => setShowDeleteConfirm(true)}
-                  className="w-full rounded-lg border border-danger-200 px-4 py-2 text-sm font-medium text-danger-600 hover:bg-danger-50 transition-colors">
-                  Eliminar
-                </button>
-              ) : (
-                <div className="space-y-2 p-3 bg-danger-50 rounded-lg">
-                  <p className="text-xs text-danger-700 font-medium">¿Eliminar esta OT?</p>
-                  <div className="flex gap-2">
-                    <button onClick={handleDelete} disabled={deleting}
-                      className="flex-1 rounded-lg bg-danger-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-danger-600 disabled:opacity-50 transition-colors">
-                      {deleting ? 'Eliminando...' : 'Sí, eliminar'}
-                    </button>
-                    <button onClick={() => setShowDeleteConfirm(false)}
-                      className="flex-1 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors">
-                      Cancelar
-                    </button>
-                  </div>
-                </div>
-              )
-            )}
           </div>
         </div>
       </div>
@@ -952,6 +1042,103 @@ export default function WorkOrderDetailPage() {
           onSuccess={handleCompletionSuccess}
           onCancel={() => setShowCompletionForm(false)}
         />
+      </Drawer>
+
+      {/* Work Report Drawer */}
+      <Drawer
+        isOpen={showReportDrawer}
+        onClose={() => setShowReportDrawer(false)}
+        title="Reporte de Trabajo"
+      >
+        {loadingReport ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600"></div>
+          </div>
+        ) : workReport ? (
+          <div className="space-y-4 p-2">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+              <span className="text-xs font-medium text-green-700">Estado: Completado</span>
+            </div>
+            
+            <div>
+              <h4 className="text-sm font-medium text-gray-500">Técnico</h4>
+              <p className="text-base font-semibold text-gray-900">{workReport.technicianName}</p>
+            </div>
+
+            {workReport.result && (
+              <div>
+                <h4 className="text-sm font-medium text-gray-500">Resultado</h4>
+                <p className="text-base text-gray-900">{workReport.result}</p>
+              </div>
+            )}
+
+            {workReport.workPerformed && workReport.workPerformed.length > 0 && (
+              <div>
+                <h4 className="text-sm font-medium text-gray-500">Trabajo Realizado</h4>
+                <ul className="mt-1 space-y-1">
+                  {workReport.workPerformed.map((item: string, idx: number) => (
+                    <li key={idx} className="flex items-start gap-2 text-sm text-gray-700">
+                      <span className="text-green-500 mt-0.5">✓</span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {workReport.observations && (
+              <div>
+                <h4 className="text-sm font-medium text-gray-500">Observaciones</h4>
+                <p className="text-sm text-gray-900">{workReport.observations}</p>
+              </div>
+            )}
+
+            {workReport.additionalIssues && workReport.additionalIssues.length > 0 && (
+              <div>
+                <h4 className="text-sm font-medium text-gray-500">Problemas Adicionales</h4>
+                <ul className="mt-1 space-y-1">
+                  {workReport.additionalIssues.map((item: string, idx: number) => (
+                    <li key={idx} className="flex items-start gap-2 text-sm text-amber-700">
+                      <span className="text-amber-500 mt-0.5">⚠</span>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {workReport.nextVisitRecommendation && (
+              <div>
+                <h4 className="text-sm font-medium text-gray-500">Recomendación Próxima Visita</h4>
+                <p className="text-sm text-gray-900">{workReport.nextVisitRecommendation}</p>
+              </div>
+            )}
+
+            {workReport.duration && (
+              <div>
+                <h4 className="text-sm font-medium text-gray-500">Duración</h4>
+                <p className="text-base font-semibold text-gray-900">
+                  {workReport.duration >= 60
+                    ? `${Math.floor(workReport.duration / 60)}h ${workReport.duration % 60}min`
+                    : `${workReport.duration} min`}
+                </p>
+              </div>
+            )}
+
+            {workReport.finishedAt && (
+              <div>
+                <h4 className="text-sm font-medium text-gray-500">Fecha de Finalización</h4>
+                <p className="text-base text-gray-900">
+                  {new Date(workReport.finishedAt).toLocaleString('es-CL')}
+                </p>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            No hay reporte disponible
+          </div>
+        )}
       </Drawer>
     </div>
   );
