@@ -412,7 +412,10 @@ export class WhatsAppService {
     const storedContext = await conversationStore.get(phoneNumber);
     const hasActive = storedContext !== null;
     
-    // Check for timeout (30 minutes)
+    // Check if conversation was already completed
+    const isComplete = storedContext?.get('complete') === true;
+    
+    // Check for timeout (30 minutes) - only matters if conversation was completed
     let isTimedOut = false;
     if (hasActive && storedContext) {
       const lastActivity = storedContext.get<string>('lastActivity');
@@ -420,10 +423,11 @@ export class WhatsAppService {
         const lastTime = new Date(lastActivity);
         const diffMs = now.getTime() - lastTime.getTime();
         const diffMinutes = diffMs / (1000 * 60);
-        if (diffMinutes > 30) {
-          console.log('[Engine] Conversation timed out after', diffMinutes, 'minutes');
+        
+        // If conversation is complete and passed 30 min, restart it
+        if (isComplete && diffMinutes > 30) {
+          console.log('[Engine] Completed conversation timed out after', diffMinutes, 'minutes, restarting');
           isTimedOut = true;
-          // Clear the conversation
           await conversationStore.clear(phoneNumber);
         }
       }
@@ -432,11 +436,21 @@ export class WhatsAppService {
     let result;
     
     if (hasActive && !isTimedOut) {
+      // Check if conversation already completed - respond with processed message
+      if (isComplete) {
+        console.log('[Engine] Conversation already completed, sending processed message');
+        return {
+          message: 'Tu solicitud fue procesada, un asesor se contactará en breve. 😊',
+          isComplete: true,
+          context: storedContext,
+        };
+      }
+      
       // Continue existing conversation
       console.log('[Engine] Continuing conversation for:', phoneNumber);
       result = await engine.process(phoneNumber, normalizedInput);
     } else {
-      // No active conversation - start new one (unless it's a simple greeting keyword, process normally)
+      // No active conversation or timed out - start new one
       console.log('[Engine] Starting new conversation for:', phoneNumber, '| isTimedOut:', isTimedOut);
       result = await engine.start(phoneNumber);
     }
