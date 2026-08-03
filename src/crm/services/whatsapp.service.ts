@@ -34,19 +34,17 @@ class MongoDBConversationStore implements ConversationStore {
       const doc = await ConversationModel.findOne({ phoneNumber }).lean();
       if (!doc) return null;
       
-      console.log('[Store] Found conversation for:', phoneNumber, '| doc.context:', JSON.stringify(doc.context)?.slice(0, 200));
+      console.log('[Store] Found doc.context:', JSON.stringify(doc.context));
       
       // Reconstruct context from stored data
       const context = new ConversationContext(phoneNumber);
       if (doc.context) {
-        // The format is { phoneNumber, version, data: { currentState, ... } }
-        // We need to restore the data object directly
-        if (doc.context.data) {
-          for (const [key, value] of Object.entries(doc.context.data)) {
-            context.set(key, value);
-          }
+        // doc.context is already the flat data object: { currentState: "service", ... }
+        for (const [key, value] of Object.entries(doc.context)) {
+          context.set(key, value);
         }
       }
+      console.log('[Store] Reconstructed currentState:', context.get('currentState'));
       return context;
     } catch (error) {
       console.error('[Store] Error getting conversation:', error);
