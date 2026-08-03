@@ -505,9 +505,16 @@ export class WhatsAppService {
       console.log('[Engine] Continuing conversation for:', phoneNumber);
       result = await engine.process(phoneNumber, normalizedInput);
     } else {
-      // No active conversation or timed out - start new one
-      console.log('[Engine] Starting new conversation for:', phoneNumber);
+      // No active conversation - start new one
+      console.log('[Engine] Starting FRESH conversation for:', phoneNumber);
       result = await engine.start(phoneNumber);
+      
+      // IMPORTANT: After starting, immediately process the user's input
+      // to simulate them responding to the first question
+      if (result.context && result.context.get('currentState') === 'greeting') {
+        console.log('[Engine] Auto-processing input in greeting state for fresh start');
+        result = await engine.process(phoneNumber, normalizedInput);
+      }
     }
 
     // Update last activity timestamp and save
