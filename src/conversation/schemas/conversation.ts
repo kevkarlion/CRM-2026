@@ -29,8 +29,14 @@ const contextSchema = new Schema(
 
 export const conversationSchema = new Schema<IConversation>(
   {
-    tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
-    leadId: { type: Schema.Types.ObjectId, ref: 'Lead', required: true, index: true },
+    tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', index: true },
+    leadId: { type: Schema.Types.ObjectId, ref: 'Lead', index: true },
+    
+    // Phone number for WhatsApp identification
+    phoneNumber: { type: String, index: true },
+    
+    // For conversation engine timeout tracking
+    lastActivity: { type: Date },
 
     state: {
       type: String,
