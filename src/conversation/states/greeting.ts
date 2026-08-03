@@ -13,10 +13,26 @@ export class GreetingState implements IConversationState {
   readonly id = 'greeting'
 
   process(input: string, context: ConversationContext): ProcessResult {
-    // First message in conversation, any input is valid
+    // Take the name directly from the first input
+    const trimmed = input.trim()
+    
+    if (!trimmed || trimmed.length < 2) {
+      const intent: StateIntent = {
+        validationError: 'Por favor, ingresa tu nombre para continuar.',
+      }
+
+      return {
+        intent,
+        isValid: false,
+      }
+    }
+
+    // Store name and go directly to service
     const intent: StateIntent = {
-      data: {},
-      nextState: 'name',
+      data: {
+        customerName: trimmed,
+      },
+      nextState: 'service',
     }
 
     return {
@@ -30,14 +46,14 @@ export class GreetingState implements IConversationState {
     let greeting: string
 
     if (hour < 12) {
-      greeting = '¡Buenos días! ☀️'
+      greeting = 'Buenos días'
     } else if (hour < 18) {
-      greeting = '¡Buenas tardes! 🌤️'
+      greeting = 'Buenas tardes'
     } else {
-      greeting = '¡Buenas noches! 🌙'
+      greeting = 'Buenas noches'
     }
 
-    return `${greeting} 👋🤖 Soy el asistente virtual de Rolo Climatización. Te voy a hacer algunas preguntas para gestionar tu solicitud de servicio.`
+    return `${greeting} 🤖 Soy el asistente virtual de Rolo Climatizaciones. ¿Cómo te llamás?`
   }
 
   getOptions(context: ConversationContext): string[] {
