@@ -52,7 +52,7 @@ export class NameState implements IConversationState {
   }
 
   getMessage(context: ConversationContext): string {
-    return '¿Cómo te llamás?'
+    return '¿Cómo te llamás? 🤔'
   }
 
   getOptions(context: ConversationContext): string[] {

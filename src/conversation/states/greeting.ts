@@ -30,14 +30,14 @@ export class GreetingState implements IConversationState {
     let greeting: string
 
     if (hour < 12) {
-      greeting = '¡Buenos días!'
+      greeting = '¡Buenos días! ☀️'
     } else if (hour < 18) {
-      greeting = '¡Buenas tardes!'
+      greeting = '¡Buenas tardes! 🌤️'
     } else {
-      greeting = '¡Buenas noches!'
+      greeting = '¡Buenas noches! 🌙'
     }
 
-    return `${greeting} Soy el asistente de Rolo Climatización. Te voy a hacer algunas preguntas para gestionar tu solicitud. ¿Cómo te llamas?`
+    return `${greeting} 👋 Soy el asistente virtual de Rolo Climatización. Te voy a hacer algunas preguntas para gestionar tu solicitud de servicio.`
   }
 
   getOptions(context: ConversationContext): string[] {

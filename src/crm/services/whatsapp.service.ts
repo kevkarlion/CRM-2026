@@ -47,6 +47,13 @@ class MemoryConversationStore implements ConversationStore {
   }
 
   /**
+   * Clear conversation for a phone number (for timeouts)
+   */
+  async clear(phoneNumber: string): Promise<void> {
+    this.store.delete(phoneNumber);
+  }
+
+  /**
    * Check if there's an active conversation for a phone number
    */
   async hasActiveConversation(phoneNumber: string): Promise<boolean> {
@@ -413,33 +420,53 @@ export class WhatsAppService {
   ): Promise<{ message: string; isComplete: boolean; handoff?: boolean; context?: ConversationContext }> {
     const engine = getConversationEngine();
     const normalizedInput = input.trim();
+    const now = new Date();
 
     // Check if there's an active conversation
-    const hasActive = await conversationStore.hasActiveConversation(phoneNumber);
+    const storedContext = await conversationStore.get(phoneNumber);
+    const hasActive = storedContext !== null;
+    
+    // Check for timeout (30 minutes)
+    let isTimedOut = false;
+    if (hasActive && storedContext) {
+      const lastActivity = storedContext.get<string>('lastActivity');
+      if (lastActivity) {
+        const lastTime = new Date(lastActivity);
+        const diffMs = now.getTime() - lastTime.getTime();
+        const diffMinutes = diffMs / (1000 * 60);
+        if (diffMinutes > 30) {
+          console.log('[Engine] Conversation timed out after', diffMinutes, 'minutes');
+          isTimedOut = true;
+          // Clear the conversation
+          await conversationStore.clear(phoneNumber);
+        }
+      }
+    }
     
     let result;
     
-    if (hasActive) {
+    if (hasActive && !isTimedOut) {
       // Continue existing conversation
       console.log('[Engine] Continuing conversation for:', phoneNumber);
       result = await engine.process(phoneNumber, normalizedInput);
+    } else if (isTimedOut || isGreetingKeyword(normalizedInput) || isNewLead) {
+      // Start new conversation (timed out or greeting)
+      console.log('[Engine] Starting new conversation for:', phoneNumber, '| isTimedOut:', isTimedOut);
+      result = await engine.start(phoneNumber);
     } else {
-      // Check if it's a greeting to start new conversation
-      const isGreeting = this.isGreetingKeyword(normalizedInput);
-      
-      if (isGreeting || isNewLead) {
-        // Start new conversation
-        console.log('[Engine] Starting new conversation for:', phoneNumber);
-        result = await engine.start(phoneNumber);
-      } else {
-        // Not a greeting and no active conversation - use legacy response
-        console.log('[Engine] No greeting and no active conversation, using legacy');
-        const legacyResponse = this.generateAutoResponse(normalizedInput, isNewLead);
-        return {
-          message: legacyResponse.responseText || 'Gracias por contactarnos. ¿En qué podemos ayudarte?',
-          isComplete: false,
-        };
-      }
+      // Not a greeting and no active conversation - use legacy response
+      console.log('[Engine] No greeting and no active conversation, using legacy');
+      const legacyResponse = this.generateAutoResponse(normalizedInput, isNewLead);
+      return {
+        message: legacyResponse.responseText || 'Gracias por contactarnos. ¿En qué podemos ayudarte?',
+        isComplete: false,
+      };
+    }
+
+    // Update last activity timestamp
+    if (result.context) {
+      result.context.set('lastActivity', now.toISOString());
+      await conversationStore.save(phoneNumber, result.context);
     }
 
     return {

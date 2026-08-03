@@ -74,7 +74,7 @@ export class ServiceState implements IConversationState {
   }
 
   getMessage(context: ConversationContext): string {
-    return 'Perfecto. ¿Qué tipo de servicio necesitás?\n\n1️⃣ Instalación\n2️⃣ Reparación\n3️⃣ Mantenimiento\n4️⃣ Presupuesto\n5️⃣ Otro'
+    return 'Perfecto. ¿Qué tipo de servicio necesitás?'
   }
 
   getOptions(context: ConversationContext): string[] {

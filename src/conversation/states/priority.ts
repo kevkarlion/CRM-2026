@@ -70,7 +70,7 @@ export class PriorityState implements IConversationState {
   }
 
   getMessage(context: ConversationContext): string {
-    return '¿Cuándo necesitás el servicio?\n\n1️⃣ Hoy\n2️⃣ Durante esta semana\n3️⃣ No tengo apuro'
+    return '¿Cuándo necesitás el servicio?'
   }
 
   getOptions(context: ConversationContext): string[] {

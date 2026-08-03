@@ -43,7 +43,7 @@ export class DescriptionState implements IConversationState {
   }
 
   getMessage(context: ConversationContext): string {
-    return 'Describí brevemente el problema o servicio que necesitás:'
+    return 'Describí brevemente el problema o servicio que necesitás 📝:'
   }
 
   getOptions(context: ConversationContext): string[] {

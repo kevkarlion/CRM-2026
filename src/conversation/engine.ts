@@ -96,12 +96,14 @@ export class ConversationEngine {
     if (this.store) {
       const stored = await this.store.get(phoneNumber)
       context = stored ?? new ContextClass(phoneNumber)
+      console.log('[Engine] Loaded context, currentState:', stored?.get('currentState'))
     } else {
       context = new ContextClass(phoneNumber)
     }
 
     // Get current state from context or use initial
     const currentStateId = context.get<string>('currentState') ?? this.flowConfig.initialState
+    console.log('[Engine] Processing input for state:', currentStateId, '| input:', input)
 
     return this.processInput(currentStateId, input, context)
   }
@@ -183,6 +185,7 @@ export class ConversationEngine {
     // Persist context if store is configured
     if (this.store) {
       await this.store.save(context.phoneNumber, context)
+      console.log('[Engine] Saved context, new state:', stateId)
     }
 
     // Get state and compose reply
