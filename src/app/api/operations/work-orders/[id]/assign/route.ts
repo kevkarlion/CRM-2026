@@ -78,18 +78,10 @@ export async function POST(
           return NextResponse.json({ error: 'technicianId is required for assign' }, { status: 400 });
         }
 
-        // Promote status to 'assigned' ONLY from 'scheduled' or 'confirmed' —
-        // never overwrite advanced statuses (in_progress, paused, completed, ...)
-        await WorkOrderModel.updateOne(
-          {
-            _id: new Types.ObjectId(workOrderId),
-            tenantId: new Types.ObjectId(tenantId),
-            status: { $in: ['scheduled', 'confirmed'] },
-          },
-          { $set: { status: 'assigned' } },
-        );
-
-        // createAssignment owns the denormalized `assignedTechnicians` write.
+        // createAssignment owns the status promotion (PROMOTABLE_STATUSES gate)
+        // and the denormalized `assignedTechnicians` write. The route must NOT
+        // promote here: the service reads the pre-promotion status for the
+        // event's fromStatus/toStatus metadata.
         const assignment = await workAssignmentService.createAssignment(workOrderId, technicianId, userId, tenantId, {
           assignmentType: 'manual',
           reason: 'other',
@@ -103,18 +95,9 @@ export async function POST(
           return NextResponse.json({ error: 'oldTechnicianId and newTechnicianId are required for reassign' }, { status: 400 });
         }
 
-        // Promote status to 'assigned' ONLY from 'scheduled' or 'confirmed' —
-        // never overwrite advanced statuses (in_progress, paused, completed, ...)
-        await WorkOrderModel.updateOne(
-          {
-            _id: new Types.ObjectId(workOrderId),
-            tenantId: new Types.ObjectId(tenantId),
-            status: { $in: ['scheduled', 'confirmed'] },
-          },
-          { $set: { status: 'assigned' } },
-        );
-
-        // replaceTechnician owns the denormalized `assignedTechnicians` write.
+        // replaceTechnician -> createAssignment owns the status promotion
+        // (PROMOTABLE_STATUSES gate) and the denormalized `assignedTechnicians`
+        // write; the route must NOT promote here or fromStatus/toStatus skews.
         const assignment = await workAssignmentService.replaceTechnician(workOrderId, newTechnicianId, userId, tenantId, 'replacement');
         return NextResponse.json({ data: assignment }, { status: 201 });
       }

@@ -4,7 +4,11 @@ import { IWorkOrderAssignment } from '../models/work-order-assignment';
 import WorkOrderModel from '../models/work-order';
 import { TechnicianModel } from '../models/technician';
 import { NotFoundError, ValidationError } from '@/core/errors';
-import { logActivity } from '@/audit/activity-logger';
+import { eventBus } from '@/infrastructure/events/event-bus';
+import { DOMAIN_EVENTS, WorkOrderTechnicianAssignmentPayload } from '@/infrastructure/events/event.types';
+
+const PROMOTABLE_STATUSES = ['scheduled', 'confirmed'];
+const PUBLISHABLE_ASSIGNMENT_TYPES = ['initial', 'manual', 'replacement'];
 
 export class WorkAssignmentService {
   /**
@@ -68,6 +72,9 @@ export class WorkAssignmentService {
             'Ya existe un técnico asignado a esta orden de trabajo. Use la acción "reassign" para reasignar.'
           );
         }
+      } else {
+        // Same technician already active - idempotent no-op (no write, no event)
+        return existingAssignment;
       }
     }
 
@@ -81,6 +88,12 @@ export class WorkAssignmentService {
 
     // If technician already has assignment (any status), update it instead of creating new
     if (technicianPreviousAssignment) {
+      // previousTechnicianId must come from the ACTIVE assignment being replaced,
+      // never from client-supplied options.previousTechnicianId (REQ-TAE-03).
+      const derivedPreviousTechnicianId = existingAssignment
+        ? (existingAssignment.technicianId as any)?.toString() || null
+        : null;
+
       // Mark old active assignment as replaced first
       if (existingAssignment && existingAssignment._id.toString() !== technicianPreviousAssignment._id.toString()) {
         await WorkOrderAssignmentModel.findByIdAndUpdate(existingAssignment._id, {
@@ -102,8 +115,8 @@ export class WorkAssignmentService {
           reason: options.reason as any,
           reasonDetail: options.reasonDetail,
           notes: options.notes,
-          previousTechnicianId: options.previousTechnicianId
-            ? new Types.ObjectId(options.previousTechnicianId)
+          previousTechnicianId: derivedPreviousTechnicianId
+            ? new Types.ObjectId(derivedPreviousTechnicianId)
             : null,
           replacedAt: null,
           deletedAt: null,
@@ -114,12 +127,36 @@ export class WorkAssignmentService {
       const newTechnicianId = new Types.ObjectId(technicianId);
       console.log('[createAssignment] Updating WorkOrder for existing technician case:', workOrderId);
       await WorkOrderModel.findByIdAndUpdate(workOrderId, {
-        $set: { 
+        $set: {
           assignedTechnicians: [newTechnicianId],
-          status: 'assigned', 
-          updatedBy: new Types.ObjectId(assignedBy) 
+          updatedBy: new Types.ObjectId(assignedBy),
         },
       });
+
+      // Promote status to 'assigned' ONLY from scheduled/confirmed (never overwrite advanced)
+      await WorkOrderModel.updateOne(
+        {
+          _id: new Types.ObjectId(workOrderId),
+          tenantId: new Types.ObjectId(tenantId),
+          status: { $in: PROMOTABLE_STATUSES },
+        },
+        { $set: { status: 'assigned' } },
+      );
+
+      if (PUBLISHABLE_ASSIGNMENT_TYPES.includes(options.assignmentType)) {
+        await this.publishTechnicianAssignment({
+          workOrder,
+          technicianId,
+          previousTechnicianId: derivedPreviousTechnicianId,
+          assignmentType: options.assignmentType,
+          reason: options.reason,
+          reasonDetail: options.reasonDetail,
+          fromStatus: workOrder.status,
+          toStatus: PROMOTABLE_STATUSES.includes(workOrder.status) ? 'assigned' : undefined,
+          tenantId,
+          userId: assignedBy,
+        });
+      }
 
       return WorkOrderAssignmentModel.findById(technicianPreviousAssignment._id).populate('technicianId', 'name email phone availability');
     }
@@ -136,13 +173,19 @@ export class WorkAssignmentService {
       });
     }
 
+    // previousTechnicianId must come from the ACTIVE assignment being replaced,
+    // never from client-supplied options.previousTechnicianId (REQ-TAE-03).
+    const derivedPreviousTechnicianId = existingAssignment
+      ? (existingAssignment.technicianId as any)?.toString() || null
+      : null;
+
     // Create the new assignment
     const assignment = await WorkOrderAssignmentModel.create({
       tenantId: new Types.ObjectId(tenantId),
       workOrderId: new Types.ObjectId(workOrderId),
       technicianId: new Types.ObjectId(technicianId),
-      previousTechnicianId: options.previousTechnicianId
-        ? new Types.ObjectId(options.previousTechnicianId)
+      previousTechnicianId: derivedPreviousTechnicianId
+        ? new Types.ObjectId(derivedPreviousTechnicianId)
         : null,
       assignmentType: options.assignmentType,
       reason: options.reason as any,
@@ -171,26 +214,99 @@ export class WorkAssignmentService {
     await WorkOrderModel.findByIdAndUpdate(workOrderId, {
       $set: { 
         assignedTechnicians: [newTechnicianId],
-        status: 'assigned', 
         updatedBy: new Types.ObjectId(assignedBy) 
       },
     });
 
+    // Promote status to 'assigned' ONLY from scheduled/confirmed (never overwrite advanced)
+    await WorkOrderModel.updateOne(
+      {
+        _id: new Types.ObjectId(workOrderId),
+        tenantId: new Types.ObjectId(tenantId),
+        status: { $in: PROMOTABLE_STATUSES },
+      },
+      { $set: { status: 'assigned' } },
+    );
+
     console.log('[SelfAssign] WorkOrder updated successfully!');
 
-    // Log the activity
-    const tech = await TechnicianModel.findById(technicianId).lean();
-    const actionLabel = options.assignmentType === 'replacement' ? 'reasignó' : 'asignó';
-    await logActivity({
-      tenantId: new Types.ObjectId(tenantId),
-      entityType: 'WorkOrder',
-      entityId: workOrderId,
-      action: 'assigned',
-      actorId: new Types.ObjectId(assignedBy),
-      description: `Técnico ${tech?.name || technicianId} ${actionLabel} a ${workOrder.workOrderNumber}`,
-    });
+    if (PUBLISHABLE_ASSIGNMENT_TYPES.includes(options.assignmentType)) {
+      await this.publishTechnicianAssignment({
+        workOrder,
+        technicianId,
+        previousTechnicianId: derivedPreviousTechnicianId,
+        assignmentType: options.assignmentType,
+        reason: options.reason,
+        reasonDetail: options.reasonDetail,
+        fromStatus: workOrder.status,
+        toStatus: PROMOTABLE_STATUSES.includes(workOrder.status) ? 'assigned' : undefined,
+        tenantId,
+        userId: assignedBy,
+      });
+    }
 
     return assignment;
+  }
+
+  /**
+   * Publish a technician assignment domain event (best-effort, never throw).
+   * The audit handler is the SOLE ActivityLog writer (REQ-TAE-08); the service
+   * never logs directly.
+   */
+  private async publishTechnicianAssignment(opts: {
+    workOrder: any;
+    technicianId: string;
+    previousTechnicianId: string | null;
+    assignmentType: string;
+    reason: string;
+    reasonDetail?: string;
+    fromStatus?: string;
+    toStatus?: string;
+    tenantId: string;
+    userId: string;
+  }): Promise<void> {
+    const isChanged = Boolean(opts.previousTechnicianId);
+    const type = isChanged
+      ? DOMAIN_EVENTS.WORK_ORDER_TECHNICIAN_CHANGED
+      : DOMAIN_EVENTS.WORK_ORDER_TECHNICIAN_ASSIGNED;
+
+    try {
+      // Enrichment reads stay INSIDE the best-effort boundary: a failed read
+      // must never break the persisted operation (REQ-TAE-02).
+      const [technician, previousTechnician] = await Promise.all([
+        TechnicianModel.findById(opts.technicianId).lean(),
+        opts.previousTechnicianId
+          ? TechnicianModel.findById(opts.previousTechnicianId).lean()
+          : Promise.resolve(null),
+      ]);
+
+      await eventBus.publish({
+        type,
+        aggregateId: String(opts.workOrder._id),
+        aggregateType: 'WorkOrder',
+        tenantId: opts.tenantId,
+        userId: opts.userId,
+        timestamp: new Date(),
+        payload: {
+          workOrderId: String(opts.workOrder._id),
+          number: opts.workOrder.workOrderNumber,
+          leadId: opts.workOrder.leadId ? String(opts.workOrder.leadId) : null,
+          technicianId: opts.technicianId,
+          technicianName: (technician as any)?.name || opts.technicianId,
+          previousTechnicianId: opts.previousTechnicianId || null,
+          previousTechnicianName: isChanged
+            ? (previousTechnician as any)?.name || null
+            : null,
+          assignmentType: opts.assignmentType,
+          reason: opts.reason,
+          reasonDetail: opts.reasonDetail,
+          fromStatus: opts.fromStatus,
+          toStatus: opts.toStatus,
+        } as WorkOrderTechnicianAssignmentPayload,
+      });
+    } catch (eventError) {
+      console.error(`[WorkAssignmentService] Failed to publish ${type}:`, eventError);
+    }
   }
 
   /**
@@ -227,6 +343,105 @@ export class WorkAssignmentService {
     })
       .populate('technicianId', 'name email phone availability')
       .lean();
+  }
+
+  /**
+   * Unassign a technician from a work order (admin-initiated).
+   *
+   * Business rules (REQ-WOU-01..05):
+   * - No active assignment (or active technician differs) -> reject with no writes/events.
+   * - The active assignment leaves the active set via 'declined' + declinedAt.
+   * - Clears the WO denormalized assignedTechnicians array.
+   * - Downgrades status to 'confirmed' ONLY from 'scheduled'/'assigned'
+   *   (advanced statuses never touched, per assignment-reconciliation invariant).
+   * - Publishes WORK_ORDER_TECHNICIAN_UNASSIGNED (best-effort) with fromStatus/toStatus;
+   *   never publishes WORK_ORDER_STATUS_CHANGED.
+   */
+  async unassignTechnician(
+    workOrderId: string,
+    technicianId: string,
+    tenantId: string,
+    userId: string,
+  ): Promise<any> {
+    const activeAssignment = await WorkOrderAssignmentModel.findOne({
+      workOrderId: new Types.ObjectId(workOrderId),
+      tenantId: new Types.ObjectId(tenantId),
+      status: { $in: ['assigned', 'acknowledged'] },
+      deletedAt: null,
+    }).lean();
+
+    if (!activeAssignment) {
+      throw new NotFoundError('Active assignment not found for this work order');
+    }
+
+    const activeTechnicianId = String((activeAssignment.technicianId as any)?.toString());
+    if (activeTechnicianId !== technicianId.toString()) {
+      throw new ValidationError('The active assignment belongs to a different technician');
+    }
+
+    const workOrder = await WorkOrderModel.findOne({
+      _id: new Types.ObjectId(workOrderId),
+      tenantId: new Types.ObjectId(tenantId),
+      deletedAt: null,
+    }).lean();
+
+    if (!workOrder) {
+      throw new NotFoundError('Work order not found');
+    }
+
+    // Active assignment leaves the active set (no 'unassigned' enum value exists)
+    await WorkOrderAssignmentModel.findByIdAndUpdate(activeAssignment._id, {
+      $set: { status: 'declined', declinedAt: new Date() },
+    });
+
+    // Clear the denormalized technicians array
+    const updatedWorkOrder = await WorkOrderModel.findByIdAndUpdate(
+      { _id: new Types.ObjectId(workOrderId), tenantId: new Types.ObjectId(tenantId), deletedAt: null },
+      { $pull: { assignedTechnicians: technicianId } },
+      { new: true },
+    );
+
+    // Downgrade ONLY from scheduled/assigned (advanced statuses untouched)
+    const canDowngrade = ['scheduled', 'assigned'].includes((workOrder as any).status);
+    await WorkOrderModel.updateOne(
+      {
+        _id: new Types.ObjectId(workOrderId),
+        tenantId: new Types.ObjectId(tenantId),
+        status: { $in: ['scheduled', 'assigned'] },
+      },
+      { $set: { status: 'confirmed' } },
+    );
+
+    try {
+      // Technician name enrichment stays INSIDE the best-effort boundary.
+      const technician = await TechnicianModel.findById(technicianId).lean();
+
+      await eventBus.publish({
+        type: DOMAIN_EVENTS.WORK_ORDER_TECHNICIAN_UNASSIGNED,
+        aggregateId: workOrderId,
+        aggregateType: 'WorkOrder',
+        tenantId,
+        userId,
+        timestamp: new Date(),
+        payload: {
+          workOrderId,
+          number: (workOrder as any).workOrderNumber,
+          leadId: (workOrder as any).leadId ? String((workOrder as any).leadId) : null,
+          technicianId,
+          technicianName: (technician as any)?.name || technicianId,
+          previousTechnicianId: null,
+          previousTechnicianName: null,
+          assignmentType: (activeAssignment as any).assignmentType || 'manual',
+          reason: (activeAssignment as any).reason || 'other',
+          fromStatus: (workOrder as any).status,
+          toStatus: canDowngrade ? 'confirmed' : undefined,
+        } as WorkOrderTechnicianAssignmentPayload,
+      });
+    } catch (eventError) {
+      console.error('[WorkAssignmentService] Failed to publish WORK_ORDER_TECHNICIAN_UNASSIGNED:', eventError);
+    }
+
+    return { assignment: activeAssignment, workOrder: updatedWorkOrder };
   }
 
   /**
