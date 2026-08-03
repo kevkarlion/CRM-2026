@@ -25,6 +25,8 @@ import {
 // Flag for enabling new conversation engine
 const USE_NEW_ENGINE = process.env.USE_CONVERSATION_ENGINE === 'true';
 
+console.log('[WhatsApp] USE_CONVERSATION_ENGINE:', process.env.USE_CONVERSATION_ENGINE, '| New engine:', USE_NEW_ENGINE);
+
 /**
  * In-memory conversation store for the engine
  * Uses a Map keyed by normalized phone number

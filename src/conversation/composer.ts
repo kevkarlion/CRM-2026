@@ -2,31 +2,20 @@
  * Reply Composer - Engine-compatible composer for conversation responses
  * 
  * Adapts the ConversationEngine's ReplyComposer interface to work with
- * the existing state infrastructure. Converts StateIntent to WhatsApp messages.
- * 
- * This is the bridge layer between the new conversation engine and
- * the existing reply composition logic.
+ * the new state implementations. Uses state.getMessage() and state.getOptions().
  */
 
 import type { ConversationContext } from './context'
 import type { IConversationState } from './states/interface'
 import type { ReplyComposer } from './engine'
-import { BotReplyComposer, BotReply } from './domain/reply-composer'
 
 /**
  * Engine-compatible Reply Composer
  * 
- * Implements the ConversationEngine's ReplyComposer interface by wrapping
- * the existing BotReplyComposer. This allows the new engine to use the
- * tested reply templates while conforming to the engine's interface.
+ * Uses the state's getMessage() and getOptions() methods directly
+ * to generate responses for WhatsApp.
  */
 export class EngineReplyComposer implements ReplyComposer {
-  private readonly botComposer: BotReplyComposer
-
-  constructor() {
-    this.botComposer = new BotReplyComposer()
-  }
-
   /**
    * Compose a reply message based on the current state and context
    * @param state - The current conversation state (implements IConversationState)
@@ -37,18 +26,13 @@ export class EngineReplyComposer implements ReplyComposer {
     state: IConversationState,
     context: ConversationContext
   ): { content: string; options?: string[] } {
-    // Get the state ID from the state implementation
-    const stateId = state.id
-
-    // Convert context to the format expected by BotReplyComposer
-    const legacyContext = this.toLegacyContext(context)
-
-    // Get the reply from the existing composer
-    const reply = this.botComposer.compose(stateId as any, legacyContext)
+    // Use the state's own getMessage() and getOptions() methods
+    const content = state.getMessage(context)
+    const options = state.getOptions(context)
 
     return {
-      content: reply.content,
-      options: reply.options,
+      content,
+      options,
     }
   }
 
@@ -58,10 +42,24 @@ export class EngineReplyComposer implements ReplyComposer {
    * @returns Reply content for confirmation state
    */
   composeConfirmation(context: ConversationContext): { content: string; options?: string[] } {
-    const reply = this.botComposer.compose('confirmation' as any, this.toLegacyContext(context))
+    // Get confirmation summary
+    const customerName = context.get<string>('customerName') || 'Cliente'
+    const serviceType = context.get<string>('serviceTypeLabel') || 'servicio'
+    const address = context.get<string>('fullAddress') || context.get<string>('address') || ''
+    const priority = context.get<string>('priorityLabel') || ''
+    const description = context.get<string>('description') || ''
+
+    const summary = `📋 *Resumen de tu solicitud:*\n\n` +
+      `👤 *Nombre:* ${customerName}\n` +
+      `🔧 *Servicio:* ${serviceType}\n` +
+      `📍 *Dirección:* ${address}\n` +
+      `⏰ *Cuándo:* ${priority}\n` +
+      `📝 *Descripción:* ${description}\n\n` +
+      `¿Confirmás que los datos son correctos?`
+
     return {
-      content: reply.content,
-      options: reply.options,
+      content: summary,
+      options: ['1 - Sí, confirmar', '2 - Corregir'],
     }
   }
 
@@ -71,10 +69,8 @@ export class EngineReplyComposer implements ReplyComposer {
    * @returns Reply content for handoff
    */
   composeHandoff(reason: string): { content: string; options?: string[] } {
-    const reply = this.botComposer.composeForHandoff(reason)
     return {
-      content: reply.content,
-      options: reply.options,
+      content: 'Te voy a conectar con un especialista. Un momento por favor... 👨‍🔧',
     }
   }
 
@@ -83,10 +79,8 @@ export class EngineReplyComposer implements ReplyComposer {
    * @returns Timeout reply content
    */
   composeTimeout(): { content: string; options?: string[] } {
-    const reply = this.botComposer.composeTimeout()
     return {
-      content: reply.content,
-      options: reply.options,
+      content: 'Tu sesión ha expirado. Escribí "Hola" para iniciar una nueva conversación.',
     }
   }
 
@@ -95,26 +89,8 @@ export class EngineReplyComposer implements ReplyComposer {
    * @returns Fallback reply content
    */
   composeFallback(): { content: string; options?: string[] } {
-    const reply = this.botComposer.composeFallback()
     return {
-      content: reply.content,
-      options: reply.options,
-    }
-  }
-
-  /**
-   * Convert engine context to legacy context format expected by BotReplyComposer
-   */
-  private toLegacyContext(context: ConversationContext): any {
-    return {
-      // Map engine context data to legacy format
-      needType: context.get('needType'),
-      phoneNumber: context.phoneNumber,
-      // Include other relevant context values
-      hasEmergencyKeywords: context.get('hasEmergencyKeywords') ?? false,
-      hasProjectKeywords: context.get('hasProjectKeywords') ?? false,
-      messageContainsData: context.get('messageContainsData') ?? false,
-      userAskedForHuman: context.get('userAskedForHuman') ?? false,
+      content: 'No entendí tu respuesta. Por favor, respondé según las opciones mostradas.',
     }
   }
 }

@@ -70,11 +70,15 @@ export class PriorityState implements IConversationState {
   }
 
   getMessage(context: ConversationContext): string {
-    return 'Contános un poco más sobre lo que necesitás:'
+    return '¿Cuándo necesitás el servicio?\n\n1️⃣ Hoy\n2️⃣ Durante esta semana\n3️⃣ No tengo apuro'
   }
 
   getOptions(context: ConversationContext): string[] {
-    return undefined
+    return [
+      '1 - Hoy',
+      '2 - Esta semana',
+      '3 - No tengo apuro',
+    ]
   }
 }
 

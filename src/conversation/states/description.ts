@@ -43,13 +43,11 @@ export class DescriptionState implements IConversationState {
   }
 
   getMessage(context: ConversationContext): string {
-    // This state collects description, so this message is shown after valid input
-    // before transitioning to confirmation
-    return '¿Confirmás los siguientes datos?'
+    return 'Describí brevemente el problema o servicio que necesitás:'
   }
 
   getOptions(context: ConversationContext): string[] {
-    return undefined
+    return undefined // Free text
   }
 }
 

@@ -52,18 +52,11 @@ export class NameState implements IConversationState {
   }
 
   getMessage(context: ConversationContext): string {
-    const name = context.get<string>('customerName')
-    return `Perfecto${name ? `, ${name}` : ''}. ¿Qué tipo de servicio necesitás?`
+    return '¿Cómo te llamás?'
   }
 
   getOptions(context: ConversationContext): string[] {
-    return [
-      '1. Instalación de aire acondicionado',
-      '2. Reparación',
-      '3. Mantenimiento',
-      '4. Presupuesto',
-      '5. Otro',
-    ]
+    return undefined // No options for name - free text
   }
 }
 

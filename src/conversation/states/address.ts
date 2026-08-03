@@ -60,15 +60,11 @@ export class AddressState implements IConversationState {
   }
 
   getMessage(context: ConversationContext): string {
-    return '¿Cuándo necesitás el servicio?'
+    return '¿Cuál es la dirección donde realizaremos el servicio? (Incluí localidad y provincia)'
   }
 
   getOptions(context: ConversationContext): string[] {
-    return [
-      '1. Lo antes posible',
-      '2. Esta semana',
-      '3. La próxima semana',
-    ]
+    return undefined // Free text address
   }
 }
 
