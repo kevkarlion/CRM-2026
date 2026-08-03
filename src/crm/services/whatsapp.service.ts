@@ -31,8 +31,11 @@ class MongoDBConversationStore implements ConversationStore {
   async get(phoneNumber: string): Promise<ConversationContext | null> {
     try {
       await connectDB();
-      const doc = await ConversationModel.findOne({ phoneNumber, deletedAt: null }).lean();
+      // Find by phoneNumber, don't filter by deletedAt for now
+      const doc = await ConversationModel.findOne({ phoneNumber }).lean();
       if (!doc) return null;
+      
+      console.log('[Store] Found conversation for:', phoneNumber, '| currentState:', doc.context?.currentState);
       
       // Reconstruct context from stored data
       const context = new ConversationContext(phoneNumber);
@@ -53,12 +56,17 @@ class MongoDBConversationStore implements ConversationStore {
       await connectDB();
       const contextData = context.toJSON();
       
+      console.log('[Store] Saving conversation for:', phoneNumber, '| currentState:', contextData.currentState);
+      
+      // Simple upsert - just save by phoneNumber
       await ConversationModel.findOneAndUpdate(
-        { phoneNumber, deletedAt: null },
+        { phoneNumber },
         {
-          phoneNumber,
-          context: contextData,
-          lastActivity: new Date(),
+          $set: {
+            phoneNumber,
+            context: contextData,
+            lastActivity: new Date(),
+          }
         },
         { upsert: true, new: true }
       );
@@ -70,10 +78,7 @@ class MongoDBConversationStore implements ConversationStore {
   async delete(phoneNumber: string): Promise<void> {
     try {
       await connectDB();
-      await ConversationModel.findOneAndUpdate(
-        { phoneNumber, deletedAt: null },
-        { deletedAt: new Date() }
-      );
+      await ConversationModel.deleteOne({ phoneNumber });
     } catch (error) {
       console.error('[Store] Error deleting conversation:', error);
     }
@@ -436,6 +441,9 @@ export class WhatsAppService {
     input: string,
     isNewLead: boolean
   ): Promise<{ message: string; isComplete: boolean; handoff?: boolean; context?: ConversationContext }> {
+    // Ensure DB is connected
+    await connectDB();
+    
     const engine = getConversationEngine();
     const normalizedInput = input.trim();
     const now = new Date();
