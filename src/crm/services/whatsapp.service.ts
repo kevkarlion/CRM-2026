@@ -31,17 +31,20 @@ class MongoDBConversationStore implements ConversationStore {
   async get(phoneNumber: string): Promise<ConversationContext | null> {
     try {
       await connectDB();
-      // Find by phoneNumber, don't filter by deletedAt for now
       const doc = await ConversationModel.findOne({ phoneNumber }).lean();
       if (!doc) return null;
       
-      console.log('[Store] Found conversation for:', phoneNumber, '| currentState:', doc.context?.currentState);
+      console.log('[Store] Found conversation for:', phoneNumber, '| doc.context:', JSON.stringify(doc.context)?.slice(0, 200));
       
       // Reconstruct context from stored data
       const context = new ConversationContext(phoneNumber);
       if (doc.context) {
-        for (const [key, value] of Object.entries(doc.context)) {
-          context.set(key, value);
+        // The format is { phoneNumber, version, data: { currentState, ... } }
+        // We need to restore the data object directly
+        if (doc.context.data) {
+          for (const [key, value] of Object.entries(doc.context.data)) {
+            context.set(key, value);
+          }
         }
       }
       return context;
@@ -56,15 +59,15 @@ class MongoDBConversationStore implements ConversationStore {
       await connectDB();
       const contextData = context.toJSON();
       
-      console.log('[Store] Saving conversation for:', phoneNumber, '| currentState:', contextData.currentState);
+      console.log('[Store] Saving conversation for:', phoneNumber, '| contextData:', JSON.stringify(contextData)?.slice(0, 200));
       
-      // Simple upsert - just save by phoneNumber
+      // Save just the data part, not the wrapper
       await ConversationModel.findOneAndUpdate(
         { phoneNumber },
         {
           $set: {
             phoneNumber,
-            context: contextData,
+            context: contextData.data, // Save only the data object
             lastActivity: new Date(),
           }
         },
