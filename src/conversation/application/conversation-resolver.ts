@@ -1,6 +1,7 @@
 import { Types } from 'mongoose';
 import { connectDB } from '@/core/db';
 import ConversationModel from '@/conversation/models/conversation';
+import LeadModel from '@/leads/models/lead';
 import { selectFlow } from '@/conversation/flow-selector';
 import type { ConversationLifecycleState } from '@/conversation/domain/conversation';
 
@@ -85,7 +86,31 @@ export class ConversationResolver {
     const existing = await this.findActiveConversation(normalizedPhone);
     
     if (!existing) {
-      // No active conversation - create new
+      // No active conversation - check if lead is already contacted
+      console.log('[Resolver] No active conversation, checking lead status...');
+      
+      const lead = await this.findLeadByPhone(normalizedPhone, tenantId);
+      const isLeadContacted = lead && this.isLeadAlreadyContacted(lead.status);
+      
+      if (isLeadContacted) {
+        // Lead is already contacted/qualified - return waiting message
+        console.log('[Resolver] Lead already contacted, returning waiting message');
+        return {
+          conversation: {
+            id: '',
+            phoneNumber: normalizedPhone,
+            leadId: lead?._id?.toString() || leadId,
+            lifecycleState: 'WAITING_OPERATOR',
+          },
+          shouldContinue: false,
+          isWaitingForOperator: true,
+          isNew: false,
+          waitingMessage: '¡Hola! Ya tenemos tu solicitud registrada. ¿En qué puedo ayudarte?\n\nUn asesor te contactará pronto.',
+          flowConfig,
+        };
+      }
+      
+      // No conversation and lead is new - create new
       console.log('[Resolver] No active conversation, creating new');
       return this.createNewConversation(normalizedPhone, tenantId, leadId, flowConfig);
     }
@@ -93,6 +118,29 @@ export class ConversationResolver {
     // Check if conversation has expired (only for ACTIVE state)
     const isExpired = await this.checkExpiration(existing);
     if (isExpired) {
+      console.log('[Resolver] Conversation expired, checking lead status...');
+      
+      // Check if lead is already contacted before creating new
+      const lead = await this.findLeadByPhone(normalizedPhone, tenantId);
+      const isLeadContacted = lead && this.isLeadAlreadyContacted(lead.status);
+      
+      if (isLeadContacted) {
+        console.log('[Resolver] Lead already contacted, returning waiting message');
+        return {
+          conversation: {
+            id: '',
+            phoneNumber: normalizedPhone,
+            leadId: lead?._id?.toString() || leadId,
+            lifecycleState: 'WAITING_OPERATOR',
+          },
+          shouldContinue: false,
+          isWaitingForOperator: true,
+          isNew: false,
+          waitingMessage: '¡Hola! Ya tenemos tu solicitud registrada. ¿En qué puedo ayudarte?\n\nUn asesor te contactará pronto.',
+          flowConfig,
+        };
+      }
+      
       console.log('[Resolver] Conversation expired, creating new');
       return this.createNewConversation(normalizedPhone, tenantId, leadId, flowConfig);
     }
@@ -114,6 +162,39 @@ export class ConversationResolver {
       },
       shouldContinue: true,
       isWaitingForOperator: false,
+      isNew: false,
+      flowConfig,
+    };
+  }
+
+  /**
+   * Find lead by phone number
+   */
+  private async findLeadByPhone(phoneNumber: string, tenantId: string): Promise<any | null> {
+    const lead = await LeadModel.findOne({
+      tenantId: new Types.ObjectId(tenantId),
+      phone: { $regex: new RegExp(phoneNumber.replace(/^\+/, ''), 'i') },
+      deletedAt: null,
+    }).lean();
+    return lead;
+  }
+
+  /**
+   * Check if lead status indicates it's already been contacted/qualified
+   * 
+   * These statuses mean the bot has already completed and the lead is waiting for human response
+   */
+  private isLeadAlreadyContacted(status: string): boolean {
+    const contactedStatuses = [
+      'contacted',
+      'quote_sent',
+      'technical_visit',
+      'negotiation',
+      'qualified',
+      'won',
+    ];
+    return contactedStatuses.includes(status);
+  }
       isNew: false,
       flowConfig,
     };
