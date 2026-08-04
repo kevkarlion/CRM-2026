@@ -106,21 +106,27 @@ export class ConversationResolver {
     if (isCustomerFlow) {
       console.log('[Resolver] Handling as CUSTOMER flow');
       
-      // If conversation exists but is complete, close and restart
-      if (existing && existingIsComplete) {
-        console.log('[Resolver] Customer conversation complete - closing and starting fresh');
-        await this.closeConversation(existing._id.toString(), 'CLOSED');
-        return this.createNewConversation(normalizedPhone, tenantId, leadId, flowConfig);
+      // Si existe conversación activa de cliente, continuarla
+      if (existing && existingIsCustomer && !existingIsComplete) {
+        console.log('[Resolver] Customer conversation exists - continuing');
+        return {
+          conversation: {
+            id: existing._id.toString(),
+            phoneNumber: normalizedPhone,
+            leadId: leadId,
+            lifecycleState: existing.lifecycleState,
+            engineData: existing.engineData as Record<string, unknown> | undefined,
+          },
+          shouldContinue: true,
+          isWaitingForOperator: false,
+          isNew: false,
+          flowConfig,
+          profileName,
+        };
       }
       
-      // If conversation exists from lead flow, close it
-      if (existing && !existingIsCustomer) {
-        console.log('[Resolver] Customer has old lead conversation - closing and starting fresh');
-        await this.closeConversation(existing._id.toString(), 'CLOSED');
-        return this.createNewConversation(normalizedPhone, tenantId, leadId, flowConfig);
-      }
-      
-      // If no conversation or customer conversation exists, continue
+      // Si no hay conversación de cliente o está completa, crear nueva
+      console.log('[Resolver] Creating new customer conversation');
       return this.createNewConversation(normalizedPhone, tenantId, leadId, flowConfig);
     }
     
@@ -128,20 +134,51 @@ export class ConversationResolver {
     if (isLeadFlow) {
       console.log('[Resolver] Handling as LEAD flow');
       
-      // If there's a customer conversation, close it
-      if (existing && existingIsCustomer) {
-        console.log('[Resolver] Lead has old customer conversation - closing');
-        await this.closeConversation(existing._id.toString(), 'CLOSED');
+      // Si existe conversación activa de lead, continuarla
+      if (existing && !existingIsCustomer && !existingIsComplete) {
+        console.log('[Resolver] Lead conversation exists - continuing');
+        return {
+          conversation: {
+            id: existing._id.toString(),
+            phoneNumber: normalizedPhone,
+            leadId: existing.leadId?.toString() || leadId,
+            lifecycleState: existing.lifecycleState,
+            engineData: existing.engineData as Record<string, unknown> | undefined,
+          },
+          shouldContinue: true,
+          isWaitingForOperator: false,
+          isNew: false,
+          flowConfig,
+          profileName,
+        };
       }
       
-      // Check if lead is already contacted/qualified/won
+      // Lead contactado + conversación completa → mensaje esperando operador
       const lead = await this.findLeadByPhone(normalizedPhone, tenantId);
       const isLeadContacted = lead && this.isLeadAlreadyContacted(lead.status);
       
-      // If lead is contacted and conversation complete, return waiting message
       if (existing && isLeadContacted && existingIsComplete) {
         console.log('[Resolver] Lead conversation complete - returning waiting message');
         return {
+          conversation: {
+            id: existing._id.toString(),
+            phoneNumber: normalizedPhone,
+            leadId: leadId,
+            lifecycleState: 'WAITING_OPERATOR',
+          },
+          shouldContinue: false,
+          isWaitingForOperator: true,
+          isNew: false,
+          waitingMessage: WAITING_FOR_OPERATOR_MESSAGE,
+          flowConfig,
+          profileName,
+        };
+      }
+      
+      // Crear nueva conversación de lead
+      console.log('[Resolver] Creating new lead conversation');
+      return this.createNewConversation(normalizedPhone, tenantId, leadId, flowConfig);
+    }
           conversation: {
             id: existing._id.toString(),
             phoneNumber: normalizedPhone,
