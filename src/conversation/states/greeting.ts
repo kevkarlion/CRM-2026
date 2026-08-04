@@ -18,7 +18,7 @@ export class GreetingState implements IConversationState {
     
     if (!trimmed || trimmed.length < 2) {
       const intent: StateIntent = {
-        validationError: 'Por favor, ingresa tu nombre para continuar.',
+        validationError: '⚠️ Por favor, ingresa tu nombre para continuar.',
       }
 
       return {
@@ -46,14 +46,20 @@ export class GreetingState implements IConversationState {
     let greeting: string
 
     if (hour < 12) {
-      greeting = 'Buenos días'
-    } else if (hour < 18) {
-      greeting = 'Buenas tardes'
+      greeting = '🌞 Buenos días'
+    } else if (hour < 20) {
+      greeting = '☀️ Buenas tardes'
     } else {
-      greeting = 'Buenas noches'
+      greeting = '🌙 Buenas noches'
     }
 
-    return `${greeting} 🤖 Soy el asistente virtual de Rolo Climatizaciones. ¿Cómo te llamás?`
+    return `${greeting} 👋
+
+Soy el asistente virtual de *Rolo Climatizaciones*.
+
+Voy a hacerte unas preguntas para registrar tu solicitud y derivarla rápidamente al asesor correspondiente.
+
+¿cómo te llamás?`
   }
 
   getOptions(context: ConversationContext): string[] {

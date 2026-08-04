@@ -33,7 +33,7 @@ export class PriorityState implements IConversationState {
 
     if (!optionNum || optionNum < '1' || optionNum > '3') {
       const intent: StateIntent = {
-        validationError: 'Por favor, seleccioná una opción del 1 al 3.',
+        validationError: '⚠️ Por favor, elegí una opción del 1 al 3.',
       }
 
       return {
@@ -46,7 +46,7 @@ export class PriorityState implements IConversationState {
 
     if (!priority) {
       const intent: StateIntent = {
-        validationError: 'Opción inválida. Por favor, elegí un número del 1 al 3.',
+        validationError: '⚠️ Opción inválida. Por favor, elegí un número del 1 al 3.',
       }
 
       return {
@@ -70,14 +70,14 @@ export class PriorityState implements IConversationState {
   }
 
   getMessage(context: ConversationContext): string {
-    return '¿Cuándo necesitás el servicio?'
+    return `📅 ¿Cuándo necesitás el servicio?`
   }
 
   getOptions(context: ConversationContext): string[] {
     return [
-      '1 - Hoy',
-      '2 - Esta semana',
-      '3 - No tengo apuro',
+      '1️⃣ Hoy',
+      '2️⃣ Esta semana',
+      '3️⃣ No tengo apuro',
     ]
   }
 }

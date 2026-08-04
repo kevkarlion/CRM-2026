@@ -20,7 +20,7 @@ export class DescriptionState implements IConversationState {
     // Validate minimum length
     if (!trimmed || trimmed.length < MIN_DESCRIPTION_LENGTH) {
       const intent: StateIntent = {
-        validationError: `Por favor, ingresa más detalles (mínimo ${MIN_DESCRIPTION_LENGTH} caracteres).`,
+        validationError: `⚠️ Por favor, ingresa más detalles (mínimo ${MIN_DESCRIPTION_LENGTH} caracteres).`,
       }
 
       return {
@@ -43,7 +43,7 @@ export class DescriptionState implements IConversationState {
   }
 
   getMessage(context: ConversationContext): string {
-    return 'Describí brevemente el problema o servicio que necesitás 📝:'
+    return `📝 Describí brevemente el problema o servicio que necesitás:`
   }
 
   getOptions(context: ConversationContext): string[] {

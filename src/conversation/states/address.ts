@@ -18,7 +18,7 @@ export class AddressState implements IConversationState {
     // Validate not empty
     if (!trimmed || trimmed.length < 5) {
       const intent: StateIntent = {
-        validationError: 'Por favor, ingresa una dirección válida.',
+        validationError: '⚠️ Por favor, ingresa una dirección válida.',
       }
 
       return {
@@ -60,7 +60,7 @@ export class AddressState implements IConversationState {
   }
 
   getMessage(context: ConversationContext): string {
-    return '¿Cuál es la dirección donde realizaremos el servicio? 📍 (Incluí localidad y provincia)'
+    return `📍 ¿Cuál es la dirección donde realizaremos el servicio?\n\n(Incluí calle, localidad y provincia)`
   }
 
   getOptions(context: ConversationContext): string[] {

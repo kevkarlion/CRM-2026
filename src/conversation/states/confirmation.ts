@@ -58,7 +58,7 @@ export class ConfirmationState implements IConversationState {
 
     // Invalid input - ask again
     const intent: StateIntent = {
-      validationError: 'Por favor, respondé "Si" para confirmar o "No" para corregir.',
+      validationError: '⚠️ No entendí tu respuesta. Por favor, respondé "1" para confirmar o "2" para corregir.',
     }
 
     return {
@@ -70,25 +70,42 @@ export class ConfirmationState implements IConversationState {
   getMessage(context: ConversationContext): string {
     const name = context.get<string>('customerName') || 'Cliente'
     const serviceType = context.get<string>('serviceTypeLabel') || context.get<string>('serviceType') || 'Servicio'
-    const address = context.get<string>('fullAddress') || context.get<string>('address') || 'Dirección no especificada'
+    const address = context.get<string>('address') || ''
+    const locality = context.get<string>('locality') || ''
+    const province = context.get<string>('province') || ''
     const priority = context.get<string>('priorityLabel') || context.get<string>('priority') || 'No especificado'
     const description = context.get<string>('description') || 'Sin descripción'
 
-    return `📋 *Resumen de tu solicitud:*
+    // Build address with locality and province
+    let fullAddress = address
+    if (locality || province) {
+      fullAddress = `${address}${locality ? `, ${locality}` : ''}${province ? `, ${province}` : ''}`
+    }
 
-*Nombre:* ${name}
-*Servicio:* ${serviceType}
-*Dirección:* ${address}
-*Cuándo:* ${priority}
-*Detalles:* ${description}
+    return `✅ *Resumen de tu solicitud*
 
-¿Confirmás estos datos?`
+👤 *Nombre:*
+${name}
+
+🛠️ *Servicio:*
+${serviceType}
+
+📍 *Dirección:*
+${fullAddress || 'No especificada'}
+
+📅 *Necesidad:*
+${priority}
+
+📝 *Descripción:*
+${description}
+
+¿La información es correcta?`
   }
 
   getOptions(context: ConversationContext): string[] {
     return [
-      '1 - Sí, confirmar',
-      '2 - Corregir',
+      '1️⃣ Sí',
+      '2️⃣ Corregir',
     ]
   }
 }

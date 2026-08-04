@@ -37,7 +37,7 @@ export class ServiceState implements IConversationState {
 
     if (!optionNum || optionNum < '1' || optionNum > '5') {
       const intent: StateIntent = {
-        validationError: 'Por favor, seleccioná una opción del 1 al 5.',
+        validationError: '⚠️ Por favor, elegí una opción del 1 al 5.',
       }
 
       return {
@@ -50,7 +50,7 @@ export class ServiceState implements IConversationState {
 
     if (!serviceType) {
       const intent: StateIntent = {
-        validationError: 'Opción inválida. Por favor, elegí un número del 1 al 5.',
+        validationError: '⚠️ Opción inválida. Por favor, elegí un número del 1 al 5.',
       }
 
       return {
@@ -74,16 +74,16 @@ export class ServiceState implements IConversationState {
   }
 
   getMessage(context: ConversationContext): string {
-    return 'Perfecto. ¿Qué tipo de servicio necesitás?'
+    return `🛠️ ¿Qué servicio necesitás?`
   }
 
   getOptions(context: ConversationContext): string[] {
     return [
-      '1 - Instalación',
-      '2 - Reparación', 
-      '3 - Mantenimiento',
-      '4 - Presupuesto',
-      '5 - Otro'
+      '1️⃣ Instalación',
+      '2️⃣ Reparación',
+      '3️⃣ Mantenimiento',
+      '4️⃣ Cotización',
+      '5️⃣ Otro'
     ]
   }
 }

@@ -31,7 +31,13 @@ export class EngineReplyComposer implements ReplyComposer {
     
     if (isComplete && state.id === 'confirmation') {
       return {
-        content: '✅ Gracias, tu solicitud ha sido registrada. Te contactaremos en breve. 😊',
+        content: `✅ ¡Perfecto!
+
+Ya registramos tu solicitud correctamente.
+
+En los próximos minutos un asesor de *Rolo Climatizaciones* continuará la conversación para ayudarte.
+
+¡Muchas gracias por contactarnos! 🤖`,
       };
     }
     
@@ -55,20 +61,39 @@ export class EngineReplyComposer implements ReplyComposer {
     const customerName = context.get<string>('customerName') || 'Cliente'
     const serviceType = context.get<string>('serviceTypeLabel') || 'servicio'
     const address = context.get<string>('fullAddress') || context.get<string>('address') || ''
+    const locality = context.get<string>('locality') || ''
+    const province = context.get<string>('province') || ''
     const priority = context.get<string>('priorityLabel') || ''
     const description = context.get<string>('description') || ''
 
-    const summary = `📋 *Resumen de tu solicitud:*\n\n` +
-      `👤 *Nombre:* ${customerName}\n` +
-      `🔧 *Servicio:* ${serviceType}\n` +
-      `📍 *Dirección:* ${address}\n` +
-      `⏰ *Cuándo:* ${priority}\n` +
-      `📝 *Descripción:* ${description}\n\n` +
-      `¿Confirmás que los datos son correctos?`
+    // Build full address
+    let fullAddress = address
+    if (locality || province) {
+      fullAddress = `${address}${locality ? `, ${locality}` : ''}${province ? `, ${province}` : ''}`
+    }
+
+    const summary = `✅ *Resumen de tu solicitud*
+
+👤 *Nombre:*
+${customerName}
+
+🛠️ *Servicio:*
+${serviceType}
+
+📍 *Dirección:*
+${fullAddress || 'No especificada'}
+
+📅 *Necesidad:*
+${priority}
+
+📝 *Descripción:*
+${description}
+
+¿La información es correcta?`
 
     return {
       content: summary,
-      options: ['1 - Sí, confirmar', '2 - Corregir'],
+      options: ['1️⃣ Sí', '2️⃣ Corregir'],
     }
   }
 
@@ -79,7 +104,7 @@ export class EngineReplyComposer implements ReplyComposer {
    */
   composeHandoff(reason: string): { content: string; options?: string[] } {
     return {
-      content: 'Te voy a conectar con un especialista. Un momento por favor... 👨‍🔧',
+      content: '👨‍🔧 Te voy a conectar con un especialista. Un momento por favor...',
     }
   }
 
@@ -89,7 +114,7 @@ export class EngineReplyComposer implements ReplyComposer {
    */
   composeTimeout(): { content: string; options?: string[] } {
     return {
-      content: 'Tu sesión ha expirado. Escribí "Hola" para iniciar una nueva conversación.',
+      content: '⏰ Tu sesión ha expirado.\n\nEscribí "Hola" para iniciar una nueva conversación.',
     }
   }
 
@@ -99,7 +124,7 @@ export class EngineReplyComposer implements ReplyComposer {
    */
   composeFallback(): { content: string; options?: string[] } {
     return {
-      content: 'No entendí tu respuesta. Por favor, respondé según las opciones mostradas.',
+      content: '⚠️ No pude interpretar tu respuesta.\n\nPor favor, elegí una de las opciones indicadas.',
     }
   }
 }

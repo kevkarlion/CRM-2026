@@ -17,7 +17,7 @@ export class NameState implements IConversationState {
     // Validate name is not empty
     if (!trimmed || trimmed.length === 0) {
       const intent: StateIntent = {
-        validationError: 'Por favor, ingresa tu nombre para continuar.',
+        validationError: '⚠️ Por favor, ingresa tu nombre para continuar.',
       }
 
       return {
@@ -29,7 +29,7 @@ export class NameState implements IConversationState {
     // Validate minimum length (2 characters)
     if (trimmed.length < 2) {
       const intent: StateIntent = {
-        validationError: 'El nombre debe tener al menos 2 caracteres.',
+        validationError: '⚠️ El nombre debe tener al menos 2 caracteres.',
       }
 
       return {
