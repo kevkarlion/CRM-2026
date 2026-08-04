@@ -195,10 +195,6 @@ export class ConversationResolver {
     ];
     return contactedStatuses.includes(status);
   }
-      isNew: false,
-      flowConfig,
-    };
-  }
 
   /**
    * Handle a conversation in WAITING_OPERATOR state
