@@ -31,10 +31,24 @@ class MongoDBConversationStore implements ConversationStore {
   async get(phoneNumber: string): Promise<ConversationContext | null> {
     try {
       await connectDB();
-      const doc = await ConversationModel.findOne({ phoneNumber }).lean();
-      if (!doc) return null;
       
-      console.log('[Store] Found doc.engineData:', JSON.stringify(doc.engineData));
+      // Debug: check how many docs exist for this phone
+      const count = await ConversationModel.countDocuments({ phoneNumber });
+      console.log('[Store] Total documents for', phoneNumber + ':', count);
+      
+      const doc = await ConversationModel.findOne({ phoneNumber }).lean();
+      if (!doc) {
+        console.log('[Store] No document found for', phoneNumber);
+        return null;
+      }
+      
+      console.log('[Store] === FULL DOC DEBUG ===');
+      console.log('[Store] _id:', doc._id);
+      console.log('[Store] state:', doc.state);
+      console.log('[Store] engineData:', JSON.stringify(doc.engineData));
+      console.log('[Store] context:', JSON.stringify(doc.context));
+      console.log('[Store] lastActivity:', doc.lastActivity);
+      console.log('[Store] =========================');
       
       // Reconstruct context from stored data
       const context = new ConversationContext(phoneNumber);
@@ -58,7 +72,10 @@ class MongoDBConversationStore implements ConversationStore {
       const contextData = context.toJSON();
       const now = new Date();
       
-      console.log('[Store] Saving conversation for:', phoneNumber, '| contextData:', JSON.stringify(contextData));
+      console.log('[Store] === SAVE DEBUG ===');
+      console.log('[Store] Saving for:', phoneNumber);
+      console.log('[Store] contextData.data:', JSON.stringify(contextData.data));
+      console.log('[Store] =========================');
       
       // DELETE first, then INSERT new - to avoid old data
       await ConversationModel.deleteMany({ phoneNumber });
