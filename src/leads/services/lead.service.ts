@@ -208,6 +208,9 @@ export class LeadService {
       status: 'active',
       fullName: lead.name,
       companyName: lead.companyName || undefined,
+      address: lead.address || undefined,
+      locality: lead.locality || undefined,
+      province: lead.province || undefined,
       createdBy: new Types.ObjectId(userId),
       updatedBy: new Types.ObjectId(userId),
     }], { session });

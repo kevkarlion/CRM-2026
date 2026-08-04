@@ -55,7 +55,13 @@ Soy el asistente virtual de *Rolo Climatizaciones*.
   }
 
   getOptions(context: ConversationContext): string[] | undefined {
-    return undefined
+    return [
+      '1️⃣ Reparación',
+      '2️⃣ Mantenimiento',
+      '3️⃣ Instalación',
+      '4️⃣ Consulta trabajo anterior',
+      '5️⃣ Otro',
+    ]
   }
 }
 
