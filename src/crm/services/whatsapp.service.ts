@@ -748,7 +748,7 @@ if (existingLead) {
     let customerData: Record<string, unknown> = {};
     if (resolved.flowConfig.id === 'customer-service') {
       try {
-        // Look for client via ContactModel (phone is stored in contacts, not clients)
+        // FIRST: Try to find via ContactModel (phone is stored in contacts, not clients)
         const contactWithPhone = await ContactModel.findOne({
           tenantId: new Types.ObjectId(tenantId),
           phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
@@ -775,6 +775,43 @@ if (existingLead) {
           };
           
           console.log('[Engine] Customer data ready:', customerData);
+        } else {
+          // SECOND: Try to find via LeadModel (lead was won/qualified - use lead data)
+          const lead = await LeadModel.findOne({
+            tenantId: new Types.ObjectId(tenantId),
+            phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+            status: { $in: ['won', 'qualified'] },
+            deletedAt: null,
+          }).lean();
+          
+          if (lead) {
+            console.log('[Engine] Customer found via LeadModel (won/qualified), initializing context');
+            const tempContext = new ConversationContext(phoneNumber);
+            // Initialize from lead data (has name, address, etc.)
+            tempContext.initializeFromCustomer({
+              fullName: lead.name,
+              address: lead.address,
+              locality: lead.locality,
+              province: lead.province,
+              _id: lead._id,
+              tenantId: lead.tenantId,
+            } as any);
+            
+            customerData = {
+              customerName: tempContext.get('customerName'),
+              address: tempContext.get('address'),
+              locality: tempContext.get('locality'),
+              province: tempContext.get('province'),
+              isCustomer: true,
+              clientId: tempContext.get('clientId'),
+              tenantId: tenantId,
+              originalAddress: tempContext.get('address'),
+              originalLocality: tempContext.get('locality'),
+              originalProvince: tempContext.get('province'),
+            };
+            
+            console.log('[Engine] Customer data ready from lead:', customerData);
+          }
         }
       } catch (error) {
         console.error('[Engine] Error loading customer:', error);
