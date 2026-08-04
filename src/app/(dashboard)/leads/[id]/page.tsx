@@ -404,9 +404,12 @@ export default function LeadDetailPage() {
             <h2 className="text-base font-semibold text-gray-900 mb-4">Información del Lead</h2>
             <dl className="divide-y divide-gray-100">
               <DetailRow label="Nombre" value={lead.name} />
-              <DetailRow label="Empresa" value={lead.companyName || '—'} />
+              <DetailRow label="Empresa" value={lead.profileName || lead.companyName || '—'} />
               <DetailRow label="Email" value={lead.email || '—'} />
               <DetailRow label="Teléfono" value={lead.phone || '—'} />
+              <DetailRow label="Dirección" value={
+                [lead.address, lead.locality, lead.province].filter(Boolean).join(', ') || '—'
+              } />
               <DetailRow label="Origen" value={SOURCE_LABELS[lead.source] || lead.source} />
               <DetailRow label="Valor Estimado" value={lead.estimatedValue ? `$${lead.estimatedValue.toLocaleString()}` : '—'} />
               <DetailRow label="Asignado a" value={

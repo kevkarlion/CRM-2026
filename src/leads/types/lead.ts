@@ -83,4 +83,5 @@ export interface UpdateLeadInput {
   assignedTo?: string;
   estimatedValue?: number;
   notes?: string;
+  adminNotes?: string;
 }
