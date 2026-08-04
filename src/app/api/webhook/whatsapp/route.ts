@@ -64,6 +64,12 @@ export async function POST(req: NextRequest) {
       const fromNumber = message.from;
       const messageType = message.type;
       const messageId = message.id;
+      
+      // Extraer profileName de los contactos
+      const profileName = value.contacts?.[0]?.profile?.name;
+      if (profileName) {
+        console.log(`👤 Profile name: ${profileName}`);
+      }
 
       console.log(`📩 Mensaje recibido de ${fromNumber}, tipo: ${messageType}, id: ${messageId}`);
 
@@ -96,7 +102,8 @@ export async function POST(req: NextRequest) {
         fromNumber,
         messageId,
         content,
-        messageType
+        messageType,
+        profileName
       );
 
       console.log(`✅ Lead ${result.isNewLead ? 'creado' : 'encontrado'}:`, result.lead?._id);

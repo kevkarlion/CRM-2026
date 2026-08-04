@@ -95,8 +95,11 @@ export class ConversationEngine {
   /**
    * Start a new conversation from the initial state
    */
-  async start(phoneNumber: string): Promise<EngineResult> {
+  async start(phoneNumber: string, profileName?: string): Promise<EngineResult> {
     const context = new ContextClass(phoneNumber)
+    if (profileName) {
+      context.set('profileName', profileName)
+    }
     const initialState = this.flowConfig.initialState
 
     return this.transitionTo(initialState, context)
@@ -105,16 +108,20 @@ export class ConversationEngine {
   /**
    * Process user input in an existing conversation
    */
-  async process(phoneNumber: string, input: string): Promise<EngineResult> {
+  async process(phoneNumber: string, input: string, profileName?: string): Promise<EngineResult> {
     // Try to load existing context from store
     let context: ConversationContext
 
     if (this.store) {
       const stored = await this.store.get(phoneNumber)
       context = stored ?? new ContextClass(phoneNumber)
-      console.log('[Engine] Loaded context, currentState:', stored?.get('currentState'))
     } else {
       context = new ContextClass(phoneNumber)
+    }
+    
+    // Update profileName if provided and not already set
+    if (profileName && !context.get('profileName')) {
+      context.set('profileName', profileName)
     }
 
     // Get current state from context or use initial

@@ -390,7 +390,8 @@ export class WhatsAppService {
     phone: string,
     messageId: string,
     content: string,
-    messageType: WhatsAppMessageType = 'text'
+    messageType: WhatsAppMessageType = 'text',
+    profileName?: string
   ): Promise<ProcessMessageResult> {
     
     const normalizedPhone = this.normalizePhone(phone);
@@ -447,8 +448,8 @@ export class WhatsAppService {
           const address = contextData.address as string | undefined;
           const locality = contextData.locality as string | undefined;
           const province = contextData.province as string | undefined;
-          const priority = contextData.urgency as 'high' | 'medium' | 'low' | undefined;
-          const needType = contextData.needType as string | undefined;
+          const priority = contextData.priorityLabel as string | undefined;
+          const needType = contextData.serviceTypeLabel as string | undefined;
           const customerType = contextData.customerType as string | undefined;
           const description = contextData.description as string | undefined;
           
@@ -465,8 +466,14 @@ export class WhatsAppService {
               updatedBy: 'whatsapp-bot',
             };
             
+            // Update profileName (from WhatsApp)
+            const contextProfileName = contextData.profileName as string | undefined;
+            if (contextProfileName) {
+              updateData.profileName = contextProfileName;
+            }
+            
             // Update name if we have a better name
-            const newName = profileName || userName || customerName;
+            const newName = contextProfileName || userName || customerName;
             if (newName && newName !== `Lead WhatsApp ${normalizedPhone.slice(-4)}`) {
               updateData.name = newName;
               updateData.companyName = newName;
@@ -645,11 +652,11 @@ export class WhatsAppService {
       
       // Continue existing conversation
       console.log('[Engine] Continuing conversation for:', phoneNumber);
-      result = await engine.process(phoneNumber, normalizedInput);
+      result = await engine.process(phoneNumber, normalizedInput, profileName);
     } else {
       // No active conversation - start new and just show greeting message
       console.log('[Engine] Starting NEW conversation for:', phoneNumber);
-      result = await engine.start(phoneNumber);
+      result = await engine.start(phoneNumber, profileName);
       
       // Apply customer data if this is a customer flow
       if (result.context && Object.keys(customerData).length > 0) {
