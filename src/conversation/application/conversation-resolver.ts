@@ -87,6 +87,12 @@ export class ConversationResolver {
     
     // Select flow first (independent of conversation state)
     const flowConfig = await selectFlow(normalizedPhone, tenantId);
+    const isCustomerFlow = flowConfig.id === 'customer-service';
+    
+    // Check if sender is a client (for customer flow logging)
+    if (isCustomerFlow) {
+      console.log('[Resolver] Customer flow detected - will use customer service flow');
+    }
     
     // Try to find existing conversation
     const existing = await this.findActiveConversation(normalizedPhone);
@@ -94,12 +100,14 @@ export class ConversationResolver {
     
     if (!existing) {
       // No active conversation - check if lead is already contacted
-      console.log('[Resolver] No active conversation, checking lead status...');
-      
+      // BUT: Don't apply this logic for clients - they should always get their customer flow
       const lead = await this.findLeadByPhone(normalizedPhone, tenantId);
       const isLeadContacted = lead && this.isLeadAlreadyContacted(lead.status);
       
-      if (isLeadContacted) {
+      // Only return waiting message if:
+      // 1. Lead is contacted AND
+      // 2. It's NOT a customer flow (i.e., sender is NOT an existing client)
+      if (isLeadContacted && !isCustomerFlow) {
         // Lead is already contacted/qualified - return waiting message
         console.log('[Resolver] ✅ Lead already contacted, returning waiting message. Status:', lead.status);
         return {
@@ -118,7 +126,7 @@ export class ConversationResolver {
         };
       }
       
-      // No conversation and lead is new - create new
+      // For clients or new leads, create new conversation
       console.log('[Resolver] No active conversation, creating new');
       return this.createNewConversation(normalizedPhone, tenantId, leadId, flowConfig);
     }
@@ -129,10 +137,11 @@ export class ConversationResolver {
       console.log('[Resolver] Conversation expired, checking lead status...');
       
       // Check if lead is already contacted before creating new
+      // Don't apply for customer flow - clients should always get their flow
       const lead = await this.findLeadByPhone(normalizedPhone, tenantId);
       const isLeadContacted = lead && this.isLeadAlreadyContacted(lead.status);
       
-      if (isLeadContacted) {
+      if (isLeadContacted && !isCustomerFlow) {
         console.log('[Resolver] Lead already contacted, returning waiting message');
         return {
           conversation: {
@@ -175,11 +184,11 @@ export class ConversationResolver {
     }
     
     // ACTIVE conversation exists - but check if lead is already contacted
-    // If lead is contacted, we should return waiting message instead of continuing
+    // Don't apply for customer flow - clients should always get their flow
     const lead = await this.findLeadByPhone(normalizedPhone, tenantId);
     const isLeadContacted = lead && this.isLeadAlreadyContacted(lead.status);
     
-    if (isLeadContacted) {
+    if (isLeadContacted && !isCustomerFlow) {
       console.log('[Resolver] Active conversation exists but lead is contacted, returning waiting message');
       return {
         conversation: {
