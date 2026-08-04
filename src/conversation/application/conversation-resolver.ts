@@ -7,6 +7,9 @@ import type { ConversationLifecycleState } from '@/conversation/domain/conversat
 
 const CONVERSATION_TIMEOUT_MINUTES = 30;
 
+// Simple message for contacted leads
+const WAITING_FOR_OPERATOR_MESSAGE = '👋 Gracias por tu mensaje.\n\nTu solicitud ya fue registrada correctamente.\n\nUn asesor continuará la conversación lo antes posible.';
+
 /**
  * Events that can occur during WAITING_OPERATOR state
  */
@@ -98,7 +101,7 @@ export class ConversationResolver {
       
       if (isLeadContacted) {
         // Lead is already contacted/qualified - return waiting message
-        console.log('[Resolver] Lead already contacted, returning waiting message. Status:', lead.status);
+        console.log('[Resolver] ✅ Lead already contacted, returning waiting message. Status:', lead.status);
         return {
           conversation: {
             id: '',
@@ -109,7 +112,7 @@ export class ConversationResolver {
           shouldContinue: false,
           isWaitingForOperator: true,
           isNew: false,
-          waitingMessage: '¡Hola! Ya tenemos tu solicitud registrada. ¿En qué puedo ayudarte?\n\nUn asesor te contactará pronto.',
+          waitingMessage: WAITING_FOR_OPERATOR_MESSAGE,
           flowConfig,
           profileName,
         };
@@ -141,7 +144,7 @@ export class ConversationResolver {
           shouldContinue: false,
           isWaitingForOperator: true,
           isNew: false,
-          waitingMessage: '¡Hola! Ya tenemos tu solicitud registrada. ¿En qué puedo ayudarte?\n\nUn asesor te contactará pronto.',
+          waitingMessage: WAITING_FOR_OPERATOR_MESSAGE,
           flowConfig,
           profileName,
         };
@@ -153,7 +156,22 @@ export class ConversationResolver {
     
     // Check lifecycle state
     if (existing.lifecycleState === 'WAITING_OPERATOR') {
-      return this.handleWaitingOperator(existing, normalizedPhone, tenantId, leadId, flowConfig);
+      // Lead is waiting for operator - just return simple message, no priority logic
+      console.log('[Resolver] Conversation in WAITING_OPERATOR, returning simple message');
+      return {
+        conversation: {
+          id: existing._id.toString(),
+          phoneNumber: normalizedPhone,
+          leadId: existing.leadId?.toString() || leadId,
+          lifecycleState: 'WAITING_OPERATOR',
+        },
+        shouldContinue: false,
+        isWaitingForOperator: true,
+        isNew: false,
+        waitingMessage: WAITING_FOR_OPERATOR_MESSAGE,
+        flowConfig,
+        profileName,
+      };
     }
     
     // ACTIVE conversation exists - but check if lead is already contacted
@@ -173,7 +191,7 @@ export class ConversationResolver {
         shouldContinue: false,
         isWaitingForOperator: true,
         isNew: false,
-        waitingMessage: '¡Hola! Ya tenemos tu solicitud registrada. ¿En qué puedo ayudarte?\n\nUn asesor te contactará pronto.',
+        waitingMessage: WAITING_FOR_OPERATOR_MESSAGE,
         flowConfig,
         profileName,
       };

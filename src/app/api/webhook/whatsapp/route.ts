@@ -73,6 +73,16 @@ export async function POST(req: NextRequest) {
 
       console.log(`📩 Mensaje recibido de ${fromNumber}, tipo: ${messageType}, id: ${messageId}`);
 
+      // Check if message was already processed (prevent duplicates)
+      const { WhatsAppMessageModel } = await import('@/crm/models/whatsapp-message');
+      await connectDB();
+      const existingMessage = await WhatsAppMessageModel.findOne({ messageId });
+      
+      if (existingMessage) {
+        console.log(`⏭️ Mensaje ya procesado, ignorando: ${messageId}`);
+        return NextResponse.json({ status: 'ok', duplicate: true }, { status: 200 });
+      }
+      
       // Procesar según el tipo de mensaje
       let content = '';
       

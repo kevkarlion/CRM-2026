@@ -463,6 +463,9 @@ export class WhatsAppService {
 
     // 2. Buscar o crear lead
     const { lead, isNew } = await this.findOrCreateLeadByPhone(tenantId, phone, content);
+    
+    // DEBUG: Log lead status
+    console.log('[WhatsApp] Lead status:', lead?.status, '| isNew:', isNew, '| phone:', normalizedPhone);
 
     // 3. Actualizar lead si es nuevo o si hay información relevante
     if (lead) {
@@ -545,10 +548,22 @@ export class WhatsAppService {
           const address = contextData.address as string | undefined;
           const locality = contextData.locality as string | undefined;
           const province = contextData.province as string | undefined;
-          const priority = contextData.priority as string | undefined; // Use enum value, not label
+          const priorityValue = contextData.priority as string | undefined; // asap, this_week, next_week
+          const priorityLabel = contextData.priorityLabel as string | undefined; // Lo antes posible, Esta semana, etc.
           const needType = contextData.serviceTypeLabel as string | undefined;
           const customerType = contextData.customerType as string | undefined;
           const description = contextData.description as string | undefined;
+          
+          // Map priority values to enum for Lead.priority field
+          const priorityEnumMap: Record<string, string> = {
+            'asap': 'high',
+            'this_week': 'medium',
+            'next_week': 'low',
+          };
+          const priorityForLead = priorityValue ? priorityEnumMap[priorityValue] : undefined;
+          
+          // Map priority to display label for notes
+          const priorityDisplayLabel = priorityLabel || (priorityValue === 'asap' ? 'HOY' : priorityValue === 'this_week' ? 'Esta semana' : priorityValue === 'next_week' ? 'No tengo apuro' : priorityValue);
           
           // Find lead by phone and update
           const existingLead = await LeadModel.findOne({
@@ -574,11 +589,17 @@ if (existingLead) {
               updateData.status = 'contacted';
               updateData.updatedBy = 'whatsapp-bot';
               
-              // Update name if we have a better name
-              const newName = profileNameToSave || userName || customerName;
+              // Update name - prioritize user's input over WhatsApp profileName
+              // (userName/customerName is what the lead typed in the bot)
+              const newName = userName || customerName || profileNameToSave;
               if (newName && newName !== `Lead WhatsApp ${normalizedPhone.slice(-4)}`) {
                 updateData.name = newName;
                 updateData.companyName = newName;
+              }
+              
+              // Update priority (convert to enum value)
+              if (priorityForLead) {
+                updateData.priority = priorityForLead;
               }
               
               // Update address fields
@@ -592,15 +613,10 @@ if (existingLead) {
                 updateData.province = province;
               }
               
-              // Update priority from urgency (only if valid enum value)
-              if (priority && ['high', 'medium', 'low'].includes(priority)) {
-                updateData.priority = priority;
-              }
-              
               // Save bot summary as notes (service + priority + description)
               const notesParts: string[] = [];
               if (needType) notesParts.push(`Servicio: ${needType}`);
-              if (priority) notesParts.push(`Necesidad: ${priority}`);
+              if (priorityDisplayLabel) notesParts.push(`Necesidad: ${priorityDisplayLabel}`);
               if (description) notesParts.push(`Descripción: ${description}`);
               
               if (notesParts.length > 0) {
@@ -693,7 +709,7 @@ if (existingLead) {
     
     // If waiting for operator, return the waiting message
     if (resolved.isWaitingForOperator && resolved.waitingMessage) {
-      console.log('[Engine] Returning waiting message:', resolved.waitingMessage.substring(0, 50));
+      console.log('[Engine] ✅ Returning waiting message (lead already contacted):', resolved.waitingMessage.substring(0, 50));
       
       // Save profileName if available (even for contacted leads)
       if (resolved.profileName) {
@@ -725,7 +741,7 @@ if (existingLead) {
     // Get the conversation engine and set flow config
     const engine = getConversationEngine();
     engine.setFlowConfig(resolved.flowConfig);
-    console.log('[Engine] Flow set:', resolved.flowConfig.id);
+    console.log('[Engine] ⚠️ Running engine (NOT waiting for operator). Flow:', resolved.flowConfig.id, '| isNew:', resolved.isNew);
     
     // Step 2: If customer flow, initialize context with customer data
     let customerData: Record<string, unknown> = {};
