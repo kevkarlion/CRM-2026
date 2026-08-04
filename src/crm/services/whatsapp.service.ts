@@ -2,6 +2,7 @@ import { Types } from 'mongoose';
 import WhatsAppMessageModel from '../models/whatsapp-message';
 import LeadModel from '../../leads/models/lead';
 import ClientModel from '../models/client';
+import ContactModel from '../models/contact';
 import TenantModel from '../../core/models/tenant';
 import { ClientServiceHistoryModel } from '@/clients';
 import connectDB from '@/core/db';
@@ -747,16 +748,18 @@ if (existingLead) {
     let customerData: Record<string, unknown> = {};
     if (resolved.flowConfig.id === 'customer-service') {
       try {
-        const client = await ClientModel.findOne({
+        // Look for client via ContactModel (phone is stored in contacts, not clients)
+        const contactWithPhone = await ContactModel.findOne({
           tenantId: new Types.ObjectId(tenantId),
           phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
           deletedAt: null,
-        }).lean();
+        }).populate('clientId').lean();
         
-        if (client) {
-          console.log('[Engine] Customer found, initializing context');
+        if (contactWithPhone && contactWithPhone.clientId) {
+          const client = contactWithPhone.clientId as any;
+          console.log('[Engine] Customer found via ContactModel, initializing context');
           const tempContext = new ConversationContext(phoneNumber);
-          tempContext.initializeFromCustomer(client as any);
+          tempContext.initializeFromCustomer(client);
           
           customerData = {
             customerName: tempContext.get('customerName'),

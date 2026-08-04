@@ -7,6 +7,7 @@
 
 import { connectDB } from '@/core/db';
 import ClientModel from '@/crm/models/client';
+import ContactModel from '@/crm/models/contact';
 import LeadModel from '@/leads/models/lead';
 import { Types } from 'mongoose';
 import { LEAD_QUALIFICATION_FLOW, CUSTOMER_SERVICE_FLOW } from './config';
@@ -26,15 +27,16 @@ export async function selectFlow(phone: string, tenantId: string): Promise<FlowC
     // Normalize phone: remove common formatting chars and leading zeros
     const normalizedPhone = phone.replace(/[\s\-\(\)\+]/g, '').replace(/^0/, '');
 
-    // Check if phone belongs to a Client
-    const client = await ClientModel.findOne({
+    // Check if phone belongs to a Client (look in ContactModel for phone)
+    const contactWithPhone = await ContactModel.findOne({
       tenantId: new Types.ObjectId(tenantId),
       phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
       deletedAt: null,
-    });
+    }).populate('clientId');
 
-    if (client) {
-      console.log('[FlowSelector] ✅ Client found in Clients table:', client.name || client._id, '| using customer_service_flow');
+    if (contactWithPhone && contactWithPhone.clientId) {
+      const client = contactWithPhone.clientId as any;
+      console.log('[FlowSelector] ✅ Client found via ContactModel:', client.fullName || client._id, '| using customer_service_flow');
       return CUSTOMER_SERVICE_FLOW;
     }
 
