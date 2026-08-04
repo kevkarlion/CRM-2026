@@ -35,9 +35,13 @@ export function useChatMessages(phone: string | null): UseChatMessagesReturn {
       );
 
       if (before) {
+        // Loading older messages - prepend to list (chronological order)
         setMessages((prev) => [...result.messages, ...prev]);
       } else {
-        setMessages(result.messages);
+        // Fetching latest messages (polling or initial load)
+        // API returns newest first, but we want oldest first in the array
+        const reversed = [...result.messages].reverse();
+        setMessages(reversed);
       }
 
       setHasMore(result.messages.length === 50);

@@ -90,7 +90,7 @@ export function WhatsAppPage() {
 
   return (
     <div className="h-full flex flex-col">
-      <div className="px-6 py-4 border-b border-gray-200 bg-white shrink-0">
+      <div className="px-6 py-4 border-b border-gray-200 bg-white shrink-0 mt-16">
         <h1 className="text-xl font-bold text-gray-900">WhatsApp</h1>
         <p className="text-sm text-gray-500 mt-0.5">
           Centro de comandos de conversaciones
@@ -113,7 +113,7 @@ export function WhatsAppPage() {
             </div>
           ) : (
             <div className="w-full flex flex-col h-full">
-              <div className="px-4 py-2 border-b border-gray-200 bg-white shrink-0">
+              <div className="px-4 py-2 border-b border-gray-200 bg-white shrink-0 mt-16">
                 <button
                   onClick={() => setSelectedPhone(null)}
                   className="text-sm text-brand-600 hover:text-brand-700 font-medium flex items-center gap-1"
@@ -160,6 +160,7 @@ export function WhatsAppPage() {
               onSend={handleSend}
               sending={sending}
               selectedPhone={selectedPhone}
+              selectedName={selectedLead?.name}
             />
           </div>
         </div>
@@ -186,6 +187,7 @@ export function WhatsAppPage() {
               onSend={handleSend}
               sending={sending}
               selectedPhone={selectedPhone}
+              selectedName={selectedLead?.name}
             />
           </div>
           <div className="w-72 shrink-0">

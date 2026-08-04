@@ -26,15 +26,23 @@ export function ChatPanel({
   sending,
   selectedPhone,
 }: ChatPanelProps) {
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Scroll to bottom when messages are loaded
   useEffect(() => {
-    if (messages.length > 0) {
-      // Scroll to bottom (newest messages are at the end now)
-      messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
-    }
-  }, [messages]);
+    if (!selectedPhone || messages.length === 0) return;
+    
+    // Always scroll to bottom when messages arrive
+    const scrollToBottom = () => {
+      if (containerRef.current) {
+        containerRef.current.scrollTop = containerRef.current.scrollHeight;
+      }
+    };
+    
+    requestAnimationFrame(() => {
+      setTimeout(scrollToBottom, 50);
+    });
+  }, [selectedPhone, messages.length]);
 
   if (!selectedPhone) {
     return (
@@ -62,7 +70,8 @@ export function ChatPanel({
 
   return (
     <div className="flex flex-col h-full bg-gray-50">
-      <div ref={containerRef} className="flex-1 overflow-y-auto px-4 py-4">
+      {/* pb-20 = 80px to account for input area */}
+      <div ref={containerRef} className="flex-1 overflow-y-auto px-4 py-4 pb-20">
         {hasMore && messages.length > 0 && (
           <div className="text-center py-2">
             <button
@@ -93,8 +102,6 @@ export function ChatPanel({
         {messages.map((msg) => (
           <ChatMessage key={msg._id} message={msg} />
         ))}
-
-        <div ref={messagesEndRef} />
       </div>
 
       <ChatInput onSend={onSend} disabled={!selectedPhone} sending={sending} />

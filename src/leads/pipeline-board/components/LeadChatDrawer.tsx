@@ -454,7 +454,7 @@ export function LeadChatDrawer({ isOpen, onClose, lead, conversationStatus }: Le
       {/* Drawer */}
       <div className="fixed right-0 top-0 h-full w-full max-w-md bg-white shadow-xl z-50 flex flex-col animate-in slide-in-from-right duration-200">
         {/* Header - Lead Info */}
-        <div className="border-b border-gray-200 bg-white shrink-0">
+        <div className="border-b border-gray-200 bg-white shrink-0 mt-16">
           <div className="flex items-start justify-between p-4 pb-3">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-full bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center text-white font-semibold text-lg">

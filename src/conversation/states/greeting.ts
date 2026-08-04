@@ -48,12 +48,15 @@ export class GreetingState implements IConversationState {
     
     let greeting: string
 
-    if (argentinaHour < 12) {
-      greeting = '🌞 Buenos días'
-    } else if (argentinaHour < 19) {
-      greeting = '☀️ Buenas tardes'
-    } else {
+    // 20:00 - 05:59: Buenas noches
+    // 06:00 - 11:59: Buenos días
+    // 12:00 - 19:59: Buenas tardes
+    if (argentinaHour >= 20 || argentinaHour < 6) {
       greeting = '🌙 Buenas noches'
+    } else if (argentinaHour < 12) {
+      greeting = '🌞 Buenos días'
+    } else {
+      greeting = '☀️ Buenas tardes'
     }
 
     return `${greeting} 👋

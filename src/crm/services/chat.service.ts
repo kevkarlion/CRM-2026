@@ -103,9 +103,9 @@ export class ChatService {
   async getConversationMessages(
     tenantId: string,
     phone: string,
-    options: { limit?: number; before?: Date } = {}
+    options: { limit?: number; before?: Date; after?: Date } = {}
   ): Promise<IWhatsAppMessage[]> {
-    const { limit = 50, before } = options;
+    const { limit = 50, before, after } = options;
     const query: Record<string, unknown> = {
       tenantId: new Types.ObjectId(tenantId),
       phone,
@@ -113,11 +113,16 @@ export class ChatService {
 
     if (before) {
       query.createdAt = { $lt: before };
+    } else if (after) {
+      query.createdAt = { $gt: after };
     }
 
     // Sort ascending (oldest first) for chat view
+    // If getting recent messages (no before), use descending to get newest first
+    const sortDirection = before ? 1 : -1;
+    
     return WhatsAppMessageModel.find(query)
-      .sort({ createdAt: 1 })
+      .sort({ createdAt: sortDirection })
       .limit(limit)
       .exec();
   }
