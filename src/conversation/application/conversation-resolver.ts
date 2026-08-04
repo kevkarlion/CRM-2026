@@ -192,9 +192,17 @@ export class ConversationResolver {
   ): Promise<ResolvedConversation> {
     const now = new Date();
     
+    // Prepare leadId - use a dummy ObjectId if not provided
+    let leadIdObj;
+    try {
+      leadIdObj = leadId ? new Types.ObjectId(leadId) : new Types.ObjectId();
+    } catch (e) {
+      leadIdObj = new Types.ObjectId();
+    }
+    
     const conversation = await ConversationModel.create({
       tenantId: new Types.ObjectId(tenantId),
-      leadId: new Types.ObjectId(leadId),
+      leadId: leadIdObj,
       phoneNumber,
       lifecycleState: 'ACTIVE',
       state: 'idle',

@@ -587,11 +587,15 @@ export class WhatsAppService {
       if (engineResult.handoff) {
         console.log('[WhatsApp] Handoff to human triggered');
       }
-    } catch (error) {
+} catch (error) {
       console.error('[WhatsApp] Engine error:', error);
       // Fall back to simple error message
       shouldRespond = true;
-      responseText = 'Estamos procesando tu solicitud. En breve un asesor se pondrá en contacto contigo. 😊';
+      responseText = 'Estamos procesando tu solicitud. En breve un asesor seará en contacto contigo. 😊';
+      // Log more details
+      if (error instanceof Error) {
+        console.error('[WhatsApp] Error stack:', error.stack);
+      }
     }
 
     return {
@@ -625,58 +629,19 @@ export class WhatsAppService {
     // Ensure DB is connected
     await connectDB();
     
-    const engine = getConversationEngine();
     const normalizedInput = input.trim();
-    const now = new Date();
-
-    // Step 1: Select appropriate flow based on phone
-    console.log('[Engine] Selecting flow for:', phoneNumber, 'tenant:', tenantId);
-    const flowConfig = await selectFlow(phoneNumber, tenantId);
-    console.log('[Engine] Selected flow:', flowConfig.id);
+    const normalizedPhone = phoneNumber.replace(/[\s\-\(\)\+]/g, '').replace(/^0/, '');
     
-    // Set flow config on engine
-    engine.setFlowConfig(flowConfig);
-
-    // Step 2: If customer flow, initialize context with customer data
-    let customerData: Record<string, unknown> = {};
-    if (flowConfig.id === 'customer-service') {
-      try {
-        const normalizedPhone = phoneNumber.replace(/[\s\-\(\)\+]/g, '').replace(/^0/, '');
-        const client = await ClientModel.findOne({
-          tenantId: new Types.ObjectId(tenantId),
-          phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
-          deletedAt: null,
-        }).lean();
-        
-        if (client) {
-          console.log('[Engine] Customer found, initializing context');
-          // Create a temporary context to extract customer data
-          const tempContext = new ConversationContext(phoneNumber);
-          tempContext.initializeFromCustomer(client as any);
-          
-          // Store customer data to apply after start
-          customerData = {
-            customerName: tempContext.get('customerName'),
-            address: tempContext.get('address'),
-            locality: tempContext.get('locality'),
-            province: tempContext.get('province'),
-            isCustomer: true,
-            clientId: tempContext.get('clientId'),
-            tenantId: tenantId,
-            // Store original address for comparison when user provides new address
-            originalAddress: tempContext.get('address'),
-            originalLocality: tempContext.get('locality'),
-            originalProvince: tempContext.get('province'),
-          };
-          
-          console.log('[Engine] Customer data ready:', customerData);
-        }
-      } catch (error) {
-        console.error('[Engine] Error loading customer:', error);
-      }
-    }
-
-    // Step 3: Use ConversationResolver to get the right conversation
+    // Get or create lead ID for this phone
+    const lead = await LeadModel.findOne({
+      tenantId: new Types.ObjectId(tenantId),
+      phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+      deletedAt: null,
+    });
+    
+    const leadId = lead?._id?.toString() || '';
+    
+    // Step 1: Use ConversationResolver to get the right conversation
     console.log('[Engine] Resolving conversation...');
     const resolved = await conversationResolver.getConversationForIncomingMessage(
       normalizedPhone,
@@ -701,10 +666,47 @@ export class WhatsAppService {
       };
     }
     
-    // Set flow config on engine (already resolved)
+    // Get the conversation engine and set flow config
+    const engine = getConversationEngine();
     engine.setFlowConfig(resolved.flowConfig);
+    console.log('[Engine] Flow set:', resolved.flowConfig.id);
     
-    // Step 4: Process message with engine
+    // Step 2: If customer flow, initialize context with customer data
+    let customerData: Record<string, unknown> = {};
+    if (resolved.flowConfig.id === 'customer-service') {
+      try {
+        const client = await ClientModel.findOne({
+          tenantId: new Types.ObjectId(tenantId),
+          phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+          deletedAt: null,
+        }).lean();
+        
+        if (client) {
+          console.log('[Engine] Customer found, initializing context');
+          const tempContext = new ConversationContext(phoneNumber);
+          tempContext.initializeFromCustomer(client as any);
+          
+          customerData = {
+            customerName: tempContext.get('customerName'),
+            address: tempContext.get('address'),
+            locality: tempContext.get('locality'),
+            province: tempContext.get('province'),
+            isCustomer: true,
+            clientId: tempContext.get('clientId'),
+            tenantId: tenantId,
+            originalAddress: tempContext.get('address'),
+            originalLocality: tempContext.get('locality'),
+            originalProvince: tempContext.get('province'),
+          };
+          
+          console.log('[Engine] Customer data ready:', customerData);
+        }
+      } catch (error) {
+        console.error('[Engine] Error loading customer:', error);
+      }
+    }
+    
+    // Step 3: Process message with engine
     let result;
     
     if (resolved.shouldContinue && resolved.conversation.engineData) {
@@ -757,7 +759,7 @@ export class WhatsAppService {
         result.context.set('originalAddress', currentAddress);
       }
       
-      result.context.set('lastActivity', now.toISOString());
+      result.context.set('lastActivity', new Date().toISOString());
       await conversationStore.save(phoneNumber, result.context);
       console.log('[Engine] Saved context, new state:', result.context.get('currentState'));
       
