@@ -7,6 +7,7 @@
 
 import { connectDB } from '@/core/db';
 import ClientModel from '@/crm/models/client';
+import LeadModel from '@/leads/models/lead';
 import { Types } from 'mongoose';
 import { LEAD_QUALIFICATION_FLOW, CUSTOMER_SERVICE_FLOW } from './config';
 import type { FlowConfig } from './types';
@@ -33,11 +34,29 @@ export async function selectFlow(phone: string, tenantId: string): Promise<FlowC
     });
 
     if (client) {
-      console.log('[FlowSelector] Client found, using customer_service_flow');
+      console.log('[FlowSelector] ✅ Client found in Clients table:', client.name || client._id, '| using customer_service_flow');
       return CUSTOMER_SERVICE_FLOW;
     }
 
-    console.log('[FlowSelector] No client, using lead_qualification_flow');
+    // Check if lead exists and is won/qualified (meaning it's already a customer)
+    const lead = await LeadModel.findOne({
+      tenantId: new Types.ObjectId(tenantId),
+      phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+      deletedAt: null,
+    });
+
+    // If lead is won/qualified, treat as customer
+    if (lead && (lead.status === 'won' || lead.status === 'qualified')) {
+      console.log('[FlowSelector] ✅ Lead is won/qualified:', lead.name, '| treating as customer');
+      return CUSTOMER_SERVICE_FLOW;
+    }
+
+    if (lead) {
+      console.log('[FlowSelector] Lead found but status is:', lead.status, '| using lead_qualification_flow');
+    } else {
+      console.log('[FlowSelector] No client or lead found for phone:', normalizedPhone);
+    }
+    
     return LEAD_QUALIFICATION_FLOW;
   } catch (error) {
     console.error('[FlowSelector] Error:', error);

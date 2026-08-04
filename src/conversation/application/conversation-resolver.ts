@@ -241,12 +241,19 @@ export class ConversationResolver {
   /**
    * Check if lead status indicates it's already been contacted/qualified
    * 
-   * These statuses mean the bot has already completed and the lead is waiting for human response
+   * These statuses mean the lead is waiting for human response (not a customer yet)
+   * NOTE: 'won' and 'qualified' leads are treated as customers - they should NOT get waiting message
    */
   private isLeadAlreadyContacted(status: string): boolean {
     const contactedStatuses = [
       'contacted',
       'quote_sent',
+      'technical_visit',
+      'negotiation',
+      // NOT including 'qualified' and 'won' - those are customers
+    ];
+    return contactedStatuses.includes(status);
+  }
       'technical_visit',
       'negotiation',
       'qualified',
