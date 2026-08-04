@@ -81,9 +81,16 @@ class MongoDBConversationStore implements ConversationStore {
       await ConversationModel.deleteMany({ phoneNumber });
       
       // Insert fresh document with required fields
+      // MUST include 'context' field as schema requires it
       await ConversationModel.create({
         phoneNumber,
         engineData: contextData.data,  // Store in flexible engineData field
+        context: {                     // Required by schema - use defaults
+          hasEmergencyKeywords: false,
+          hasProjectKeywords: false,
+          messageContainsData: false,
+          userAskedForHuman: false,
+        },
         lastActivity: now,
         startedAt: now,
         lastMessageAt: now,
