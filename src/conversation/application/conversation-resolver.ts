@@ -98,13 +98,11 @@ export class ConversationResolver {
     const existing = await this.findActiveConversation(normalizedPhone);
     console.log('[Resolver] Existing conversation:', existing ? `found (${existing.lifecycleState})` : 'none');
     
-    // For customers: always start fresh conversation (ignore any existing lead conversation)
-    if (isCustomerFlow && existing) {
-      console.log('[Resolver] Customer with existing conversation - closing old and starting fresh');
-      await this.closeConversation(existing._id.toString(), 'CLOSED');
-    }
+    // For customers: Only close and restart if there's NO existing conversation
+    // If there IS an active conversation, continue it (even if it's from a lead flow)
+    // This allows the customer to continue from where they left off
     
-    if (!existing || isCustomerFlow) {
+    if (!existing) {
       // No active conversation - check if lead is already contacted
       // BUT: Don't apply this logic for clients - they should always get their customer flow
       const lead = await this.findLeadByPhone(normalizedPhone, tenantId);
