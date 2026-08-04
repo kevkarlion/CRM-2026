@@ -473,9 +473,27 @@ export class WhatsAppService {
       // Si es nuevo lead, already tiene el notes con el mensaje inicial
       // Si ya existía, agregamos el mensaje a los notes
       if (!isNew && content) {
+        console.log('[WhatsApp] Lead exists, updating notes. Priority before:', lead.priority);
+        
         const currentNotes = lead.notes || '';
         lead.notes = `${currentNotes}\n${new Date().toISOString()}: ${content}`.trim();
+        
+        // Clear invalid priority to avoid validation errors
+        // (old leads may have priority labels like "Lo antes posible" instead of enum values)
+        const leadPriority = lead.priority;
+        const priorityStr = String(leadPriority || '').trim().toLowerCase();
+        const validPriorities = ['high', 'medium', 'low'];
+        
+        console.log('[WhatsApp] Current lead priority:', leadPriority, '| Valid?', validPriorities.includes(priorityStr));
+        
+        if (leadPriority && !validPriorities.includes(priorityStr)) {
+          console.log('[WhatsApp] Clearing invalid priority:', leadPriority);
+          lead.priority = undefined;
+        }
+        
+        console.log('[WhatsApp] Saving lead with priority:', lead.priority);
         await lead.save();
+        console.log('[WhatsApp] Lead saved successfully');
       }
     }
 

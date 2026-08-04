@@ -80,7 +80,7 @@ export class ConversationResolver {
   ): Promise<ResolvedConversation> {
     await connectDB();
     
-    const normalizedPhone = phoneNumber.replace(/[\s\-\(\)\+]/g, '');
+    const normalizedPhone = phoneNumber.replace(/[\s\-\(\)\+]/g, '').replace(/^0/, '');
     
     // Select flow first (independent of conversation state)
     const flowConfig = await selectFlow(normalizedPhone, tenantId);
@@ -156,7 +156,30 @@ export class ConversationResolver {
       return this.handleWaitingOperator(existing, normalizedPhone, tenantId, leadId, flowConfig);
     }
     
-    // ACTIVE conversation exists - continue
+    // ACTIVE conversation exists - but check if lead is already contacted
+    // If lead is contacted, we should return waiting message instead of continuing
+    const lead = await this.findLeadByPhone(normalizedPhone, tenantId);
+    const isLeadContacted = lead && this.isLeadAlreadyContacted(lead.status);
+    
+    if (isLeadContacted) {
+      console.log('[Resolver] Active conversation exists but lead is contacted, returning waiting message');
+      return {
+        conversation: {
+          id: '',
+          phoneNumber: normalizedPhone,
+          leadId: lead?._id?.toString() || leadId,
+          lifecycleState: 'WAITING_OPERATOR',
+        },
+        shouldContinue: false,
+        isWaitingForOperator: true,
+        isNew: false,
+        waitingMessage: '¡Hola! Ya tenemos tu solicitud registrada. ¿En qué puedo ayudarte?\n\nUn asesor te contactará pronto.',
+        flowConfig,
+        profileName,
+      };
+    }
+    
+    // Continue with existing active conversation
     console.log('[Resolver] Active conversation found, continuing');
     return {
       conversation: {
@@ -177,9 +200,12 @@ export class ConversationResolver {
    * Find lead by phone number
    */
   private async findLeadByPhone(phoneNumber: string, tenantId: string): Promise<any | null> {
+    // Normalize phone number the same way as in whatsapp.service
+    const normalizedForSearch = phoneNumber.replace(/[\s\-\(\)\+]/g, '').replace(/^0/, '');
+    
     const lead = await LeadModel.findOne({
       tenantId: new Types.ObjectId(tenantId),
-      phone: { $regex: new RegExp(phoneNumber.replace(/^\+/, ''), 'i') },
+      phone: { $regex: new RegExp(normalizedForSearch.replace(/^\+/, ''), 'i') },
       deletedAt: null,
     }).lean();
     return lead;
