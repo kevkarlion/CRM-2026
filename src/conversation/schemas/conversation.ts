@@ -1,5 +1,5 @@
 import { Schema } from 'mongoose';
-import type { IConversation, ConversationState, HandoffStatus } from '../domain/conversation';
+import type { IConversation, ConversationState, ConversationLifecycleState, HandoffStatus } from '../domain/conversation';
 
 const contextSchema = new Schema(
   {
@@ -90,6 +90,17 @@ export const conversationSchema = new Schema<IConversation>(
     timeoutCount: { type: Number, default: 0 },
     exchangesInSameState: { type: Number, default: 0 },
     lastMessageAt: { type: Date, required: true },
+    lastActivityAt: { type: Date },
+    expiresAt: { type: Date },
+
+    // Lifecycle state (not FSM state)
+    lifecycleState: {
+      type: String,
+      enum: ['ACTIVE', 'WAITING_OPERATOR', 'CLOSED', 'EXPIRED'] as ConversationLifecycleState[],
+      required: true,
+      default: 'ACTIVE',
+      index: true,
+    },
 
     handoffStatus: {
       type: String,
@@ -107,5 +118,7 @@ export const conversationSchema = new Schema<IConversation>(
 // Índices compuestos para queries comunes
 conversationSchema.index({ tenantId: 1, leadId: 1, state: 1 });
 conversationSchema.index({ tenantId: 1, state: 1, lastMessageAt: -1 });
+conversationSchema.index({ tenantId: 1, lifecycleState: 1, lastMessageAt: -1 });
 conversationSchema.index({ tenantId: 1, handoffStatus: 1 });
 conversationSchema.index({ leadId: 1, createdAt: -1 });
+conversationSchema.index({ phoneNumber: 1, lifecycleState: 1 });

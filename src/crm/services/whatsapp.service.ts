@@ -23,6 +23,7 @@ import {
   getDefaultFlow,
   ConversationStore,
   selectFlow,
+  conversationResolver,
 } from '@/conversation';
 import ConversationModel from '@/conversation/models/conversation';
 
@@ -35,23 +36,34 @@ class MongoDBConversationStore implements ConversationStore {
     try {
       await connectDB();
       
-      // Debug: check how many docs exist for this phone
-      const count = await ConversationModel.countDocuments({ phoneNumber });
-      console.log('[Store] Total documents for', phoneNumber + ':', count);
+      // Find ACTIVE conversation only (not closed, not expired)
+      const doc = await ConversationModel.findOne({ 
+        phoneNumber,
+        lifecycleState: 'ACTIVE',
+      }).lean();
       
-      const doc = await ConversationModel.findOne({ phoneNumber }).lean();
       if (!doc) {
-        console.log('[Store] No document found for', phoneNumber);
+        console.log('[Store] No ACTIVE document found for', phoneNumber);
         return null;
       }
       
       console.log('[Store] === FULL DOC DEBUG ===');
       console.log('[Store] _id:', doc._id);
+      console.log('[Store] lifecycleState:', doc.lifecycleState);
       console.log('[Store] state:', doc.state);
       console.log('[Store] engineData:', JSON.stringify(doc.engineData));
-      console.log('[Store] context:', JSON.stringify(doc.context));
-      console.log('[Store] lastActivity:', doc.lastActivity);
+      console.log('[Store] lastActivityAt:', doc.lastActivityAt);
+      console.log('[Store] expiresAt:', doc.expiresAt);
       console.log('[Store] =========================');
+      
+      // Check if conversation has expired
+      if (doc.expiresAt && new Date() > doc.expiresAt) {
+        console.log('[Store] Conversation expired, marking as EXPIRED');
+        await ConversationModel.findByIdAndUpdate(doc._id, {
+          $set: { lifecycleState: 'EXPIRED', closedAt: new Date() }
+        });
+        return null;
+      }
       
       // Reconstruct context from stored data
       const context = new ConversationContext(phoneNumber);
@@ -80,26 +92,41 @@ class MongoDBConversationStore implements ConversationStore {
       console.log('[Store] contextData.data:', JSON.stringify(contextData.data));
       console.log('[Store] =========================');
       
-      // DELETE first, then INSERT new - to avoid old data
-      await ConversationModel.deleteMany({ phoneNumber });
-      
-      // Insert fresh document with required fields
-      // MUST include 'context' field as schema requires it
-      await ConversationModel.create({
+      // Find existing ACTIVE conversation for this phone
+      const existing = await ConversationModel.findOne({
         phoneNumber,
-        engineData: contextData.data,  // Store in flexible engineData field
-        context: {                     // Required by schema - use defaults
-          hasEmergencyKeywords: false,
-          hasProjectKeywords: false,
-          messageContainsData: false,
-          userAskedForHuman: false,
-        },
-        lastActivity: now,
-        startedAt: now,
-        lastMessageAt: now,
+        lifecycleState: 'ACTIVE',
       });
       
-      console.log('[Store] Saved NEW fresh document for:', phoneNumber);
+      if (existing) {
+        // Update existing conversation
+        await ConversationModel.findByIdAndUpdate(existing._id, {
+          $set: {
+            engineData: contextData.data,
+            lastActivityAt: now,
+            lastMessageAt: now,
+            updatedAt: now,
+          },
+        });
+        console.log('[Store] Updated existing ACTIVE conversation:', existing._id);
+      } else {
+        // Create new conversation (for new or reactivated flows)
+        await ConversationModel.create({
+          phoneNumber,
+          engineData: contextData.data,
+          context: {
+            hasEmergencyKeywords: false,
+            hasProjectKeywords: false,
+            messageContainsData: false,
+            userAskedForHuman: false,
+          },
+          lastActivityAt: now,
+          startedAt: now,
+          lastMessageAt: now,
+          lifecycleState: 'ACTIVE',
+        });
+        console.log('[Store] Created new ACTIVE conversation for:', phoneNumber);
+      }
     } catch (error) {
       console.error('[Store] Error saving conversation:', error);
     }
@@ -108,16 +135,45 @@ class MongoDBConversationStore implements ConversationStore {
   async delete(phoneNumber: string): Promise<void> {
     try {
       await connectDB();
-      // Delete ALL documents for this phone (in case of duplicates)
-      const result = await ConversationModel.deleteMany({ phoneNumber });
-      console.log('[Store] Deleted', result.deletedCount, 'documents for', phoneNumber);
+      // Close ACTIVE conversations instead of deleting (preserve history)
+      const result = await ConversationModel.updateMany(
+        { phoneNumber, lifecycleState: 'ACTIVE' },
+        { 
+          $set: { 
+            lifecycleState: 'CLOSED',
+            closedAt: new Date(),
+            updatedAt: new Date(),
+          } 
+        }
+      );
+      console.log('[Store] Closed', result.modifiedCount, 'conversations for', phoneNumber);
     } catch (error) {
-      console.error('[Store] Error deleting conversation:', error);
+      console.error('[Store] Error closing conversation:', error);
     }
   }
 
   async clear(phoneNumber: string): Promise<void> {
+    // Close conversation instead of deleting - preserve history
     await this.delete(phoneNumber);
+  }
+
+  async markExpired(phoneNumber: string): Promise<void> {
+    try {
+      await connectDB();
+      const result = await ConversationModel.updateMany(
+        { phoneNumber, lifecycleState: { $in: ['ACTIVE', 'WAITING_OPERATOR'] } },
+        { 
+          $set: { 
+            lifecycleState: 'EXPIRED',
+            closedAt: new Date(),
+            updatedAt: new Date(),
+          } 
+        }
+      );
+      console.log('[Store] Marked expired', result.modifiedCount, 'conversations for', phoneNumber);
+    } catch (error) {
+      console.error('[Store] Error marking expired:', error);
+    }
   }
 
   async hasActiveConversation(phoneNumber: string): Promise<boolean> {
@@ -439,6 +495,22 @@ export class WhatsAppService {
       if (engineResult.isComplete) {
         console.log('[WhatsApp] Conversation complete, context:', engineResult.context?.data);
         
+        // Update conversation lifecycle state to WAITING_OPERATOR using ConversationResolver
+        try {
+          // Find the ACTIVE conversation and mark as waiting
+          const conversation = await ConversationModel.findOne({
+            phoneNumber: normalizedPhone,
+            lifecycleState: 'ACTIVE',
+          });
+          
+          if (conversation) {
+            await conversationResolver.markAsWaitingOperator(conversation._id.toString());
+            console.log('[WhatsApp] Conversation marked as WAITING_OPERATOR');
+          }
+        } catch (error) {
+          console.error('[WhatsApp] Error updating lifecycle state:', error);
+        }
+        
         // Update lead with captured data from conversation
         if (engineResult.context) {
           const contextData = engineResult.context.data;
@@ -604,59 +676,45 @@ export class WhatsAppService {
       }
     }
 
-    // Check if there's an active conversation
-    console.log('[Engine] Checking store for:', phoneNumber);
-    const storedContext = await conversationStore.get(phoneNumber);
+    // Step 3: Use ConversationResolver to get the right conversation
+    console.log('[Engine] Resolving conversation...');
+    const resolved = await conversationResolver.getConversationForIncomingMessage(
+      normalizedPhone,
+      tenantId,
+      leadId
+    );
     
-    // Check if stored context is valid for conversation engine (has currentState)
-    const hasValidContext = storedContext !== null && storedContext.get('currentState') !== undefined;
-    const hasActive = hasValidContext;
-    console.log('[Engine] hasActive:', hasActive, '| hasValidContext:', hasValidContext);
+    console.log('[Engine] Resolved:', {
+      shouldContinue: resolved.shouldContinue,
+      isWaitingForOperator: resolved.isWaitingForOperator,
+      isNew: resolved.isNew,
+      lifecycleState: resolved.conversation.lifecycleState,
+    });
     
-    if (hasActive && storedContext) {
-      console.log('[Engine] Stored context data:', JSON.stringify(storedContext.data));
+    // If waiting for operator, return the waiting message
+    if (resolved.isWaitingForOperator && resolved.waitingMessage) {
+      console.log('[Engine] Returning waiting message');
+      return {
+        message: resolved.waitingMessage,
+        isComplete: false,
+        context: undefined,
+      };
     }
     
-    // Check if conversation was already completed
-    const isComplete = storedContext?.get('complete') === true;
+    // Set flow config on engine (already resolved)
+    engine.setFlowConfig(resolved.flowConfig);
     
-    // Check for timeout (30 minutes)
-    let isTimedOut = false;
-    if (hasActive && storedContext && isComplete) {
-      const lastActivity = storedContext.get<string>('lastActivity');
-      if (lastActivity) {
-        const lastTime = new Date(lastActivity);
-        const diffMs = now.getTime() - lastTime.getTime();
-        const diffMinutes = diffMs / (1000 * 60);
-        
-        if (diffMinutes > 30) {
-          console.log('[Engine] Completed conversation timed out after', diffMinutes, 'minutes, restarting');
-          isTimedOut = true;
-          await conversationStore.clear(phoneNumber);
-        }
-      }
-    }
-    
+    // Step 4: Process message with engine
     let result;
     
-    if (hasActive && !isTimedOut) {
-      // Check if conversation already completed
-      if (isComplete) {
-        console.log('[Engine] Conversation already completed, sending processed message');
-        return {
-          message: 'Tu solicitud fue procesada, un asesor se contactará en breve. 😊',
-          isComplete: true,
-          context: storedContext,
-        };
-      }
-      
+    if (resolved.shouldContinue && resolved.conversation.engineData) {
       // Continue existing conversation
       console.log('[Engine] Continuing conversation for:', phoneNumber);
-      result = await engine.process(phoneNumber, normalizedInput, profileName);
+      result = await engine.process(phoneNumber, normalizedInput, undefined);
     } else {
-      // No active conversation - start new and just show greeting message
+      // Start new conversation
       console.log('[Engine] Starting NEW conversation for:', phoneNumber);
-      result = await engine.start(phoneNumber, profileName);
+      result = await engine.start(phoneNumber, undefined);
       
       // Apply customer data if this is a customer flow
       if (result.context && Object.keys(customerData).length > 0) {
@@ -665,7 +723,6 @@ export class WhatsAppService {
         }
         console.log('[Engine] Applied customer data to new context');
       }
-      // Don't auto-process - let user respond naturally
     }
 
     // Update last activity timestamp and save

@@ -28,6 +28,8 @@ export { HandleIncomingMessageUseCase } from './application/handle-incoming-mess
 export type { HandleIncomingMessageInput, HandleIncomingMessageDeps } from './application/handle-incoming-message';
 export { ConversationService } from './application/conversation.service';
 export type { Conversation, BotAction, CreateConversationInput, UpdateConversationInput, LeadUpdate } from './application/types';
+export { conversationResolver, ConversationResolver } from './application/conversation-resolver';
+export type { ResolvedConversation } from './application/conversation-resolver';
 
 // Flow Selector
 export { selectFlow } from './flow-selector';

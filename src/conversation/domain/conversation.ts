@@ -23,6 +23,16 @@ export type ConversationState =
   | 'timeout'
   | 'fallback';
 
+/**
+ * Lifecycle states for Conversation entity
+ * These represent the life cycle of the conversation, NOT the bot FSM states
+ */
+export type ConversationLifecycleState = 
+  | 'ACTIVE'      // Bot is actively collecting data
+  | 'WAITING_OPERATOR'  // Bot completed, waiting for human
+  | 'CLOSED'      // Conversation finished successfully
+  | 'EXPIRED';    // Conversation expired due to inactivity
+
 export type InquiryReason = 'repair' | 'installation' | 'maintenance' | 'budget' | 'other' | 'general';
 export type CustomerType = 'residential' | 'commercial';
 export type UrgencyLevel = 'high' | 'medium' | 'low';
@@ -56,9 +66,12 @@ export interface IConversation extends Document {
   tenantId: Types.ObjectId;
   leadId: Types.ObjectId;
   
-  // State
+  // State (FSM state - what step the bot is in)
   state: ConversationState;
   previousState?: ConversationState;
+  
+  // Lifecycle state (ACTIVE, WAITING_OPERATOR, CLOSED, EXPIRED)
+  lifecycleState: ConversationLifecycleState;
   
   // Context
   context: ConversationContext;
@@ -69,6 +82,8 @@ export interface IConversation extends Document {
   timeoutCount: number;
   exchangesInSameState: number;
   lastMessageAt: Date;
+  lastActivityAt: Date;
+  expiresAt?: Date;
   
   // Handoff
   handoffStatus?: HandoffStatus;
