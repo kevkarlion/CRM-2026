@@ -206,6 +206,32 @@ export default function LeadDetailPage() {
 
   // Chat state
   const [activeDetailTab, setActiveDetailTab] = useState<'info' | 'chat' | 'timeline'>('info');
+  
+  // Admin notes state
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
+  const [notesValue, setNotesValue] = useState('');
+  
+  const saveNotes = async () => {
+    try {
+      await fetch(`/api/crm/leads/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ adminNotes: notesValue }),
+      });
+      setLead((prev) => prev ? { ...prev, adminNotes: notesValue } : null);
+      setIsEditingNotes(false);
+    } catch (error) {
+      console.error('Error saving notes:', error);
+    }
+  };
+  
+  // Initialize notes value when entering edit mode
+  useEffect(() => {
+    if (isEditingNotes && lead?.adminNotes !== undefined) {
+      setNotesValue(lead.adminNotes || '');
+    }
+  }, [isEditingNotes, lead?.adminNotes]);
+  
   const phone = lead?.phone || '';
   const {
     messages,
@@ -443,10 +469,48 @@ export default function LeadDetailPage() {
 
           {lead.notes && (
             <div className="bg-white border border-gray-200 rounded-xl p-6">
-              <h2 className="text-base font-semibold text-gray-900 mb-3">Notas</h2>
+              <h2 className="text-base font-semibold text-gray-900 mb-3">Resumen de msg</h2>
               <p className="text-sm text-gray-700 whitespace-pre-wrap">{lead.notes}</p>
             </div>
           )}
+
+          <div className="bg-white border border-gray-200 rounded-xl p-6">
+            <h2 className="text-base font-semibold text-gray-900 mb-3">Notas</h2>
+            {isEditingNotes ? (
+              <div className="space-y-3">
+                <textarea
+                  value={notesValue}
+                  onChange={(e) => setNotesValue(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
+                  rows={4}
+                  placeholder="Notas privadas del administrador..."
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={saveNotes}
+                    className="px-3 py-1.5 bg-brand-600 text-white text-sm rounded-lg hover:bg-brand-700"
+                  >
+                    Guardar
+                  </button>
+                  <button
+                    onClick={() => setIsEditingNotes(false)}
+                    className="px-3 py-1.5 bg-gray-100 text-gray-700 text-sm rounded-lg hover:bg-gray-200"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div 
+                onClick={() => setIsEditingNotes(true)}
+                className="cursor-pointer hover:bg-gray-50 rounded-lg p-2 -m-2"
+              >
+                <p className="text-sm text-gray-700 whitespace-pre-wrap">
+                  {lead.adminNotes || 'Haz clic para agregar notas...'}
+                </p>
+              </div>
+            )}
+          </div>
 
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
             {/* Tabs */}

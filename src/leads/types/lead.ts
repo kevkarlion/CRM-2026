@@ -41,6 +41,7 @@ export interface ILead extends Document {
   locality?: string;
   province?: string;
   priority?: 'high' | 'medium' | 'low';
+  adminNotes?: string; // Notas privadas del administrador
   score?: number;
   isB2B?: boolean;
   scoringBreakdown?: ScoringBreakdown;

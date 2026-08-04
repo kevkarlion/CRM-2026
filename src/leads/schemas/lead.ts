@@ -54,6 +54,7 @@ export const leadSchema = new Schema<ILead>(
       type: String,
       enum: ['high', 'medium', 'low'],
     },
+    adminNotes: { type: String, trim: true }, // Notas privadas del administrador
     score: {
       type: Number,
       min: 0,

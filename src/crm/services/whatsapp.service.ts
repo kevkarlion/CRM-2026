@@ -443,6 +443,7 @@ export class WhatsAppService {
           const contextData = engineResult.context.data;
           const profileName = contextData.profileName as string | undefined;
           const userName = contextData.userName as string | undefined;
+          const customerName = contextData.customerName as string | undefined;
           const address = contextData.address as string | undefined;
           const locality = contextData.locality as string | undefined;
           const province = contextData.province as string | undefined;
@@ -465,14 +466,10 @@ export class WhatsAppService {
             };
             
             // Update name if we have a better name
-            const newName = profileName || userName;
+            const newName = profileName || userName || customerName;
             if (newName && newName !== `Lead WhatsApp ${normalizedPhone.slice(-4)}`) {
               updateData.name = newName;
-            }
-            
-            // Update profileName only if empty
-            if (profileName && !existingLead.profileName) {
-              updateData.profileName = profileName;
+              updateData.companyName = newName;
             }
             
             // Update address fields
@@ -491,22 +488,15 @@ export class WhatsAppService {
               updateData.priority = priority;
             }
             
-            // Append conversation summary to notes
+            // Save bot summary as notes (service + priority + description)
             const notesParts: string[] = [];
-            if (needType) notesParts.push(`Necesidad: ${needType}`);
-            if (customerType) notesParts.push(`Tipo: ${customerType}`);
-            if (address || locality || province) {
-              const addressParts = [address, locality, province].filter(Boolean).join(', ');
-              if (addressParts) notesParts.push(`Dirección: ${addressParts}`);
-            }
-            if (priority) notesParts.push(`Prioridad: ${priority}`);
+            if (needType) notesParts.push(`Servicio: ${needType}`);
+            if (priority) notesParts.push(`Necesidad: ${priority}`);
             if (description) notesParts.push(`Descripción: ${description}`);
             
             if (notesParts.length > 0) {
-              const newNotes = notesParts.join(' | ');
-              updateData.notes = existingLead.notes 
-                ? `${existingLead.notes}\n${new Date().toISOString().split('T')[0]}: ${newNotes}`
-                : `${new Date().toISOString().split('T')[0]}: ${newNotes}`;
+              // Overwrite notes with bot summary (new format)
+              updateData.notes = notesParts.join(' | ');
             }
             
             await LeadModel.findByIdAndUpdate(existingLead._id, { $set: updateData });

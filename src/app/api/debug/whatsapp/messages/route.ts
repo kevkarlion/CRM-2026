@@ -1,34 +1,41 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
 import WhatsAppMessageModel from '@/crm/models/whatsapp-message';
-import LeadModel from '@/leads/models/lead';
-import { Types } from 'mongoose';
 
 export async function GET(req: NextRequest) {
   try {
     await connectDB();
-
     const { searchParams } = new URL(req.url);
     const phone = searchParams.get('phone');
-
-    const query: any = { tenantId: new Types.ObjectId('000000000000000000000001') };
-    if (phone) query.phone = phone;
-
+    const tenantId = req.headers.get('x-tenant-id');
+    
+    const query: Record<string, unknown> = {};
+    
+    if (tenantId) {
+      query.tenantId = require('mongoose').Types.ObjectId.createFromHexString(tenantId);
+    }
+    
+    if (phone) {
+      query.phone = { $regex: new RegExp(phone) };
+    }
+    
     const messages = await WhatsAppMessageModel.find(query)
+      .select('phone content direction createdAt leadId')
       .sort({ createdAt: -1 })
       .limit(20)
       .lean();
-
-    // También buscar leads con esos teléfonos
+    
+    // Get unique phones
     const phones = [...new Set(messages.map(m => m.phone))];
-    const leads = await LeadModel.find({ phone: { $in: phones } })
-      .select('name phone')
-      .lean();
-
-    return NextResponse.json({ messages, leads });
+    
+    return NextResponse.json({ 
+      totalMessages: messages.length,
+      uniquePhones: phones,
+      recentMessages: messages.slice(0, 10)
+    });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal error' },
+      { error: error instanceof Error ? error.message : 'Error' },
       { status: 500 }
     );
   }
