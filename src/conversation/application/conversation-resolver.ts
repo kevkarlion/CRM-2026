@@ -216,6 +216,37 @@ export class ConversationResolver {
       };
     }
     
+    // Check if existing conversation is complete - if so, close and start fresh for customers
+    const engineData = existing.engineData as Record<string, unknown> | undefined;
+    const isComplete = engineData?.complete === true;
+    
+    if (isComplete) {
+      if (isCustomerFlow) {
+        // Customer with complete conversation - restart fresh customer flow
+        console.log('[Resolver] Customer conversation complete, closing and starting fresh');
+        await this.closeConversation(existing._id.toString(), 'CLOSED');
+        console.log('[Resolver] No active conversation, creating new');
+        return this.createNewConversation(normalizedPhone, tenantId, leadId, flowConfig);
+      } else {
+        // Lead with complete conversation - return waiting message
+        console.log('[Resolver] Lead conversation complete, returning waiting message');
+        return {
+          conversation: {
+            id: existing._id.toString(),
+            phoneNumber: normalizedPhone,
+            leadId: leadId,
+            lifecycleState: 'WAITING_OPERATOR',
+          },
+          shouldContinue: false,
+          isWaitingForOperator: true,
+          isNew: false,
+          waitingMessage: WAITING_FOR_OPERATOR_MESSAGE,
+          flowConfig,
+          profileName,
+        };
+      }
+    }
+    
     // ACTIVE conversation exists - but check if lead is already contacted
     // Don't apply for customer flow - clients should always get their flow
     const lead = await this.findLeadByPhone(normalizedPhone, tenantId);
