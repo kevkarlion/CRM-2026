@@ -353,7 +353,7 @@ function TimelineTab({ messages, conversationStatus }: TimelineTabProps) {
   }
 
   return (
-    <div className="p-4 space-y-3 overflow-y-auto">
+    <div className="p-4 space-y-3 overflow-y-auto h-[calc(100vh-280px)]">
       {events.map((event, i) => (
         <div key={i} className="flex items-start gap-3 text-sm">
           <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${
@@ -443,7 +443,8 @@ export function LeadChatDrawer({ isOpen, onClose, lead, conversationStatus }: Le
 
   if (!isOpen || !lead) return null;
 
-  const leadName = typeof lead.name === 'string' ? lead.name : 'Lead sin nombre';
+  const displayName = lead.profileName || lead.companyName || lead.name;
+  const leadName = typeof displayName === 'string' ? displayName : 'Lead sin nombre';
   const hasConversation = !!conversationStatus?.hasActiveConversation;
 
   return (
@@ -462,8 +463,8 @@ export function LeadChatDrawer({ isOpen, onClose, lead, conversationStatus }: Le
               </div>
               <div className="min-w-0">
                 <h3 className="text-base font-bold text-gray-900 truncate">{leadName}</h3>
-                {lead.companyName && (
-                  <p className="text-sm text-gray-500 truncate">{lead.companyName}</p>
+                {lead.profileName && lead.name && lead.name !== lead.profileName && (
+                  <p className="text-sm text-gray-500 truncate">{lead.name}</p>
                 )}
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
                   <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANTS[lead.status] || 'bg-gray-100 text-gray-700'}`}>

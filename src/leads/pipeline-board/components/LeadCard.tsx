@@ -100,9 +100,11 @@ export const LeadCard = React.memo(function LeadCard({
       aria-label={`Lead: ${lead.name}`}
     >
       <div>
-        <p className="text-xs md:text-[13px] font-semibold text-gray-900 leading-tight">{lead.name}</p>
-        {lead.companyName && (
-          <p className="text-[10px] md:text-[11px] text-gray-500 truncate mt-0.5">{lead.companyName}</p>
+        <p className="text-xs md:text-[13px] font-semibold text-gray-900 leading-tight">
+          {lead.profileName || lead.companyName || lead.name}
+        </p>
+        {lead.profileName && lead.name && lead.name !== lead.profileName && (
+          <p className="text-[10px] md:text-[11px] text-gray-500 truncate mt-0.5">{lead.name}</p>
         )}
         <div className="flex items-center gap-1 mt-1">
           {lead.temperature && TEMPERATURE_CONFIG[lead.temperature] && (
