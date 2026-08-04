@@ -102,6 +102,19 @@ export const conversationSchema = new Schema<IConversation>(
       index: true,
     },
 
+    // Waiting operator tracking
+    waitingMessageCount: { type: Number, default: 0 },
+    waitingPriority: {
+      type: String,
+      enum: ['normal', 'medium', 'high'],
+      default: 'normal',
+    },
+    waitingEvents: [{
+      event: { type: String },
+      timestamp: { type: Date },
+      priority: { type: String },
+    }],
+
     handoffStatus: {
       type: String,
       enum: ['pending', 'assigned', 'completed', 'cancelled'] as HandoffStatus[],

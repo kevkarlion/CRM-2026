@@ -29,7 +29,8 @@ export type { HandleIncomingMessageInput, HandleIncomingMessageDeps } from './ap
 export { ConversationService } from './application/conversation.service';
 export type { Conversation, BotAction, CreateConversationInput, UpdateConversationInput, LeadUpdate } from './application/types';
 export { conversationResolver, ConversationResolver } from './application/conversation-resolver';
-export type { ResolvedConversation } from './application/conversation-resolver';
+export type { ResolvedConversation, WaitingOperatorEvent } from './application/conversation-resolver';
+export { WaitingPriority } from './application/conversation-resolver';
 
 // Flow Selector
 export { selectFlow } from './flow-selector';

@@ -22,7 +22,6 @@ import {
   EngineReplyComposer,
   getDefaultFlow,
   ConversationStore,
-  selectFlow,
   conversationResolver,
 } from '@/conversation';
 import ConversationModel from '@/conversation/models/conversation';
@@ -608,15 +607,13 @@ export class WhatsAppService {
   }
 
   /**
-   * Process message using the new Conversation Engine
+   * Process message using the new Conversation Engine + ConversationResolver
    * 
    * Flow:
-   * 1. Select appropriate flow based on phone (lead vs customer)
+   * 1. Use ConversationResolver to get the right conversation (ACTIVE, WAITING_OPERATOR, or new)
    * 2. If customer flow, initialize context with customer data
-   * 3. Check if phone has active conversation in context
-   * 4. If yes, route to engine.process()
-   * 5. If no, start new conversation
-   * 6. Get response from engine and return
+   * 3. Process message with engine (continue or start new)
+   * 4. Save context and return response
    */
   private async processWithEngine(
     tenantId: string,
