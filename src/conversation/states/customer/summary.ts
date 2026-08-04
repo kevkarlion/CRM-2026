@@ -38,10 +38,18 @@ export class SummaryState implements IConversationState {
                             normalized === '2'
 
     if (wantsCorrection) {
+      // For customers: restart from greeting (preserves customer context)
+      // For leads: go back to service_type
+      const isCustomer = context.get<boolean>('isCustomer');
+      
       const intent: StateIntent = {
-        nextState: 'service_type',
+        // Go back to greeting for customers (preserves their data)
+        // Go back to service_type for leads
+        nextState: isCustomer ? 'greeting_personalized' : 'service_type',
         data: {
-          restarted: true,
+          // Clear service type to force re-selection
+          serviceType: undefined,
+          serviceTypeLabel: undefined,
         },
       }
 
@@ -69,6 +77,7 @@ export class SummaryState implements IConversationState {
     const locality = context.get<string>('locality') || ''
     const province = context.get<string>('province') || ''
     const description = context.get<string>('description') || 'Sin descripción'
+    const priorityLabel = context.get<string>('priorityLabel') || 'No especificada'
 
     // Build address with locality and province
     let fullAddress = address
@@ -89,6 +98,9 @@ ${fullAddress || 'No especificada'}
 
 📝 *Descripción:*
 ${description}
+
+⏰ *Prioridad:*
+${priorityLabel}
 
 ¿La información es correcta?`
   }

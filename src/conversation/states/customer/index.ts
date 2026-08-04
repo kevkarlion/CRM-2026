@@ -12,6 +12,7 @@ import { GreetingPersonalizedState } from './greeting_personalized'
 import { ServiceTypeState, getServiceTypeLabel } from './service_type'
 import { AddressConfirmState } from './address_confirm'
 import { DescriptionState } from './description'
+import { PriorityState } from './priority'
 import { SummaryState } from './summary'
 import { WaitingOperatorState } from './waiting_operator'
 
@@ -21,6 +22,7 @@ const CUSTOMER_STATES: Record<string, IConversationState> = {
   service_type: new ServiceTypeState(),
   address_confirm: new AddressConfirmState(),
   description: new DescriptionState(),
+  priority: new PriorityState(),
   summary: new SummaryState(),
   waiting_operator: new WaitingOperatorState(),
 }
@@ -51,5 +53,6 @@ export { GreetingPersonalizedState } from './greeting_personalized'
 export { ServiceTypeState, getServiceTypeLabel } from './service_type'
 export { AddressConfirmState } from './address_confirm'
 export { DescriptionState } from './description'
+export { PriorityState } from './priority'
 export { SummaryState } from './summary'
 export { WaitingOperatorState } from './waiting_operator'

@@ -29,12 +29,16 @@ export const CUSTOMER_SERVICE_FLOW: FlowConfig = {
       onError: 'service_type',
     },
     address_confirm: {
-      next: 'description',
+      next: 'priority',
       onError: 'address_confirm',
+    },
+    priority: {
+      next: 'description',
+      onError: 'priority',
     },
     description: {
       next: 'summary',
-      onError: 'description',
+      onError: 'priority',
     },
     summary: {
       next: 'waiting_operator',
