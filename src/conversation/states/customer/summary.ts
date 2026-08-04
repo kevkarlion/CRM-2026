@@ -41,15 +41,17 @@ export class SummaryState implements IConversationState {
       // For customers: restart from greeting (preserves customer context)
       // For leads: go back to service_type
       const isCustomer = context.get<boolean>('isCustomer');
+      console.log('[Summary] Correct requested, isCustomer:', isCustomer);
+      console.log('[Summary] Current context keys:', Object.keys(context.data));
       
       const intent: StateIntent = {
         // Go back to greeting for customers (preserves their data)
         // Go back to service_type for leads
         nextState: isCustomer ? 'greeting_personalized' : 'service_type',
         data: {
-          // Clear service type to force re-selection
-          serviceType: undefined,
-          serviceTypeLabel: undefined,
+          // DON'T clear service type - preserve customer context
+          // serviceType: undefined,
+          // serviceTypeLabel: undefined,
         },
       }
 

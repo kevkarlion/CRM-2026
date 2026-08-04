@@ -32,10 +32,6 @@ export const CUSTOMER_SERVICE_FLOW: FlowConfig = {
       next: 'priority',
       onError: 'address_confirm',
     },
-    priority: {
-      next: 'description',
-      onError: 'priority',
-    },
     description: {
       next: 'summary',
       onError: 'priority',

@@ -44,7 +44,7 @@ export class GreetingPersonalizedState implements IConversationState {
             serviceType,
             serviceTypeLabel: SERVICE_LABELS[serviceType],
           },
-          nextState: 'address_confirm',
+          nextState: 'address_confirm',  // Skip service_type since they already chose
         }
 
         return {
