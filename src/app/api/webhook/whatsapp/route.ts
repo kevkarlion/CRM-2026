@@ -71,18 +71,28 @@ export async function POST(req: NextRequest) {
         console.log(`👤 Profile name: ${profileName}`);
       }
 
-      console.log(`📩 Mensaje recibido de ${fromNumber}, tipo: ${messageType}, id: ${messageId}`);
+console.log(`📩 Mensaje recibido de ${fromNumber}, tipo: ${messageType}, id: ${messageId}`);
 
+      // Skip duplicate check for now - causing issues
+      // TODO: Re-enable duplicate check after fixing
+      /*
       // Check if message was already processed (prevent duplicates)
-      const { WhatsAppMessageModel } = await import('@/crm/models/whatsapp-message');
-      await connectDB();
-      const existingMessage = await WhatsAppMessageModel.findOne({ messageId });
-      
-      if (existingMessage) {
-        console.log(`⏭️ Mensaje ya procesado, ignorando: ${messageId}`);
-        return NextResponse.json({ status: 'ok', duplicate: true }, { status: 200 });
+      try {
+        await connectDB();
+        console.log('[Webhook] DB connected, checking duplicate...');
+        const existingMessage = await WhatsAppMessageModel.findOne({ messageId });
+        console.log('[Webhook] Duplicate check done:', existingMessage ? 'found' : 'not found');
+        
+        if (existingMessage) {
+          console.log(`⏭️ Mensaje ya procesado, ignorando: ${messageId}`);
+          return NextResponse.json({ status: 'ok', duplicate: true }, { status: 200 });
+        }
+      } catch (dupError) {
+        console.error('[Webhook] Error checking duplicate:', dupError);
+        // Continue processing if duplicate check fails - not critical
       }
-      
+      */
+       
       // Procesar según el tipo de mensaje
       let content = '';
       
