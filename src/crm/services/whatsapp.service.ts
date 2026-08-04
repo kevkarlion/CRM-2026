@@ -1,7 +1,9 @@
 import { Types } from 'mongoose';
 import WhatsAppMessageModel from '../models/whatsapp-message';
 import LeadModel from '../../leads/models/lead';
+import ClientModel from '../models/client';
 import TenantModel from '../../core/models/tenant';
+import { ClientServiceHistoryModel } from '@/clients';
 import connectDB from '@/core/db';
 import type { 
   IWhatsAppMessage, 
@@ -20,6 +22,7 @@ import {
   EngineReplyComposer,
   getDefaultFlow,
   ConversationStore,
+  selectFlow,
 } from '@/conversation';
 import ConversationModel from '@/conversation/models/conversation';
 
@@ -427,7 +430,7 @@ export class WhatsAppService {
     console.log('[WhatsApp] Using Conversation Engine');
     
     try {
-      const engineResult = await this.processWithEngine(normalizedPhone, content, isNew);
+      const engineResult = await this.processWithEngine(tenantId, normalizedPhone, content, isNew);
       shouldRespond = true;
       responseText = engineResult.message;
       
@@ -535,12 +538,15 @@ export class WhatsAppService {
    * Process message using the new Conversation Engine
    * 
    * Flow:
-   * 1. Check if phone has active conversation in context
-   * 2. If yes, route to engine.process()
-   * 3. If no, check if greeting keyword → start new conversation
-   * 4. Get response from engine and return
+   * 1. Select appropriate flow based on phone (lead vs customer)
+   * 2. If customer flow, initialize context with customer data
+   * 3. Check if phone has active conversation in context
+   * 4. If yes, route to engine.process()
+   * 5. If no, start new conversation
+   * 6. Get response from engine and return
    */
   private async processWithEngine(
+    tenantId: string,
     phoneNumber: string,
     input: string,
     isNewLead: boolean
@@ -553,6 +559,53 @@ export class WhatsAppService {
     const engine = getConversationEngine();
     const normalizedInput = input.trim();
     const now = new Date();
+
+    // Step 1: Select appropriate flow based on phone
+    console.log('[Engine] Selecting flow for:', phoneNumber, 'tenant:', tenantId);
+    const flowConfig = await selectFlow(phoneNumber, tenantId);
+    console.log('[Engine] Selected flow:', flowConfig.id);
+    
+    // Set flow config on engine
+    engine.setFlowConfig(flowConfig);
+
+    // Step 2: If customer flow, initialize context with customer data
+    let customerData: Record<string, unknown> = {};
+    if (flowConfig.id === 'customer-service') {
+      try {
+        const normalizedPhone = phoneNumber.replace(/[\s\-\(\)\+]/g, '').replace(/^0/, '');
+        const client = await ClientModel.findOne({
+          tenantId: new Types.ObjectId(tenantId),
+          phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+          deletedAt: null,
+        }).lean();
+        
+        if (client) {
+          console.log('[Engine] Customer found, initializing context');
+          // Create a temporary context to extract customer data
+          const tempContext = new ConversationContext(phoneNumber);
+          tempContext.initializeFromCustomer(client as any);
+          
+          // Store customer data to apply after start
+          customerData = {
+            customerName: tempContext.get('customerName'),
+            address: tempContext.get('address'),
+            locality: tempContext.get('locality'),
+            province: tempContext.get('province'),
+            isCustomer: true,
+            clientId: tempContext.get('clientId'),
+            tenantId: tenantId,
+            // Store original address for comparison when user provides new address
+            originalAddress: tempContext.get('address'),
+            originalLocality: tempContext.get('locality'),
+            originalProvince: tempContext.get('province'),
+          };
+          
+          console.log('[Engine] Customer data ready:', customerData);
+        }
+      } catch (error) {
+        console.error('[Engine] Error loading customer:', error);
+      }
+    }
 
     // Check if there's an active conversation
     console.log('[Engine] Checking store for:', phoneNumber);
@@ -607,14 +660,81 @@ export class WhatsAppService {
       // No active conversation - start new and just show greeting message
       console.log('[Engine] Starting NEW conversation for:', phoneNumber);
       result = await engine.start(phoneNumber);
+      
+      // Apply customer data if this is a customer flow
+      if (result.context && Object.keys(customerData).length > 0) {
+        for (const [key, value] of Object.entries(customerData)) {
+          result.context.set(key, value);
+        }
+        console.log('[Engine] Applied customer data to new context');
+      }
       // Don't auto-process - let user respond naturally
     }
 
     // Update last activity timestamp and save
     if (result.context) {
+      // Apply customer data to existing context if not already applied
+      if (Object.keys(customerData).length > 0 && !result.context.get('isCustomer')) {
+        for (const [key, value] of Object.entries(customerData)) {
+          result.context.set(key, value);
+        }
+        console.log('[Engine] Applied customer data to existing context');
+      }
+      
+      // Check if user provided a new address in address_confirm state and update client
+      const currentAddress = result.context.get<string>('address');
+      const originalAddress = result.context.get<string>('originalAddress');
+      const clientId = result.context.get<string>('clientId');
+      const tenantId = result.context.get<string>('tenantId');
+      const locality = result.context.get<string>('locality');
+      const province = result.context.get<string>('province');
+      
+      if (
+        clientId &&
+        tenantId &&
+        currentAddress &&
+        originalAddress &&
+        currentAddress !== originalAddress
+      ) {
+        // Address was changed - update the client record
+        console.log('[Engine] Updating client address:', { clientId, address: currentAddress, locality, province });
+        await result.context.updateClientAddress(clientId, tenantId, currentAddress, locality, province);
+        // Clear original so we don't update again
+        result.context.set('originalAddress', currentAddress);
+      }
+      
       result.context.set('lastActivity', now.toISOString());
       await conversationStore.save(phoneNumber, result.context);
       console.log('[Engine] Saved context, new state:', result.context.get('currentState'));
+      
+      // Create service history record if this is a customer handoff
+      const isCustomer = result.context.get<boolean>('isCustomer');
+      const isComplete = result.context.get<boolean>('complete');
+      
+      if (result.handoff && isCustomer && isComplete && clientId && tenantId) {
+        const serviceType = result.context.get<string>('serviceType');
+        const description = result.context.get<string>('description');
+        
+        if (serviceType) {
+          console.log('[Engine] Creating service history record:', { clientId, serviceType, address: currentAddress });
+          try {
+            await ClientServiceHistoryModel.create({
+              tenantId: new Types.ObjectId(tenantId),
+              clientId: new Types.ObjectId(clientId),
+              serviceType: serviceType as 'repair' | 'maintenance' | 'installation' | 'budget' | 'other',
+              address: currentAddress || '',
+              locality: locality || '',
+              province: province || '',
+              description,
+              status: 'pending',
+              createdBy: 'whatsapp-bot',
+            });
+            console.log('[Engine] Service history record created successfully');
+          } catch (error) {
+            console.error('[Engine] Error creating service history record:', error);
+          }
+        }
+      }
     }
 
     return {

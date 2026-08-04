@@ -17,6 +17,9 @@ import { PriorityState } from './priority'
 import { DescriptionState } from './description'
 import { ConfirmationState } from './confirmation'
 
+// Import customer states
+import { getCustomerState } from './customer'
+
 // Map of state IDs to state instances
 const STATES: Record<string, IConversationState> = {
   greeting: new GreetingState(),
@@ -30,30 +33,44 @@ const STATES: Record<string, IConversationState> = {
 
 /**
  * Get a state by ID
+ * Checks both base states and customer states
  */
 export function getState(stateId: string): IConversationState | undefined {
-  return STATES[stateId]
+  // First check base states
+  if (stateId in STATES) {
+    return STATES[stateId]
+  }
+  // Then check customer states
+  return getCustomerState(stateId)
 }
 
 /**
  * Check if a state exists
  */
 export function hasState(stateId: string): boolean {
-  return stateId in STATES
+  return stateId in STATES || getCustomerState(stateId) !== undefined
 }
 
 /**
- * Get all available state IDs
+ * Get all available state IDs (base + customer)
  */
 export function getAllStateIds(): string[] {
-  return Object.keys(STATES)
+  const customerStateIds = Object.keys({
+    greeting_personalized: true,
+    service_type: true,
+    address_confirm: true,
+    description: true,
+    summary: true,
+    waiting_operator: true,
+  })
+  return [...Object.keys(STATES), ...customerStateIds]
 }
 
 /**
  * Get a state with its configuration from flow
  */
 export function getStateWithConfig(stateId: string, flowConfig: FlowConfig): StateRegistryResult | undefined {
-  const state = STATES[stateId]
+  const state = getState(stateId)
 
   if (!state) {
     return undefined

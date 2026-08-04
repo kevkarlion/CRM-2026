@@ -11,6 +11,9 @@ export interface IClient extends Document, IAuditFields {
   taxId?: string;
   email?: string;
   phone?: string;
+  address?: string;
+  locality?: string;
+  province?: string;
   notes?: string;
   tags: string[];
   createdAt: Date;

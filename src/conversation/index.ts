@@ -29,6 +29,9 @@ export type { HandleIncomingMessageInput, HandleIncomingMessageDeps } from './ap
 export { ConversationService } from './application/conversation.service';
 export type { Conversation, BotAction, CreateConversationInput, UpdateConversationInput, LeadUpdate } from './application/types';
 
+// Flow Selector
+export { selectFlow } from './flow-selector';
+
 // Models (for infrastructure layer to use)
 export { default as ConversationModel } from './models/conversation';
 

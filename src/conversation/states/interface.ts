@@ -33,9 +33,9 @@ export interface IConversationState {
   /**
    * Get quick reply options for this state (optional)
    * @param context - Current conversation context
-   * @returns Array of option strings
+   * @returns Array of option strings or undefined if no options
    */
-  getOptions?(context: ConversationContext): string[]
+  getOptions?(context: ConversationContext): string[] | undefined
 }
 
 /**

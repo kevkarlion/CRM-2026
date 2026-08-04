@@ -77,6 +77,22 @@ export class ConversationEngine {
   }
 
   /**
+   * Set flow configuration dynamically
+   * Allows switching between flows (e.g., lead qualification vs customer service)
+   */
+  setFlowConfig(flowConfig: FlowConfig): void {
+    this.flowConfig = flowConfig
+    console.log('[Engine] Flow config updated to:', flowConfig.id)
+  }
+
+  /**
+   * Get current flow configuration
+   */
+  getFlowConfig(): FlowConfig {
+    return this.flowConfig
+  }
+
+  /**
    * Start a new conversation from the initial state
    */
   async start(phoneNumber: string): Promise<EngineResult> {
