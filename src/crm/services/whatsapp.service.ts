@@ -487,6 +487,10 @@ export class WhatsAppService {
     
     try {
       const engineResult = await this.processWithEngine(tenantId, normalizedPhone, content, isNew);
+      console.log('[WhatsApp] Engine result:', { 
+        message: engineResult.message?.substring(0, 50), 
+        isComplete: engineResult.isComplete 
+      });
       shouldRespond = true;
       responseText = engineResult.message;
       
@@ -655,7 +659,7 @@ export class WhatsAppService {
     
     // If waiting for operator, return the waiting message
     if (resolved.isWaitingForOperator && resolved.waitingMessage) {
-      console.log('[Engine] Returning waiting message');
+      console.log('[Engine] Returning waiting message:', resolved.waitingMessage.substring(0, 50));
       return {
         message: resolved.waitingMessage,
         isComplete: false,

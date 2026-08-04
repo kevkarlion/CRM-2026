@@ -84,6 +84,7 @@ export class ConversationResolver {
     
     // Try to find existing conversation
     const existing = await this.findActiveConversation(normalizedPhone);
+    console.log('[Resolver] Existing conversation:', existing ? `found (${existing.lifecycleState})` : 'none');
     
     if (!existing) {
       // No active conversation - check if lead is already contacted
@@ -94,7 +95,7 @@ export class ConversationResolver {
       
       if (isLeadContacted) {
         // Lead is already contacted/qualified - return waiting message
-        console.log('[Resolver] Lead already contacted, returning waiting message');
+        console.log('[Resolver] Lead already contacted, returning waiting message. Status:', lead.status);
         return {
           conversation: {
             id: '',
