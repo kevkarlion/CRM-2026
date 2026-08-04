@@ -114,17 +114,27 @@ console.log(`📩 Mensaje recibido de ${fromNumber}, tipo: ${messageType}, id: $
       console.log(`📝 Contenido: "${content}"`);
 
       // Obtener el tenant activo
+      console.log('[Webhook] Getting tenant ID...');
       const tenantId = await whatsappService.getActiveTenantId();
+      console.log('[Webhook] Tenant ID:', tenantId);
 
       // Procesar mensaje con el servicio de WhatsApp
-      const result = await whatsappService.processIncomingMessage(
-        tenantId,
-        fromNumber,
-        messageId,
-        content,
-        messageType,
-        profileName
-      );
+      console.log('[Webhook] Calling processIncomingMessage...');
+      let result;
+      try {
+        result = await whatsappService.processIncomingMessage(
+          tenantId,
+          fromNumber,
+          messageId,
+          content,
+          messageType,
+          profileName
+        );
+        console.log('[Webhook] processIncomingMessage completed');
+      } catch (processError) {
+        console.error('[Webhook] ERROR in processIncomingMessage:', processError);
+        return NextResponse.json({ status: 'ok', error: 'process error' }, { status: 200 });
+      }
 
       console.log(`✅ Lead ${result.isNewLead ? 'creado' : 'encontrado'}:`, result.lead?._id);
 

@@ -165,8 +165,37 @@ export class ConversationResolver {
     
     // Check lifecycle state
     if (existing.lifecycleState === 'WAITING_OPERATOR') {
-      // Lead is waiting for operator - just return simple message, no priority logic
-      console.log('[Resolver] Conversation in WAITING_OPERATOR, returning simple message');
+      // For customer flow, don't show waiting message - continue with their flow
+      if (isCustomerFlow) {
+        console.log('[Resolver] Customer in WAITING_OPERATOR - continuing customer flow');
+        
+        // Reactivate the conversation for customers
+        await ConversationModel.findByIdAndUpdate(existing._id, {
+          $set: {
+            lifecycleState: 'ACTIVE',
+            lastActivityAt: new Date(),
+            updatedAt: new Date(),
+          },
+        });
+        
+        return {
+          conversation: {
+            id: existing._id.toString(),
+            phoneNumber: normalizedPhone,
+            leadId: existing.leadId?.toString() || leadId,
+            lifecycleState: 'ACTIVE',
+            engineData: existing.engineData as Record<string, unknown> | undefined,
+          },
+          shouldContinue: true,
+          isWaitingForOperator: false,
+          isNew: false,
+          flowConfig,
+          profileName,
+        };
+      }
+      
+      // Lead in waiting state - return simple message
+      console.log('[Resolver] Lead in WAITING_OPERATOR, returning simple message');
       return {
         conversation: {
           id: existing._id.toString(),
