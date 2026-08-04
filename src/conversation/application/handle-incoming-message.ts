@@ -15,6 +15,7 @@ export interface HandleIncomingMessageInput {
   leadId: string;
   phone: string;
   messageContent: string;
+  profileName?: string;
 }
 
 // Dependencias inyectadas (todas son domain services puros + conversation service)
@@ -73,7 +74,7 @@ export class HandleIncomingMessageUseCase {
     const intent = intentExtractor.extractAll(input.messageContent);
 
     // 3. Actualizar contexto con los datos extraídos
-    const updatedContext = this.mergeContext(conversation.context, intent, input.messageContent);
+    const updatedContext = this.mergeContext(conversation.context, intent, input.messageContent, input.profileName);
 
     // 3.1. LeadContactEstablished: el lead provee datos reales por primera vez
     const hadDataBefore = conversation.context.needType
@@ -297,10 +298,13 @@ export class HandleIncomingMessageUseCase {
   private mergeContext(
     existing: ConversationContext,
     intent: ReturnType<IntentExtractor['extractAll']>,
-    messageContent: string
+    messageContent: string,
+    profileName?: string
   ): ConversationContext {
     return {
       ...existing,
+      userName: existing.userName || profileName,
+      profileName: existing.profileName || profileName,
       needType: intent.needType ?? existing.needType,
       urgency: intent.urgency ?? existing.urgency,
       location: intent.location ?? existing.location,

@@ -434,7 +434,82 @@ export class WhatsAppService {
       // If complete or handoff, we might want to handle lead status
       if (engineResult.isComplete) {
         console.log('[WhatsApp] Conversation complete, context:', engineResult.context?.data);
-        // Could update lead status here if needed
+        
+        // Update lead with captured data from conversation
+        if (engineResult.context) {
+          const contextData = engineResult.context.data;
+          const profileName = contextData.profileName as string | undefined;
+          const userName = contextData.userName as string | undefined;
+          const address = contextData.address as string | undefined;
+          const locality = contextData.locality as string | undefined;
+          const province = contextData.province as string | undefined;
+          const priority = contextData.urgency as 'high' | 'medium' | 'low' | undefined;
+          const needType = contextData.needType as string | undefined;
+          const customerType = contextData.customerType as string | undefined;
+          const description = contextData.description as string | undefined;
+          
+          // Find lead by phone and update
+          const existingLead = await LeadModel.findOne({
+            tenantId: new Types.ObjectId(tenantId),
+            phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+            deletedAt: null,
+          });
+          
+          if (existingLead) {
+            const updateData: Record<string, any> = {
+              status: 'contacted',
+              updatedBy: 'whatsapp-bot',
+            };
+            
+            // Update name if we have a better name
+            const newName = profileName || userName;
+            if (newName && newName !== `Lead WhatsApp ${normalizedPhone.slice(-4)}`) {
+              updateData.name = newName;
+            }
+            
+            // Update profileName only if empty
+            if (profileName && !existingLead.profileName) {
+              updateData.profileName = profileName;
+            }
+            
+            // Update address fields
+            if (address) {
+              updateData.address = address;
+            }
+            if (locality) {
+              updateData.locality = locality;
+            }
+            if (province) {
+              updateData.province = province;
+            }
+            
+            // Update priority from urgency
+            if (priority) {
+              updateData.priority = priority;
+            }
+            
+            // Append conversation summary to notes
+            const notesParts: string[] = [];
+            if (needType) notesParts.push(`Necesidad: ${needType}`);
+            if (customerType) notesParts.push(`Tipo: ${customerType}`);
+            if (address || locality || province) {
+              const addressParts = [address, locality, province].filter(Boolean).join(', ');
+              if (addressParts) notesParts.push(`Dirección: ${addressParts}`);
+            }
+            if (priority) notesParts.push(`Prioridad: ${priority}`);
+            if (description) notesParts.push(`Descripción: ${description}`);
+            
+            if (notesParts.length > 0) {
+              const newNotes = notesParts.join(' | ');
+              updateData.notes = existingLead.notes 
+                ? `${existingLead.notes}\n${new Date().toISOString().split('T')[0]}: ${newNotes}`
+                : `${new Date().toISOString().split('T')[0]}: ${newNotes}`;
+            }
+            
+            await LeadModel.findByIdAndUpdate(existingLead._id, { $set: updateData });
+            console.log('[WhatsApp] Lead updated with conversation data');
+          }
+        }
       }
       
       if (engineResult.handoff) {

@@ -36,6 +36,11 @@ export interface ILead extends Document {
   inquiryReason?: InquiryReason;
   customerType?: CustomerType;
   temperature?: Temperature;
+  profileName?: string;
+  address?: string;
+  locality?: string;
+  province?: string;
+  priority?: 'high' | 'medium' | 'low';
   score?: number;
   isB2B?: boolean;
   scoringBreakdown?: ScoringBreakdown;

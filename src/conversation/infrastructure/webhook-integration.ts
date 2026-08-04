@@ -109,7 +109,8 @@ export async function processWhatsAppWebhookMessage(
     tenantId,
     leadId,
     phone,
-    messageContent
+    messageContent,
+    pushName
   );
 
   // 4. Execute actions via adapter

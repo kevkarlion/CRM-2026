@@ -41,7 +41,8 @@ export class BotMessageHandler {
     tenantId: string,
     leadId: string,
     phone: string,
-    messageContent: string
+    messageContent: string,
+    profileName?: string
   ): Promise<HandleIncomingResult> {
     try {
       const actions = await this.useCase.execute({
@@ -49,6 +50,7 @@ export class BotMessageHandler {
         leadId,
         phone,
         messageContent,
+        profileName,
       });
 
       // Extract conversationId from actions if available

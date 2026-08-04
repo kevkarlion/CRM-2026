@@ -39,6 +39,7 @@ export interface LeadContactEstablished {
 
 export interface ConversationContext {
   userName?: string;
+  profileName?: string;
   needType?: InquiryReason;
   customerType?: CustomerType;
   urgency?: UrgencyLevel;

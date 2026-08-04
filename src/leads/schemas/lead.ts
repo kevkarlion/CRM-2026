@@ -46,6 +46,14 @@ export const leadSchema = new Schema<ILead>(
       type: String,
       enum: ['hot', 'warm', 'cold'] satisfies Temperature[],
     },
+    profileName: { type: String, trim: true },
+    address: { type: String, trim: true },
+    locality: { type: String, trim: true },
+    province: { type: String, trim: true },
+    priority: {
+      type: String,
+      enum: ['high', 'medium', 'low'],
+    },
     score: {
       type: Number,
       min: 0,
