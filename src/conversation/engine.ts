@@ -94,11 +94,20 @@ export class ConversationEngine {
 
   /**
    * Start a new conversation from the initial state
+   * @param phoneNumber - The phone number
+   * @param profileName - Optional profile name from WhatsApp
+   * @param initialData - Optional initial data to populate context (e.g., customer info for customer flow)
    */
-  async start(phoneNumber: string, profileName?: string): Promise<EngineResult> {
+  async start(phoneNumber: string, profileName?: string, initialData?: Record<string, unknown>): Promise<EngineResult> {
     const context = new ContextClass(phoneNumber)
     if (profileName) {
       context.set('profileName', profileName)
+    }
+    // Apply initial data if provided (e.g., customer data for customer flow)
+    if (initialData) {
+      for (const [key, value] of Object.entries(initialData)) {
+        context.set(key, value)
+      }
     }
     const initialState = this.flowConfig.initialState
 

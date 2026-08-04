@@ -789,16 +789,13 @@ if (existingLead) {
       console.log('[Engine] Continuing conversation for:', phoneNumber);
       result = await engine.process(phoneNumber, normalizedInput, undefined);
     } else {
-      // Start new conversation
+      // Start new conversation - pass customer data if available for customer flow
       console.log('[Engine] Starting NEW conversation for:', phoneNumber);
-      result = await engine.start(phoneNumber, undefined);
+      result = await engine.start(phoneNumber, undefined, customerData);
       
-      // Apply customer data if this is a customer flow
-      if (result.context && Object.keys(customerData).length > 0) {
-        for (const [key, value] of Object.entries(customerData)) {
-          result.context.set(key, value);
-        }
-        console.log('[Engine] Applied customer data to new context');
+      // Log applied customer data for debugging
+      if (result.context) {
+        console.log('[Engine] Context after start - customerName:', result.context.get('customerName'));
       }
     }
 
