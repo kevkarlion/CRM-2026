@@ -486,7 +486,7 @@ export class WhatsAppService {
     console.log('[WhatsApp] Using Conversation Engine');
     
     try {
-      const engineResult = await this.processWithEngine(tenantId, normalizedPhone, content, isNew);
+      const engineResult = await this.processWithEngine(tenantId, normalizedPhone, content, isNew, profileName);
       console.log('[WhatsApp] Engine result:', { 
         message: engineResult.message?.substring(0, 50), 
         isComplete: engineResult.isComplete 
@@ -517,13 +517,17 @@ export class WhatsAppService {
         // Update lead with captured data from conversation
         if (engineResult.context) {
           const contextData = engineResult.context.data;
-          const profileName = contextData.profileName as string | undefined;
+          // Use WhatsApp profileName if available, otherwise fall back to conversation context
+          const profileNameFromWhatsApp = profileName;
+          const profileNameFromContext = contextData.profileName as string | undefined;
+          const profileNameToSave = profileNameFromWhatsApp || profileNameFromContext;
+          
           const userName = contextData.userName as string | undefined;
           const customerName = contextData.customerName as string | undefined;
           const address = contextData.address as string | undefined;
           const locality = contextData.locality as string | undefined;
           const province = contextData.province as string | undefined;
-          const priority = contextData.priorityLabel as string | undefined;
+          const priority = contextData.priority as string | undefined; // Use enum value, not label
           const needType = contextData.serviceTypeLabel as string | undefined;
           const customerType = contextData.customerType as string | undefined;
           const description = contextData.description as string | undefined;
@@ -535,54 +539,64 @@ export class WhatsAppService {
             deletedAt: null,
           });
           
-          if (existingLead) {
-            const updateData: Record<string, any> = {
-              status: 'contacted',
-              updatedBy: 'whatsapp-bot',
-            };
+if (existingLead) {
+            // Get profileName from WhatsApp or conversation context
+            // Build update data based on lead status
+            const updateData: Record<string, any> = {};
             
-            // Update profileName (from WhatsApp)
-            const contextProfileName = contextData.profileName as string | undefined;
-            if (contextProfileName) {
-              updateData.profileName = contextProfileName;
+            // Always update profileName if available (from WhatsApp)
+            if (profileNameToSave && !existingLead.profileName) {
+              updateData.profileName = profileNameToSave;
             }
             
-            // Update name if we have a better name
-            const newName = contextProfileName || userName || customerName;
-            if (newName && newName !== `Lead WhatsApp ${normalizedPhone.slice(-4)}`) {
-              updateData.name = newName;
-              updateData.companyName = newName;
+            // Only update other fields if lead is in initial state (new)
+            const shouldUpdateLead = existingLead.status === 'new';
+            
+            if (shouldUpdateLead) {
+              updateData.status = 'contacted';
+              updateData.updatedBy = 'whatsapp-bot';
+              
+              // Update name if we have a better name
+              const newName = profileNameToSave || userName || customerName;
+              if (newName && newName !== `Lead WhatsApp ${normalizedPhone.slice(-4)}`) {
+                updateData.name = newName;
+                updateData.companyName = newName;
+              }
+              
+              // Update address fields
+              if (address) {
+                updateData.address = address;
+              }
+              if (locality) {
+                updateData.locality = locality;
+              }
+              if (province) {
+                updateData.province = province;
+              }
+              
+              // Update priority from urgency (only if valid enum value)
+              if (priority && ['high', 'medium', 'low'].includes(priority)) {
+                updateData.priority = priority;
+              }
+              
+              // Save bot summary as notes (service + priority + description)
+              const notesParts: string[] = [];
+              if (needType) notesParts.push(`Servicio: ${needType}`);
+              if (priority) notesParts.push(`Necesidad: ${priority}`);
+              if (description) notesParts.push(`Descripción: ${description}`);
+              
+              if (notesParts.length > 0) {
+                updateData.notes = notesParts.join(' | ');
+              }
             }
             
-            // Update address fields
-            if (address) {
-              updateData.address = address;
+            // Only update if there are changes
+            if (Object.keys(updateData).length > 0) {
+              await LeadModel.findByIdAndUpdate(existingLead._id, { $set: updateData });
+              console.log('[WhatsApp] Lead updated with conversation data');
+            } else {
+              console.log('[WhatsApp] No lead update needed');
             }
-            if (locality) {
-              updateData.locality = locality;
-            }
-            if (province) {
-              updateData.province = province;
-            }
-            
-            // Update priority from urgency
-            if (priority) {
-              updateData.priority = priority;
-            }
-            
-            // Save bot summary as notes (service + priority + description)
-            const notesParts: string[] = [];
-            if (needType) notesParts.push(`Servicio: ${needType}`);
-            if (priority) notesParts.push(`Necesidad: ${priority}`);
-            if (description) notesParts.push(`Descripción: ${description}`);
-            
-            if (notesParts.length > 0) {
-              // Overwrite notes with bot summary (new format)
-              updateData.notes = notesParts.join(' | ');
-            }
-            
-            await LeadModel.findByIdAndUpdate(existingLead._id, { $set: updateData });
-            console.log('[WhatsApp] Lead updated with conversation data');
           }
         }
       }
@@ -623,7 +637,8 @@ export class WhatsAppService {
     tenantId: string,
     phoneNumber: string,
     input: string,
-    isNewLead: boolean
+    isNewLead: boolean,
+    profileName?: string
   ): Promise<{ message: string; isComplete: boolean; handoff?: boolean; context?: ConversationContext }> {
     console.log('[Engine] === START === phone:', phoneNumber, '| input:', input);
     
@@ -647,7 +662,8 @@ export class WhatsAppService {
     const resolved = await conversationResolver.getConversationForIncomingMessage(
       normalizedPhone,
       tenantId,
-      leadId
+      leadId,
+      profileName
     );
     
     console.log('[Engine] Resolved:', {
@@ -660,6 +676,27 @@ export class WhatsAppService {
     // If waiting for operator, return the waiting message
     if (resolved.isWaitingForOperator && resolved.waitingMessage) {
       console.log('[Engine] Returning waiting message:', resolved.waitingMessage.substring(0, 50));
+      
+      // Save profileName if available (even for contacted leads)
+      if (resolved.profileName) {
+        try {
+          const existingLead = await LeadModel.findOne({
+            tenantId: new Types.ObjectId(tenantId),
+            phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+            deletedAt: null,
+          });
+          
+          if (existingLead && !existingLead.profileName) {
+            await LeadModel.findByIdAndUpdate(existingLead._id, {
+              $set: { profileName: resolved.profileName }
+            });
+            console.log('[Engine] Saved profileName:', resolved.profileName);
+          }
+        } catch (error) {
+          console.error('[Engine] Error saving profileName:', error);
+        }
+      }
+      
       return {
         message: resolved.waitingMessage,
         isComplete: false,

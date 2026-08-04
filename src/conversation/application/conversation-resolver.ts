@@ -53,6 +53,8 @@ export interface ResolvedConversation {
     id: string;
     initialState: string;
   };
+  /** Profile name from WhatsApp (if available) */
+  profileName?: string;
 }
 
 /**
@@ -73,7 +75,8 @@ export class ConversationResolver {
   async getConversationForIncomingMessage(
     phoneNumber: string,
     tenantId: string,
-    leadId: string
+    leadId: string,
+    profileName?: string
   ): Promise<ResolvedConversation> {
     await connectDB();
     
@@ -108,6 +111,7 @@ export class ConversationResolver {
           isNew: false,
           waitingMessage: '¡Hola! Ya tenemos tu solicitud registrada. ¿En qué puedo ayudarte?\n\nUn asesor te contactará pronto.',
           flowConfig,
+          profileName,
         };
       }
       
@@ -139,6 +143,7 @@ export class ConversationResolver {
           isNew: false,
           waitingMessage: '¡Hola! Ya tenemos tu solicitud registrada. ¿En qué puedo ayudarte?\n\nUn asesor te contactará pronto.',
           flowConfig,
+          profileName,
         };
       }
       
