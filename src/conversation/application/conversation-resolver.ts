@@ -254,13 +254,6 @@ export class ConversationResolver {
     ];
     return contactedStatuses.includes(status);
   }
-      'technical_visit',
-      'negotiation',
-      'qualified',
-      'won',
-    ];
-    return contactedStatuses.includes(status);
-  }
 
   /**
    * Handle a conversation in WAITING_OPERATOR state
