@@ -42,12 +42,15 @@ export class GreetingState implements IConversationState {
   }
 
   getMessage(context: ConversationContext): string {
-    const hour = new Date().getHours()
+    // Get hour in Argentina timezone (UTC-3) - approximate by subtracting 3 from UTC
+    const utcHour = new Date().getHours()
+    const argentinaHour = (utcHour - 3 + 24) % 24  // Convert UTC to Argentina time
+    
     let greeting: string
 
-    if (hour < 12) {
+    if (argentinaHour < 12) {
       greeting = '🌞 Buenos días'
-    } else if (hour < 20) {
+    } else if (argentinaHour < 19) {
       greeting = '☀️ Buenas tardes'
     } else {
       greeting = '🌙 Buenas noches'
