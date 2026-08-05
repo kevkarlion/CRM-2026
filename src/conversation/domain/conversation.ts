@@ -99,6 +99,12 @@ export interface IConversation extends Document {
   // Lifecycle state (ACTIVE, WAITING_OPERATOR, CLOSED, EXPIRED)
   lifecycleState: ConversationLifecycleState;
   
+  // Owner - who controls the conversation (BOT or OPERATOR)
+  owner: ConversationOwner;
+  
+  // Flow completion - user confirmed all info is correct
+  isComplete: boolean;
+  
   // Context
   context: ConversationContext;
   

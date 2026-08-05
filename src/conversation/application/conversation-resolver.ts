@@ -129,28 +129,27 @@ export class ConversationResolver {
     
     // Seleccionar flow según tipo
     const flowConfig = isClient ? CUSTOMER_SERVICE_FLOW : LEAD_QUALIFICATION_FLOW;
+    const flowTypeFilter = isClient ? 'customer-service' : 'lead-qualification';
     
     console.log('[Resolver] ════════════════════════');
     console.log('[Resolver] Phone:', normalizedPhone);
     console.log('[Resolver] Type:', isClient ? 'CLIENTE' : 'LEAD');
     
-    // ===== VERIFICAR SI OPERADOR TIENE CONTROL =====
-    // PRIORIDAD: Si el operador tiene el control (IN_PROGRESS), el bot NO responde
-    const flowTypeFilter = isClient ? 'customer-service' : 'lead-qualification';
-    
+    // ===== VERIFICAR SI OPERADOR TIENE CONTROL O FLOW ESTÁ COMPLETO =====
+    // PRIORIDAD: Si el operador tiene control (IN_PROGRESS), el bot NO responde
+    // NOTA: No filtramos por flowType porque conversaciones antiguas pueden no tenerlo
     const operatorControl = await ConversationModel.findOne({
       phoneNumber: normalizedPhone,
       owner: 'OPERATOR',
-      flowType: flowTypeFilter,
       lifecycleState: { $in: ['IN_PROGRESS', 'RESOLVED'] },
     }).sort({ lastActivityAt: -1 }).lean();
 
     if (operatorControl) {
-      console.log('[Resolver] ⚠️ Operator control detected:', operatorControl._id, 'state:', operatorControl.lifecycleState);
+      console.log('[Resolver] ⚠️ Operator control detected:', operatorControl._id, 'state:', operatorControl.lifecycleState, 'flowType:', operatorControl.flowType, 'isComplete:', operatorControl.isComplete);
       
       if (operatorControl.lifecycleState === 'IN_PROGRESS') {
         // Operador tiene control activo → NO procesar con bot, devolver special result
-        console.log('[Resolver] → OPERATOR HAS CONTROL - Bot should NOT respond');
+        console.log('[Resolver] → OPERATOR HAS CONTROL (IN_PROGRESS) - Bot should NOT respond');
         return {
           skipBot: true,
           conversation: operatorControl,
@@ -160,8 +159,28 @@ export class ConversationResolver {
       }
       
       // RESOLVED → verificar ventana 72h para reuse
-      // Continue with normal flow logic below
-      console.log('[Resolver] State is RESOLVED - checking 72h window...');
+      // Only match flowType if it exists to avoid matching old conversations without this field
+      if (operatorControl.flowType && operatorControl.flowType !== flowTypeFilter) {
+        // Different flowType - treat as if no resolved conversation exists
+        console.log('[Resolver] RESOLVED has different flowType, will create new conversation');
+      } else {
+        // Same flowType or no flowType - check 72h window
+        console.log('[Resolver] State is RESOLVED - checking 72h window...');
+      }
+    }
+    
+    // ===== VERIFICAR SI HAY CONVERSACIÓN COMPLETA SIN OPERADOR =====
+    // Si el flow está completo (isComplete = true) pero no hay operador, verificar si necesitamos crear nueva
+    const completeConversation = await ConversationModel.findOne({
+      phoneNumber: normalizedPhone,
+      isComplete: true,
+      owner: 'BOT',
+      lifecycleState: { $in: ['ACTIVE_LEAD', 'ACTIVE_CLIENT', 'WAITING_OPERATOR', 'WAITING_CLIENT'] },
+    }).sort({ lastActivityAt: -1 }).lean();
+    
+    if (completeConversation) {
+      console.log('[Resolver] Found complete conversation:', completeConversation._id, 'state:', completeConversation.lifecycleState, 'isComplete:', completeConversation.isComplete);
+      // There's a complete conversation - this is normal, continue with normal flow
     }
     
     // ===== LÓGICA DE RESOLUCIÓN =====

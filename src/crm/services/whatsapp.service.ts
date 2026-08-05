@@ -542,9 +542,22 @@ export class WhatsAppService {
                              engineResult.context?.data?.complete === true ||
                              engineResult.context?.data?.confirmed === true;
       
-      // If flow is complete, update lead status to contacted
+      // If flow is complete, update lead status to contacted AND mark conversation as complete
       if (isFlowComplete) {
-        console.log('[WhatsApp] Flow complete, updating lead status to contacted');
+        console.log('[WhatsApp] Flow complete, updating lead status to contacted and conversation isComplete');
+        
+        // Update conversation.isComplete = true
+        try {
+          const conversation = resolved.conversation;
+          if (conversation?.id) {
+            await ConversationModel.findByIdAndUpdate(conversation.id, {
+              $set: { isComplete: true }
+            });
+            console.log('[WhatsApp] ✅ Conversation marked as isComplete: true');
+          }
+        } catch (error) {
+          console.error('[WhatsApp] Error setting isComplete on conversation:', error);
+        }
         
         // Update lead with captured data from conversation - do this FIRST before any errors
         if (engineResult.context) {

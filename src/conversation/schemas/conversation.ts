@@ -116,6 +116,13 @@ export const conversationSchema = new Schema<IConversation>(
       index: true,
     },
 
+    // Flow completion - user confirmed all info is correct
+    isComplete: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+
     // Waiting operator tracking
     waitingMessageCount: { type: Number, default: 0 },
     waitingPriority: {

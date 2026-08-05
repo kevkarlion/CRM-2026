@@ -20,6 +20,8 @@ export interface StateIntent {
   handoff?: boolean
   /** Reason for handoff if applicable */
   handoffReason?: string
+  /** Flow completed - user confirmed all info is correct */
+  isComplete?: boolean
 }
 
 /**
