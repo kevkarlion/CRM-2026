@@ -130,7 +130,9 @@ export class ConversationResolver {
     // 3. Si no hay ninguna → crear nueva
     
     // Paso 1: Buscar conversación ACTIVA (en curso)
+    console.log('[Resolver] Looking for ACTIVE conversation for:', normalizedPhone);
     const existingActive = await this.findConversationByState(normalizedPhone, 'ACTIVE');
+    console.log('[Resolver] Found ACTIVE:', existingActive ? existingActive._id : 'NONE');
     
     if (existingActive) {
       // Hay conversación activa → CONTINUAR desde donde quedó
@@ -139,7 +141,9 @@ export class ConversationResolver {
     }
     
     // Paso 2: Buscar conversación WAITING_OPERATOR (ya fue atendido)
+    console.log('[Resolver] Looking for WAITING_OPERATOR conversation for:', normalizedPhone);
     const existingWaiting = await this.findConversationByState(normalizedPhone, 'WAITING_OPERATOR');
+    console.log('[Resolver] Found WAITING_OPERATOR:', existingWaiting ? existingWaiting._id : 'NONE');
     
     if (existingWaiting) {
       // Ya fue atendido anteriormente → devolver mensaje de "procesando"
