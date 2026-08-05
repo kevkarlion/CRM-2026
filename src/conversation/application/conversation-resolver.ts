@@ -92,26 +92,19 @@ export class ConversationResolver {
     const normalizedPhone = phoneNumber.replace(/[\s\-\(\)\+]/g, '').replace(/^0/, '');
     
     // ===== STEP 1: DETECTAR TIPO (CLIENTE O LEAD) =====
-    // Buscar en ContactModel primero
+    // Cliente = tiene registro en ContactModel
+    // Lead = todo lo demás
+    
     const contact = await ContactModel.findOne({
       tenantId: new Types.ObjectId(tenantId),
       phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
       deletedAt: null,
     }).populate('clientId');
     
-    let isClient = !!contact?.clientId;
+    // Solo es cliente si tiene contacto con cliente associado
+    const isClient = !!(contact && contact.clientId);
     
-    // Si no está en ContactModel, buscar en Lead con isClient=true
-    if (!isClient) {
-      const lead = await LeadModel.findOne({
-        tenantId: new Types.ObjectId(tenantId),
-        phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
-        isClient: true,
-        deletedAt: null,
-      }).lean();
-      
-      isClient = !!lead;
-    }
+    console.log('[Resolver] isClient:', isClient, '(via ContactModel)');
     
     // Seleccionar flow según tipo
     const flowConfig = isClient ? CUSTOMER_SERVICE_FLOW : LEAD_QUALIFICATION_FLOW;
@@ -146,27 +139,11 @@ export class ConversationResolver {
         // Cliente con conversación completa → mensaje personalizado
         console.log('[Resolver] → CLIENTE COMPLETO: mensaje personalizado');
         
-        // Obtener nombre del cliente
+        // Obtener nombre del cliente desde el contacto ya cargado
         let customerName = 'cliente';
-        const clientContact = await ContactModel.findOne({
-          tenantId: new Types.ObjectId(tenantId),
-          phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
-          deletedAt: null,
-        }).populate('clientId');
-        
-        if (clientContact?.clientId) {
-          const client = clientContact.clientId as any;
+        if (contact?.clientId) {
+          const client = contact.clientId as any;
           customerName = client.fullName || client.name || 'cliente';
-        } else {
-          // Buscar en lead por si acaso
-          const lead = await LeadModel.findOne({
-            tenantId: new Types.ObjectId(tenantId),
-            phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
-            deletedAt: null,
-          }).lean();
-          if (lead) {
-            customerName = lead.name || 'cliente';
-          }
         }
         
         const waitingMessage = `✨ Estamos procesando tu solicitud, ${customerName}.\n\nUn asesor de Rolo Climatizaciones te contactará en breve.\n\n¡Gracias por contactarnos! 😊`;
