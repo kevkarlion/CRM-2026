@@ -2,7 +2,8 @@ import { Types } from 'mongoose';
 import { connectDB } from '@/core/db';
 import ConversationModel from '@/conversation/models/conversation';
 import LeadModel from '@/leads/models/lead';
-import { selectFlow } from '@/conversation/flow-selector';
+import ContactModel from '@/crm/models/contact';
+import { LEAD_QUALIFICATION_FLOW, CUSTOMER_SERVICE_FLOW } from '@/conversation/config';
 import type { ConversationLifecycleState } from '@/conversation/domain/conversation';
 
 const CONVERSATION_TIMEOUT_MINUTES = 30;
@@ -72,93 +73,95 @@ export interface ResolvedConversation {
  * - Return the correct conversation
  */
 export class ConversationResolver {
-  /**
-   * Main entry point - resolves which conversation to use for an incoming message
+/**
+   * Resolve conversation - determine if new or continuation
+   * 
+   * FLUJO SIMPLE:
+   * 1. Detectar si es CLIENTE (ContactModel o Lead.isClient=true)
+   * 2. Si hay conversación activa, CONTINUAR desde donde quedó
+   * 3. Si no, CREAR NUEVA
    */
-  async getConversationForIncomingMessage(
+  async resolveConversation(
     phoneNumber: string,
     tenantId: string,
-    leadId: string,
-    profileName?: string
+    leadId?: string,
+    profileName?: string,
   ): Promise<ResolvedConversation> {
     await connectDB();
     
     const normalizedPhone = phoneNumber.replace(/[\s\-\(\)\+]/g, '').replace(/^0/, '');
     
-    // STEP 1: Detect type FIRST - lead or customer
-    const flowConfig = await selectFlow(normalizedPhone, tenantId);
-    const isCustomerFlow = flowConfig.id === 'customer-service';
-    const isLeadFlow = flowConfig.id === 'lead-qualification';
+    // ===== STEP 1: DETECTAR TIPO (CLIENTE O LEAD) =====
+    // Buscar en ContactModel primero
+    const contact = await ContactModel.findOne({
+      tenantId: new Types.ObjectId(tenantId),
+      phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+      deletedAt: null,
+    }).populate('clientId');
     
-    console.log('[Resolver] Type detection:', isCustomerFlow ? 'CUSTOMER' : 'LEAD');
+    let isClient = !!contact?.clientId;
     
-    // STEP 2: Find existing conversation
-    const existing = await this.findActiveConversation(normalizedPhone);
-    const existingEngineData = existing?.engineData as Record<string, unknown> | undefined;
-    const existingIsCustomer = existingEngineData?.isCustomer === true;
-    const existingIsComplete = existingEngineData?.complete === true;
-    
-    console.log('[Resolver] Existing conversation:', existing ? `found (${existing.lifecycleState}, isCustomer: ${existingIsCustomer}, isComplete: ${existingIsComplete})` : 'none');
-    
-    // STEP 3: Handle based on type
-    
-    // === CUSTOMER FLOW ===
-    if (isCustomerFlow) {
-      console.log('[Resolver] Handling as CUSTOMER flow');
+    // Si no está en ContactModel, buscar en Lead con isClient=true
+    if (!isClient) {
+      const lead = await LeadModel.findOne({
+        tenantId: new Types.ObjectId(tenantId),
+        phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+        isClient: true,
+        deletedAt: null,
+      }).lean();
       
-      // Si existe conversación activa de cliente, continuarla
-      if (existing && existingIsCustomer && !existingIsComplete) {
-        console.log('[Resolver] Customer conversation exists - continuing');
+      isClient = !!lead;
+    }
+    
+    // Seleccionar flow según tipo
+    const flowConfig = isClient ? CUSTOMER_SERVICE_FLOW : LEAD_QUALIFICATION_FLOW;
+    
+    console.log('[Resolver] ════════════════════════');
+    console.log('[Resolver] Phone:', normalizedPhone);
+    console.log('[Resolver] Type:', isClient ? 'CLIENTE' : 'LEAD');
+    
+    // ===== STEP 2: BUSCAR CONVERSACIÓN ACTIVA =====
+    const existing = await this.findActiveConversation(normalizedPhone);
+    
+    console.log('[Resolver] Active conversation:', existing ? 'YES' : 'NO');
+    
+    // ===== STEP 3: DECIDIR =====
+    
+    // Si NO hay conversación → CREAR NUEVA
+    if (!existing) {
+      console.log('[Resolver] → CREATE NEW');
+      return this.createNewConversation(normalizedPhone, tenantId, leadId, flowConfig);
+    }
+    
+    // Si hay, ver si está completa
+    const engineData = existing.engineData as Record<string, unknown> | undefined;
+    const isComplete = engineData?.complete === true;
+    const currentState = engineData?.currentState as string | undefined;
+    
+    console.log('[Resolver] State:', currentState, '| Complete:', isComplete);
+    
+    // Si está completa → mensaje según tipo
+    if (isComplete) {
+      if (isClient) {
+        // Cliente con conversación completa → mensaje de orden procesada
+        console.log('[Resolver] → CLIENTE COMPLETO: mensaje orden procesada');
         return {
           conversation: {
             id: existing._id.toString(),
             phoneNumber: normalizedPhone,
             leadId: leadId,
-            lifecycleState: existing.lifecycleState,
-            engineData: existing.engineData as Record<string, unknown> | undefined,
+            lifecycleState: 'WAITING_OPERATOR',
           },
-          shouldContinue: true,
-          isWaitingForOperator: false,
+          shouldContinue: false,
+          isWaitingForOperator: true,
           isNew: false,
+          waitingMessage: 'Tu solicitud ya fue registrada correctamente. Un asesor te contactará pronto.',
           flowConfig,
           profileName,
         };
-      }
-      
-      // Si no hay conversación de cliente o está completa, crear nueva
-      console.log('[Resolver] Creating new customer conversation');
-      return this.createNewConversation(normalizedPhone, tenantId, leadId, flowConfig);
-    }
-    
-    // === LEAD FLOW ===
-    if (isLeadFlow) {
-      console.log('[Resolver] Handling as LEAD flow');
-      
-      // Si existe conversación activa de lead, continuarla
-      if (existing && !existingIsCustomer && !existingIsComplete) {
-        console.log('[Resolver] Lead conversation exists - continuing');
-        return {
-          conversation: {
-            id: existing._id.toString(),
-            phoneNumber: normalizedPhone,
-            leadId: existing.leadId?.toString() || leadId,
-            lifecycleState: existing.lifecycleState,
-            engineData: existing.engineData as Record<string, unknown> | undefined,
-          },
-          shouldContinue: true,
-          isWaitingForOperator: false,
-          isNew: false,
-          flowConfig,
-          profileName,
-        };
-      }
-      
-      // Lead contactado + conversación completa → mensaje esperando operador
-      const lead = await this.findLeadByPhone(normalizedPhone, tenantId);
-      const isLeadContacted = lead && this.isLeadAlreadyContacted(lead.status);
-      
-      if (existing && isLeadContacted && existingIsComplete) {
-        console.log('[Resolver] Lead conversation complete - returning waiting message');
+      } else {
+        // Lead con conversación completa → esperar operador
+        console.log('[Resolver] → LEAD COMPLETO: esperar operador');
         return {
           conversation: {
             id: existing._id.toString(),
@@ -174,15 +177,24 @@ export class ConversationResolver {
           profileName,
         };
       }
-      
-// Crear nueva conversación de lead
-      console.log('[Resolver] Creating new lead conversation');
-      return this.createNewConversation(normalizedPhone, tenantId, leadId, flowConfig);
     }
     
-    // Fallback: create new conversation
-    console.log('[Resolver] Fallback - creating new conversation');
-    return this.createNewConversation(normalizedPhone, tenantId, leadId, flowConfig);
+    // Si NO está completa → CONTINUAR
+    console.log('[Resolver] → CONTINUE');
+    return {
+      conversation: {
+        id: existing._id.toString(),
+        phoneNumber: normalizedPhone,
+        leadId: existing.leadId?.toString() || leadId,
+        lifecycleState: existing.lifecycleState,
+        engineData,
+      },
+      shouldContinue: true,
+      isWaitingForOperator: false,
+      isNew: false,
+      flowConfig,
+      profileName,
+    };
   }
 
   /**

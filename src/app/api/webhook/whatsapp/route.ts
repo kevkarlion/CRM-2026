@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import whatsappService from '@/crm/services/whatsapp.service';
+import WhatsAppMessageModel from '@/crm/models/whatsapp-message';
 // Importar modelos para asegurar que se registran en Mongoose
 import '@/crm/models/whatsapp-message';
 import '@/leads/models/lead';
@@ -73,15 +74,10 @@ export async function POST(req: NextRequest) {
 
 console.log(`📩 Mensaje recibido de ${fromNumber}, tipo: ${messageType}, id: ${messageId}`);
 
-      // Skip duplicate check for now - causing issues
-      // TODO: Re-enable duplicate check after fixing
-      /*
       // Check if message was already processed (prevent duplicates)
       try {
         await connectDB();
-        console.log('[Webhook] DB connected, checking duplicate...');
         const existingMessage = await WhatsAppMessageModel.findOne({ messageId });
-        console.log('[Webhook] Duplicate check done:', existingMessage ? 'found' : 'not found');
         
         if (existingMessage) {
           console.log(`⏭️ Mensaje ya procesado, ignorando: ${messageId}`);
@@ -89,10 +85,9 @@ console.log(`📩 Mensaje recibido de ${fromNumber}, tipo: ${messageType}, id: $
         }
       } catch (dupError) {
         console.error('[Webhook] Error checking duplicate:', dupError);
-        // Continue processing if duplicate check fails - not critical
+        // Continue processing if duplicate check fails
       }
-      */
-       
+        
       // Procesar según el tipo de mensaje
       let content = '';
       
