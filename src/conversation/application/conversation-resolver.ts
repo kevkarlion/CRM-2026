@@ -125,9 +125,20 @@ export class ConversationResolver {
     console.log('[Resolver] Type:', isClient ? 'CLIENTE' : 'LEAD');
     
     // ===== LÓGICA DE RESOLUCIÓN =====
-    // Verificar si ya fue atendido (WAITING_OPERATOR = ya terminó flow anterior)
-    // tanto para clientes como para leads
+    // 1. Buscar conversación ACTIVE → CONTINUAR
+    // 2. Si no, buscar WAITING_OPERATOR → "procesando..."
+    // 3. Si no hay ninguna → crear nueva
     
+    // Paso 1: Buscar conversación ACTIVA (en curso)
+    const existingActive = await this.findConversationByState(normalizedPhone, 'ACTIVE');
+    
+    if (existingActive) {
+      // Hay conversación activa → CONTINUAR desde donde quedó
+      console.log(`[Resolver] → CONTINUE (${isClient ? 'CLIENTE' : 'LEAD'} con conversación activa)`);
+      return this.continueConversation(existingActive, normalizedPhone, tenantId, leadId || '', flowConfig);
+    }
+    
+    // Paso 2: Buscar conversación WAITING_OPERATOR (ya fue atendido)
     const existingWaiting = await this.findConversationByState(normalizedPhone, 'WAITING_OPERATOR');
     
     if (existingWaiting) {
@@ -142,7 +153,7 @@ export class ConversationResolver {
       );
     }
     
-    // No ha sido atendido → crear nueva conversación
+    // Paso 3: No hay conversación → crear nueva
     console.log(`[Resolver] → CREATE NEW (${isClient ? 'CLIENTE' : 'LEAD'})`);
     return this.createNewConversation(normalizedPhone, tenantId, leadId, flowConfig);
   }
@@ -239,6 +250,41 @@ export class ConversationResolver {
       isNew: false,
       waitingEvent,
       waitingMessage: this.getWaitingMessage(priority),
+      flowConfig,
+    };
+  }
+
+  /**
+   * Continue an existing ACTIVE conversation
+   * 
+   * Key principles:
+   * - Return the existing conversation with its engineData
+   * - Set shouldContinue: true so engine processes the input
+   * - Preserve all captured data from previous messages
+   */
+  private continueConversation(
+    conversation: any,
+    normalizedPhone: string,
+    tenantId: string,
+    leadId: string,
+    flowConfig: { id: string; initialState: string }
+  ): ResolvedConversation {
+    const engineData = conversation.engineData as Record<string, unknown> | undefined;
+    const currentState = engineData?.currentState as string | undefined;
+    
+    console.log(`[Resolver] Continuing conversation - State: ${currentState}, LeadId: ${conversation.leadId}`);
+    
+    return {
+      conversation: {
+        id: conversation._id.toString(),
+        phoneNumber: normalizedPhone,
+        leadId: conversation.leadId?.toString() || leadId,
+        lifecycleState: 'ACTIVE',
+        engineData,
+      },
+      shouldContinue: true,
+      isWaitingForOperator: false,
+      isNew: false,
       flowConfig,
     };
   }
