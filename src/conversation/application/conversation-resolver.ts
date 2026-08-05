@@ -118,6 +118,13 @@ export class ConversationResolver {
     
     console.log('[Resolver] isClient:', isClient);
     
+    // Si es cliente, cerrar cualquier conversación de lead existente
+    // Esto asegura que un lead convertido a cliente inicie fresh con flow de cliente
+    if (isClient) {
+      console.log('[Resolver] Client detected - closing any existing lead conversations');
+      await this.closeLeadConversations(normalizedPhone);
+    }
+    
     // Seleccionar flow según tipo
     const flowConfig = isClient ? CUSTOMER_SERVICE_FLOW : LEAD_QUALIFICATION_FLOW;
     
@@ -166,7 +173,7 @@ export class ConversationResolver {
       );
     }
     
-    // Paso 2.5: Buscar conversación RESOLVED dentro de ventana de reutilización (72h)
+    // Buscar conversación RESOLVED dentro de ventana de reutilización (72h)
     console.log('[Resolver] Looking for RESOLVED conversation for:', normalizedPhone);
     const existingResolved = await ConversationModel.findOne({
       phoneNumber: normalizedPhone,
@@ -496,6 +503,36 @@ Un asesor continuará la conversación lo antes posible.`;
       },
     });
     console.log(`[Resolver] Conversation ${conversationId} marked as ${lifecycleState}`);
+  }
+
+  /**
+   * Close any existing lead conversations when a client writes
+   * This ensures the client starts fresh with customer-service flow
+   */
+  private async closeLeadConversations(phoneNumber: string): Promise<void> {
+    // Find any lead conversations (ACTIVE_LEAD, WAITING_OPERATOR, RESOLVED)
+    const leadConversations = await ConversationModel.find({
+      phoneNumber,
+      lifecycleState: { $in: ['ACTIVE_LEAD', 'WAITING_OPERATOR', 'RESOLVED'] },
+    });
+    
+    if (leadConversations.length > 0) {
+      console.log(`[Resolver] Found ${leadConversations.length} lead conversation(s) to close`);
+      
+      for (const conv of leadConversations) {
+        // Only update if not already resolved
+        if (conv.lifecycleState !== 'RESOLVED') {
+          await ConversationModel.findByIdAndUpdate(conv._id, {
+            $set: {
+              lifecycleState: 'RESOLVED',
+              resolvedAt: new Date(),
+              updatedAt: new Date(),
+            },
+          });
+          console.log(`[Resolver] Closed lead conversation ${conv._id}`);
+        }
+      }
+    }
   }
 
   /**
