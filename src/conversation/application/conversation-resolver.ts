@@ -125,8 +125,9 @@ export class ConversationResolver {
     console.log('[Resolver] Type:', isClient ? 'CLIENTE' : 'LEAD');
     
     // ===== LÓGICA DE RESOLUCIÓN =====
+    // La misma lógica para lead y cliente:
     // 1. Buscar conversación ACTIVE → CONTINUAR
-    // 2. Si no, buscar WAITING_OPERATOR → "procesando..."
+    // 2. Si no, buscar WAITING_* → "procesando..." (ya fue atendido antes)
     // 3. Si no hay ninguna → crear nueva
     
     // Paso 1: Buscar conversación ACTIVA (en curso)
@@ -140,9 +141,7 @@ export class ConversationResolver {
       return this.continueConversation(existingActive, normalizedPhone, tenantId, leadId || '', flowConfig);
     }
     
-    // Paso 2: Buscar conversación de espera (según tipo)
-    // - Cliente: buscar WAITING_CLIENT
-    // - Lead: buscar WAITING_OPERATOR
+    // Paso 2: Buscar conversación de espera (ya fue atendido anteriormente)
     const waitingState = isClient ? 'WAITING_CLIENT' : 'WAITING_OPERATOR';
     console.log(`[Resolver] Looking for ${waitingState} conversation for:`, normalizedPhone);
     const existingWaiting = await this.findConversationByState(normalizedPhone, waitingState);
@@ -150,7 +149,6 @@ export class ConversationResolver {
     
     if (existingWaiting) {
       // Ya fue atendido anteriormente → devolver mensaje de "procesando"
-      // Get customer name from engineData if available
       const engineData = existingWaiting.engineData as Record<string, unknown> | undefined;
       const customerName = engineData?.customerName as string | undefined;
       
@@ -166,7 +164,7 @@ export class ConversationResolver {
       );
     }
     
-    // Paso 3: No hay conversación → crear nueva
+    // Paso 3: No hay conversación → crear nueva (siempre para ambos)
     console.log(`[Resolver] → CREATE NEW (${isClient ? 'CLIENTE' : 'LEAD'})`);
     return this.createNewConversation(normalizedPhone, tenantId, leadId, flowConfig);
   }
