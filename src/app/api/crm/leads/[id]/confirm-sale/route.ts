@@ -12,6 +12,7 @@ import { getNextWorkOrderNumber } from '@/operations/helpers/counter';
 import { eventBus } from '@/infrastructure/events/event-bus';
 import { DOMAIN_EVENTS, SaleConfirmedPayload } from '@/infrastructure/events/event.types';
 import type { LeadStatus } from '@/leads/constants/lead-status.constants';
+import ConversationModel from '@/conversation/models/conversation';
 
 interface DirectSaleItem {
   description: string;
@@ -197,6 +198,26 @@ export async function POST(
       
       if (statusUpdate.modifiedCount === 0) {
         console.error('[ConfirmSale] Failed to update lead status to won:', { leadId, tenantId });
+      }
+
+      // 3.5. Update conversation state from WAITING_OPERATOR to WAITING_CLIENT
+      // This ensures the client gets a fresh flow when they write, not the "procesando..." message
+      const normalizedPhone = lead.phone?.replace(/[\s\-\(\)\+]/g, '').replace(/^0/, '') || '';
+      if (normalizedPhone) {
+        const conversationUpdate = await ConversationModel.updateMany(
+          { 
+            phoneNumber: normalizedPhone, 
+            lifecycleState: { $in: ['ACTIVE', 'WAITING_OPERATOR'] }
+          },
+          { 
+            $set: { 
+              lifecycleState: 'WAITING_CLIENT',
+              flowType: 'customer-service',
+              updatedAt: new Date()
+            }
+          }
+        );
+        console.log('[ConfirmSale] Updated conversations to WAITING_CLIENT:', conversationUpdate.modifiedCount);
       }
 
       // 4. Create work order for the won lead

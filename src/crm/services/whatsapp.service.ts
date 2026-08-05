@@ -752,17 +752,19 @@ if (existingLead) {
     // Step 2: If customer flow, initialize context with customer data
     let customerData: Record<string, unknown> = {};
     if (resolved.flowConfig.id === 'customer-service') {
+      console.log('[Engine] Loading customer data for personalized greeting...');
       try {
         // FIRST: Try to find via ContactModel (phone is stored in contacts, not clients)
+        const normalizedPhoneSearch = normalizedPhone.replace(/^\+/, '');
         const contactWithPhone = await ContactModel.findOne({
           tenantId: new Types.ObjectId(tenantId),
-          phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+          phone: { $regex: new RegExp(normalizedPhoneSearch, 'i') },
           deletedAt: null,
         }).populate('clientId').lean();
         
         if (contactWithPhone && contactWithPhone.clientId) {
           const client = contactWithPhone.clientId as any;
-          console.log('[Engine] Customer found via ContactModel, initializing context');
+          console.log('[Engine] ✅ Customer found via ContactModel:', client.fullName || client.name);
           const tempContext = new ConversationContext(phoneNumber);
           tempContext.initializeFromCustomer(client);
           
@@ -782,15 +784,16 @@ if (existingLead) {
           console.log('[Engine] Customer data ready:', customerData);
         } else {
           // SECOND: Try to find via LeadModel (lead was won/qualified - use lead data)
+          console.log('[Engine] Looking for lead with status won/qualified, phone:', normalizedPhoneSearch);
           const lead = await LeadModel.findOne({
             tenantId: new Types.ObjectId(tenantId),
-            phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+            phone: { $regex: new RegExp(normalizedPhoneSearch, 'i') },
             status: { $in: ['won', 'qualified'] },
             deletedAt: null,
           }).lean();
           
           if (lead) {
-            console.log('[Engine] Customer found via LeadModel (won/qualified), initializing context');
+            console.log('[Engine] ✅ Customer found via LeadModel (won/qualified):', lead.name);
             const tempContext = new ConversationContext(phoneNumber);
             // Initialize from lead data (has name, address, etc.)
             tempContext.initializeFromCustomer({
@@ -816,6 +819,8 @@ if (existingLead) {
             };
             
             console.log('[Engine] Customer data ready from lead:', customerData);
+          } else {
+            console.log('[Engine] ❌ No customer/lead data found for phone:', normalizedPhoneSearch);
           }
         }
       } catch (error) {

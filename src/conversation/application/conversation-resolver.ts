@@ -140,10 +140,13 @@ export class ConversationResolver {
       return this.continueConversation(existingActive, normalizedPhone, tenantId, leadId || '', flowConfig);
     }
     
-    // Paso 2: Buscar conversación WAITING_OPERATOR (ya fue atendido)
-    console.log('[Resolver] Looking for WAITING_OPERATOR conversation for:', normalizedPhone);
-    const existingWaiting = await this.findConversationByState(normalizedPhone, 'WAITING_OPERATOR');
-    console.log('[Resolver] Found WAITING_OPERATOR:', existingWaiting ? existingWaiting._id : 'NONE');
+    // Paso 2: Buscar conversación de espera (según tipo)
+    // - Cliente: buscar WAITING_CLIENT
+    // - Lead: buscar WAITING_OPERATOR
+    const waitingState = isClient ? 'WAITING_CLIENT' : 'WAITING_OPERATOR';
+    console.log(`[Resolver] Looking for ${waitingState} conversation for:`, normalizedPhone);
+    const existingWaiting = await this.findConversationByState(normalizedPhone, waitingState);
+    console.log(`[Resolver] Found ${waitingState}:`, existingWaiting ? existingWaiting._id : 'NONE');
     
     if (existingWaiting) {
       // Ya fue atendido anteriormente → devolver mensaje de "procesando"
