@@ -44,10 +44,35 @@ export class AddressConfirmState implements IConversationState {
     // Check if user entered new address (not a yes/no response)
     const isNewAddress = !isConfirm && !isReject && trimmed.length >= 5
 
-    if (existingAddress && (isConfirm || normalized === '')) {
-      // User confirmed existing address - proceed to description
+    // FIX: If user chose "2" (reject), ask for new address instead of treating "2" as address
+    if (existingAddress && isReject) {
       const intent: StateIntent = {
-        nextState: 'description',
+        // Stay in same state, but ask for new address
+        validationError: '📝 Ingresá la nueva dirección (calle, localidad, provincia):',
+      }
+
+      return {
+        intent,
+        isValid: false,
+      }
+    }
+
+    // No existing address - must ask for it
+    if (!existingAddress && !isNewAddress) {
+      const intent: StateIntent = {
+        validationError: '📝 Ingresá la dirección donde realizaremos el servicio\n(Incluí calle, localidad y provincia):',
+      }
+
+      return {
+        intent,
+        isValid: false,
+      }
+    }
+
+    if (existingAddress && (isConfirm || normalized === '')) {
+      // User confirmed existing address - proceed to priority (when needed)
+      const intent: StateIntent = {
+        nextState: 'priority', // FIXED: was 'description'
       }
 
       return {
@@ -56,7 +81,8 @@ export class AddressConfirmState implements IConversationState {
       }
     }
 
-    if (isNewAddress || isReject || !existingAddress) {
+    // User entered new address (valid text) - parse and process it
+    if (isNewAddress) {
       // User wants to enter new address - parse it
       const addressInput = isNewAddress ? trimmed : input.trim()
 
@@ -76,6 +102,7 @@ export class AddressConfirmState implements IConversationState {
         locality = parts[1]
       }
 
+      // NEW: Ask priority (when do you need the service)
       const intent: StateIntent = {
         data: {
           address: street,
@@ -83,7 +110,7 @@ export class AddressConfirmState implements IConversationState {
           province,
           fullAddress: addressInput,
         },
-        nextState: 'description',
+        nextState: 'priority', // FIXED: was 'description'
       }
 
       return {
