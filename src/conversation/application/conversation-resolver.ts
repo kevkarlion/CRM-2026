@@ -125,15 +125,17 @@ export class ConversationResolver {
     console.log('[Resolver] Type:', isClient ? 'CLIENTE' : 'LEAD');
     
     // ===== LÓGICA DE RESOLUCIÓN =====
-    // La misma lógica para lead y cliente:
-    // 1. Buscar conversación ACTIVE → CONTINUAR
-    // 2. Si no, buscar WAITING_* → "procesando..." (ya fue atendido antes)
-    // 3. Si no hay ninguna → crear nueva
+    // Estados separados para lead y cliente:
+    // - Lead: ACTIVE_LEAD / WAITING_OPERATOR
+    // - Cliente: ACTIVE_CLIENT / WAITING_CLIENT
     
-    // Paso 1: Buscar conversación ACTIVA (en curso)
-    console.log('[Resolver] Looking for ACTIVE conversation for:', normalizedPhone);
-    const existingActive = await this.findConversationByState(normalizedPhone, 'ACTIVE');
-    console.log('[Resolver] Found ACTIVE:', existingActive ? existingActive._id : 'NONE');
+    const activeState = isClient ? 'ACTIVE_CLIENT' : 'ACTIVE_LEAD';
+    const waitingState = isClient ? 'WAITING_CLIENT' : 'WAITING_OPERATOR';
+    
+    // Paso 1: Buscar conversación ACTIVA según tipo
+    console.log(`[Resolver] Looking for ${activeState} conversation for:`, normalizedPhone);
+    const existingActive = await this.findConversationByState(normalizedPhone, activeState);
+    console.log(`[Resolver] Found ${activeState}:`, existingActive ? existingActive._id : 'NONE');
     
     if (existingActive) {
       // Hay conversación activa → CONTINUAR desde donde quedó
@@ -142,7 +144,6 @@ export class ConversationResolver {
     }
     
     // Paso 2: Buscar conversación de espera (ya fue atendido anteriormente)
-    const waitingState = isClient ? 'WAITING_CLIENT' : 'WAITING_OPERATOR';
     console.log(`[Resolver] Looking for ${waitingState} conversation for:`, normalizedPhone);
     const existingWaiting = await this.findConversationByState(normalizedPhone, waitingState);
     console.log(`[Resolver] Found ${waitingState}:`, existingWaiting ? existingWaiting._id : 'NONE');
@@ -164,9 +165,9 @@ export class ConversationResolver {
       );
     }
     
-    // Paso 3: No hay conversación → crear nueva (siempre para ambos)
+    // Paso 3: No hay conversación → crear nueva
     console.log(`[Resolver] → CREATE NEW (${isClient ? 'CLIENTE' : 'LEAD'})`);
-    return this.createNewConversation(normalizedPhone, tenantId, leadId, flowConfig);
+    return this.createNewConversation(normalizedPhone, tenantId, leadId, flowConfig, activeState);
   }
 
   /**
@@ -475,7 +476,8 @@ Un asesor continuará la conversación lo antes posible.`;
     phoneNumber: string,
     tenantId: string,
     leadId: string,
-    flowConfig: { id: string; initialState: string }
+    flowConfig: { id: string; initialState: string },
+    lifecycleState: string = 'ACTIVE'
   ): Promise<ResolvedConversation> {
     const now = new Date();
     
@@ -491,7 +493,7 @@ Un asesor continuará la conversación lo antes posible.`;
       tenantId: new Types.ObjectId(tenantId),
       leadId: leadIdObj,
       phoneNumber,
-      lifecycleState: 'ACTIVE',
+      lifecycleState,
       state: 'idle',
       context: {
         hasEmergencyKeywords: false,
@@ -525,19 +527,19 @@ Un asesor continuará la conversación lo antes posible.`;
   }
 
   /**
-   * Mark a conversation as completed (waiting for operator)
+   * Mark a conversation as waiting state
    */
-  async markAsWaitingOperator(conversationId: string): Promise<void> {
+  async markAsWaitingState(conversationId: string, waitingState: 'WAITING_OPERATOR' | 'WAITING_CLIENT'): Promise<void> {
     await ConversationModel.findByIdAndUpdate(conversationId, {
       $set: {
-        lifecycleState: 'WAITING_OPERATOR',
+        lifecycleState: waitingState,
         closedAt: new Date(),
         updatedAt: new Date(),
         waitingMessageCount: 0,
         waitingPriority: WaitingPriority.NORMAL,
       },
     });
-    console.log(`[Resolver] Conversation ${conversationId} marked as WAITING_OPERATOR`);
+    console.log(`[Resolver] Conversation ${conversationId} marked as ${waitingState}`);
   }
 
   /**

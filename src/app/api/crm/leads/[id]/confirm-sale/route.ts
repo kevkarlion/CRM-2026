@@ -201,14 +201,14 @@ export async function POST(
       }
 
       // 3.5. Convert lead conversation to client conversation
-      // Change WAITING_OPERATOR (lead) → WAITING_CLIENT (client)
+      // Change ACTIVE_LEAD/WAITING_OPERATOR → ACTIVE_CLIENT/WAITING_CLIENT
       // This ensures conversations are separate: lead waits vs client waits
       const normalizedPhone = lead.phone?.replace(/[\s\-\(\)\+]/g, '').replace(/^0/, '') || '';
       if (normalizedPhone) {
         const conversationUpdate = await ConversationModel.updateMany(
           { 
             phoneNumber: normalizedPhone, 
-            lifecycleState: { $in: ['ACTIVE', 'WAITING_OPERATOR'] }
+            lifecycleState: { $in: ['ACTIVE_LEAD', 'WAITING_OPERATOR'] }
           },
           { 
             $set: { 

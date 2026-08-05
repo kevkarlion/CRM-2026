@@ -93,12 +93,12 @@ export const conversationSchema = new Schema<IConversation>(
     lastActivityAt: { type: Date },
     expiresAt: { type: Date },
 
-    // Lifecycle state (not FSM state)
+    // Lifecycle state (not FSM state) - separated by type
     lifecycleState: {
       type: String,
-      enum: ['ACTIVE', 'WAITING_OPERATOR', 'CLOSED', 'EXPIRED'] as ConversationLifecycleState[],
+      enum: ['ACTIVE_LEAD', 'ACTIVE_CLIENT', 'WAITING_OPERATOR', 'WAITING_CLIENT', 'CLOSED', 'EXPIRED'] as ConversationLifecycleState[],
       required: true,
-      default: 'ACTIVE',
+      default: 'ACTIVE_LEAD',
       index: true,
     },
 

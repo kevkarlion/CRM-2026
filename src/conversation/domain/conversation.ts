@@ -26,12 +26,15 @@ export type ConversationState =
 /**
  * Lifecycle states for Conversation entity
  * These represent the life cycle of the conversation, NOT the bot FSM states
+ * Separated by type: LEAD vs CLIENT
  */
 export type ConversationLifecycleState = 
-  | 'ACTIVE'      // Bot is actively collecting data
-  | 'WAITING_OPERATOR'  // Bot completed, waiting for human
-  | 'CLOSED'      // Conversation finished successfully
-  | 'EXPIRED';    // Conversation expired due to inactivity
+  | 'ACTIVE_LEAD'      // Bot actively collecting data from lead
+  | 'ACTIVE_CLIENT'    // Bot actively collecting data from client
+  | 'WAITING_OPERATOR' // Lead completed flow, waiting for human
+  | 'WAITING_CLIENT'   // Client completed flow, waiting for human
+  | 'CLOSED'           // Conversation finished successfully
+  | 'EXPIRED';         // Conversation expired due to inactivity
 
 export type InquiryReason = 'repair' | 'installation' | 'maintenance' | 'budget' | 'other' | 'general';
 export type CustomerType = 'residential' | 'commercial';

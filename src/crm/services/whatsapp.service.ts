@@ -36,10 +36,10 @@ class MongoDBConversationStore implements ConversationStore {
     try {
       await connectDB();
       
-      // Find ACTIVE conversation only (not closed, not expired)
+      // Find ACTIVE conversation (either LEAD or CLIENT)
       const doc = await ConversationModel.findOne({ 
         phoneNumber,
-        lifecycleState: 'ACTIVE',
+        lifecycleState: { $in: ['ACTIVE_LEAD', 'ACTIVE_CLIENT'] },
       }).lean();
       
       if (!doc) {
@@ -85,17 +85,17 @@ class MongoDBConversationStore implements ConversationStore {
     try {
       await connectDB();
       const contextData = context.toJSON();
-      const now = new Date();
-      
+const now = new Date();
+       
       console.log('[Store] === SAVE DEBUG ===');
       console.log('[Store] Saving for:', phoneNumber);
       console.log('[Store] contextData.data:', JSON.stringify(contextData.data));
       console.log('[Store] =========================');
-      
-      // Find existing ACTIVE conversation for this phone
+       
+      // Find existing ACTIVE conversation for this phone (either LEAD or CLIENT)
       const existing = await ConversationModel.findOne({
         phoneNumber,
-        lifecycleState: 'ACTIVE',
+        lifecycleState: { $in: ['ACTIVE_LEAD', 'ACTIVE_CLIENT'] },
       });
       
       if (existing) {
@@ -137,7 +137,7 @@ class MongoDBConversationStore implements ConversationStore {
       await connectDB();
       // Close ACTIVE conversations instead of deleting (preserve history)
       const result = await ConversationModel.updateMany(
-        { phoneNumber, lifecycleState: 'ACTIVE' },
+        { phoneNumber, lifecycleState: { $in: ['ACTIVE_LEAD', 'ACTIVE_CLIENT'] } },
         { 
           $set: { 
             lifecycleState: 'CLOSED',
@@ -161,7 +161,7 @@ class MongoDBConversationStore implements ConversationStore {
     try {
       await connectDB();
       const result = await ConversationModel.updateMany(
-        { phoneNumber, lifecycleState: { $in: ['ACTIVE', 'WAITING_OPERATOR'] } },
+        { phoneNumber, lifecycleState: { $in: ['ACTIVE_LEAD', 'ACTIVE_CLIENT', 'WAITING_OPERATOR', 'WAITING_CLIENT'] } },
         { 
           $set: { 
             lifecycleState: 'EXPIRED',
@@ -520,22 +520,27 @@ export class WhatsAppService {
       if (engineResult.isComplete) {
         console.log('[WhatsApp] Conversation complete, context:', engineResult.context?.data);
         
-        // Update conversation lifecycle state to WAITING_OPERATOR using ConversationResolver
+        // Determine waiting state based on flow type
+        const isCustomerFlow = resolved.flowConfig.id === 'customer-service';
+        const waitingState = isCustomerFlow ? 'WAITING_CLIENT' : 'WAITING_OPERATOR';
+        const activeState = isCustomerFlow ? 'ACTIVE_CLIENT' : 'ACTIVE_LEAD';
+        
+        // Update conversation lifecycle state using ConversationResolver
         try {
           // Find the ACTIVE conversation and mark as waiting
-          console.log('[WhatsApp] Looking for ACTIVE conversation with phone:', normalizedPhone);
+          console.log('[WhatsApp] Looking for', activeState, 'conversation with phone:', normalizedPhone);
           const conversation = await ConversationModel.findOne({
             phoneNumber: normalizedPhone,
-            lifecycleState: 'ACTIVE',
+            lifecycleState: activeState,
           });
           
-          console.log('[WhatsApp] Found ACTIVE conversation:', conversation?._id);
+          console.log('[WhatsApp] Found conversation:', conversation?._id);
           
           if (conversation) {
-            await conversationResolver.markAsWaitingOperator(conversation._id.toString());
-            console.log('[WhatsApp] ✅ Conversation marked as WAITING_OPERATOR');
+            await conversationResolver.markAsWaitingState(conversation._id.toString(), waitingState);
+            console.log(`[WhatsApp] ✅ Conversation marked as ${waitingState}`);
           } else {
-            console.log('[WhatsApp] ❌ No ACTIVE conversation found - cannot mark as WAITING_OPERATOR');
+            console.log(`[WhatsApp] ❌ No ${activeState} conversation found - cannot mark as ${waitingState}`);
           }
         } catch (error) {
           console.error('[WhatsApp] Error updating lifecycle state:', error);
