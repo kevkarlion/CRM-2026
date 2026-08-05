@@ -96,9 +96,23 @@ export const conversationSchema = new Schema<IConversation>(
     // Lifecycle state (not FSM state) - separated by type
     lifecycleState: {
       type: String,
-      enum: ['ACTIVE_LEAD', 'ACTIVE_CLIENT', 'WAITING_OPERATOR', 'WAITING_CLIENT', 'CLOSED', 'EXPIRED'] as ConversationLifecycleState[],
+      enum: ['ACTIVE_LEAD', 'ACTIVE_CLIENT', 'WAITING_OPERATOR', 'WAITING_CLIENT', 'IN_PROGRESS', 'RESOLVED', 'CLOSED', 'EXPIRED'] as ConversationLifecycleState[],
       required: true,
       default: 'ACTIVE_LEAD',
+      index: true,
+    },
+
+    // Owner - determines who responds to messages (BOT or OPERATOR)
+    owner: {
+      type: String,
+      enum: ['BOT', 'OPERATOR'] as ConversationOwner[],
+      default: 'BOT',
+      index: true,
+    },
+
+    // Resolution tracking
+    resolvedAt: {
+      type: Date,
       index: true,
     },
 

@@ -207,6 +207,67 @@ export default function LeadDetailPage() {
   // Chat state
   const [activeDetailTab, setActiveDetailTab] = useState<'info' | 'chat' | 'timeline'>('info');
   
+  // Conversation state for bot ↔ operator handoff
+  const [conversation, setConversation] = useState<{
+    _id: string;
+    lifecycleState: string;
+    owner: string;
+    resolvedAt: string | null;
+    waitingMessageCount: number;
+    waitingPriority: string;
+  } | null>(null);
+  const [loadingConversation, setLoadingConversation] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+  
+  // Fetch conversation data
+  useEffect(() => {
+    if (!id) return;
+    
+    const fetchConversation = async () => {
+      setLoadingConversation(true);
+      try {
+        const res = await api.get<{ conversation: typeof conversation }>(`/api/crm/conversations/by-lead/${id}`);
+        setConversation(res.conversation);
+      } catch (error) {
+        console.error('Error fetching conversation:', error);
+      } finally {
+        setLoadingConversation(false);
+      }
+    };
+    
+    fetchConversation();
+  }, [id]);
+  
+  // Take control handler
+  const handleTakeControl = async () => {
+    if (!conversation?._id) return;
+    
+    setActionLoading(true);
+    try {
+      await api.post(`/api/crm/conversations/${conversation._id}/take-control`, {});
+      setConversation(prev => prev ? { ...prev, owner: 'OPERATOR', lifecycleState: 'IN_PROGRESS' } : null);
+    } catch (error) {
+      console.error('Error taking control:', error);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+  
+  // Mark as resolved handler
+  const handleMarkResolved = async () => {
+    if (!conversation?._id) return;
+    
+    setActionLoading(true);
+    try {
+      await api.post(`/api/crm/conversations/${conversation._id}/resolve`, {});
+      setConversation(prev => prev ? { ...prev, owner: 'OPERATOR', lifecycleState: 'RESOLVED', resolvedAt: new Date().toISOString() } : null);
+    } catch (error) {
+      console.error('Error marking resolved:', error);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+  
   // Admin notes state
   const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [notesValue, setNotesValue] = useState('');
@@ -577,6 +638,70 @@ export default function LeadDetailPage() {
               Editar Lead
             </button>
           </div>
+
+          {/* Conversation Bot ↔ Operator Handoff */}
+          {conversation && (
+            <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-semibold text-gray-900">Control del Bot</h3>
+                <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                  conversation.owner === 'BOT' 
+                    ? 'bg-blue-100 text-blue-700' 
+                    : 'bg-gray-100 text-gray-700'
+                }`}>
+                  {conversation.owner === 'BOT' ? '🤖 Bot activo' : '👤 Operador'}
+                </span>
+              </div>
+              
+              {/* Estado actual */}
+              <div className="text-sm text-gray-600 space-y-1">
+                <p>Estado: <span className="font-medium">{conversation.lifecycleState}</span></p>
+                {conversation.waitingMessageCount > 0 && (
+                  <p>Mensajes sin atender: <span className="font-medium">{conversation.waitingMessageCount}</span></p>
+                )}
+                {conversation.resolvedAt && (
+                  <p>Resuelto: <span className="font-medium">{new Date(conversation.resolvedAt).toLocaleString()}</span></p>
+                )}
+              </div>
+
+              {/* Botones de acción */}
+              <div className="space-y-2 pt-2">
+                {/* Tomar control - solo si el bot tiene control */}
+                {conversation.owner === 'BOT' && (
+                  <button 
+                    onClick={handleTakeControl}
+                    disabled={actionLoading}
+                    className="w-full rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white hover:bg-gray-900 transition-colors disabled:opacity-50">
+                    {actionLoading ? 'Tomando...' : '👤 Tomar control'}
+                  </button>
+                )}
+
+                {/* Marcar como resuelto - solo si NO está resuelto */}
+                {conversation.lifecycleState !== 'RESOLVED' && conversation.owner === 'OPERATOR' && (
+                  <button 
+                    onClick={handleMarkResolved}
+                    disabled={actionLoading}
+                    className="w-full rounded-lg bg-success-500 px-4 py-2 text-sm font-medium text-white hover:bg-success-600 transition-colors disabled:opacity-50">
+                    {actionLoading ? 'Marcando...' : '✅ Marcar como resuelto'}
+                  </button>
+                )}
+
+                {/* Info cuando está resuelto */}
+                {conversation.lifecycleState === 'RESOLVED' && (
+                  <div className="p-3 bg-green-50 rounded-lg text-center">
+                    <p className="text-sm text-success-700">
+                      ✅ Conversación resuelta
+                      {conversation.resolvedAt && (
+                        <span className="block text-xs mt-1">
+                          (hace {Math.round((Date.now() - new Date(conversation.resolvedAt).getTime()) / (1000 * 60 * 60))} horas)
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Acciones de Lead Contactado */}
           {isContacted && !isConverted && (

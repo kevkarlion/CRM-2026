@@ -4,7 +4,8 @@ import ConversationModel from '@/conversation/models/conversation';
 import LeadModel from '@/leads/models/lead';
 import ContactModel from '@/crm/models/contact';
 import { LEAD_QUALIFICATION_FLOW, CUSTOMER_SERVICE_FLOW } from '@/conversation/config';
-import type { ConversationLifecycleState } from '@/conversation/domain/conversation';
+import type { ConversationLifecycleState, ConversationOwner, ConversationLifecycleEvent } from '@/conversation/domain/conversation';
+import { CONVERSATION_REUSE_WINDOW_MS } from '@/conversation/domain/conversation';
 
 const CONVERSATION_TIMEOUT_MINUTES = 30;
 
@@ -163,6 +164,34 @@ export class ConversationResolver {
         waitingState,
         customerName
       );
+    }
+    
+    // Paso 2.5: Buscar conversación RESOLVED dentro de ventana de reutilización (72h)
+    console.log('[Resolver] Looking for RESOLVED conversation for:', normalizedPhone);
+    const existingResolved = await ConversationModel.findOne({
+      phoneNumber: normalizedPhone,
+      lifecycleState: 'RESOLVED',
+      resolvedAt: { $exists: true, $ne: null },
+    }).sort({ resolvedAt: -1 }).lean();
+    
+    if (existingResolved) {
+      console.log(`[Resolver] Found RESOLVED conversation:`, existingResolved._id);
+      
+      if (this.isWithinReuseWindow(existingResolved)) {
+        // Dentro de 72h → reutilizar conversación
+        console.log('[Resolver] ✅ Within 72h reuse window - reusing conversation');
+        return this.handleReuseWindow(
+          existingResolved,
+          normalizedPhone,
+          tenantId,
+          leadId || '',
+          flowConfig,
+          waitingState
+        );
+      } else {
+        // Más de 72h → crear nueva conversación
+        console.log('[Resolver] ⏰ Outside 72h reuse window - creating new conversation');
+      }
     }
     
     // Paso 3: No hay conversación → crear nueva
@@ -540,6 +569,133 @@ Un asesor continuará la conversación lo antes posible.`;
       },
     });
     console.log(`[Resolver] Conversation ${conversationId} marked as ${waitingState}`);
+  }
+
+  /**
+   * Operator takes control of the conversation
+   * Bot will no longer respond to messages
+   */
+  async takeControl(conversationId: string, userId: string): Promise<void> {
+    await ConversationModel.findByIdAndUpdate(conversationId, {
+      $set: {
+        owner: 'OPERATOR',
+        lifecycleState: 'IN_PROGRESS',
+        assignedToUserId: new Types.ObjectId(userId),
+        lastActivityAt: new Date(),
+        updatedAt: new Date(),
+      },
+      $push: {
+        waitingEvents: {
+          event: 'OPERATOR_TOOK_CONTROL',
+          timestamp: new Date(),
+          priority: 'normal',
+        },
+      },
+    });
+    console.log(`[Resolver] Conversation ${conversationId} taken over by operator ${userId}`);
+  }
+
+  /**
+   * Operator marks conversation as resolved
+   * Starts the 72-hour reuse window
+   */
+  async markAsResolved(conversationId: string, userId: string): Promise<void> {
+    const now = new Date();
+    await ConversationModel.findByIdAndUpdate(conversationId, {
+      $set: {
+        owner: 'OPERATOR',
+        lifecycleState: 'RESOLVED',
+        resolvedAt: now,
+        closedAt: now,
+        updatedAt: now,
+      },
+      $push: {
+        waitingEvents: {
+          event: 'OPERATOR_RESOLVED',
+          timestamp: now,
+          priority: 'normal',
+        },
+      },
+    });
+    console.log(`[Resolver] Conversation ${conversationId} marked as RESOLVED`);
+  }
+
+  /**
+   * Check if conversation is within reuse window (72 hours)
+   * and should be reused instead of creating new
+   */
+  private isWithinReuseWindow(conversation: any): boolean {
+    if (!conversation.resolvedAt) return false;
+    
+    const resolvedTime = new Date(conversation.resolvedAt).getTime();
+    const now = Date.now();
+    const timeSinceResolved = now - resolvedTime;
+    
+    return timeSinceResolved < CONVERSATION_REUSE_WINDOW_MS;
+  }
+
+  /**
+   * Handle customer reply within reuse window
+   * Reuse conversation, notify operator, increase priority
+   */
+  private async handleReuseWindow(
+    conversation: any,
+    normalizedPhone: string,
+    tenantId: string,
+    leadId: string,
+    flowConfig: { id: string; initialState: string },
+    waitingState: 'WAITING_OPERATOR' | 'WAITING_CLIENT'
+  ): Promise<ResolvedConversation> {
+    const messageCount = (conversation.waitingMessageCount || 0) + 1;
+    const priority = this.calculatePriority(messageCount);
+    
+    // Update conversation: back to waiting, increment count, add event
+    await ConversationModel.findByIdAndUpdate(conversation._id, {
+      $set: {
+        lifecycleState: waitingState,
+        waitingMessageCount: messageCount,
+        waitingPriority: priority,
+        lastActivityAt: new Date(),
+        lastMessageAt: new Date(),
+        updatedAt: new Date(),
+      },
+      $push: {
+        waitingEvents: {
+          event: 'CUSTOMER_REPLIED_AFTER_RESOLVED' as ConversationLifecycleEvent,
+          timestamp: new Date(),
+          priority: priority,
+        },
+      },
+    });
+    
+    // Get customer name for personalized message
+    const engineData = conversation.engineData as Record<string, unknown> | undefined;
+    const customerName = engineData?.customerName as string | undefined;
+    
+    const waitingMessage = waitingState === 'WAITING_CLIENT'
+      ? this.getClientWaitingMessage(priority, customerName)
+      : this.getWaitingMessage(priority);
+    
+    console.log(`[Resolver] 🔄 REUSE: Customer replied within 72h, conversation ${conversation._id} reused`);
+    
+    return {
+      conversation: {
+        id: conversation._id.toString(),
+        phoneNumber: normalizedPhone,
+        leadId: conversation.leadId?.toString() || leadId,
+        lifecycleState: waitingState,
+        engineData,
+        waitingMessageCount: messageCount,
+        waitingPriority: priority,
+      },
+      shouldContinue: false,
+      isWaitingForOperator: true,
+      isNew: false,
+      waitingEvent: 'CUSTOMER_REPLIED_AFTER_RESOLVED',
+      waitingMessage,
+      flowConfig,
+      profileName: conversation.profileName,
+    };
   }
 
   /**

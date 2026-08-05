@@ -33,13 +33,36 @@ export type ConversationLifecycleState =
   | 'ACTIVE_CLIENT'    // Bot actively collecting data from client
   | 'WAITING_OPERATOR' // Lead completed flow, waiting for human
   | 'WAITING_CLIENT'   // Client completed flow, waiting for human
+  | 'IN_PROGRESS'      // Operator took control, bot not responding
+  | 'RESOLVED'         // Conversation resolved by operator
   | 'CLOSED'           // Conversation finished successfully
   | 'EXPIRED';         // Conversation expired due to inactivity
+
+/**
+ * Conversation owner - determines who responds to messages
+ */
+export type ConversationOwner = 'BOT' | 'OPERATOR';
+
+/**
+ * Reuse window duration in milliseconds (72 hours)
+ */
+export const CONVERSATION_REUSE_WINDOW_MS = 72 * 60 * 60 * 1000; // 72 hours
 
 export type InquiryReason = 'repair' | 'installation' | 'maintenance' | 'budget' | 'other' | 'general';
 export type CustomerType = 'residential' | 'commercial';
 export type UrgencyLevel = 'high' | 'medium' | 'low';
 export type HandoffStatus = 'pending' | 'assigned' | 'completed' | 'cancelled';
+
+/**
+ * Events that can occur during conversation lifecycle
+ */
+export type ConversationLifecycleEvent = 
+  | 'CUSTOMER_FOLLOW_UP'              // Client sent message while waiting
+  | 'CUSTOMER_SENT_REMINDER'          // Client sent multiple messages while waiting
+  | 'CUSTOMER_REPLIED_AFTER_RESOLVED' // Client replied within 72h after resolution
+  | 'OPERATOR_TOOK_CONTROL'           // Operator clicked "Take control"
+  | 'OPERATOR_RESOLVED'               // Operator clicked "Mark as resolved"
+  | 'CONVERSATION_EXPIRED';           // Conversation expired
 
 // Domain Events
 export interface LeadContactEstablished {
