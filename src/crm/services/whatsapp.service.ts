@@ -613,9 +613,14 @@ export class WhatsAppService {
           }
         }
         
-        // Determine waiting state - infer from context data (no customer flow for leads)
-        const waitingState = 'WAITING_OPERATOR';
-        const activeState = 'ACTIVE_LEAD';
+        // Determine waiting state - detect if client from flow config
+        const isCustomerFlow = engineResult.context?.data?.isClient === true || 
+                               engineResult.context?.data?.customerName !== undefined;
+        
+        const waitingState = isCustomerFlow ? 'WAITING_CLIENT' : 'WAITING_OPERATOR';
+        const activeState = isCustomerFlow ? 'ACTIVE_CLIENT' : 'ACTIVE_LEAD';
+        
+        console.log(`[WhatsApp] Flow complete - using ${isCustomerFlow ? 'CLIENT' : 'LEAD'} states: ${waitingState}`);
         
         // Update conversation lifecycle state using ConversationResolver
         try {

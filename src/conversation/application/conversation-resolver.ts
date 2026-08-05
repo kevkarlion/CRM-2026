@@ -533,6 +533,35 @@ Un asesor continuará la conversación lo antes posible.`;
         }
       }
     }
+    
+    // Also close any client conversations that were created from converted leads
+    // (these have flowType customer-service but started as lead conversations)
+    const clientConversations = await ConversationModel.find({
+      phoneNumber,
+      lifecycleState: { $in: ['WAITING_CLIENT', 'ACTIVE_CLIENT'] },
+      // These are old client conversations from lead conversion - always restart fresh
+      $or: [
+        { flowType: 'customer-service' },
+        { flowType: { $exists: false } }
+      ]
+    });
+    
+    if (clientConversations.length > 0) {
+      console.log(`[Resolver] Found ${clientConversations.length} old client conversation(s) to close`);
+      
+      for (const conv of clientConversations) {
+        if (conv.lifecycleState !== 'RESOLVED') {
+          await ConversationModel.findByIdAndUpdate(conv._id, {
+            $set: {
+              lifecycleState: 'RESOLVED',
+              resolvedAt: new Date(),
+              updatedAt: new Date(),
+            },
+          });
+          console.log(`[Resolver] Closed old client conversation ${conv._id}`);
+        }
+      }
+    }
   }
 
   /**

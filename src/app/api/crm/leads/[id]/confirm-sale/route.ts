@@ -200,26 +200,11 @@ export async function POST(
         console.error('[ConfirmSale] Failed to update lead status to won:', { leadId, tenantId });
       }
 
-      // 3.5. Convert lead conversation to client conversation
-      // Change ACTIVE_LEAD/WAITING_OPERATOR → ACTIVE_CLIENT/WAITING_CLIENT
-      // This ensures conversations are separate: lead waits vs client waits
-      const normalizedPhone = lead.phone?.replace(/[\s\-\(\)\+]/g, '').replace(/^0/, '') || '';
-      if (normalizedPhone) {
-        const conversationUpdate = await ConversationModel.updateMany(
-          { 
-            phoneNumber: normalizedPhone, 
-            lifecycleState: { $in: ['ACTIVE_LEAD', 'WAITING_OPERATOR'] }
-          },
-          { 
-            $set: { 
-              lifecycleState: 'WAITING_CLIENT',
-              flowType: 'customer-service',
-              updatedAt: new Date()
-            }
-          }
-        );
-        console.log('[ConfirmSale] Converted lead conversation to client:', conversationUpdate.modifiedCount);
-      }
+      // Note: Don't convert lead conversation to client here.
+      // When client writes, the resolver will:
+      // 1. Close any existing lead conversations
+      // 2. Create a new client conversation with questionnaire
+      // This ensures client always starts fresh with the customer-service flow
 
       // 4. Create work order for the won lead
       const workOrderNumber = await getNextWorkOrderNumber(tenantId);
