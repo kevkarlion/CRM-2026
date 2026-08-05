@@ -124,91 +124,27 @@ export class ConversationResolver {
     console.log('[Resolver] Phone:', normalizedPhone);
     console.log('[Resolver] Type:', isClient ? 'CLIENTE' : 'LEAD');
     
-    // ===== STEP 2: BUSCAR CONVERSACIÓN ACTIVA =====
-    const existing = await this.findActiveConversation(normalizedPhone);
+    // ===== LÓGICA DE RESOLUCIÓN =====
+    // Verificar si ya fue atendido (WAITING_OPERATOR = ya terminó flow anterior)
+    // tanto para clientes como para leads
     
-    console.log('[Resolver] Active conversation:', existing ? 'YES' : 'NO');
+    const existingWaiting = await this.findConversationByState(normalizedPhone, 'WAITING_OPERATOR');
     
-    // ===== STEP 3: DECIDIR =====
-    
-    // Si NO hay conversación → CREAR NUEVA
-    if (!existing) {
-      console.log('[Resolver] → CREATE NEW');
-      return this.createNewConversation(normalizedPhone, tenantId, leadId, flowConfig);
+    if (existingWaiting) {
+      // Ya fue atendido anteriormente → devolver mensaje de "procesando"
+      console.log(`[Resolver] → ${isClient ? 'CLIENTE' : 'LEAD'} YA ATENDIDO: waiting message`);
+      return this.handleWaitingOperator(
+        existingWaiting,
+        normalizedPhone,
+        tenantId,
+        leadId || '',
+        flowConfig
+      );
     }
     
-    // Si hay, ver si está completa
-    const engineData = existing.engineData as Record<string, unknown> | undefined;
-    const isComplete = engineData?.complete === true;
-    const currentState = engineData?.currentState as string | undefined;
-    
-    console.log('[Resolver] State:', currentState, '| Complete:', isComplete);
-    
-    // Si está completa → mensaje según tipo
-    if (isComplete) {
-      if (isClient) {
-        // Cliente con conversación completa → mensaje personalizado
-        console.log('[Resolver] → CLIENTE COMPLETO: mensaje personalizado');
-        
-        // Obtener nombre del cliente desde el contacto ya cargado
-        let customerName = 'cliente';
-        if (contact?.clientId) {
-          const client = contact.clientId as any;
-          customerName = client.fullName || client.name || 'cliente';
-        }
-        
-        const waitingMessage = `✨ Estamos procesando tu solicitud, ${customerName}.\n\nUn asesor de Rolo Climatizaciones te contactará en breve.\n\n¡Gracias por contactarnos! 😊`;
-        
-        return {
-          conversation: {
-            id: existing._id.toString(),
-            phoneNumber: normalizedPhone,
-            leadId: leadId,
-            lifecycleState: 'WAITING_OPERATOR',
-          },
-          shouldContinue: false,
-          isWaitingForOperator: true,
-          isNew: false,
-          waitingMessage,
-          flowConfig,
-          profileName,
-        };
-      } else {
-        // Lead con conversación completa → esperar operador
-        console.log('[Resolver] → LEAD COMPLETO: esperar operador');
-        return {
-          conversation: {
-            id: existing._id.toString(),
-            phoneNumber: normalizedPhone,
-            leadId: leadId,
-            lifecycleState: 'WAITING_OPERATOR',
-          },
-          shouldContinue: false,
-          isWaitingForOperator: true,
-          isNew: false,
-          waitingMessage: WAITING_FOR_OPERATOR_MESSAGE,
-          flowConfig,
-          profileName,
-        };
-      }
-    }
-    
-    // Si NO está completa → CONTINUAR
-    console.log('[Resolver] → CONTINUE');
-    return {
-      conversation: {
-        id: existing._id.toString(),
-        phoneNumber: normalizedPhone,
-        leadId: existing.leadId?.toString() || leadId,
-        lifecycleState: existing.lifecycleState,
-        engineData,
-      },
-      shouldContinue: true,
-      isWaitingForOperator: false,
-      isNew: false,
-      flowConfig,
-      profileName,
-    };
+    // No ha sido atendido → crear nueva conversación
+    console.log(`[Resolver] → CREATE NEW (${isClient ? 'CLIENTE' : 'LEAD'})`);
+    return this.createNewConversation(normalizedPhone, tenantId, leadId, flowConfig);
   }
 
   /**
@@ -349,6 +285,21 @@ Un asesor continuará la conversación lo antes posible.`;
     }
 
     return baseMessage;
+  }
+
+  /**
+   * Find a conversation by specific lifecycle state
+   */
+  private async findConversationByState(
+    phoneNumber: string,
+    lifecycleState: string
+  ): Promise<any | null> {
+    const conversation = await ConversationModel.findOne({
+      phoneNumber,
+      lifecycleState,
+    }).sort({ lastActivityAt: -1 }).lean();
+    
+    return conversation;
   }
 
   /**
