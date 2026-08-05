@@ -44,6 +44,11 @@ export type ConversationLifecycleState =
 export type ConversationOwner = 'BOT' | 'OPERATOR';
 
 /**
+ * Conversation type - completely separates lead and customer conversations
+ */
+export type ConversationType = 'lead' | 'customer';
+
+/**
  * Reuse window duration in milliseconds (72 hours)
  */
 export const CONVERSATION_REUSE_WINDOW_MS = 72 * 60 * 60 * 1000; // 72 hours
@@ -98,6 +103,9 @@ export interface IConversation extends Document {
   
   // Lifecycle state (ACTIVE, WAITING_OPERATOR, CLOSED, EXPIRED)
   lifecycleState: ConversationLifecycleState;
+  
+  // Conversation type - completely separates lead and customer
+  conversationType: ConversationType;
   
   // Owner - who controls the conversation (BOT or OPERATOR)
   owner: ConversationOwner;

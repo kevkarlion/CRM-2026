@@ -123,11 +123,12 @@ export class ConversationResolver {
     if (!isClient) {
       const previousConversation = await ConversationModel.findOne({
         phoneNumber: normalizedPhone,
+        conversationType: 'customer', // Filter by customer type
         lifecycleState: { $in: ['ACTIVE_CLIENT', 'WAITING_CLIENT', 'RESOLVED'] },
       }).sort({ lastActivityAt: -1 }).lean();
       
       if (previousConversation) {
-        console.log('[Resolver] Found previous CLIENT conversation, overriding detection');
+        console.log('[Resolver] Found previous CUSTOMER conversation, overriding detection. leadId:', previousConversation.leadId, 'lifecycleState:', previousConversation.lifecycleState);
         isClient = true;
       }
     }
@@ -144,17 +145,19 @@ export class ConversationResolver {
     // Seleccionar flow según tipo
     const flowConfig = isClient ? CUSTOMER_SERVICE_FLOW : LEAD_QUALIFICATION_FLOW;
     const flowTypeFilter = isClient ? 'customer-service' : 'lead-qualification';
+    const conversationType = isClient ? 'customer' : 'lead';
     
     console.log('[Resolver] ════════════════════════');
     console.log('[Resolver] Phone:', normalizedPhone);
-    console.log('[Resolver] Type:', isClient ? 'CLIENTE' : 'LEAD');
+    console.log('[Resolver] Type:', isClient ? 'CLIENTE' : 'LEAD', '| conversationType:', conversationType);
     
     // ===== VERIFICAR SI OPERADOR TIENE CONTROL O FLOW ESTÁ COMPLETO =====
     // PRIORIDAD: Si el operador tiene control (IN_PROGRESS), el bot NO responde
-    // NOTA: No filtramos por flowType porque conversaciones antiguas pueden no tenerlo
+    // Filtrar por conversationType para evitar cruzar conversaciones lead/customer
     const operatorControl = await ConversationModel.findOne({
       phoneNumber: normalizedPhone,
       owner: 'OPERATOR',
+      conversationType, // Filter by type
       lifecycleState: { $in: ['IN_PROGRESS', 'RESOLVED'] },
     }).sort({ lastActivityAt: -1 }).lean();
 
@@ -177,9 +180,20 @@ export class ConversationResolver {
       if (operatorControl.flowType && operatorControl.flowType !== flowTypeFilter) {
         // Different flowType - treat as if no resolved conversation exists
         console.log('[Resolver] RESOLVED has different flowType, will create new conversation');
+      } else if (this.isWithinReuseWindow(operatorControl)) {
+        // Dentro de 72h → reutilizar conversación
+        console.log('[Resolver] ✅ OPERATOR RESOLVED within 72h window - reusing conversation');
+        return this.handleReuseWindow(
+          operatorControl,
+          normalizedPhone,
+          tenantId,
+          leadId || '',
+          flowConfig,
+          waitingState
+        );
       } else {
-        // Same flowType or no flowType - check 72h window
-        console.log('[Resolver] State is RESOLVED - checking 72h window...');
+        // Más de 72h → crear nueva conversación
+        console.log('[Resolver] ⏰ OPERATOR RESOLVED outside 72h window - will create new conversation');
       }
     }
     
@@ -207,7 +221,7 @@ export class ConversationResolver {
     
     // Paso 1: Buscar conversación ACTIVA según tipo
     console.log(`[Resolver] Looking for ${activeState} conversation for:`, normalizedPhone);
-    const existingActive = await this.findConversationByState(normalizedPhone, activeState);
+    const existingActive = await this.findConversationByState(normalizedPhone, activeState, conversationType);
     console.log(`[Resolver] Found ${activeState}:`, existingActive ? existingActive._id : 'NONE');
     
     if (existingActive) {
@@ -218,7 +232,7 @@ export class ConversationResolver {
     
     // Paso 2: Buscar conversación de espera (ya fue atendido anteriormente)
     console.log(`[Resolver] Looking for ${waitingState} conversation for:`, normalizedPhone);
-    const existingWaiting = await this.findConversationByState(normalizedPhone, waitingState);
+    const existingWaiting = await this.findConversationByState(normalizedPhone, waitingState, conversationType);
     console.log(`[Resolver] Found ${waitingState}:`, existingWaiting ? existingWaiting._id : 'NONE');
     
     if (existingWaiting) {
@@ -257,17 +271,18 @@ export class ConversationResolver {
     }
     
     // Buscar conversación RESOLVED dentro de ventana de reutilización (72h)
-    // NO filtrar por flowType porque conversaciones antiguas pueden no tenerlo
+    // Filtrar por conversationType para evitar cruzar conversaciones lead/customer
     console.log('[Resolver] Looking for RESOLVED conversation for:', normalizedPhone);
     
     const existingResolved = await ConversationModel.findOne({
       phoneNumber: normalizedPhone,
       lifecycleState: 'RESOLVED',
+      conversationType, // Filter by type
       resolvedAt: { $exists: true, $ne: null },
     }).sort({ resolvedAt: -1 }).lean();
     
     if (existingResolved) {
-      console.log(`[Resolver] Found RESOLVED conversation:`, existingResolved._id, 'flowType:', existingResolved.flowType);
+      console.log(`[Resolver] Found RESOLVED conversation:`, existingResolved._id, 'conversationType:', existingResolved.conversationType);
       
       // Verificar si el flowType coincide (si existe) o si no existe, usar el actual
       const existingFlowType = existingResolved.flowType;
@@ -295,7 +310,7 @@ export class ConversationResolver {
     
     // Paso 3: No hay conversación → crear nueva
     console.log(`[Resolver] → CREATE NEW (${isClient ? 'CLIENTE' : 'LEAD'})`);
-    return this.createNewConversation(normalizedPhone, tenantId, leadId, flowConfig, activeState);
+    return this.createNewConversation(normalizedPhone, tenantId, leadId, flowConfig, activeState, conversationType);
   }
 
   /**
@@ -526,21 +541,23 @@ Un asesor continuará la conversación lo antes posible.`;
    */
   private async findConversationByState(
     phoneNumber: string,
-    lifecycleState: string
+    lifecycleState: string,
+    conversationType: 'lead' | 'customer'
   ): Promise<any | null> {
-    console.log('[Resolver] findConversationByState looking for:', { phoneNumber, lifecycleState });
+    console.log('[Resolver] findConversationByState looking for:', { phoneNumber, lifecycleState, conversationType });
     
     const conversation = await ConversationModel.findOne({
       phoneNumber,
       lifecycleState,
+      conversationType, // Filter by conversation type
     }).sort({ lastActivityAt: -1 }).lean();
     
     if (conversation) {
-      console.log('[Resolver] Found conversation:', conversation._id, 'phone:', conversation.phoneNumber);
+      console.log('[Resolver] Found conversation:', conversation._id, 'phone:', conversation.phoneNumber, 'type:', conversation.conversationType);
     } else {
       // Debug: show what conversations exist for this phone
       const allConvs = await ConversationModel.find({ phoneNumber }).sort({ lastActivityAt: -1 }).limit(3).lean();
-      console.log('[Resolver] No conversation found. All conversations for this phone:', allConvs.map(c => ({ id: c._id, state: c.lifecycleState, phone: c.phoneNumber })));
+      console.log('[Resolver] No conversation found. All conversations for this phone:', allConvs.map(c => ({ id: c._id, state: c.lifecycleState, type: c.conversationType, phone: c.phoneNumber })));
     }
     
     return conversation;
@@ -613,8 +630,10 @@ Un asesor continuará la conversación lo antes posible.`;
    */
   private async closeLeadConversations(phoneNumber: string): Promise<void> {
     // Find any lead conversations (ACTIVE_LEAD, WAITING_OPERATOR, RESOLVED)
+    // Filter by conversationType to avoid closing customer conversations
     const leadConversations = await ConversationModel.find({
       phoneNumber,
+      conversationType: 'lead', // Only close lead conversations, not customer
       lifecycleState: { $in: ['ACTIVE_LEAD', 'WAITING_OPERATOR', 'RESOLVED'] },
     });
     
@@ -647,8 +666,10 @@ Un asesor continuará la conversación lo antes posible.`;
    */
   private async closeClientConversations(phoneNumber: string): Promise<void> {
     // Find any client conversations (ACTIVE_CLIENT, WAITING_CLIENT, RESOLVED)
+    // Filter by conversationType to avoid closing lead conversations
     const clientConversations = await ConversationModel.find({
       phoneNumber,
+      conversationType: 'customer', // Only close customer conversations
       lifecycleState: { $in: ['ACTIVE_CLIENT', 'WAITING_CLIENT', 'RESOLVED'] },
     });
     
@@ -679,7 +700,8 @@ Un asesor continuará la conversación lo antes posible.`;
     tenantId: string,
     leadId: string,
     flowConfig: { id: string; initialState: string },
-    lifecycleState: string = 'ACTIVE'
+    lifecycleState: string = 'ACTIVE',
+    conversationType: 'lead' | 'customer' = 'lead'
   ): Promise<ResolvedConversation> {
     const now = new Date();
     
@@ -711,6 +733,7 @@ Un asesor continuará la conversación lo antes posible.`;
       waitingMessageCount: 0,
       waitingPriority: WaitingPriority.NORMAL,
       flowType: flowConfig.id, // Guardar el tipo de flow (lead-qualification o customer-service)
+      conversationType, // lead o customer - separates conversations completely
     });
     
     console.log('[Resolver] Created new ACTIVE conversation:', conversation._id);

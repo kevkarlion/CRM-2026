@@ -102,6 +102,14 @@ export const conversationSchema = new Schema<IConversation>(
       index: true,
     },
 
+    // Conversation type - LEAD or CUSTOMER (completely separate conversations)
+    conversationType: {
+      type: String,
+      enum: ['lead', 'customer'] as ConversationType[],
+      default: 'lead',
+      index: true,
+    },
+
     // Owner - determines who responds to messages (BOT or OPERATOR)
     owner: {
       type: String,
