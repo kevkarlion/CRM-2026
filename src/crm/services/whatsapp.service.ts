@@ -613,14 +613,13 @@ export class WhatsAppService {
           }
         }
         
-        // Determine waiting state - detect if client from flow config
-        const isCustomerFlow = engineResult.context?.data?.isClient === true || 
-                               engineResult.context?.data?.customerName !== undefined;
+        // Determine waiting state based on flowId (customer-service = client, lead-qualification = lead)
+        const isCustomerFlow = engineResult.flowId === 'customer-service';
         
         const waitingState = isCustomerFlow ? 'WAITING_CLIENT' : 'WAITING_OPERATOR';
         const activeState = isCustomerFlow ? 'ACTIVE_CLIENT' : 'ACTIVE_LEAD';
         
-        console.log(`[WhatsApp] Flow complete - using ${isCustomerFlow ? 'CLIENT' : 'LEAD'} states: ${waitingState}`);
+        console.log(`[WhatsApp] Flow complete - isCustomerFlow: ${isCustomerFlow}, using: ${waitingState}`);
         
         // Update conversation lifecycle state using ConversationResolver
         try {
@@ -681,7 +680,7 @@ export class WhatsAppService {
     input: string,
     isNewLead: boolean,
     profileName?: string
-  ): Promise<{ message: string; isComplete: boolean; handoff?: boolean; context?: ConversationContext }> {
+  ): Promise<{ message: string; isComplete: boolean; handoff?: boolean; context?: ConversationContext; flowId?: string }> {
     console.log('[Engine] === START === phone:', phoneNumber, '| input:', input);
     
     // Ensure DB is connected
@@ -707,6 +706,10 @@ export class WhatsAppService {
       leadId,
       profileName
     );
+    
+    // Save flowId for determining waiting state later
+    const flowId = resolved.flowConfig.id;
+    console.log('[Engine] Flow ID:', flowId);
     
     console.log('[Engine] Resolved:', {
       shouldContinue: resolved.shouldContinue,
@@ -919,6 +922,7 @@ export class WhatsAppService {
       isComplete: result.isComplete,
       handoff: result.handoff,
       context: result.context,
+      flowId, // Add flowId to determine client vs lead
     };
   }
 
