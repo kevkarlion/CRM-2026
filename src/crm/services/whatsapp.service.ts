@@ -523,14 +523,19 @@ export class WhatsAppService {
         // Update conversation lifecycle state to WAITING_OPERATOR using ConversationResolver
         try {
           // Find the ACTIVE conversation and mark as waiting
+          console.log('[WhatsApp] Looking for ACTIVE conversation with phone:', normalizedPhone);
           const conversation = await ConversationModel.findOne({
             phoneNumber: normalizedPhone,
             lifecycleState: 'ACTIVE',
           });
           
+          console.log('[WhatsApp] Found ACTIVE conversation:', conversation?._id);
+          
           if (conversation) {
             await conversationResolver.markAsWaitingOperator(conversation._id.toString());
-            console.log('[WhatsApp] Conversation marked as WAITING_OPERATOR');
+            console.log('[WhatsApp] ✅ Conversation marked as WAITING_OPERATOR');
+          } else {
+            console.log('[WhatsApp] ❌ No ACTIVE conversation found - cannot mark as WAITING_OPERATOR');
           }
         } catch (error) {
           console.error('[WhatsApp] Error updating lifecycle state:', error);
