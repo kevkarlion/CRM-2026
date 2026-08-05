@@ -694,7 +694,7 @@ if (existingLead) {
     
     // Step 1: Use ConversationResolver to get the right conversation
     console.log('[Engine] Resolving conversation...');
-    const resolved = await conversationResolver.getConversationForIncomingMessage(
+    const resolved = await conversationResolver.resolveConversation(
       normalizedPhone,
       tenantId,
       leadId,
