@@ -2,8 +2,8 @@
  * Customer Service Flow Configuration
  * 
  * Flow for existing clients - provides personalized greeting,
- * confirms service type, verifies address, collects issue description,
- * provides summary, and optionally hands off to an operator.
+ * confirms service type, verifies address, collects priority (when needed),
+ * issue description, provides summary, and optionally hands off to an operator.
  */
 
 import type { FlowConfig } from '../types'
@@ -11,7 +11,7 @@ import type { FlowConfig } from '../types'
 /**
  * Customer Service Flow
  * For existing clients: personalized greeting, service type, address confirm,
- * description, summary, waiting for operator
+ * priority (optional), description, summary, waiting for operator
  */
 export const CUSTOMER_SERVICE_FLOW: FlowConfig = {
   id: 'customer-service',
@@ -32,9 +32,13 @@ export const CUSTOMER_SERVICE_FLOW: FlowConfig = {
       next: 'priority',
       onError: 'address_confirm',
     },
+    priority: {
+      next: 'description',
+      onError: 'priority',
+    },
     description: {
       next: 'summary',
-      onError: 'priority',
+      onError: 'description',
     },
     summary: {
       next: 'waiting_operator',

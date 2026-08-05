@@ -200,8 +200,9 @@ export async function POST(
         console.error('[ConfirmSale] Failed to update lead status to won:', { leadId, tenantId });
       }
 
-      // 3.5. Update conversation state from WAITING_OPERATOR to WAITING_CLIENT
-      // This ensures the client gets a fresh flow when they write, not the "procesando..." message
+      // 3.5. Convert lead conversation to client conversation
+      // Change WAITING_OPERATOR (lead) → WAITING_CLIENT (client)
+      // This ensures conversations are separate: lead waits vs client waits
       const normalizedPhone = lead.phone?.replace(/[\s\-\(\)\+]/g, '').replace(/^0/, '') || '';
       if (normalizedPhone) {
         const conversationUpdate = await ConversationModel.updateMany(
@@ -217,7 +218,7 @@ export async function POST(
             }
           }
         );
-        console.log('[ConfirmSale] Updated conversations to WAITING_CLIENT:', conversationUpdate.modifiedCount);
+        console.log('[ConfirmSale] Converted lead conversation to client:', conversationUpdate.modifiedCount);
       }
 
       // 4. Create work order for the won lead
