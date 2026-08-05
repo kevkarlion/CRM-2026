@@ -49,6 +49,9 @@ export class AddressConfirmState implements IConversationState {
       const intent: StateIntent = {
         // Stay in same state, but ask for new address
         validationError: '📝 Ingresá la nueva dirección (calle, localidad, provincia):',
+        data: {
+          askingNewAddress: true, // Flag to hide options in getOptions
+        },
       }
 
       return {
@@ -109,6 +112,7 @@ export class AddressConfirmState implements IConversationState {
           locality,
           province,
           fullAddress: addressInput,
+          askingNewAddress: false, // Clear the flag
         },
         nextState: 'priority', // FIXED: was 'description'
       }
@@ -158,6 +162,12 @@ ${fullAddress}`
 
   getOptions(context: ConversationContext): string[] | undefined {
     const existingAddress = context.get<string>('address')
+    const askingNewAddress = context.get<boolean>('askingNewAddress')
+
+    // If we're asking for a new address (user chose "2"), don't show options
+    if (askingNewAddress) {
+      return undefined // Free text input
+    }
 
     if (existingAddress) {
       return [

@@ -118,6 +118,20 @@ export class ConversationResolver {
       isClient = !!lead;
     }
     
+    // Si no se detectó como cliente por Contact/Lead, verificar si hay una conversación previa de cliente
+    // Esto es más robusto porque respeta el tipo de conversación anterior
+    if (!isClient) {
+      const previousConversation = await ConversationModel.findOne({
+        phoneNumber: normalizedPhone,
+        lifecycleState: { $in: ['ACTIVE_CLIENT', 'WAITING_CLIENT', 'RESOLVED'] },
+      }).sort({ lastActivityAt: -1 }).lean();
+      
+      if (previousConversation) {
+        console.log('[Resolver] Found previous CLIENT conversation, overriding detection');
+        isClient = true;
+      }
+    }
+    
     console.log('[Resolver] isClient:', isClient);
     
     // Si es cliente, cerrar cualquier conversación de lead existente
@@ -208,7 +222,25 @@ export class ConversationResolver {
     console.log(`[Resolver] Found ${waitingState}:`, existingWaiting ? existingWaiting._id : 'NONE');
     
     if (existingWaiting) {
-      // Ya fue atendido anteriormente → devolver mensaje de "procesando"
+      // Si la conversación NO está completa (isComplete=false), reactivarla a ACTIVE y continuar
+      // Esto permite que el usuario pueda "corregir" la info reiniciando el flow
+      if (existingWaiting.isComplete === false) {
+        console.log(`[Resolver] → REACTIVATE ${waitingState} → ${activeState} (incomplete conversation)`);
+        
+        // Reactivar conversación a ACTIVE
+        await ConversationModel.findByIdAndUpdate(existingWaiting._id, {
+          $set: {
+            lifecycleState: activeState,
+            lastActivityAt: new Date(),
+            updatedAt: new Date(),
+          },
+        });
+        
+        // Continue from where it was (summary state will redirect to correct greeting)
+        return this.continueConversation(existingWaiting, normalizedPhone, tenantId, leadId || '', flowConfig);
+      }
+      
+      // Si ya está completa, devolver mensaje de "procesando"
       const engineData = existingWaiting.engineData as Record<string, unknown> | undefined;
       const customerName = engineData?.customerName as string | undefined;
       
@@ -225,20 +257,24 @@ export class ConversationResolver {
     }
     
     // Buscar conversación RESOLVED dentro de ventana de reutilización (72h)
-    // Filtrar por flowType para no mezclar conversaciones de lead y cliente
+    // NO filtrar por flowType porque conversaciones antiguas pueden no tenerlo
     console.log('[Resolver] Looking for RESOLVED conversation for:', normalizedPhone);
     
     const existingResolved = await ConversationModel.findOne({
       phoneNumber: normalizedPhone,
       lifecycleState: 'RESOLVED',
-      flowType: flowTypeFilter, // Only match same type (lead or client)
       resolvedAt: { $exists: true, $ne: null },
     }).sort({ resolvedAt: -1 }).lean();
     
     if (existingResolved) {
       console.log(`[Resolver] Found RESOLVED conversation:`, existingResolved._id, 'flowType:', existingResolved.flowType);
       
-      if (this.isWithinReuseWindow(existingResolved)) {
+      // Verificar si el flowType coincide (si existe) o si no existe, usar el actual
+      const existingFlowType = existingResolved.flowType;
+      if (existingFlowType && existingFlowType !== flowTypeFilter) {
+        // Different flowType - ignore this conversation and create new
+        console.log('[Resolver] RESOLVED has different flowType, will create new conversation');
+      } else if (this.isWithinReuseWindow(existingResolved)) {
         // Dentro de 72h → reutilizar conversación
         console.log('[Resolver] ✅ Within 72h reuse window - reusing conversation');
         return this.handleReuseWindow(
