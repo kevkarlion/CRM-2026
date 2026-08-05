@@ -91,9 +91,8 @@ export class ConversationResolver {
     
     const normalizedPhone = phoneNumber.replace(/[\s\-\(\)\+]/g, '').replace(/^0/, '');
     
-    // ===== STEP 1: DETECTAR TIPO (CLIENTE O LEAD) =====
-    // Cliente = tiene registro en ContactModel
-    // Lead = todo lo demás
+// ===== STEP 1: DETECTAR TIPO (CLIENTE O LEAD) =====
+    // Cliente = ContactModel (prioridad) O Lead con status "won"
     
     const contact = await ContactModel.findOne({
       tenantId: new Types.ObjectId(tenantId),
@@ -101,10 +100,22 @@ export class ConversationResolver {
       deletedAt: null,
     }).populate('clientId');
     
-    // Solo es cliente si tiene contacto con cliente associado
-    const isClient = !!(contact && contact.clientId);
+    // Primero verificar en ContactModel
+    let isClient = !!(contact && contact.clientId);
     
-    console.log('[Resolver] isClient:', isClient, '(via ContactModel)');
+    // Si no está en ContactModel, buscar en Lead con status "won"
+    if (!isClient) {
+      const lead = await LeadModel.findOne({
+        tenantId: new Types.ObjectId(tenantId),
+        phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+        status: 'won',
+        deletedAt: null,
+      }).lean();
+      
+      isClient = !!lead;
+    }
+    
+    console.log('[Resolver] isClient:', isClient);
     
     // Seleccionar flow según tipo
     const flowConfig = isClient ? CUSTOMER_SERVICE_FLOW : LEAD_QUALIFICATION_FLOW;
