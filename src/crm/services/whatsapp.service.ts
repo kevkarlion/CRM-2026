@@ -620,45 +620,46 @@ if (existingLead) {
             
             console.log('[WhatsApp] Lead status check:', { currentStatus: existingLead.status, shouldUpdateLead });
             
+            // Update name and company even if lead is not 'new' - this data comes from the bot conversation
+            const newName = userName || customerName || profileNameToSave;
+            if (newName && newName !== `Lead WhatsApp ${normalizedPhone.slice(-4)}`) {
+              updateData.name = newName;
+              updateData.companyName = newName;
+              console.log('[WhatsApp] Updating name to:', newName);
+            }
+            
             if (shouldUpdateLead) {
               // Update status to contacted - this is the main goal of lead qualification flow
               updateData.status = 'contacted';
               updateData.updatedBy = 'whatsapp-bot';
               console.log('[WhatsApp] Setting status to contacted');
-              
-              // Update name - prioritize user's input over WhatsApp profileName
-              // (userName/customerName is what the lead typed in the bot)
-              const newName = userName || customerName || profileNameToSave;
-              if (newName && newName !== `Lead WhatsApp ${normalizedPhone.slice(-4)}`) {
-                updateData.name = newName;
-                updateData.companyName = newName;
-              }
-              
-              // Update priority (convert to enum value)
-              if (priorityForLead) {
-                updateData.priority = priorityForLead;
-              }
-              
-              // Update address fields
-              if (address) {
-                updateData.address = address;
-              }
-              if (locality) {
-                updateData.locality = locality;
-              }
-              if (province) {
-                updateData.province = province;
-              }
-              
-              // Save bot summary as notes (service + priority + description)
-              const notesParts: string[] = [];
-              if (needType) notesParts.push(`Servicio: ${needType}`);
-              if (priorityDisplayLabel) notesParts.push(`Necesidad: ${priorityDisplayLabel}`);
-              if (description) notesParts.push(`Descripción: ${description}`);
-              
-              if (notesParts.length > 0) {
-                updateData.notes = notesParts.join(' | ');
-              }
+            }
+            
+            // Update priority (convert to enum value) - always, comes from bot
+            if (priorityForLead) {
+              updateData.priority = priorityForLead;
+            }
+            
+            // Update address fields - always, comes from bot
+            if (address) {
+              updateData.address = address;
+            }
+            if (locality) {
+              updateData.locality = locality;
+            }
+            if (province) {
+              updateData.province = province;
+            }
+            
+            // Save bot summary as notes (service + priority + description)
+            const notesParts: string[] = [];
+            if (needType) notesParts.push(`Servicio: ${needType}`);
+            if (priorityDisplayLabel) notesParts.push(`Necesidad: ${priorityDisplayLabel}`);
+            if (description) notesParts.push(`Descripción: ${description}`);
+            
+            if (notesParts.length > 0) {
+              updateData.notes = notesParts.join(' | ');
+              console.log('[WhatsApp] Updating notes with:', updateData.notes);
             }
             
             // Only update if there are changes
