@@ -721,50 +721,6 @@ export default function LeadDetailPage() {
               </div>
             )}
           </div>
-              </div>
-
-              {/* Botones de acción */}
-              <div className="space-y-2 pt-2">
-                {/* Tomar control - siempre visible, se habilita si el bot tiene control */}
-                <button 
-                  onClick={handleTakeControl}
-                  disabled={actionLoading || conversation.owner === 'OPERATOR'}
-                  className={`w-full rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                    conversation.owner === 'OPERATOR' 
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-gray-800 text-white hover:bg-gray-900'
-                  }`}>
-                  {actionLoading ? 'Tomando...' : '👤 Tomar control'}
-                </button>
-
-                {/* Marcar como resuelto - siempre visible */}
-                <button 
-                  onClick={handleMarkResolved}
-                  disabled={actionLoading || conversation.lifecycleState === 'RESOLVED'}
-                  className={`w-full rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                    conversation.lifecycleState === 'RESOLVED'
-                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                      : 'bg-success-500 text-white hover:bg-success-600'
-                  }`}>
-                  {actionLoading ? 'Marcando...' : '✅ Marcar como resuelto'}
-                </button>
-
-                {/* Info cuando está resuelto */}
-                {conversation.lifecycleState === 'RESOLVED' && (
-                  <div className="p-3 bg-green-50 rounded-lg text-center">
-                    <p className="text-sm text-success-700">
-                      ✅ Conversación resuelta
-                      {conversation.resolvedAt && (
-                        <span className="block text-xs mt-1">
-                          (hace {Math.round((Date.now() - new Date(conversation.resolvedAt).getTime()) / (1000 * 60 * 60))} horas)
-                        </span>
-                      )}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
 
           {/* Acciones de Lead Contactado */}
           {isContacted && !isConverted && (
