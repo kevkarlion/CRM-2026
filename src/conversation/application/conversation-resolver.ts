@@ -442,10 +442,20 @@ Un asesor continuará la conversación lo antes posible.`;
     phoneNumber: string,
     lifecycleState: string
   ): Promise<any | null> {
+    console.log('[Resolver] findConversationByState looking for:', { phoneNumber, lifecycleState });
+    
     const conversation = await ConversationModel.findOne({
       phoneNumber,
       lifecycleState,
     }).sort({ lastActivityAt: -1 }).lean();
+    
+    if (conversation) {
+      console.log('[Resolver] Found conversation:', conversation._id, 'phone:', conversation.phoneNumber);
+    } else {
+      // Debug: show what conversations exist for this phone
+      const allConvs = await ConversationModel.find({ phoneNumber }).sort({ lastActivityAt: -1 }).limit(3).lean();
+      console.log('[Resolver] No conversation found. All conversations for this phone:', allConvs.map(c => ({ id: c._id, state: c.lifecycleState, phone: c.phoneNumber })));
+    }
     
     return conversation;
   }
@@ -540,22 +550,27 @@ Un asesor continuará la conversación lo antes posible.`;
       }
     }
     
-    // Also close any client conversations that were created from converted leads
-    // (these have flowType customer-service but started as lead conversations)
+    // IMPORTANT: Don't close client conversations here - they should be reused or create new
+    // The logic for client conversations (ACTIVE_CLIENT, WAITING_CLIENT) is handled separately
+    // in the main resolver flow
+  }
+
+  /**
+   * Close any existing client conversations when needed
+   * This handles client-specific conversation lifecycle
+   */
+  private async closeClientConversations(phoneNumber: string): Promise<void> {
+    // Find any client conversations (ACTIVE_CLIENT, WAITING_CLIENT, RESOLVED)
     const clientConversations = await ConversationModel.find({
       phoneNumber,
-      lifecycleState: { $in: ['WAITING_CLIENT', 'ACTIVE_CLIENT'] },
-      // These are old client conversations from lead conversion - always restart fresh
-      $or: [
-        { flowType: 'customer-service' },
-        { flowType: { $exists: false } }
-      ]
+      lifecycleState: { $in: ['ACTIVE_CLIENT', 'WAITING_CLIENT', 'RESOLVED'] },
     });
     
     if (clientConversations.length > 0) {
-      console.log(`[Resolver] Found ${clientConversations.length} old client conversation(s) to close`);
+      console.log(`[Resolver] Found ${clientConversations.length} client conversation(s) to close`);
       
       for (const conv of clientConversations) {
+        // Only update if not already resolved
         if (conv.lifecycleState !== 'RESOLVED') {
           await ConversationModel.findByIdAndUpdate(conv._id, {
             $set: {
@@ -564,7 +579,7 @@ Un asesor continuará la conversación lo antes posible.`;
               updatedAt: new Date(),
             },
           });
-          console.log(`[Resolver] Closed old client conversation ${conv._id}`);
+          console.log(`[Resolver] Closed client conversation ${conv._id}`);
         }
       }
     }

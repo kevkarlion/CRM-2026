@@ -136,6 +136,7 @@ export class ConversationEngine {
     // Get current state from context or use initial
     const currentStateId = context.get<string>('currentState') ?? this.flowConfig.initialState
     console.log('[Engine] Processing input for state:', currentStateId, '| input:', input)
+    console.log('[Engine] Full context data:', JSON.stringify(context.data))
 
     return this.processInput(currentStateId, input, context)
   }
