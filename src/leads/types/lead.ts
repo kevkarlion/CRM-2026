@@ -23,6 +23,7 @@ export interface ILead extends Document {
   phone?: string;
   source: LeadSource;
   status: LeadStatus;
+  isClient?: boolean;
   assignedTo?: Types.ObjectId;
   previousLeadId?: Types.ObjectId;
   estimatedValue?: number;

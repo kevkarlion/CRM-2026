@@ -19,6 +19,10 @@ export const leadSchema = new Schema<ILead>(
       required: true,
       default: 'new',
     },
+    isClient: {
+      type: Boolean,
+      default: false,
+    },
     qualificationStatus: {
       type: String,
       enum: ['qualified', 'not_qualified', 'pending'] satisfies QualificationStatus[],

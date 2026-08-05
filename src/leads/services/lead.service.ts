@@ -245,6 +245,7 @@ export class LeadService {
         {
           $set: {
             status: 'won',
+            isClient: true,
             convertedToClient: clientId,
             convertedAt: new Date(),
             qualificationStatus: 'qualified',
@@ -552,6 +553,7 @@ export class LeadService {
         {
           $set: {
             status: 'won',
+            isClient: true,
             convertedToClient: client._id,
             convertedAt: new Date(),
             updatedBy: userId,

@@ -40,21 +40,27 @@ export async function selectFlow(phone: string, tenantId: string): Promise<FlowC
       return CUSTOMER_SERVICE_FLOW;
     }
 
-    // Check if lead exists and is won/qualified (meaning it's already a customer)
+    // Check if lead has isClient flag (explicitly marked as client)
     const lead = await LeadModel.findOne({
       tenantId: new Types.ObjectId(tenantId),
       phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
       deletedAt: null,
     });
 
+    // If lead has isClient = true, treat as customer
+    if (lead?.isClient === true) {
+      console.log('[FlowSelector] ✅ Lead marked as isClient:', lead.name, '| using customer_service_flow');
+      return CUSTOMER_SERVICE_FLOW;
+    }
+
     // If lead is won/qualified, treat as customer
     if (lead && (lead.status === 'won' || lead.status === 'qualified')) {
-      console.log('[FlowSelector] ✅ Lead is won/qualified:', lead.name, '| treating as customer');
+      console.log('[FlowSelector] ✅ Lead is won/qualified:', lead.name, '| using customer_service_flow');
       return CUSTOMER_SERVICE_FLOW;
     }
 
     if (lead) {
-      console.log('[FlowSelector] Lead found but status is:', lead.status, '| using lead_qualification_flow');
+      console.log('[FlowSelector] Lead found but isClient:', lead.isClient, '| status:', lead.status, '| using lead_qualification_flow');
     } else {
       console.log('[FlowSelector] No client or lead found for phone:', normalizedPhone);
     }
