@@ -24,6 +24,9 @@ import {
   getDefaultFlow,
   ConversationStore,
   conversationResolver,
+  LEAD_QUALIFICATION_FLOW,
+  CUSTOMER_SERVICE_FLOW,
+  type FlowConfig,
 } from '@/conversation';
 import ConversationModel from '@/conversation/models/conversation';
 
@@ -188,15 +191,16 @@ const conversationStore = new MongoDBConversationStore();
 
 /**
  * Create a configured ConversationEngine instance
+ * @param flowConfig - Optional flow configuration (defaults to lead qualification flow)
  */
-function createConversationEngine(): ConversationEngine {
-  const flowConfig = getDefaultFlow();
+function createConversationEngine(flowConfig?: FlowConfig): ConversationEngine {
+  const defaultFlowConfig = flowConfig || getDefaultFlow();
   const stateRegistry = new StateRegistry();
   const transitionPolicy = new TransitionPolicy();
   const replyComposer = new EngineReplyComposer();
 
   const engine = new ConversationEngine({
-    flowConfig,
+    flowConfig: defaultFlowConfig,
     stateRegistry,
     transitionPolicy,
     replyComposer,
@@ -208,14 +212,27 @@ function createConversationEngine(): ConversationEngine {
   return engine;
 }
 
-// Lazy-initialized engine instance
-let conversationEngine: ConversationEngine | null = null;
+// Lazy-initialized engine instances - SEPARATED for Lead and Client
+let leadConversationEngine: ConversationEngine | null = null;
+let clientConversationEngine: ConversationEngine | null = null;
 
-function getConversationEngine(): ConversationEngine {
-  if (!conversationEngine) {
-    conversationEngine = createConversationEngine();
+function getLeadConversationEngine(): ConversationEngine {
+  if (!leadConversationEngine) {
+    leadConversationEngine = createConversationEngine(LEAD_QUALIFICATION_FLOW);
   }
-  return conversationEngine;
+  return leadConversationEngine;
+}
+
+function getClientConversationEngine(): ConversationEngine {
+  if (!clientConversationEngine) {
+    clientConversationEngine = createConversationEngine(CUSTOMER_SERVICE_FLOW);
+  }
+  return clientConversationEngine;
+}
+
+// Legacy function - deprecated, use getLeadConversationEngine or getClientConversationEngine
+function getConversationEngine(): ConversationEngine {
+  return getLeadConversationEngine();
 }
 
 // Flag para modo desarrollo sin DB
@@ -749,10 +766,10 @@ export class WhatsAppService {
       };
     }
     
-    // Get the conversation engine and set flow config
-    const engine = getConversationEngine();
-    engine.setFlowConfig(resolved.flowConfig);
-    console.log('[Engine] ⚠️ Running engine (NOT waiting for operator). Flow:', resolved.flowConfig.id, '| isNew:', resolved.isNew);
+    // Get the conversation engine - SEPARATED for Lead and Client
+    const isClientFlow = resolved.flowConfig.id === 'customer-service';
+    const engine = isClientFlow ? getClientConversationEngine() : getLeadConversationEngine();
+    console.log('[Engine] Using', isClientFlow ? 'CLIENT' : 'LEAD', 'engine. Flow:', resolved.flowConfig.id);
     
     // Step 2: If customer flow, initialize context with customer data
     let customerData: Record<string, unknown> = {};
