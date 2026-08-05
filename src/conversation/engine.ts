@@ -176,6 +176,17 @@ export class ConversationEngine {
     // Process input through the state
     const processResult = state.process(input, context)
 
+    // Handle validation errors - show validationError message and stay in current state
+    if (!processResult.isValid && processResult.intent.validationError) {
+      console.log('[Engine] Validation error, staying in state:', currentStateId);
+      return {
+        message: processResult.intent.validationError,
+        options: state.getOptions?.(context),
+        context,
+        isComplete: false,
+      }
+    }
+
     // Determine next state
     const nextStateId = this.transitionPolicy.getNextState(
       currentStateId,
