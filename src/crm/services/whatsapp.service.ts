@@ -377,7 +377,8 @@ export class WhatsAppService {
   async findOrCreateLeadByPhone(
     tenantId: string,
     phone: string,
-    messageContent?: string
+    messageContent?: string,
+    profileName?: string
   ): Promise<{ lead: ILead | null; isNew: boolean }> {
     // Ensure DB connection
     await connectDB();
@@ -418,16 +419,19 @@ export class WhatsAppService {
       return { lead: existingLead, isNew: false };
     }
 
-    // Crear nuevo lead
+    // Crear nuevo lead - usar profileName si está disponible, sino fallback a "Lead WhatsApp XXXX"
+    const leadName = profileName || `Lead WhatsApp ${normalizedPhone.slice(-4)}`;
     const newLead = new LeadModel({
       tenantId: new Types.ObjectId(tenantId),
-      name: `Lead WhatsApp ${normalizedPhone.slice(-4)}`,
+      name: leadName,
+      companyName: profileName || undefined, // Guardar profileName como empresa si existe
       phone: normalizedPhone,
       source: 'whatsapp',
       status: 'new',
       notes: messageContent ? `Mensaje inicial: ${messageContent}` : 'Creado desde WhatsApp',
       createdBy: 'whatsapp-bot',
       updatedBy: 'whatsapp-bot',
+      profileName: profileName || undefined, // Guardar profileName explícitamente
     });
 
     await newLead.save();
@@ -463,7 +467,7 @@ export class WhatsAppService {
     });
 
     // 2. Buscar o crear lead
-    const { lead, isNew } = await this.findOrCreateLeadByPhone(tenantId, phone, content);
+    const { lead, isNew } = await this.findOrCreateLeadByPhone(tenantId, phone, content, profileName);
     
     // DEBUG: Log lead status
     console.log('[WhatsApp] Lead status:', lead?.status, '| isNew:', isNew, '| phone:', normalizedPhone);
@@ -525,31 +529,96 @@ export class WhatsAppService {
       if (isFlowComplete) {
         console.log('[WhatsApp] Flow complete, updating lead status to contacted');
         
-        try {
-          const leadToUpdate = await LeadModel.findOne({
-            tenantId: new Types.ObjectId(tenantId),
-            phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
-            deletedAt: null,
-          });
+        // Update lead with captured data from conversation - do this FIRST before any errors
+        if (engineResult.context) {
+          const contextData = engineResult.context.data;
           
-          if (leadToUpdate && leadToUpdate.status === 'new') {
-            leadToUpdate.status = 'contacted';
-            leadToUpdate.updatedBy = 'whatsapp-bot';
-            await leadToUpdate.save();
-            console.log('[WhatsApp] ✅ Lead status updated to contacted');
+          const userName = contextData.userName as string | undefined;
+          const customerName = contextData.customerName as string | undefined;
+          const address = contextData.address as string | undefined;
+          const locality = contextData.locality as string | undefined;
+          const province = contextData.province as string | undefined;
+          const priorityValue = contextData.priority as string | undefined;
+          const priorityLabel = contextData.priorityLabel as string | undefined;
+          const needType = contextData.serviceTypeLabel as string | undefined;
+          const description = contextData.description as string | undefined;
+          
+          // Map priority values
+          const priorityEnumMap: Record<string, string> = {
+            'asap': 'high',
+            'this_week': 'medium',
+            'next_week': 'low',
+          };
+          const priorityForLead = priorityValue ? priorityEnumMap[priorityValue] : undefined;
+          const priorityDisplayLabel = priorityLabel || (priorityValue === 'asap' ? 'HOY' : priorityValue === 'this_week' ? 'Esta semana' : priorityValue === 'next_week' ? 'No tengo apuro' : priorityValue);
+          
+          try {
+            const leadToUpdate = await LeadModel.findOne({
+              tenantId: new Types.ObjectId(tenantId),
+              phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+              deletedAt: null,
+            });
+            
+            if (leadToUpdate) {
+              const updateData: Record<string, any> = {};
+              
+              // Update name - use customerName (what lead typed in bot), fallback to profileName
+              const nameFromBot = customerName || userName;
+              if (nameFromBot) {
+                updateData.name = nameFromBot;
+                console.log('[WhatsApp] Updating name to (from bot):', nameFromBot);
+              }
+              
+              // Update company - use profileName from WhatsApp
+              if (profileName) {
+                updateData.companyName = profileName;
+                console.log('[WhatsApp] Updating company to (profileName):', profileName);
+              }
+              
+              // Update status if new
+              if (leadToUpdate.status === 'new') {
+                updateData.status = 'contacted';
+                updateData.updatedBy = 'whatsapp-bot';
+                console.log('[WhatsApp] Setting status to contacted');
+              }
+              
+              // Update priority
+              if (priorityForLead) {
+                updateData.priority = priorityForLead;
+              }
+              
+              // Update address fields
+              if (address) updateData.address = address;
+              if (locality) updateData.locality = locality;
+              if (province) updateData.province = province;
+              
+              // Save bot summary as notes
+              const notesParts: string[] = [];
+              if (needType) notesParts.push(`Servicio: ${needType}`);
+              if (priorityDisplayLabel) notesParts.push(`Necesidad: ${priorityDisplayLabel}`);
+              if (description) notesParts.push(`Descripción: ${description}`);
+              
+              if (notesParts.length > 0) {
+                updateData.notes = notesParts.join(' | ');
+                console.log('[WhatsApp] Updating notes with:', updateData.notes);
+              }
+              
+              if (Object.keys(updateData).length > 0) {
+                await LeadModel.findByIdAndUpdate(leadToUpdate._id, { $set: updateData });
+                console.log('[WhatsApp] ✅ Lead updated with all data');
+              }
+            }
+          } catch (error) {
+            console.error('[WhatsApp] Error updating lead data:', error);
           }
-        } catch (error) {
-          console.error('[WhatsApp] Error updating lead status:', error);
         }
         
-        // Determine waiting state based on flow type
-        const isCustomerFlow = resolved.flowConfig.id === 'customer-service';
-        const waitingState = isCustomerFlow ? 'WAITING_CLIENT' : 'WAITING_OPERATOR';
-        const activeState = isCustomerFlow ? 'ACTIVE_CLIENT' : 'ACTIVE_LEAD';
+        // Determine waiting state - infer from context data (no customer flow for leads)
+        const waitingState = 'WAITING_OPERATOR';
+        const activeState = 'ACTIVE_LEAD';
         
         // Update conversation lifecycle state using ConversationResolver
         try {
-          // Find the ACTIVE conversation and mark as waiting
           console.log('[WhatsApp] Looking for', activeState, 'conversation with phone:', normalizedPhone);
           const conversation = await ConversationModel.findOne({
             phoneNumber: normalizedPhone,
@@ -562,121 +631,17 @@ export class WhatsAppService {
             await conversationResolver.markAsWaitingState(conversation._id.toString(), waitingState);
             console.log(`[WhatsApp] ✅ Conversation marked as ${waitingState}`);
           } else {
-            console.log(`[WhatsApp] ❌ No ${activeState} conversation found - cannot mark as ${waitingState}`);
+            console.log(`[WhatsApp] ❌ No ${activeState} conversation found`);
           }
         } catch (error) {
           console.error('[WhatsApp] Error updating lifecycle state:', error);
         }
-        
-        // Update lead with captured data from conversation
-        if (engineResult.context) {
-          const contextData = engineResult.context.data;
-          // Use WhatsApp profileName if available, otherwise fall back to conversation context
-          const profileNameFromWhatsApp = profileName;
-          const profileNameFromContext = contextData.profileName as string | undefined;
-          const profileNameToSave = profileNameFromWhatsApp || profileNameFromContext;
-          
-          const userName = contextData.userName as string | undefined;
-          const customerName = contextData.customerName as string | undefined;
-          const address = contextData.address as string | undefined;
-          const locality = contextData.locality as string | undefined;
-          const province = contextData.province as string | undefined;
-          const priorityValue = contextData.priority as string | undefined; // asap, this_week, next_week
-          const priorityLabel = contextData.priorityLabel as string | undefined; // Lo antes posible, Esta semana, etc.
-          const needType = contextData.serviceTypeLabel as string | undefined;
-          const customerType = contextData.customerType as string | undefined;
-          const description = contextData.description as string | undefined;
-          
-          // Map priority values to enum for Lead.priority field
-          const priorityEnumMap: Record<string, string> = {
-            'asap': 'high',
-            'this_week': 'medium',
-            'next_week': 'low',
-          };
-          const priorityForLead = priorityValue ? priorityEnumMap[priorityValue] : undefined;
-          
-          // Map priority to display label for notes
-          const priorityDisplayLabel = priorityLabel || (priorityValue === 'asap' ? 'HOY' : priorityValue === 'this_week' ? 'Esta semana' : priorityValue === 'next_week' ? 'No tengo apuro' : priorityValue);
-          
-          // Find lead by phone and update
-          const existingLead = await LeadModel.findOne({
-            tenantId: new Types.ObjectId(tenantId),
-            phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
-            deletedAt: null,
-          });
-          
-if (existingLead) {
-            // Get profileName from WhatsApp or conversation context
-            // Build update data based on lead status
-            const updateData: Record<string, any> = {};
-            
-            // Always update profileName if available (from WhatsApp)
-            if (profileNameToSave && !existingLead.profileName) {
-              updateData.profileName = profileNameToSave;
-            }
-            
-            // Only update other fields if lead is in initial state (new)
-            const shouldUpdateLead = existingLead.status === 'new';
-            
-            console.log('[WhatsApp] Lead status check:', { currentStatus: existingLead.status, shouldUpdateLead });
-            
-            // Update name and company even if lead is not 'new' - this data comes from the bot conversation
-            const newName = userName || customerName || profileNameToSave;
-            if (newName && newName !== `Lead WhatsApp ${normalizedPhone.slice(-4)}`) {
-              updateData.name = newName;
-              updateData.companyName = newName;
-              console.log('[WhatsApp] Updating name to:', newName);
-            }
-            
-            if (shouldUpdateLead) {
-              // Update status to contacted - this is the main goal of lead qualification flow
-              updateData.status = 'contacted';
-              updateData.updatedBy = 'whatsapp-bot';
-              console.log('[WhatsApp] Setting status to contacted');
-            }
-            
-            // Update priority (convert to enum value) - always, comes from bot
-            if (priorityForLead) {
-              updateData.priority = priorityForLead;
-            }
-            
-            // Update address fields - always, comes from bot
-            if (address) {
-              updateData.address = address;
-            }
-            if (locality) {
-              updateData.locality = locality;
-            }
-            if (province) {
-              updateData.province = province;
-            }
-            
-            // Save bot summary as notes (service + priority + description)
-            const notesParts: string[] = [];
-            if (needType) notesParts.push(`Servicio: ${needType}`);
-            if (priorityDisplayLabel) notesParts.push(`Necesidad: ${priorityDisplayLabel}`);
-            if (description) notesParts.push(`Descripción: ${description}`);
-            
-            if (notesParts.length > 0) {
-              updateData.notes = notesParts.join(' | ');
-              console.log('[WhatsApp] Updating notes with:', updateData.notes);
-            }
-            
-            // Only update if there are changes
-            if (Object.keys(updateData).length > 0) {
-              await LeadModel.findByIdAndUpdate(existingLead._id, { $set: updateData });
-              console.log('[WhatsApp] Lead updated with conversation data');
-            } else {
-              console.log('[WhatsApp] No lead update needed');
-            }
-          }
-        }
-      }
+}
       
       if (engineResult.handoff) {
         console.log('[WhatsApp] Handoff to human triggered');
       }
-} catch (error) {
+    } catch (error) {
       console.error('[WhatsApp] Engine error:', error);
       // Fall back to simple error message
       shouldRespond = true;
