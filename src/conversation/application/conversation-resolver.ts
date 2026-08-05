@@ -174,15 +174,19 @@ export class ConversationResolver {
     }
     
     // Buscar conversación RESOLVED dentro de ventana de reutilización (72h)
+    // Filtrar por flowType para no mezclar conversaciones de lead y cliente
     console.log('[Resolver] Looking for RESOLVED conversation for:', normalizedPhone);
+    
+    const flowTypeFilter = isClient ? 'customer-service' : 'lead-qualification';
     const existingResolved = await ConversationModel.findOne({
       phoneNumber: normalizedPhone,
       lifecycleState: 'RESOLVED',
+      flowType: flowTypeFilter, // Only match same type (lead or client)
       resolvedAt: { $exists: true, $ne: null },
     }).sort({ resolvedAt: -1 }).lean();
     
     if (existingResolved) {
-      console.log(`[Resolver] Found RESOLVED conversation:`, existingResolved._id);
+      console.log(`[Resolver] Found RESOLVED conversation:`, existingResolved._id, 'flowType:', existingResolved.flowType);
       
       if (this.isWithinReuseWindow(existingResolved)) {
         // Dentro de 72h → reutilizar conversación
@@ -199,6 +203,8 @@ export class ConversationResolver {
         // Más de 72h → crear nueva conversación
         console.log('[Resolver] ⏰ Outside 72h reuse window - creating new conversation');
       }
+    } else {
+      console.log(`[Resolver] No RESOLVED conversation found with flowType: ${flowTypeFilter}`);
     }
     
     // Paso 3: No hay conversación → crear nueva
@@ -603,6 +609,7 @@ Un asesor continuará la conversación lo antes posible.`;
       expiresAt: new Date(now.getTime() + CONVERSATION_TIMEOUT_MINUTES * 60 * 1000),
       waitingMessageCount: 0,
       waitingPriority: WaitingPriority.NORMAL,
+      flowType: flowConfig.id, // Guardar el tipo de flow (lead-qualification o customer-service)
     });
     
     console.log('[Resolver] Created new ACTIVE conversation:', conversation._id);
