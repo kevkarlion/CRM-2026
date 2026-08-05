@@ -60,6 +60,8 @@ export interface ResolvedConversation {
   };
   /** Profile name from WhatsApp (if available) */
   profileName?: string;
+  /** Skip bot processing - operator has control */
+  skipBot?: boolean;
 }
 
 /**
@@ -132,6 +134,36 @@ export class ConversationResolver {
     console.log('[Resolver] Phone:', normalizedPhone);
     console.log('[Resolver] Type:', isClient ? 'CLIENTE' : 'LEAD');
     
+    // ===== VERIFICAR SI OPERADOR TIENE CONTROL =====
+    // PRIORIDAD: Si el operador tiene el control (IN_PROGRESS), el bot NO responde
+    const flowTypeFilter = isClient ? 'customer-service' : 'lead-qualification';
+    
+    const operatorControl = await ConversationModel.findOne({
+      phoneNumber: normalizedPhone,
+      owner: 'OPERATOR',
+      flowType: flowTypeFilter,
+      lifecycleState: { $in: ['IN_PROGRESS', 'RESOLVED'] },
+    }).sort({ lastActivityAt: -1 }).lean();
+
+    if (operatorControl) {
+      console.log('[Resolver] ⚠️ Operator control detected:', operatorControl._id, 'state:', operatorControl.lifecycleState);
+      
+      if (operatorControl.lifecycleState === 'IN_PROGRESS') {
+        // Operador tiene control activo → NO procesar con bot, devolver special result
+        console.log('[Resolver] → OPERATOR HAS CONTROL - Bot should NOT respond');
+        return {
+          skipBot: true,
+          conversation: operatorControl,
+          flowConfig,
+          isNew: false,
+        };
+      }
+      
+      // RESOLVED → verificar ventana 72h para reuse
+      // Continue with normal flow logic below
+      console.log('[Resolver] State is RESOLVED - checking 72h window...');
+    }
+    
     // ===== LÓGICA DE RESOLUCIÓN =====
     // Estados separados para lead y cliente:
     // - Lead: ACTIVE_LEAD / WAITING_OPERATOR
@@ -177,7 +209,6 @@ export class ConversationResolver {
     // Filtrar por flowType para no mezclar conversaciones de lead y cliente
     console.log('[Resolver] Looking for RESOLVED conversation for:', normalizedPhone);
     
-    const flowTypeFilter = isClient ? 'customer-service' : 'lead-qualification';
     const existingResolved = await ConversationModel.findOne({
       phoneNumber: normalizedPhone,
       lifecycleState: 'RESOLVED',

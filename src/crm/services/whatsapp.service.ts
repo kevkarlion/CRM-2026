@@ -724,6 +724,18 @@ export class WhatsAppService {
       profileName
     );
     
+    // ===== VERIFICAR SI OPERADOR TIENE CONTROL =====
+    // Si skipBot es true, el operador tiene control → NO procesar con bot
+    if (resolved.skipBot) {
+      console.log('[Engine] ⏭️ OPERATOR HAS CONTROL - Bot NOT responding');
+      return {
+        message: '', // No message - bot doesn't respond
+        isComplete: true, // Mark as complete to skip processing
+        skipBot: true,
+        conversation: resolved.conversation,
+      };
+    }
+    
     // Save flowId for determining waiting state later
     const flowId = resolved.flowConfig.id;
     console.log('[Engine] Flow ID:', flowId);
