@@ -143,8 +143,34 @@ export class ConversationResolver {
     // Si está completa → mensaje según tipo
     if (isComplete) {
       if (isClient) {
-        // Cliente con conversación completa → mensaje de orden procesada
-        console.log('[Resolver] → CLIENTE COMPLETO: mensaje orden procesada');
+        // Cliente con conversación completa → mensaje personalizado
+        console.log('[Resolver] → CLIENTE COMPLETO: mensaje personalizado');
+        
+        // Obtener nombre del cliente
+        let customerName = 'cliente';
+        const clientContact = await ContactModel.findOne({
+          tenantId: new Types.ObjectId(tenantId),
+          phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+          deletedAt: null,
+        }).populate('clientId');
+        
+        if (clientContact?.clientId) {
+          const client = clientContact.clientId as any;
+          customerName = client.fullName || client.name || 'cliente';
+        } else {
+          // Buscar en lead por si acaso
+          const lead = await LeadModel.findOne({
+            tenantId: new Types.ObjectId(tenantId),
+            phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+            deletedAt: null,
+          }).lean();
+          if (lead) {
+            customerName = lead.name || 'cliente';
+          }
+        }
+        
+        const waitingMessage = `✨ Estamos procesando tu solicitud, ${customerName}.\n\nUn asesor de Rolo Climatizaciones te contactará en breve.\n\n¡Gracias por contactarnos! 😊`;
+        
         return {
           conversation: {
             id: existing._id.toString(),
@@ -155,7 +181,7 @@ export class ConversationResolver {
           shouldContinue: false,
           isWaitingForOperator: true,
           isNew: false,
-          waitingMessage: 'Tu solicitud ya fue registrada correctamente. Un asesor te contactará pronto.',
+          waitingMessage,
           flowConfig,
           profileName,
         };
