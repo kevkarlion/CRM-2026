@@ -516,9 +516,31 @@ export class WhatsAppService {
       shouldRespond = true;
       responseText = engineResult.message;
       
-      // If complete or handoff, we might want to handle lead status
-      if (engineResult.isComplete) {
-        console.log('[WhatsApp] Conversation complete, context:', engineResult.context?.data);
+      // Check if flow is complete (either now or previously)
+      const isFlowComplete = engineResult.isComplete || 
+                             engineResult.context?.data?.complete === true ||
+                             engineResult.context?.data?.confirmed === true;
+      
+      // If flow is complete, update lead status to contacted
+      if (isFlowComplete) {
+        console.log('[WhatsApp] Flow complete, updating lead status to contacted');
+        
+        try {
+          const leadToUpdate = await LeadModel.findOne({
+            tenantId: new Types.ObjectId(tenantId),
+            phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+            deletedAt: null,
+          });
+          
+          if (leadToUpdate && leadToUpdate.status === 'new') {
+            leadToUpdate.status = 'contacted';
+            leadToUpdate.updatedBy = 'whatsapp-bot';
+            await leadToUpdate.save();
+            console.log('[WhatsApp] ✅ Lead status updated to contacted');
+          }
+        } catch (error) {
+          console.error('[WhatsApp] Error updating lead status:', error);
+        }
         
         // Determine waiting state based on flow type
         const isCustomerFlow = resolved.flowConfig.id === 'customer-service';
@@ -596,9 +618,13 @@ if (existingLead) {
             // Only update other fields if lead is in initial state (new)
             const shouldUpdateLead = existingLead.status === 'new';
             
+            console.log('[WhatsApp] Lead status check:', { currentStatus: existingLead.status, shouldUpdateLead });
+            
             if (shouldUpdateLead) {
+              // Update status to contacted - this is the main goal of lead qualification flow
               updateData.status = 'contacted';
               updateData.updatedBy = 'whatsapp-bot';
+              console.log('[WhatsApp] Setting status to contacted');
               
               // Update name - prioritize user's input over WhatsApp profileName
               // (userName/customerName is what the lead typed in the bot)

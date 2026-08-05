@@ -639,11 +639,11 @@ export default function LeadDetailPage() {
             </button>
           </div>
 
-          {/* Conversation Bot ↔ Operator Handoff */}
-          {conversation && (
-            <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="text-sm font-semibold text-gray-900">Control del Bot</h3>
+          {/* Conversation Bot ↔ Operator Handoff - siempre visible */}
+          <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-semibold text-gray-900">Control del Bot</h3>
+              {conversation ? (
                 <span className={`px-2 py-1 text-xs font-medium rounded-full ${
                   conversation.owner === 'BOT' 
                     ? 'bg-blue-100 text-blue-700' 
@@ -651,40 +651,103 @@ export default function LeadDetailPage() {
                 }`}>
                   {conversation.owner === 'BOT' ? '🤖 Bot activo' : '👤 Operador'}
                 </span>
+              ) : (
+                <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-500">
+                  Sin conversación
+                </span>
+              )}
+            </div>
+            
+            {/* Si hay conversación, mostrar detalles */}
+            {conversation ? (
+              <>
+                {/* Estado actual */}
+                <div className="text-sm text-gray-600 space-y-1">
+                  <p>Estado: <span className="font-medium">{conversation.lifecycleState}</span></p>
+                  {conversation.waitingMessageCount > 0 && (
+                    <p>Mensajes sin atender: <span className="font-medium">{conversation.waitingMessageCount}</span></p>
+                  )}
+                  {conversation.resolvedAt && (
+                    <p>Resuelto: <span className="font-medium">{new Date(conversation.resolvedAt).toLocaleString()}</span></p>
+                  )}
+                </div>
+
+                {/* Botones de acción */}
+                <div className="space-y-2 pt-2">
+                  {/* Tomar control - siempre visible, se habilita si el bot tiene control */}
+                  <button 
+                    onClick={handleTakeControl}
+                    disabled={actionLoading || conversation.owner === 'OPERATOR'}
+                    className={`w-full rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                      conversation.owner === 'OPERATOR' 
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-gray-800 text-white hover:bg-gray-900'
+                    }`}>
+                    {actionLoading ? 'Tomando...' : '👤 Tomar control'}
+                  </button>
+
+                  {/* Marcar como resuelto - siempre visible */}
+                  <button 
+                    onClick={handleMarkResolved}
+                    disabled={actionLoading || conversation.lifecycleState === 'RESOLVED'}
+                    className={`w-full rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                      conversation.lifecycleState === 'RESOLVED'
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-success-500 text-white hover:bg-success-600'
+                    }`}>
+                    {actionLoading ? 'Marcando...' : '✅ Marcar como resuelto'}
+                  </button>
+
+                  {/* Info cuando está resuelto */}
+                  {conversation.lifecycleState === 'RESOLVED' && (
+                    <div className="p-3 bg-green-50 rounded-lg text-center">
+                      <p className="text-sm text-success-700">
+                        ✅ Conversación resuelta
+                        {conversation.resolvedAt && (
+                          <span className="block text-xs mt-1">
+                            (hace {Math.round((Date.now() - new Date(conversation.resolvedAt).getTime()) / (1000 * 60 * 60))} horas)
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : (
+              /* Si no hay conversación */
+              <div className="text-sm text-gray-500 text-center py-4">
+                <p>No hay conversación activa con este lead.</p>
+                <p className="text-xs mt-1">El lead no ha escrito por WhatsApp.</p>
               </div>
-              
-              {/* Estado actual */}
-              <div className="text-sm text-gray-600 space-y-1">
-                <p>Estado: <span className="font-medium">{conversation.lifecycleState}</span></p>
-                {conversation.waitingMessageCount > 0 && (
-                  <p>Mensajes sin atender: <span className="font-medium">{conversation.waitingMessageCount}</span></p>
-                )}
-                {conversation.resolvedAt && (
-                  <p>Resuelto: <span className="font-medium">{new Date(conversation.resolvedAt).toLocaleString()}</span></p>
-                )}
+            )}
+          </div>
               </div>
 
               {/* Botones de acción */}
               <div className="space-y-2 pt-2">
-                {/* Tomar control - solo si el bot tiene control */}
-                {conversation.owner === 'BOT' && (
-                  <button 
-                    onClick={handleTakeControl}
-                    disabled={actionLoading}
-                    className="w-full rounded-lg bg-gray-800 px-4 py-2 text-sm font-medium text-white hover:bg-gray-900 transition-colors disabled:opacity-50">
-                    {actionLoading ? 'Tomando...' : '👤 Tomar control'}
-                  </button>
-                )}
+                {/* Tomar control - siempre visible, se habilita si el bot tiene control */}
+                <button 
+                  onClick={handleTakeControl}
+                  disabled={actionLoading || conversation.owner === 'OPERATOR'}
+                  className={`w-full rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                    conversation.owner === 'OPERATOR' 
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-gray-800 text-white hover:bg-gray-900'
+                  }`}>
+                  {actionLoading ? 'Tomando...' : '👤 Tomar control'}
+                </button>
 
-                {/* Marcar como resuelto - solo si NO está resuelto */}
-                {conversation.lifecycleState !== 'RESOLVED' && conversation.owner === 'OPERATOR' && (
-                  <button 
-                    onClick={handleMarkResolved}
-                    disabled={actionLoading}
-                    className="w-full rounded-lg bg-success-500 px-4 py-2 text-sm font-medium text-white hover:bg-success-600 transition-colors disabled:opacity-50">
-                    {actionLoading ? 'Marcando...' : '✅ Marcar como resuelto'}
-                  </button>
-                )}
+                {/* Marcar como resuelto - siempre visible */}
+                <button 
+                  onClick={handleMarkResolved}
+                  disabled={actionLoading || conversation.lifecycleState === 'RESOLVED'}
+                  className={`w-full rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                    conversation.lifecycleState === 'RESOLVED'
+                      ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                      : 'bg-success-500 text-white hover:bg-success-600'
+                  }`}>
+                  {actionLoading ? 'Marcando...' : '✅ Marcar como resuelto'}
+                </button>
 
                 {/* Info cuando está resuelto */}
                 {conversation.lifecycleState === 'RESOLVED' && (
