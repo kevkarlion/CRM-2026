@@ -150,13 +150,19 @@ export class ConversationResolver {
     
     if (existingWaiting) {
       // Ya fue atendido anteriormente → devolver mensaje de "procesando"
+      // Get customer name from engineData if available
+      const engineData = existingWaiting.engineData as Record<string, unknown> | undefined;
+      const customerName = engineData?.customerName as string | undefined;
+      
       console.log(`[Resolver] → ${isClient ? 'CLIENTE' : 'LEAD'} YA ATENDIDO: waiting message`);
-      return this.handleWaitingOperator(
+      return this.handleWaitingState(
         existingWaiting,
         normalizedPhone,
         tenantId,
         leadId || '',
-        flowConfig
+        flowConfig,
+        waitingState,
+        customerName
       );
     }
     
@@ -198,20 +204,22 @@ export class ConversationResolver {
   }
 
   /**
-   * Handle a conversation in WAITING_OPERATOR state
+   * Handle a conversation in WAITING state (either lead or client)
    * 
    * Key principles:
    * - NEVER restart the flow while waiting for operator
-   * - Return a waiting message
+   * - Return a waiting message (different for lead vs client)
    * - Register event for audit
    * - Increment priority based on message count
    */
-  private async handleWaitingOperator(
+  private async handleWaitingState(
     conversation: any,
     normalizedPhone: string,
     tenantId: string,
     leadId: string,
-    flowConfig: { id: string; initialState: string }
+    flowConfig: { id: string; initialState: string },
+    waitingState: 'WAITING_OPERATOR' | 'WAITING_CLIENT',
+    customerName?: string
   ): Promise<ResolvedConversation> {
     // Get current message count (for priority calculation)
     const messageCount = (conversation.waitingMessageCount || 0) + 1;
@@ -230,6 +238,7 @@ export class ConversationResolver {
         lastActivityAt: new Date(),
         lastMessageAt: new Date(),
         updatedAt: new Date(),
+        lifecycleState: waitingState,
       },
       $push: {
         waitingEvents: {
@@ -240,14 +249,19 @@ export class ConversationResolver {
       },
     });
     
-    console.log(`[Resolver] WAITING_OPERATOR - Event: ${waitingEvent}, Priority: ${priority}, Count: ${messageCount}`);
+    // Get appropriate message based on waiting state type
+    const waitingMessage = waitingState === 'WAITING_CLIENT' 
+      ? this.getClientWaitingMessage(priority, customerName)
+      : this.getWaitingMessage(priority);
+    
+    console.log(`[Resolver] ${waitingState} - Event: ${waitingEvent}, Priority: ${priority}, Count: ${messageCount}`);
     
     return {
       conversation: {
         id: conversation._id.toString(),
         phoneNumber: normalizedPhone,
         leadId: conversation.leadId?.toString() || leadId,
-        lifecycleState: 'WAITING_OPERATOR',
+        lifecycleState: waitingState,
         engineData: conversation.engineData as Record<string, unknown> | undefined,
         waitingMessageCount: messageCount,
         waitingPriority: priority,
@@ -256,9 +270,49 @@ export class ConversationResolver {
       isWaitingForOperator: true,
       isNew: false,
       waitingEvent,
-      waitingMessage: this.getWaitingMessage(priority),
+      waitingMessage,
       flowConfig,
+      profileName: conversation.profileName,
     };
+  }
+
+  /**
+   * Get waiting message for leads
+   */
+  private getWaitingMessage(priority: WaitingPriority): string {
+    const baseMessage = `👋 Gracias por tu mensaje.
+
+Tu solicitud ya fue registrada correctamente.
+
+Un asesor continuará la conversación lo antes posible.`;
+
+    if (priority === WaitingPriority.HIGH) {
+      return `⚠️ ${baseMessage}
+
+📩 Tu mensaje ha sido marcado como prioritario.`;
+    }
+
+    return baseMessage;
+  }
+
+  /**
+   * Get waiting message for clients (more personalized)
+   */
+  private getClientWaitingMessage(priority: WaitingPriority, customerName?: string): string {
+    const name = customerName || 'cliente';
+    const baseMessage = `✨ Gracias por contactarnos, ${name}.
+
+Un asesor de Rolo Climatizaciones te atenderá personalmente.
+
+¡Te respondemos en breve! 😊`;
+
+    if (priority === WaitingPriority.HIGH) {
+      return `⚠️ ${baseMessage}
+
+📩 Tu mensaje ha sido marcado como prioritario.`;
+    }
+
+    return baseMessage;
   }
 
   /**
