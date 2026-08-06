@@ -846,7 +846,16 @@ Un asesor continuará la conversación lo antes posible.`;
     const messageCount = (conversation.waitingMessageCount || 0) + 1;
     const priority = this.calculatePriority(messageCount);
     
-    // Update conversation: back to waiting, increment count, add event
+    // Get existing engineData and reset currentState to initial state
+    // This ensures the bot starts fresh when user responds after 72h window
+    const engineData = conversation.engineData as Record<string, unknown> | undefined;
+    const resetEngineData = {
+      ...engineData,
+      currentState: flowConfig.initialState, // Reset to greeting
+      lastActivity: new Date().toISOString(),
+    };
+    
+    // Update conversation: back to waiting, increment count, add event, reset state
     await ConversationModel.findByIdAndUpdate(conversation._id, {
       $set: {
         lifecycleState: waitingState,
@@ -855,6 +864,7 @@ Un asesor continuará la conversación lo antes posible.`;
         lastActivityAt: new Date(),
         lastMessageAt: new Date(),
         updatedAt: new Date(),
+        engineData: resetEngineData, // Reset currentState to initial state
       },
       $push: {
         waitingEvents: {
@@ -866,14 +876,13 @@ Un asesor continuará la conversación lo antes posible.`;
     });
     
     // Get customer name for personalized message
-    const engineData = conversation.engineData as Record<string, unknown> | undefined;
     const customerName = engineData?.customerName as string | undefined;
     
     const waitingMessage = waitingState === 'WAITING_CLIENT'
       ? this.getClientWaitingMessage(priority, customerName)
       : this.getWaitingMessage(priority);
     
-    console.log(`[Resolver] 🔄 REUSE: Customer replied within 72h, conversation ${conversation._id} reused`);
+    console.log(`[Resolver] 🔄 REUSE: Customer replied within 72h, conversation ${conversation._id} reused with reset state`);
     
     return {
       conversation: {
@@ -881,7 +890,7 @@ Un asesor continuará la conversación lo antes posible.`;
         phoneNumber: normalizedPhone,
         leadId: conversation.leadId?.toString() || leadId,
         lifecycleState: waitingState,
-        engineData,
+        engineData: resetEngineData,
         waitingMessageCount: messageCount,
         waitingPriority: priority,
       },

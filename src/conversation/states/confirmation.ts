@@ -55,10 +55,23 @@ export class ConfirmationState implements IConversationState {
         isValid: true,
       }
     }
+    
+    // Check if user entered a number that's not 1 or 2
+    const optionNum = trimmed.replace(/[^0-9]/g, '')
+    if (optionNum && optionNum !== '1' && optionNum !== '2') {
+      const intent: StateIntent = {
+        validationError: '⚠️ Por favor, elegí una de las opciones disponibles: 1 o 2.',
+      }
 
-    // Invalid input - ask again
+      return {
+        intent,
+        isValid: false,
+      }
+    }
+
+    // Invalid input - ask again (re-show the summary)
     const intent: StateIntent = {
-      validationError: '⚠️ No entendí tu respuesta. Por favor, respondé "1" para confirmar o "2" para corregir.',
+      // Stay in confirmation state and show the message again
     }
 
     return {
