@@ -40,13 +40,13 @@ export class SummaryState implements IConversationState {
                             normalized === '2'
 
     if (wantsCorrection) {
-      // For customers: always restart from greeting_personalized (preserves customer context)
-      // The flow type is already determined by the conversation, so always go to personalized greeting
-      console.log('[Summary] Correct requested - restarting customer flow from greeting_personalized');
+      // For customers: restart from service_type (skip personalized greeting to avoid confusion)
+      // This ensures we use the customer flow, not lead flow
+      console.log('[Summary] Correct requested - restarting customer flow from service_type');
       
       const intent: StateIntent = {
-        // Always go back to greeting for customers (preserves their data)
-        nextState: 'greeting_personalized',
+        // Go back to service_type for customers (simpler flow)
+        nextState: 'service_type',
         data: {
           // DON'T clear service type - preserve customer context
         },
