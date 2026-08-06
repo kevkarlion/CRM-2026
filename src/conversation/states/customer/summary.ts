@@ -42,13 +42,12 @@ export class SummaryState implements IConversationState {
                             normalized === '2'
 
     if (wantsCorrection) {
-      // For customers: restart from service_type - NO greeting, they already know who they are
-      // This state is now customer-specific (from state registry fix)
-      console.log('[Summary] Correct requested - restarting from service_type (no greeting)');
+      // For customers: restart from greeting_personalized
+      console.log('[Summary] Correct requested - restarting from greeting_personalized');
       
       const intent: StateIntent = {
-        // Go back to service_type - customer flow, no greeting shown
-        nextState: 'service_type',
+        // Go back to greeting_personalized - customer flow
+        nextState: 'greeting_personalized',
       }
 
       return {

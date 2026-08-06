@@ -71,14 +71,14 @@ export class GreetingPersonalizedState implements IConversationState {
       }
     }
 
-    // Otherwise, advance to service_type for detailed selection
+    // Otherwise, stay in greeting and ask for valid option
     const intent: StateIntent = {
-      nextState: 'service_type',
+      validationError: '⚠️ Por favor, elegí una opción del 1 al 5.',
     }
 
     return {
       intent,
-      isValid: true,
+      isValid: false,
     }
   }
 

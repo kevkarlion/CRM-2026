@@ -23,11 +23,7 @@ export const CUSTOMER_SERVICE_FLOW: FlowConfig = {
   },
   states: {
     greeting_personalized: {
-      next: 'service_type',
-    },
-    service_type: {
       next: 'address_confirm',
-      onError: 'service_type',
     },
     address_confirm: {
       next: 'priority',
