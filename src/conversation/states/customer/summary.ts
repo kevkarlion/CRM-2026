@@ -23,9 +23,11 @@ export class SummaryState implements IConversationState {
 
     if (isConfirmed) {
       const intent: StateIntent = {
-        nextState: 'waiting_operator',
-        // Signal that flow is complete - this will set conversation.isComplete = true
-        isComplete: true,
+        terminal: true, // Directo a terminal - no waiting_operator
+        data: {
+          confirmed: true,
+          complete: true,
+        },
       }
 
       return {

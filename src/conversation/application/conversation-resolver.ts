@@ -353,6 +353,10 @@ export class ConversationResolver {
    * - Return a waiting message (different for lead vs client)
    * - Register event for audit
    * - Increment priority based on message count
+   * 
+   * NOTE: For customers, the waiting state message is NOT sent.
+   * Customers get a fresh flow start (service_type) when they reply,
+   * so they can initiate a new service request.
    */
   private async handleWaitingState(
     conversation: any,
@@ -521,11 +525,9 @@ Un asesor de Rolo Climatizaciones te atenderá personalmente.
    * Get waiting message based on priority
    */
   private getWaitingMessage(priority: WaitingPriority): string {
-    const baseMessage = `👋 Gracias por tu mensaje.
+    const baseMessage = `Tu solicitud ha sido registrada.
 
-Tu solicitud ya fue registrada correctamente.
-
-Un asesor continuará la conversación lo antes posible.`;
+Un asesor se contactará contigo pronto. 😊`;
 
     if (priority === WaitingPriority.HIGH) {
       return `⚠️ ${baseMessage}
@@ -834,6 +836,9 @@ Un asesor continuará la conversación lo antes posible.`;
   /**
    * Handle customer reply within reuse window
    * Reuse conversation, notify operator, increase priority
+   * 
+   * For LEAD: set to WAITING_OPERATOR, return waiting message
+   * For CUSTOMER: set to ACTIVE_CLIENT, let engine process from service_type
    */
   private async handleReuseWindow(
     conversation: any,
@@ -847,57 +852,80 @@ Un asesor continuará la conversación lo antes posible.`;
     const priority = this.calculatePriority(messageCount);
     
     // Get existing engineData and reset currentState to initial state
-    // This ensures the bot starts fresh when user responds after 72h window
     const engineData = conversation.engineData as Record<string, unknown> | undefined;
+    
+    // For customers: reset to service_type (fresh flow start, no greeting)
+    // For leads: reset to greeting
+    const resetInitialState = waitingState === 'WAITING_CLIENT' ? 'service_type' : flowConfig.initialState;
+    
     const resetEngineData = {
       ...engineData,
-      currentState: flowConfig.initialState, // Reset to greeting
+      currentState: resetInitialState,
       lastActivity: new Date().toISOString(),
     };
     
-    // Update conversation: back to waiting, increment count, add event, reset state
+    // Determine new lifecycle state
+    // For CUSTOMERS: use ACTIVE_CLIENT so engine processes the message
+    // For LEADS: use WAITING state and notify operator
+    const isCustomer = waitingState === 'WAITING_CLIENT';
+    const newLifecycleState = isCustomer ? 'ACTIVE_CLIENT' : waitingState;
+    
+    // Update conversation
+    const updateFields: Record<string, unknown> = {
+      lifecycleState: newLifecycleState,
+      lastActivityAt: new Date(),
+      lastMessageAt: new Date(),
+      updatedAt: new Date(),
+      engineData: resetEngineData,
+    };
+    
+    // Only track waiting events for leads, not customers
+    if (!isCustomer) {
+      updateFields.waitingMessageCount = messageCount;
+      updateFields.waitingPriority = priority;
+    }
+    
     await ConversationModel.findByIdAndUpdate(conversation._id, {
-      $set: {
-        lifecycleState: waitingState,
-        waitingMessageCount: messageCount,
-        waitingPriority: priority,
-        lastActivityAt: new Date(),
-        lastMessageAt: new Date(),
-        updatedAt: new Date(),
-        engineData: resetEngineData, // Reset currentState to initial state
-      },
-      $push: {
-        waitingEvents: {
-          event: 'CUSTOMER_REPLIED_AFTER_RESOLVED' as ConversationLifecycleEvent,
-          timestamp: new Date(),
-          priority: priority,
+      $set: updateFields,
+      ...(isCustomer ? {} : {
+        $push: {
+          waitingEvents: {
+            event: 'CUSTOMER_REPLIED_AFTER_RESOLVED' as ConversationLifecycleEvent,
+            timestamp: new Date(),
+            priority: priority,
+          },
         },
-      },
+      }),
     });
     
     // Get customer name for personalized message
     const customerName = engineData?.customerName as string | undefined;
     
-    const waitingMessage = waitingState === 'WAITING_CLIENT'
-      ? this.getClientWaitingMessage(priority, customerName)
-      : this.getWaitingMessage(priority);
+    const waitingMessage = !isCustomer && waitingState === 'WAITING_OPERATOR'
+      ? this.getWaitingMessage(priority)
+      : !isCustomer
+        ? this.getClientWaitingMessage(priority, customerName)
+        : undefined;
     
-    console.log(`[Resolver] 🔄 REUSE: Customer replied within 72h, conversation ${conversation._id} reused with reset state`);
+    console.log(`[Resolver] 🔄 REUSE: ${isCustomer ? 'CUSTOMER' : 'LEAD'} replied within 72h, conversation ${conversation._id} reused`);
+    console.log(`[Resolver] → New state: ${newLifecycleState}, reset to: ${resetInitialState}`);
     
+    // For customers: shouldContinue=true so engine processes the message
+    // For leads: shouldContinue=false, return waiting message
     return {
       conversation: {
         id: conversation._id.toString(),
         phoneNumber: normalizedPhone,
         leadId: conversation.leadId?.toString() || leadId,
-        lifecycleState: waitingState,
+        lifecycleState: newLifecycleState,
         engineData: resetEngineData,
         waitingMessageCount: messageCount,
         waitingPriority: priority,
       },
-      shouldContinue: false,
-      isWaitingForOperator: true,
+      shouldContinue: isCustomer, // Customers continue, leads wait
+      isWaitingForOperator: !isCustomer, // Leads wait for operator
       isNew: false,
-      waitingEvent: 'CUSTOMER_REPLIED_AFTER_RESOLVED',
+      waitingEvent: isCustomer ? undefined : 'CUSTOMER_REPLIED_AFTER_RESOLVED',
       waitingMessage,
       flowConfig,
       profileName: conversation.profileName,

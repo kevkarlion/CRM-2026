@@ -42,10 +42,10 @@ export const CUSTOMER_SERVICE_FLOW: FlowConfig = {
       onError: 'description',
     },
     summary: {
-      next: 'waiting_operator',
-      onError: 'summary',
+      terminal: true, // Summary is terminal - no waiting_operator state
     },
     waiting_operator: {
+      // DEPRECATED: kept for legacy conversations. Use terminal on summary instead.
       terminal: true,
     },
   },

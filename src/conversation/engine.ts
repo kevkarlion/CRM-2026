@@ -210,7 +210,7 @@ export class ConversationEngine {
 
     // Handle terminal state
     if (nextStateId === null) {
-      return this.createTerminalResult(context)
+      return this.createTerminalResult(context, processResult?.intent)
     }
 
     // Transition to next state
@@ -272,8 +272,18 @@ export class ConversationEngine {
   /**
    * Create terminal (complete) result
    */
-  private createTerminalResult(context: ConversationContext): EngineResult {
+  private createTerminalResult(
+    context: ConversationContext, 
+    intent?: { data?: Record<string, unknown>; terminal?: boolean }
+  ): EngineResult {
     context.set('complete', true)
+    
+    // Apply any data from the intent (e.g., confirmed: true, customerName, etc.)
+    if (intent?.data) {
+      for (const [key, value] of Object.entries(intent.data)) {
+        context.set(key, value)
+      }
+    }
 
     if (this.store) {
       this.store.save(context.phoneNumber, context).catch(console.error)

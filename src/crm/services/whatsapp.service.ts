@@ -766,7 +766,10 @@ export class WhatsAppService {
     });
     
     // If waiting for operator, return the waiting message
-    if (resolved.isWaitingForOperator && resolved.waitingMessage) {
+    // EXCEPT for customers - they should get fresh flow to start new service request
+    const isCustomerFlow = flowId === 'customer-service';
+    
+    if (resolved.isWaitingForOperator && resolved.waitingMessage && !isCustomerFlow) {
       console.log('[Engine] ✅ Returning waiting message (lead already contacted):', resolved.waitingMessage.substring(0, 50));
       
       // Save profileName if available (even for contacted leads)
@@ -795,6 +798,8 @@ export class WhatsAppService {
         context: undefined,
       };
     }
+    
+    // For customers: continue with fresh flow (do NOT return waiting message)
     
     // Get the conversation engine - SEPARATED for Lead and Client
     const isClientFlow = resolved.flowConfig.id === 'customer-service';
