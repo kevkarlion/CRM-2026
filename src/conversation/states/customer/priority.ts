@@ -45,7 +45,7 @@ export class PriorityState implements IConversationState {
         priority,
         priorityLabel: priorityLabelMap[priority],
       },
-      nextState: 'summary',
+      nextState: 'description',  // Go to description first, then summary
     }
 
     return {
