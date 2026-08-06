@@ -34,9 +34,13 @@ export class GreetingPersonalizedState implements IConversationState {
     const trimmed = input.trim()
     const optionNum = trimmed.replace(/[^0-9]/g, '')
 
+    console.log('[GreetingPersonalized] process called with input:', input, '| optionNum:', optionNum);
+
     // Check if customer already has data (e.g., after "corregir" in summary)
     const existingServiceType = context.get<string>('serviceType')
     const customerName = context.get<string>('customerName')
+    
+    console.log('[GreetingPersonalized] existingServiceType:', existingServiceType, '| customerName:', customerName);
     
     // If customer already has service type and name, they're returning from correction
     // Skip to summary to review their corrected info
@@ -52,10 +56,13 @@ export class GreetingPersonalizedState implements IConversationState {
     }
 
     // If user selected an option (1-5), save service type and go to address_confirm
+    console.log('[GreetingPersonalized] Checking option:', optionNum, '| valid?', optionNum >= '1' && optionNum <= '5');
     if (optionNum && optionNum >= '1' && optionNum <= '5') {
       const serviceType = SERVICE_OPTIONS[optionNum]
+      console.log('[GreetingPersonalized] Selected serviceType:', serviceType);
       
       if (serviceType) {
+        console.log('[GreetingPersonalized] → Going to address_confirm');
         const intent: StateIntent = {
           data: {
             serviceType,
@@ -72,6 +79,7 @@ export class GreetingPersonalizedState implements IConversationState {
     }
 
     // Otherwise, stay in greeting and ask for valid option
+    console.log('[GreetingPersonalized] Invalid input - showing validation error');
     const intent: StateIntent = {
       validationError: '⚠️ Por favor, elegí una opción del 1 al 5.',
     }

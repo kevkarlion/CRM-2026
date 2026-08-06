@@ -216,17 +216,53 @@ export class ConversationResolver {
     const waitingState = isClient ? 'WAITING_CLIENT' : 'WAITING_OPERATOR';
     
 // ===== LÓGICA DE RESOLUCIÓN =====
-    // IMPORTANTE: Primero buscar conversaciones en espera (WAITING)
-    // Esto asegura que los clientes que ya completaron el flujo reciban el mensaje de espera
+    // PRIORIDAD: Buscar ACTIVE primero, luego WAITING, luego resolved
+    // IMPORTANTE: Esto evita que se cree una nueva conversación cada vez
     
-    // Buscar conversación de espera primero (ya fue atendido anteriormente)
+    // Buscar cualquier conversación activa (lead o cliente)
+    const anyActive = await ConversationModel.findOne({
+      phoneNumber: normalizedPhone,
+      lifecycleState: { $in: ['ACTIVE_LEAD', 'ACTIVE_CLIENT'] },
+    }).sort({ lastActivityAt: -1 }).lean();
+    
+    if (anyActive) {
+      // Ya hay conversación activa → continuar con esa
+      console.log('[Resolver] Found existing ACTIVE conversation:', anyActive._id, 'type:', anyActive.conversationType, 'state:', anyActive.lifecycleState);
+      
+      // Si la conversación está marcada como completa, tratarla como waiting
+      if (anyActive.isComplete === true) {
+        console.log('[Resolver] ACTIVE conversation is complete - treating as waiting');
+        const engineData = anyActive.engineData as Record<string, unknown> | undefined;
+        const customerName = engineData?.customerName as string | undefined;
+        
+        // Marcar como waiting
+        await this.markAsWaitingState(anyActive._id.toString(), waitingState);
+        
+        return this.handleWaitingState(
+          anyActive,
+          normalizedPhone,
+          tenantId,
+          leadId || '',
+          flowConfig,
+          waitingState,
+          customerName
+        );
+      }
+      
+      // Usar el flow original de esa conversación
+      const existingFlowConfig = anyActive.conversationType === 'customer' ? CUSTOMER_SERVICE_FLOW : LEAD_QUALIFICATION_FLOW;
+      
+      console.log('[Resolver] → CONTINUE with existing conversation, original flow:', existingFlowConfig.id);
+      return this.continueConversation(anyActive, normalizedPhone, tenantId, leadId || '', existingFlowConfig);
+    }
+    
+    // Buscar conversación de espera (ya fue atendido anteriormente)
     console.log(`[Resolver] Looking for ${waitingState} conversation for:`, normalizedPhone);
     const existingWaiting = await this.findConversationByState(normalizedPhone, waitingState, conversationType);
     console.log(`[Resolver] Found ${waitingState}:`, existingWaiting ? existingWaiting._id : 'NONE');
     
     if (existingWaiting) {
       // Si la conversación NO está completa (isComplete=false), reactivarla a ACTIVE y continuar
-      // Esto permite que el usuario pueda "corregir" la info reiniciando el flow
       if (existingWaiting.isComplete === false) {
         console.log(`[Resolver] → REACTIVATE ${waitingState} → ${activeState} (incomplete conversation)`);
         
@@ -239,11 +275,10 @@ export class ConversationResolver {
           },
         });
         
-        // Continue from where it was (summary state will redirect to correct greeting)
         return this.continueConversation(existingWaiting, normalizedPhone, tenantId, leadId || '', flowConfig);
       }
       
-      // Si ya está completa, devolver mensaje de "procesando"
+      // Si ya está completa, devolver mensaje de espera
       const engineData = existingWaiting.engineData as Record<string, unknown> | undefined;
       const customerName = engineData?.customerName as string | undefined;
       
@@ -258,42 +293,6 @@ export class ConversationResolver {
         customerName
       );
     }
-    
-    // Segundo: buscar conversaciones activas que YA ESTÁN COMPLETAS (isComplete=true)
-    // Estas deben tratarse como waiting también
-    const anyActiveComplete = await ConversationModel.findOne({
-      phoneNumber: normalizedPhone,
-      lifecycleState: { $in: [activeState] },
-      isComplete: true,
-    }).sort({ lastActivityAt: -1 }).lean();
-    
-    if (anyActiveComplete) {
-      // Conversation is ACTIVE but already complete - treat as waiting
-      console.log('[Resolver] Found ACTIVE but COMPLETE conversation:', anyActiveComplete._id);
-      
-      // Mark as waiting first
-      await this.markAsWaitingState(anyActiveComplete._id.toString(), waitingState);
-      
-      const engineData = anyActiveComplete.engineData as Record<string, unknown> | undefined;
-      const customerName = engineData?.customerName as string | undefined;
-      
-      return this.handleWaitingState(
-        anyActiveComplete,
-        normalizedPhone,
-        tenantId,
-        leadId || '',
-        flowConfig,
-        waitingState,
-        customerName
-      );
-    }
-    
-    // Tercero: buscar cualquier conversación activa NO completa
-    const anyActive = await ConversationModel.findOne({
-      phoneNumber: normalizedPhone,
-      lifecycleState: { $in: ['ACTIVE_LEAD', 'ACTIVE_CLIENT'] },
-      isComplete: { $ne: true },  // Only incomplete conversations
-    }).sort({ lastActivityAt: -1 }).lean();
     
     // Buscar conversación RESOLVED dentro de ventana de reutilización (72h)
     // Filtrar por conversationType para evitar cruzar conversaciones lead/customer
