@@ -595,11 +595,11 @@ export class WhatsAppService {
                 console.log('[WhatsApp] Updating company to (profileName):', profileName);
               }
               
-              // Update status if new
-              if (leadToUpdate.status === 'new') {
+              // Update status ONLY if flow is complete
+              if (isFlowComplete && leadToUpdate.status === 'new') {
                 updateData.status = 'contacted';
                 updateData.updatedBy = 'whatsapp-bot';
-                console.log('[WhatsApp] Setting status to contacted');
+                console.log('[WhatsApp] Flow complete - Setting status to contacted');
               }
               
               // Update priority
