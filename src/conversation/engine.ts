@@ -29,7 +29,7 @@ export interface ConversationEngineOptions {
  * Simple state registry interface
  */
 export interface StateRegistry {
-  get(stateId: string): IConversationState | undefined
+  get(stateId: string, flowId?: string): IConversationState | undefined
   has(stateId: string): boolean
 }
 
@@ -167,7 +167,8 @@ export class ConversationEngine {
     input: string,
     context: ConversationContext,
   ): Promise<EngineResult> {
-    const state = this.stateRegistry.get(currentStateId)
+    // Pass flowId to registry so it returns the correct state for the flow
+    const state = this.stateRegistry.get(currentStateId, this.flowConfig.id)
 
     if (!state) {
       return this.createErrorResult(context, `Unknown state: ${currentStateId}`)
@@ -241,7 +242,7 @@ export class ConversationEngine {
     }
 
     // Get state and compose reply
-    const state = this.stateRegistry.get(stateId)
+    const state = this.stateRegistry.get(stateId, this.flowConfig.id)
     console.log('[Engine] Getting state for:', stateId, '| Found:', state ? state.constructor.name : 'NOT FOUND');
 
     if (!state) {

@@ -3,80 +3,87 @@
  * 
  * Central registry for all conversation states.
  * Provides lookup by state ID for the conversation engine.
+ * 
+ * IMPORTANT: States are completely separated by flow:
+ * - lead-qualification flow uses states from lead/ folder
+ * - customer-service flow uses states from customer/ folder
+ * 
+ * NO cross-contamination between flows.
  */
 
 import type { IConversationState, StateRegistryResult } from './interface'
 import type { FlowConfig } from '../types'
 
-// Import all state implementations
-import { GreetingState } from './greeting'
-import { NameState } from './name'
-import { ServiceState } from './service'
-import { AddressState } from './address'
-import { PriorityState } from './priority'
-import { DescriptionState } from './description'
-import { ConfirmationState } from './confirmation'
+// Import lead states
+import { GreetingState as LeadGreetingState } from './lead/greeting'
+import { NameState as LeadNameState } from './lead/name'
+import { ServiceState as LeadServiceState } from './lead/service'
+import { AddressState as LeadAddressState } from './lead/address'
+import { PriorityState as LeadPriorityState } from './lead/priority'
+import { DescriptionState as LeadDescriptionState } from './lead/description'
+import { ConfirmationState as LeadConfirmationState } from './lead/confirmation'
 
 // Import customer states
 import { getCustomerState } from './customer'
 
-// Map of state IDs to state instances
-const STATES: Record<string, IConversationState> = {
-  greeting: new GreetingState(),
-  name: new NameState(),
-  service: new ServiceState(),
-  address: new AddressState(),
-  priority: new PriorityState(),
-  description: new DescriptionState(),
-  confirmation: new ConfirmationState(),
+// Lead flow states - completely isolated
+const LEAD_STATES: Record<string, IConversationState> = {
+  greeting: new LeadGreetingState(),
+  name: new LeadNameState(),
+  service: new LeadServiceState(),
+  address: new LeadAddressState(),
+  priority: new LeadPriorityState(),
+  description: new LeadDescriptionState(),
+  confirmation: new LeadConfirmationState(),
 }
 
 /**
- * Get a state by ID
- * Checks customer states first (they override base states), then base states
+ * Get a state by ID for a specific flow
+ * 
+ * @param stateId - The state ID to look up
+ * @param flowId - The flow ID to determine which states to use
  */
-export function getState(stateId: string): IConversationState | undefined {
-  // First check customer states (they have priority over base states)
-  const customerState = getCustomerState(stateId);
-  if (customerState) {
-    console.log('[StateRegistry] getState: Found in customer STATES:', stateId);
-    return customerState;
+export function getState(stateId: string, flowId?: string): IConversationState | undefined {
+  if (flowId === 'lead-qualification') {
+    return LEAD_STATES[stateId]
   }
-  // Then check base states
-  if (stateId in STATES) {
-    console.log('[StateRegistry] getState: Found in base STATES:', stateId);
-    return STATES[stateId]
+  
+  if (flowId === 'customer-service') {
+    return getCustomerState(stateId)
   }
-  return undefined;
+  
+  // Legacy fallback - shouldn't happen
+  return LEAD_STATES[stateId]
 }
 
 /**
- * Check if a state exists
+ * Check if a state exists in the registry
  */
 export function hasState(stateId: string): boolean {
-  return stateId in STATES || getCustomerState(stateId) !== undefined
+  return stateId in LEAD_STATES || getCustomerState(stateId) !== undefined
 }
 
 /**
- * Get all available state IDs (base + customer)
+ * Get all available state IDs
  */
 export function getAllStateIds(): string[] {
-  const customerStateIds = Object.keys({
-    greeting_personalized: true,
-    service_type: true,
-    address_confirm: true,
-    description: true,
-    summary: true,
-    waiting_operator: true,
-  })
-  return [...Object.keys(STATES), ...customerStateIds]
+  const customerStateIds = [
+    'greeting_personalized',
+    'service_type',
+    'address_confirm',
+    'priority',
+    'description',
+    'summary',
+    'waiting_operator',
+  ]
+  return [...Object.keys(LEAD_STATES), ...customerStateIds]
 }
 
 /**
  * Get a state with its configuration from flow
  */
 export function getStateWithConfig(stateId: string, flowConfig: FlowConfig): StateRegistryResult | undefined {
-  const state = getState(stateId)
+  const state = getState(stateId, flowConfig.id)
 
   if (!state) {
     return undefined
@@ -92,8 +99,8 @@ export function getStateWithConfig(stateId: string, flowConfig: FlowConfig): Sta
  * State registry class for use with ConversationEngine
  */
 export class StateRegistry {
-  get(stateId: string): IConversationState | undefined {
-    return getState(stateId)
+  get(stateId: string, flowId?: string): IConversationState | undefined {
+    return getState(stateId, flowId)
   }
 
   has(stateId: string): boolean {
@@ -106,10 +113,10 @@ export class StateRegistry {
 }
 
 // Export state classes for direct use
-export { GreetingState } from './greeting'
-export { NameState } from './name'
-export { ServiceState, getServiceTypeLabel } from './service'
-export { AddressState } from './address'
-export { PriorityState, getPriorityLabel } from './priority'
-export { DescriptionState } from './description'
-export { ConfirmationState } from './confirmation'
+export { GreetingState } from './lead/greeting'
+export { NameState } from './lead/name'
+export { ServiceState, getServiceTypeLabel } from './lead/service'
+export { AddressState } from './lead/address'
+export { PriorityState } from './lead/priority'
+export { DescriptionState } from './lead/description'
+export { ConfirmationState } from './lead/confirmation'
