@@ -211,6 +211,10 @@ export class ConversationResolver {
       // There's a complete conversation - this is normal, continue with normal flow
     }
     
+    // Definir estados ANTES de usarlos
+    const activeState = isClient ? 'ACTIVE_CLIENT' : 'ACTIVE_LEAD';
+    const waitingState = isClient ? 'WAITING_CLIENT' : 'WAITING_OPERATOR';
+    
 // ===== LÓGICA DE RESOLUCIÓN =====
     // IMPORTANTE: Primero buscar cualquier conversación activa existente
     // Esto evita que se cambie el tipo de conversación a mitad de flow
