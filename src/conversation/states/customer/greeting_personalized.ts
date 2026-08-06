@@ -34,6 +34,23 @@ export class GreetingPersonalizedState implements IConversationState {
     const trimmed = input.trim()
     const optionNum = trimmed.replace(/[^0-9]/g, '')
 
+    // Check if customer already has data (e.g., after "corregir" in summary)
+    const existingServiceType = context.get<string>('serviceType')
+    const customerName = context.get<string>('customerName')
+    
+    // If customer already has service type and name, they're returning from correction
+    // Skip to summary to review their corrected info
+    if (existingServiceType && customerName && !optionNum) {
+      console.log('[GreetingPersonalized] Customer returning with existing data - skipping to summary');
+      const intent: StateIntent = {
+        nextState: 'summary',
+      }
+      return {
+        intent,
+        isValid: true,
+      }
+    }
+
     // If user selected an option (1-5), save service type and go to address_confirm
     if (optionNum && optionNum >= '1' && optionNum <= '5') {
       const serviceType = SERVICE_OPTIONS[optionNum]

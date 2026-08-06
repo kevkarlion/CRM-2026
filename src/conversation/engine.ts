@@ -179,6 +179,14 @@ export class ConversationEngine {
     // Handle validation errors - show validationError message and stay in current state
     if (!processResult.isValid && processResult.intent.validationError) {
       console.log('[Engine] Validation error, staying in state:', currentStateId);
+      
+      // Update context with intent data before getting options (e.g., askingNewAddress flag)
+      if (processResult.intent.data) {
+        for (const [key, value] of Object.entries(processResult.intent.data)) {
+          context.set(key, value)
+        }
+      }
+      
       return {
         message: processResult.intent.validationError,
         options: state.getOptions?.(context),
