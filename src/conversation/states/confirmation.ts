@@ -43,13 +43,10 @@ export class ConfirmationState implements IConversationState {
     const wantsRestart = RESTART_KEYWORDS.some(k => normalized === k || normalized.startsWith(k + ' '))
 
     if (wantsRestart) {
-      // Check if this is a customer (has customerName from context)
-      const isCustomer = context.get<string>('customerName') && context.get<boolean>('isCustomer')
-      
+      // Lead flow restarts from greeting - the resolver/engine already decides
+      // which flow to use (lead vs customer) before reaching this state
       const intent: StateIntent = {
-        // For customers: go to greeting_personalized to maintain customer context
-        // For leads: go to greeting
-        nextState: isCustomer ? 'greeting_personalized' : 'greeting',
+        nextState: 'greeting',
         data: {
           restarted: true,
         },

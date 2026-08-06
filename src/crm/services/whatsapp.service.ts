@@ -905,6 +905,12 @@ export class WhatsAppService {
 
     // Update last activity timestamp and save
     if (result.context) {
+      // For leads: explicitly set isCustomer = false
+      // For customers: this is already set in customerData
+      if (!isClientFlow && result.context.get('isCustomer') === undefined) {
+        result.context.set('isCustomer', false);
+      }
+      
       // Apply customer data to existing context if not already applied
       if (Object.keys(customerData).length > 0 && !result.context.get('isCustomer')) {
         for (const [key, value] of Object.entries(customerData)) {
