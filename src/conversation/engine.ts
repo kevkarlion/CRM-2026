@@ -234,6 +234,7 @@ export class ConversationEngine {
 
     // Get state and compose reply
     const state = this.stateRegistry.get(stateId)
+    console.log('[Engine] Getting state for:', stateId, '| Found:', state ? state.constructor.name : 'NOT FOUND');
 
     if (!state) {
       return this.createErrorResult(context, `State not found: ${stateId}`)

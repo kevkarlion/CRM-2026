@@ -38,10 +38,13 @@ const STATES: Record<string, IConversationState> = {
 export function getState(stateId: string): IConversationState | undefined {
   // First check base states
   if (stateId in STATES) {
+    console.log('[StateRegistry] getState: Found in base STATES:', stateId);
     return STATES[stateId]
   }
   // Then check customer states
-  return getCustomerState(stateId)
+  const customerState = getCustomerState(stateId);
+  console.log('[StateRegistry] getState:', stateId, '| Customer state:', customerState ? 'found' : 'not found');
+  return customerState;
 }
 
 /**

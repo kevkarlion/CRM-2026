@@ -59,6 +59,7 @@ export class TransitionPolicy {
 
     // Handle explicit next state from intent
     if (intent.nextState) {
+      console.log('[Policy] Intent nextState:', intent.nextState);
       return intent.nextState
     }
 
