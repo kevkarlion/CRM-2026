@@ -542,26 +542,24 @@ export class WhatsAppService {
                              engineResult.context?.data?.complete === true ||
                              engineResult.context?.data?.confirmed === true;
       
-      // If flow is complete, update lead status to contacted AND mark conversation as complete
+      // If flow is complete, update lead status to contacted AND put conversation in waiting state
       if (isFlowComplete) {
-        console.log('[WhatsApp] Flow complete, updating lead status to contacted and conversation to RESOLVED');
+        console.log('[WhatsApp] Flow complete, updating lead status to contacted');
         
-        // Update conversation: mark as complete AND resolve (no more bot responses)
+        // Update conversation: put in waiting state (NOT resolved) so it can receive follow-up messages
+        // Lead goes to WAITING_OPERATOR, Client goes to WAITING_CLIENT
+        const isCustomerFlow = engineResult.flowId === 'customer-service';
+        const waitingState = isCustomerFlow ? 'WAITING_CLIENT' : 'WAITING_OPERATOR';
+        
         try {
           const conversation = resolved.conversation;
           if (conversation?.id) {
-            await ConversationModel.findByIdAndUpdate(conversation.id, {
-              $set: { 
-                isComplete: true,
-                lifecycleState: 'RESOLVED', // Close the conversation - no more bot responses
-                resolvedAt: new Date(),
-                closedAt: new Date(),
-              }
-            });
-            console.log('[WhatsApp] ✅ Conversation marked as RESOLVED - no more bot responses');
+            // Use the resolver to properly transition to waiting state
+            await conversationResolver.markAsWaitingState(conversation.id, waitingState);
+            console.log(`[WhatsApp] ✅ Conversation marked as ${waitingState} - will wait for operator follow-up`);
           }
         } catch (error) {
-          console.error('[WhatsApp] Error setting isComplete on conversation:', error);
+          console.error('[WhatsApp] Error setting waiting state:', error);
         }
         
         // Update lead with captured data from conversation - do this FIRST before any errors
@@ -647,28 +645,7 @@ export class WhatsAppService {
             console.error('[WhatsApp] Error updating lead data:', error);
           }
         }
-        
-        // Determine waiting state based on flowId (customer-service = client, lead-qualification = lead)
-        const isCustomerFlow = engineResult.flowId === 'customer-service';
-        
-        const waitingState = isCustomerFlow ? 'WAITING_CLIENT' : 'WAITING_OPERATOR';
-        const activeState = isCustomerFlow ? 'ACTIVE_CLIENT' : 'ACTIVE_LEAD';
-        
-        console.log(`[WhatsApp] Flow complete - isCustomerFlow: ${isCustomerFlow}, using: ${waitingState}`);
-        
-        // Update conversation lifecycle state using ConversationResolver
-        try {
-          console.log('[WhatsApp] Looking for', activeState, 'conversation with phone:', normalizedPhone);
-          const conversation = await ConversationModel.findOne({
-            phoneNumber: normalizedPhone,
-            lifecycleState: activeState,
-          });
-          
-          console.log('[WhatsApp] Found conversation:', conversation?._id);
-          
-          if (conversation) {
-            await conversationResolver.markAsWaitingState(conversation._id.toString(), waitingState);
-            console.log(`[WhatsApp] ✅ Conversation marked as ${waitingState}`);
+}
           } else {
             console.log(`[WhatsApp] ❌ No ${activeState} conversation found`);
           }
@@ -684,7 +661,7 @@ export class WhatsAppService {
       console.error('[WhatsApp] Engine error:', error);
       // Fall back to simple error message
       shouldRespond = true;
-      responseText = 'Estamos procesando tu solicitud. En breve un asesor seará en contacto contigo. 😊';
+      responseText = 'Estamos procesando tu solicitud. En breve un asesor se contactará contigo. 😊';
       // Log more details
       if (error instanceof Error) {
         console.error('[WhatsApp] Error stack:', error.stack);

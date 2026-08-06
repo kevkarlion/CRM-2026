@@ -85,30 +85,9 @@ export class GreetingPersonalizedState implements IConversationState {
   getMessage(context: ConversationContext): string {
     const customerName = context.get<string>('customerName')
     
-    // Get hour in Argentina timezone (UTC-3)
-    const utcHour = new Date().getHours()
-    const argentinaHour = (utcHour - 3 + 24) % 24
+    return `Hola${customerName ? `, *${customerName}*` : ''} 👋
 
-    let greeting: string
-
-    // 20:00 - 05:59: Buenas noches
-    // 06:00 - 11:59: Buenos días
-    // 12:00 - 19:59: Buenas tardes
-    if (argentinaHour >= 20 || argentinaHour < 6) {
-      greeting = '🌙 Buenas noches'
-    } else if (argentinaHour < 12) {
-      greeting = '🌞 Buenos días'
-    } else {
-      greeting = '☀️ Buenas tardes'
-    }
-
-    return `${greeting} 👋
-
-¡Bienvenido de nuevo, *${customerName || 'cliente'}*!
-
-Soy el asistente virtual de *Rolo Climatizaciones*.
-
-¿En qué puedo ayudarte hoy?`
+¿qué tipo de servicio necesitás?`
   }
 
   getOptions(context: ConversationContext): string[] | undefined {
