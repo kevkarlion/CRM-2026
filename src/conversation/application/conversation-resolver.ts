@@ -229,14 +229,17 @@ export class ConversationResolver {
       // Ya hay conversación activa → continuar con esa
       console.log('[Resolver] Found existing ACTIVE conversation:', anyActive._id, 'type:', anyActive.conversationType, 'state:', anyActive.lifecycleState);
       
+      // Check if conversation is complete in engineData OR conversation document
+      const engineData = anyActive.engineData as Record<string, unknown> | undefined;
+      const isComplete = anyActive.isComplete === true || engineData?.complete === true || engineData?.confirmed === true;
+      
       // Si la conversación está marcada como completa, tratarla como waiting
-      if (anyActive.isComplete === true) {
-        console.log('[Resolver] ACTIVE conversation is complete - treating as waiting');
-        const engineData = anyActive.engineData as Record<string, unknown> | undefined;
+      if (isComplete) {
+        console.log('[Resolver] Conversation is complete (engineData or document) - treating as waiting');
         const customerName = engineData?.customerName as string | undefined;
         
         // Marcar como waiting
-        await this.markAsWaitingState(anyActive._id.toString(), waitingState);
+        await this.markAsWaitingState(anyActive._id.toString(), waitingState, true);
         
         return this.handleWaitingState(
           anyActive,
@@ -780,18 +783,28 @@ Un asesor se contactará contigo pronto. 😊`;
 
   /**
    * Mark a conversation as waiting state
+   * @param conversationId - The conversation ID
+   * @param waitingState - The waiting state (WAITING_OPERATOR or WAITING_CLIENT)
+   * @param markComplete - Optional flag to mark the conversation as complete
    */
-  async markAsWaitingState(conversationId: string, waitingState: 'WAITING_OPERATOR' | 'WAITING_CLIENT'): Promise<void> {
+  async markAsWaitingState(conversationId: string, waitingState: 'WAITING_OPERATOR' | 'WAITING_CLIENT', markComplete: boolean = false): Promise<void> {
+    const updateData: Record<string, any> = {
+      lifecycleState: waitingState,
+      closedAt: new Date(),
+      updatedAt: new Date(),
+      waitingMessageCount: 0,
+      waitingPriority: WaitingPriority.NORMAL,
+    };
+    
+    // Optionally mark as complete
+    if (markComplete) {
+      updateData.isComplete = true;
+    }
+    
     await ConversationModel.findByIdAndUpdate(conversationId, {
-      $set: {
-        lifecycleState: waitingState,
-        closedAt: new Date(),
-        updatedAt: new Date(),
-        waitingMessageCount: 0,
-        waitingPriority: WaitingPriority.NORMAL,
-      },
+      $set: updateData,
     });
-    console.log(`[Resolver] Conversation ${conversationId} marked as ${waitingState}`);
+    console.log(`[Resolver] Conversation ${conversationId} marked as ${waitingState}, isComplete: ${markComplete}`);
   }
 
   /**

@@ -542,28 +542,15 @@ export class WhatsAppService {
                              engineResult.context?.data?.complete === true ||
                              engineResult.context?.data?.confirmed === true;
       
-      // If flow is complete, update lead status to contacted AND put conversation in waiting state
+      // If flow is complete, update lead status to contacted
+      // Note: The resolver now handles marking conversations as waiting when they detect isComplete
       if (isFlowComplete) {
-        console.log('[WhatsApp] Flow complete, updating lead status to contacted');
-        
-        // Update conversation: put in waiting state (NOT resolved) so it can receive follow-up messages
-        // Lead goes to WAITING_OPERATOR, Client goes to WAITING_CLIENT
-        const isCustomerFlow = engineResult.flowId === 'customer-service';
-        const waitingState = isCustomerFlow ? 'WAITING_CLIENT' : 'WAITING_OPERATOR';
-        
-        try {
-          const conversation = resolved.conversation;
-          if (conversation?.id) {
-            // Use the resolver to properly transition to waiting state
-            await conversationResolver.markAsWaitingState(conversation.id, waitingState);
-            console.log(`[WhatsApp] ✅ Conversation marked as ${waitingState} - will wait for operator follow-up`);
-          }
-        } catch (error) {
-          console.error('[WhatsApp] Error setting waiting state:', error);
-        }
-        
-        // Update lead with captured data from conversation - do this FIRST before any errors
-        if (engineResult.context) {
+        console.log('[WhatsApp] Flow complete, lead will be updated with captured data below');
+        // The resolver handles putting the conversation in WAITING state when it detects isComplete
+      }
+      
+      // Update lead with captured data from conversation - do this FIRST before any errors
+      if (engineResult.context) {
           const contextData = engineResult.context.data;
           
           const userName = contextData.userName as string | undefined;
@@ -643,6 +630,7 @@ export class WhatsAppService {
             }
           } catch (error) {
             console.error('[WhatsApp] Error updating lead data:', error);
+          }
           }
         }
       }
