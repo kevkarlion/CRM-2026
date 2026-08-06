@@ -265,8 +265,12 @@ export class ConversationResolver {
     console.log(`[Resolver] Found ${waitingState}:`, existingWaiting ? existingWaiting._id : 'NONE');
     
     if (existingWaiting) {
-      // Si la conversación NO está completa (isComplete=false), reactivarla a ACTIVE y continuar
-      if (existingWaiting.isComplete === false) {
+      // Check if conversation is complete in engineData (even if document isComplete is false)
+      const engineData = existingWaiting.engineData as Record<string, unknown> | undefined;
+      const isDataComplete = engineData?.complete === true || engineData?.confirmed === true;
+      
+      // Si la conversación NO está completa (isComplete=false) Y engineData no tiene complete, reactivarla
+      if (existingWaiting.isComplete === false && !isDataComplete) {
         console.log(`[Resolver] → REACTIVATE ${waitingState} → ${activeState} (incomplete conversation)`);
         
         // Reactivar conversación a ACTIVE
@@ -281,11 +285,10 @@ export class ConversationResolver {
         return this.continueConversation(existingWaiting, normalizedPhone, tenantId, leadId || '', flowConfig);
       }
       
-      // Si ya está completa, devolver mensaje de espera
-      const engineData = existingWaiting.engineData as Record<string, unknown> | undefined;
+      // Si ya está completa (documento o engineData), devolver mensaje de espera
       const customerName = engineData?.customerName as string | undefined;
       
-      console.log(`[Resolver] → ${isClient ? 'CLIENTE' : 'LEAD'} YA ATENDIDO: waiting message`);
+      console.log(`[Resolver] → ${isClient ? 'CLIENTE' : 'LEAD'} YA ATENDIDO: waiting message (isComplete=${existingWaiting.isComplete}, dataComplete=${isDataComplete})`);
       return this.handleWaitingState(
         existingWaiting,
         normalizedPhone,
