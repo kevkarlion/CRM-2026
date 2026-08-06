@@ -211,24 +211,31 @@ export class ConversationResolver {
       // There's a complete conversation - this is normal, continue with normal flow
     }
     
-    // ===== LÓGICA DE RESOLUCIÓN =====
+// ===== LÓGICA DE RESOLUCIÓN =====
+    // IMPORTANTE: Primero buscar cualquier conversación activa existente
+    // Esto evita que se cambie el tipo de conversación a mitad de flow
+    // PRIORIDAD: Buscar ACTIVE primero, luego WAITING, luego resolved
+    
+    // Buscar cualquier conversación activa (lead o cliente)
+    const anyActive = await ConversationModel.findOne({
+      phoneNumber: normalizedPhone,
+      lifecycleState: { $in: ['ACTIVE_LEAD', 'ACTIVE_CLIENT'] },
+    }).sort({ lastActivityAt: -1 }).lean();
+    
+    if (anyActive) {
+      // Ya hay conversación activa → continuar con esa
+      console.log('[Resolver] Found existing ACTIVE conversation:', anyActive._id, 'type:', anyActive.conversationType, 'state:', anyActive.lifecycleState);
+      
+      // Usar el flow original de esa conversación
+      const existingFlowConfig = anyActive.conversationType === 'customer' ? CUSTOMER_SERVICE_FLOW : LEAD_QUALIFICATION_FLOW;
+      
+      console.log('[Resolver] → CONTINUE with existing conversation, original flow:', existingFlowConfig.id);
+      return this.continueConversation(anyActive, normalizedPhone, tenantId, leadId || '', existingFlowConfig);
+    }
+    
     // Estados separados para lead y cliente:
     // - Lead: ACTIVE_LEAD / WAITING_OPERATOR
     // - Cliente: ACTIVE_CLIENT / WAITING_CLIENT
-    
-    const activeState = isClient ? 'ACTIVE_CLIENT' : 'ACTIVE_LEAD';
-    const waitingState = isClient ? 'WAITING_CLIENT' : 'WAITING_OPERATOR';
-    
-    // Paso 1: Buscar conversación ACTIVA según tipo
-    console.log(`[Resolver] Looking for ${activeState} conversation for:`, normalizedPhone);
-    const existingActive = await this.findConversationByState(normalizedPhone, activeState, conversationType);
-    console.log(`[Resolver] Found ${activeState}:`, existingActive ? existingActive._id : 'NONE');
-    
-    if (existingActive) {
-      // Hay conversación activa → CONTINUAR desde donde quedó
-      console.log(`[Resolver] → CONTINUE (${isClient ? 'CLIENTE' : 'LEAD'} con conversación activa)`);
-      return this.continueConversation(existingActive, normalizedPhone, tenantId, leadId || '', flowConfig);
-    }
     
     // Paso 2: Buscar conversación de espera (ya fue atendido anteriormente)
     console.log(`[Resolver] Looking for ${waitingState} conversation for:`, normalizedPhone);
