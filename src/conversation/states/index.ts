@@ -33,18 +33,21 @@ const STATES: Record<string, IConversationState> = {
 
 /**
  * Get a state by ID
- * Checks both base states and customer states
+ * Checks customer states first (they override base states), then base states
  */
 export function getState(stateId: string): IConversationState | undefined {
-  // First check base states
+  // First check customer states (they have priority over base states)
+  const customerState = getCustomerState(stateId);
+  if (customerState) {
+    console.log('[StateRegistry] getState: Found in customer STATES:', stateId);
+    return customerState;
+  }
+  // Then check base states
   if (stateId in STATES) {
     console.log('[StateRegistry] getState: Found in base STATES:', stateId);
     return STATES[stateId]
   }
-  // Then check customer states
-  const customerState = getCustomerState(stateId);
-  console.log('[StateRegistry] getState:', stateId, '| Customer state:', customerState ? 'found' : 'not found');
-  return customerState;
+  return undefined;
 }
 
 /**

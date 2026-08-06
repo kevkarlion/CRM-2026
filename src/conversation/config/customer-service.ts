@@ -15,7 +15,8 @@ import type { FlowConfig } from '../types'
  */
 export const CUSTOMER_SERVICE_FLOW: FlowConfig = {
   id: 'customer-service',
-  initialState: 'greeting_personalized',
+  // Customer starts at service_type - NO greeting, they already know who they are
+  initialState: 'service_type',
   metadata: {
     name: 'Customer Service Flow',
     description: 'Flujo de atención al cliente - clientes existentes',
