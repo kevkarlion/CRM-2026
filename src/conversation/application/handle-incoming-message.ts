@@ -192,7 +192,14 @@ export class HandleIncomingMessageUseCase {
 
     if (!transition.isValid) {
       // Estado terminal o transición inválida
-      return [];
+      // Si hay contexto con datos, mostrar mensaje de confirmación
+      if (updatedContext.needType || updatedContext.location) {
+        const reply = replyComposer.composeForConfirmation(updatedContext);
+        if (reply.content) {
+          actions.push({ type: 'send_message', content: reply.content });
+        }
+      }
+      return actions;
     }
 
     const newState = transition.nextState;
