@@ -645,14 +645,7 @@ export class WhatsAppService {
             console.error('[WhatsApp] Error updating lead data:', error);
           }
         }
-}
-          } else {
-            console.log(`[WhatsApp] ❌ No ${activeState} conversation found`);
-          }
-        } catch (error) {
-          console.error('[WhatsApp] Error updating lifecycle state:', error);
-        }
-}
+      }
       
       if (engineResult.handoff) {
         console.log('[WhatsApp] Handoff to human triggered');
