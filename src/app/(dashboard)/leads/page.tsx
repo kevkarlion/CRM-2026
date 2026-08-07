@@ -218,13 +218,13 @@ export default function LeadsPage() {
             <table className="w-full text-xs table-fixed">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50">
-                  <th className="w-20 text-left px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Acción</th>
-                  <th className="text-left px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Cliente</th>
-                  <th className="text-left px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nombre</th>
-                  <th className="w-20 text-left px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Teléfono</th>
-                  <th className="w-20 text-left px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Estado</th>
-                  <th className="w-14 text-left px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Creado</th>
-                  <th className="text-left px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Localidad</th>
+                  <th className="w-16 text-left px-1.5 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Acción</th>
+                  <th className="w-28 text-left px-1.5 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Cliente</th>
+                  <th className="w-28 text-left px-1.5 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nombre</th>
+                  <th className="w-20 text-left px-1.5 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Teléfono</th>
+                  <th className="w-20 text-left px-1.5 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Estado</th>
+                  <th className="w-14 text-left px-1.5 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Creado</th>
+                  <th className="text-left px-1.5 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Localidad</th>
                 </tr>
               </thead>
               <tbody>
@@ -233,19 +233,19 @@ export default function LeadsPage() {
                     key={lead._id}
                     className={`transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-brand-50/40`}
                   >
-                    <td className="px-2 py-1.5 text-left whitespace-nowrap">
+                    <td className="px-1.5 py-1.5 text-left whitespace-nowrap">
                       <ViewLeadLink leadId={lead._id} />
                     </td>
-                    <td className="px-2 py-1.5 text-xs font-medium text-gray-900 truncate">{lead.companyName || lead.profileName || '—'}</td>
-                    <td className="px-2 py-1.5 text-xs text-gray-600 truncate">{lead.name}</td>
-                    <td className="px-2 py-1.5 text-xs text-gray-500 truncate">{lead.phone || '—'}</td>
-                    <td className="px-2 py-1.5">
+                    <td className="px-1.5 py-1.5 text-xs font-medium text-gray-900 truncate">{lead.companyName || lead.profileName || '—'}</td>
+                    <td className="px-1.5 py-1.5 text-xs text-gray-600 truncate">{lead.name}</td>
+                    <td className="px-1.5 py-1.5 text-xs text-gray-500 truncate">{lead.phone || '—'}</td>
+                    <td className="px-1.5 py-1.5">
                       <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[lead.status] || 'bg-gray-100 text-gray-700'}`}>
                         {statusLabel(lead.status)}
                       </span>
                     </td>
-                    <td className="px-2 py-1.5 text-xs text-gray-500 whitespace-nowrap">{formatDate(lead.createdAt)}</td>
-                    <td className="px-2 py-1.5 text-xs text-gray-500 truncate">{lead.locality || '—'}</td>
+                    <td className="px-1.5 py-1.5 text-xs text-gray-500 whitespace-nowrap">{formatDate(lead.createdAt)}</td>
+                    <td className="px-1.5 py-1.5 text-xs text-gray-500 truncate">{lead.locality || '—'}</td>
                   </tr>
                 ))}
               </tbody>
