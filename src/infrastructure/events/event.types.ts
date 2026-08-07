@@ -231,7 +231,7 @@ export interface WorkOrderTechnicianAssignmentPayload extends TechnicianAssignme
 }
 
 export interface SaleConfirmedPayload {
-  leadId: string;
+  leadId: string | null;
   clientId: string;
   amount: number;
   saleMode: 'quotes' | 'direct';

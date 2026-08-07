@@ -17,6 +17,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') || undefined;
     const type = searchParams.get('type') || undefined;
     const technicianId = searchParams.get('technicianId') || undefined;
+    const clientId = searchParams.get('clientId') || undefined;
     const from = searchParams.get('from') || undefined;
     const to = searchParams.get('to') || undefined;
     const search = searchParams.get('search') || undefined;
@@ -30,6 +31,7 @@ export async function GET(request: NextRequest) {
       filters.source = { $in: ['lead_conversion', 'maintenance_contract', 'direct_sale', 'manual'] };
     }
     if (technicianId) filters.technicianId = technicianId;
+    if (clientId) filters.clientId = clientId;
     if (from || to) {
       filters.scheduledDateGte = from || undefined;
       filters.scheduledDateLte = to || undefined;

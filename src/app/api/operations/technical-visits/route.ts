@@ -21,6 +21,7 @@ export async function GET(request: NextRequest) {
     const leadId = searchParams.get('leadId') || undefined;
     const search = searchParams.get('search') || undefined;
     const technicianId = searchParams.get('technicianId') || undefined;
+    const clientId = searchParams.get('clientId') || undefined;
 
     const filters: Record<string, unknown> = {};
     if (status) filters.status = status;
@@ -28,6 +29,7 @@ export async function GET(request: NextRequest) {
     if (leadId) filters.leadId = leadId;
     if (search) filters.search = search;
     if (technicianId) filters.technicianId = technicianId;
+    if (clientId) filters.clientId = clientId;
     if (from || to) {
       filters.scheduledDateGte = from ? new Date(from) : undefined;
       filters.scheduledDateLte = to ? new Date(to) : undefined;

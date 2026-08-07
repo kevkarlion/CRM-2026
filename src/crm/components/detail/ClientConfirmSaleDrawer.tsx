@@ -17,17 +17,21 @@ interface QuoteItem {
   unitPrice: number;
 }
 
-interface CreateQuoteDrawerProps {
+interface ClientConfirmSaleDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  leadId?: string;
-  leadName?: string;
-  clientId?: string;
+  clientId: string;
   clientName?: string;
   onSuccess: () => void;
 }
 
-export function CreateQuoteDrawer({ isOpen, onClose, leadId, leadName, clientId, clientName, onSuccess }: CreateQuoteDrawerProps) {
+export function ClientConfirmSaleDrawer({
+  isOpen,
+  onClose,
+  clientId,
+  clientName,
+  onSuccess,
+}: ClientConfirmSaleDrawerProps) {
   const [serviceTypes, setServiceTypes] = useState<ServiceType[]>([]);
   const [loadingServices, setLoadingServices] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -36,7 +40,6 @@ export function CreateQuoteDrawer({ isOpen, onClose, leadId, leadName, clientId,
   const [title, setTitle] = useState('');
   const [serviceTypeId, setServiceTypeId] = useState('');
   const [description, setDescription] = useState('');
-  const [validUntil, setValidUntil] = useState('');
   const [items, setItems] = useState<QuoteItem[]>([{ description: '', type: 'service', quantity: 1, unitPrice: 0 }]);
   const [notes, setNotes] = useState('');
 
@@ -64,7 +67,6 @@ export function CreateQuoteDrawer({ isOpen, onClose, leadId, leadName, clientId,
     setTitle('');
     setServiceTypeId('');
     setDescription('');
-    setValidUntil('');
     setItems([{ description: '', type: 'service', quantity: 1, unitPrice: 0 }]);
     setNotes('');
     setError(null);
@@ -90,8 +92,13 @@ export function CreateQuoteDrawer({ isOpen, onClose, leadId, leadName, clientId,
     e.preventDefault();
     setError(null);
 
-    if (!title.trim() || !serviceTypeId) {
-      setError('El título y tipo de servicio son requeridos');
+    if (!title.trim()) {
+      setError('El título es requerido');
+      return;
+    }
+
+    if (!serviceTypeId) {
+      setError('Selecciona un tipo de servicio');
       return;
     }
 
@@ -101,23 +108,31 @@ export function CreateQuoteDrawer({ isOpen, onClose, leadId, leadName, clientId,
       return;
     }
 
+    const total = validItems.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
+    if (total <= 0) {
+      setError('El total debe ser mayor a $0');
+      return;
+    }
+
     setSubmitting(true);
+
     try {
-      await api.post('/api/crm/quotes', {
-        ...(leadId ? { leadId } : {}),
-        ...(clientId ? { clientId } : {}),
-        title,
-        description,
-        validUntil: validUntil || undefined,
-        items: validItems,
-        notes,
+      await api.post(`/api/crm/clients/${clientId}/confirm-sale`, {
+        saleMode: 'direct',
+        directSale: {
+          amount: total,
+          description: title.trim(),
+          serviceTypeId,
+          items: validItems,
+        },
+        notes: notes.trim() || undefined,
       });
+
       onSuccess();
       onClose();
       resetForm();
     } catch (err) {
-      console.error('Error creating quote:', err);
-      setError(err instanceof Error ? err.message : 'Error al crear presupuesto');
+      setError(err instanceof Error ? err.message : 'Error al confirmar venta');
     } finally {
       setSubmitting(false);
     }
@@ -127,7 +142,7 @@ export function CreateQuoteDrawer({ isOpen, onClose, leadId, leadName, clientId,
     <Drawer
       isOpen={isOpen}
       onClose={onClose}
-      title={`Enviar Presupuesto - ${clientName || leadName || ''}`}
+      title={`Confirmar Venta - ${clientName || ''}`}
       footer={
         <div className="flex gap-3">
           <button
@@ -139,16 +154,16 @@ export function CreateQuoteDrawer({ isOpen, onClose, leadId, leadName, clientId,
           </button>
           <button
             type="submit"
-            form="create-quote-form"
+            form="client-quick-sale-form"
             disabled={submitting}
-            className="flex-1 px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 transition-colors font-medium"
+            className="flex-1 px-4 py-2 bg-success-600 text-white rounded-lg hover:bg-success-700 disabled:opacity-50 transition-colors font-medium"
           >
-            {submitting ? 'Guardando...' : 'Crear Borrador'}
+            {submitting ? 'Confirmando...' : 'Confirmar Venta'}
           </button>
         </div>
       }
     >
-      <form id="create-quote-form" onSubmit={handleSubmit} className="space-y-5">
+      <form id="client-quick-sale-form" onSubmit={handleSubmit} className="space-y-5">
         {error && (
           <div className="p-3 bg-danger-50 text-danger-700 text-sm rounded-lg">
             {error}
@@ -157,7 +172,7 @@ export function CreateQuoteDrawer({ isOpen, onClose, leadId, leadName, clientId,
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Título del presupuesto *
+            Título de la venta *
           </label>
           <input
             type="text"
@@ -208,21 +223,9 @@ export function CreateQuoteDrawer({ isOpen, onClose, leadId, leadName, clientId,
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Válido hasta
-          </label>
-          <input
-            type="date"
-            value={validUntil}
-            onChange={(e) => setValidUntil(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
-          />
-        </div>
-
-        <div>
           <div className="flex items-center justify-between mb-2">
             <label className="block text-sm font-medium text-gray-700">
-              Items del presupuesto
+              Items de la venta
             </label>
             <button
               type="button"
@@ -294,7 +297,7 @@ export function CreateQuoteDrawer({ isOpen, onClose, leadId, leadName, clientId,
           </div>
 
           <div className="mt-3 pt-3 border-t border-gray-200 flex justify-between text-sm">
-            <span className="text-gray-600">Subtotal</span>
+            <span className="text-gray-600">Total</span>
             <span className="font-medium text-gray-900">${subtotal.toLocaleString()}</span>
           </div>
         </div>
@@ -307,7 +310,7 @@ export function CreateQuoteDrawer({ isOpen, onClose, leadId, leadName, clientId,
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={2}
-            placeholder="Notas que no se incluirán en el presupuesto..."
+            placeholder="Notas que no se incluirán en la venta..."
             className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none resize-none"
           />
         </div>

@@ -18,7 +18,6 @@ interface ConfirmSaleInput {
   saleMode: 'quotes' | 'direct';
   quoteIds?: string[];
   notes?: string;
-  customerType?: string;
   directSale?: {
     amount: number;
     description?: string;
@@ -33,7 +32,7 @@ export async function POST(
 ) {
   try {
     await connectDB();
-    const { id: leadId } = await params;
+    const { id: clientId } = await params;
     const tenantId = request.headers.get('x-tenant-id');
     const userId = request.headers.get('x-user-id');
 
@@ -42,7 +41,7 @@ export async function POST(
     }
 
     const body = await request.json() as ConfirmSaleInput;
-    const { saleMode, quoteIds, notes, customerType, directSale } = body;
+    const { saleMode, quoteIds, notes, directSale } = body;
 
     // Validar según el modo
     if (saleMode === 'quotes' && (!quoteIds || quoteIds.length === 0)) {
@@ -54,12 +53,11 @@ export async function POST(
     }
 
     const result = await SaleConfirmationService.confirmSale({
-      entityType: 'lead',
-      entityId: leadId,
+      entityType: 'client',
+      entityId: clientId,
       saleMode,
       quoteIds,
       notes,
-      customerType,
       directSale,
       tenantId,
       userId,

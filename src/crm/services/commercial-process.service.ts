@@ -4,7 +4,8 @@ import { Types } from 'mongoose';
 
 export class CommercialProcessService {
   static async onConfirmSale(
-    leadId: string,
+    entityType: 'lead' | 'client',
+    entityId: string,
     quoteIds: string[],
     clientId: string,
     tenantId: string,
@@ -16,11 +17,17 @@ export class CommercialProcessService {
       await new ActivityService().create(
         {
           tenantId: new Types.ObjectId(tenantId),
-          leadId: new Types.ObjectId(leadId),
-          entityType: 'lead',
-          entityId: new Types.ObjectId(leadId),
+          leadId:
+            entityType === 'lead'
+              ? new Types.ObjectId(entityId)
+              : undefined,
+          entityType,
+          entityId: new Types.ObjectId(entityId),
           activityType: 'status_change' as const,
-          eventType: EVENT_TYPES.LEAD_CONVERTED,
+          eventType:
+            entityType === 'lead'
+              ? EVENT_TYPES.LEAD_CONVERTED
+              : EVENT_TYPES.CLIENT_SALE_CONFIRMED,
           title: saleMode === 'quotes' ? 'Venta confirmada' : 'Venta directa confirmada',
           description: `Venta por $${totalAmount.toLocaleString('es-CL')}. Cliente ID: ${clientId}`,
           performedBy: new Types.ObjectId(userId),

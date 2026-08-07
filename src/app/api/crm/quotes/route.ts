@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import { connectDB } from '@/core/db';
 import { QuoteService, ValidationError } from '@/quotes/services';
 import type { CreateQuoteInput, QuoteStatus } from '@/quotes/types/quote';
+import ClientModel from '@/crm/models/client';
 
 const service = new QuoteService();
 
@@ -84,6 +85,24 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json() as CreateQuoteInput;
+
+    // Blocked-client gate for quotes created from a client detail page
+    if (body.clientId) {
+      const client = await ClientModel.findOne({
+        _id: new mongoose.Types.ObjectId(body.clientId),
+        tenantId: new mongoose.Types.ObjectId(tenantId),
+        deletedAt: null,
+      });
+
+      if (!client) {
+        return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 });
+      }
+
+      if (client.status === 'blocked') {
+        return NextResponse.json({ error: 'Cliente bloqueado — no puede operar' }, { status: 409 });
+      }
+    }
+
     const result = await service.createQuote(body, userId, tenantId);
 
     return NextResponse.json(result, { status: 201 });

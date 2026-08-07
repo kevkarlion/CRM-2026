@@ -640,13 +640,14 @@ export const timelineHandler = {
 
   async onSaleConfirmed(event: DomainEvent<SaleConfirmedPayload>): Promise<void> {
     const p = event.payload;
+    const isClient = p.leadId === null;
     const modeLabel = p.saleMode === 'quotes' ? 'mediante presupuestos' : 'venta directa';
     await timelineService.create({
       tenantId: event.tenantId,
-      leadId: p.leadId,
-      entityType: 'lead',
-      entityId: p.leadId,
-      eventType: 'lead.converted',
+      leadId: p.leadId ?? '',
+      entityType: isClient ? 'client' : 'lead',
+      entityId: isClient ? p.clientId : (p.leadId ?? ''),
+      eventType: isClient ? 'client.sale_confirmed' : 'lead.converted',
       title: 'Venta confirmada',
       summary: `$${p.amount.toLocaleString('es-AR')} — ${modeLabel}${p.quotesCount ? ` (${p.quotesCount} presupuesto${p.quotesCount > 1 ? 's' : ''})` : ''}`,
       icon: 'check-circle',

@@ -14,6 +14,7 @@ export class TechnicalVisitService {
     if (filters.status) query.status = filters.status;
     if (filters.priority) query.priority = filters.priority;
     if (filters.leadId) query.leadId = new Types.ObjectId(filters.leadId as string);
+    if (filters.clientId) query.clientId = new Types.ObjectId(filters.clientId as string);
     if (filters.technicianId) query.assignedTechnicianId = new Types.ObjectId(filters.technicianId as string);
     
     if (filters.scheduledDateGte || filters.scheduledDateLte) {

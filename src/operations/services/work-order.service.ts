@@ -134,6 +134,7 @@ export class WorkOrderService {
     filters: {
       status?: WorkOrderStatus;
       technicianId?: string;
+      clientId?: string;
       scheduledDateGte?: string;
       scheduledDateLte?: string;
     } = {},
@@ -150,6 +151,10 @@ export class WorkOrderService {
 
     if (filters.technicianId) {
       query.assignedTechnicians = new Types.ObjectId(filters.technicianId);
+    }
+
+    if (filters.clientId) {
+      query.clientId = new Types.ObjectId(filters.clientId);
     }
 
     if (filters.scheduledDateGte || filters.scheduledDateLte) {

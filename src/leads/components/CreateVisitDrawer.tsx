@@ -13,14 +13,30 @@ interface ServiceType {
 interface CreateVisitDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  leadId: string;
-  leadName: string;
+  leadId?: string;
+  leadName?: string;
   leadPhone?: string;
   leadEmail?: string;
+  clientId?: string;
+  clientName?: string;
+  clientPhone?: string;
+  clientEmail?: string;
   onSuccess: () => void;
 }
 
-export function CreateVisitDrawer({ isOpen, onClose, leadId, leadName, leadPhone, leadEmail, onSuccess }: CreateVisitDrawerProps) {
+export function CreateVisitDrawer({
+  isOpen,
+  onClose,
+  leadId,
+  leadName,
+  leadPhone,
+  leadEmail,
+  clientId,
+  clientName,
+  clientPhone,
+  clientEmail,
+  onSuccess,
+}: CreateVisitDrawerProps) {
   const [serviceTypes, setServiceTypes] = useState<ServiceType[]>([]);
   const [loadingServices, setLoadingServices] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -63,8 +79,8 @@ export function CreateVisitDrawer({ isOpen, onClose, leadId, leadName, leadPhone
 
     setSubmitting(true);
     try {
-      await api.post('/api/crm/leads/visits', {
-        leadId,
+      const entityName = clientName || leadName || '';
+      const payload = {
         serviceTypeId,
         scheduledDate,
         scheduledTime,
@@ -72,10 +88,19 @@ export function CreateVisitDrawer({ isOpen, onClose, leadId, leadName, leadPhone
         description,
         observations,
         priority,
-        contactName: leadName,
-        contactPhone: leadPhone,
-        contactEmail: leadEmail,
-      });
+        contactName: entityName,
+        contactPhone: clientId ? clientPhone : leadPhone,
+        contactEmail: clientEmail || leadEmail,
+      };
+
+      if (clientId) {
+        await api.post(`/api/crm/clients/${clientId}/visits`, payload);
+      } else {
+        await api.post('/api/crm/leads/visits', {
+          leadId,
+          ...payload,
+        });
+      }
       onSuccess();
       onClose();
       resetForm();
@@ -100,7 +125,7 @@ export function CreateVisitDrawer({ isOpen, onClose, leadId, leadName, leadPhone
     <Drawer
       isOpen={isOpen}
       onClose={onClose}
-      title={`Programar Visita Técnica - ${leadName}`}
+      title={`Programar Visita Técnica - ${clientName || leadName || ''}`}
       footer={
         <div className="flex gap-3">
           <button
@@ -228,9 +253,9 @@ export function CreateVisitDrawer({ isOpen, onClose, leadId, leadName, leadPhone
 
         <div className="p-3 bg-gray-50 rounded-lg text-sm">
           <p className="text-gray-600">
-            <span className="font-medium">Contacto:</span> {leadName}
-            {leadPhone && <span> • {leadPhone}</span>}
-            {leadEmail && <span> • {leadEmail}</span>}
+            <span className="font-medium">Contacto:</span> {clientName || leadName || ''}
+            {(clientPhone || leadPhone) && <span> • {clientPhone || leadPhone}</span>}
+            {(clientEmail || leadEmail) && <span> • {clientEmail || leadEmail}</span>}
           </p>
         </div>
       </form>

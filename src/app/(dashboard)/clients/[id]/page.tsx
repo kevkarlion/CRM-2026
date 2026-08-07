@@ -8,6 +8,7 @@ import { api, unwrapData } from '@/lib/api-client';
 import { EntityDetailLayout, EntityTab, EntityTabPanel, EntityTabs } from '@/components/entity-detail';
 import {
   ClientBlockHistoryCard,
+  ClientConfirmSaleDrawer,
   ClientDocumentationTab,
   ClientInfoCard,
   ClientMetadataCard,
@@ -21,6 +22,9 @@ import {
   CUSTOMER_TYPE_LABEL,
   clientName,
 } from '@/crm/components/detail';
+import { LeadCommercialActionsCard } from '@/leads/components/detail';
+import { CreateQuoteDrawer } from '@/leads/components/CreateQuoteDrawer';
+import { CreateVisitDrawer } from '@/leads/components/CreateVisitDrawer';
 import type { ClientDetail, QuoteListItem } from '@/crm/components/detail';
 
 type DetailTabId = 'resumen' | 'presupuestos' | 'ordenes' | 'visitas' | 'documentacion';
@@ -52,6 +56,11 @@ export default function ClientDetailPage() {
   const [blockReason, setBlockReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  // Commercial actions drawers
+  const [showQuoteDrawer, setShowQuoteDrawer] = useState(false);
+  const [showVisitDrawer, setShowVisitDrawer] = useState(false);
+  const [showConfirmSaleDrawer, setShowConfirmSaleDrawer] = useState(false);
 
   const loadClient = useCallback(async () => {
     try {
@@ -269,6 +278,12 @@ export default function ClientDetailPage() {
                       </button>
                     )}
                   </div>
+                  <LeadCommercialActionsCard
+                    onOpenQuoteDrawer={() => setShowQuoteDrawer(true)}
+                    onOpenVisitDrawer={() => setShowVisitDrawer(true)}
+                    onOpenQuickSaleDrawer={() => setShowConfirmSaleDrawer(true)}
+                    disabled={client.status === 'blocked'}
+                  />
                   <ClientMetadataCard client={client} />
                 </aside>
               </div>
@@ -279,11 +294,11 @@ export default function ClientDetailPage() {
             </EntityTabPanel>
 
             <EntityTabPanel id="ordenes">
-              <ClientWorkOrdersTab />
+              <ClientWorkOrdersTab clientId={id} />
             </EntityTabPanel>
 
             <EntityTabPanel id="visitas">
-              <ClientVisitsTab />
+              <ClientVisitsTab clientId={id} />
             </EntityTabPanel>
 
             <EntityTabPanel id="documentacion">
@@ -377,6 +392,32 @@ export default function ClientDetailPage() {
           </div>
         </div>
       )}
+
+      <CreateQuoteDrawer
+        isOpen={showQuoteDrawer}
+        onClose={() => setShowQuoteDrawer(false)}
+        clientId={id}
+        clientName={name}
+        onSuccess={refreshClient}
+      />
+
+      <CreateVisitDrawer
+        isOpen={showVisitDrawer}
+        onClose={() => setShowVisitDrawer(false)}
+        clientId={id}
+        clientName={name}
+        clientPhone={client.phone}
+        clientEmail={client.email}
+        onSuccess={refreshClient}
+      />
+
+      <ClientConfirmSaleDrawer
+        isOpen={showConfirmSaleDrawer}
+        onClose={() => setShowConfirmSaleDrawer(false)}
+        clientId={id}
+        clientName={name}
+        onSuccess={refreshClient}
+      />
     </>
   );
 }

@@ -4,6 +4,7 @@ export const EVENT_TYPES = {
   LEAD_CREATED: 'lead.created',
   LEAD_STATUS_CHANGED: 'lead.status_changed',
   LEAD_CONVERTED: 'lead.converted',
+  CLIENT_SALE_CONFIRMED: 'client.sale_confirmed',
   QUOTE_CREATED: 'quote.created',
   QUOTE_SENT: 'quote.sent',
   QUOTE_APPROVED: 'quote.approved',
