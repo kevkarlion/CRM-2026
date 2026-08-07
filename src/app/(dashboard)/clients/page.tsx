@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import Link from 'next/link';
 import { api, unwrapData } from '@/lib/api-client';
 
 interface Client {
@@ -55,6 +56,31 @@ function formatDate(dateStr: string) {
 
 function clientName(client: Client): string {
   return client.companyName || client.fullName || '—';
+}
+
+function ViewClientLink({ clientId }: { clientId: string }) {
+  return (
+    <Link
+      href={`/clients/${clientId}`}
+      className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-brand-600 transition-colors"
+    >
+      <svg
+        className="w-4 h-4"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+        />
+      </svg>
+      Ver
+    </Link>
+  );
 }
 
 export default function ClientsPage() {
@@ -146,7 +172,7 @@ export default function ClientsPage() {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter((e.target as any).value)}
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
+          className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
         >
           {STATUS_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -175,35 +201,39 @@ export default function ClientsPage() {
       ) : (
         <>
           <div className="hidden sm:block bg-white border border-gray-200 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm table-fixed">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50">
-                  <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Cliente</th>
-                  <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Email</th>
-                  <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Teléfono</th>
-                  <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Tipo</th>
-                  <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Localidad</th>
-                  <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Estado</th>
-                  <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Creado</th>
+                  <th className="text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Cliente</th>
+                  <th className="text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Email</th>
+                  <th className="text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Teléfono</th>
+                  <th className="w-24 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Tipo</th>
+                  <th className="w-28 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Localidad</th>
+                  <th className="w-28 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Estado</th>
+                  <th className="w-32 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Creado</th>
+                  <th className="w-24 text-right px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {sortedClients.map((client, i) => (
                   <tr
                     key={client._id}
-                    className={`transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-gray-100`}
+                    className={`transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-brand-50/40`}
                   >
-                    <td className="px-3 py-2 text-sm font-medium text-gray-900">{clientName(client)}</td>
-                    <td className="px-3 py-2 text-sm text-gray-500">{client.email || '—'}</td>
-                    <td className="px-3 py-2 text-sm text-gray-500">{client.phone || '—'}</td>
-                    <td className="px-3 py-2 text-sm text-gray-500">{CUSTOMER_TYPE_LABEL[client.customerType] || client.customerType}</td>
-                    <td className="px-3 py-2 text-sm text-gray-500">{client.locality || '—'}</td>
-                    <td className="px-3 py-2">
+                    <td className="px-2.5 py-1.5 text-sm font-medium text-gray-900 truncate">{clientName(client)}</td>
+                    <td className="px-2.5 py-1.5 text-sm text-gray-500 truncate">{client.email || '—'}</td>
+                    <td className="px-2.5 py-1.5 text-sm text-gray-500 truncate">{client.phone || '—'}</td>
+                    <td className="px-2.5 py-1.5 text-sm text-gray-500 truncate">{CUSTOMER_TYPE_LABEL[client.customerType] || client.customerType}</td>
+                    <td className="px-2.5 py-1.5 text-sm text-gray-500 truncate">{client.locality || '—'}</td>
+                    <td className="px-2.5 py-1.5">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[client.status] || 'bg-gray-100 text-gray-700'}`}>
                         {STATUS_OPTIONS.find((o) => o.value === client.status)?.label || client.status}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-sm text-gray-500 whitespace-nowrap">{formatDate(client.createdAt)}</td>
+                    <td className="px-2.5 py-1.5 text-sm text-gray-500 whitespace-nowrap">{formatDate(client.createdAt)}</td>
+                    <td className="px-2.5 py-1.5 text-right whitespace-nowrap">
+                      <ViewClientLink clientId={client._id} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -214,7 +244,7 @@ export default function ClientsPage() {
             {sortedClients.map((client) => (
               <div
                 key={client._id}
-                className="bg-white border border-gray-200 rounded-xl p-4"
+                className="bg-white border border-gray-200 rounded-xl p-3.5 hover:border-gray-300 transition-colors"
               >
                 <div className="flex items-start justify-between mb-2">
                   <div>
@@ -223,7 +253,7 @@ export default function ClientsPage() {
                       <p className="text-sm text-gray-500">{client.fullName}</p>
                     )}
                   </div>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[client.status] || 'bg-gray-100 text-gray-700'}`}>
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[client.status] || 'bg-gray-100 text-gray-700'}`}>
                     {STATUS_OPTIONS.find((o) => o.value === client.status)?.label || client.status}
                   </span>
                 </div>
@@ -243,6 +273,9 @@ export default function ClientsPage() {
                     ))}
                   </div>
                 )}
+                <div className="mt-3 flex justify-end border-t border-gray-100 pt-3">
+                  <ViewClientLink clientId={client._id} />
+                </div>
               </div>
             ))}
           </div>
