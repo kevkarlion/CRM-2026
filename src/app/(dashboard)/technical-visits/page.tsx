@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { api, unwrapData } from '@/lib/api-client';
 import { useRole } from '@/dashboard/context/role-context';
 import { SelfAssignmentVisitDrawer } from '@/operations/components/SelfAssignmentVisitDrawer';
+import { TECHNICAL_VISIT_STATUS_LABELS } from '@/operations/constants/status-labels';
 
 type Tab = 'all' | 'mine';
 
@@ -36,34 +37,18 @@ interface ListResponse {
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Todos' },
-  { value: 'draft', label: 'Borrador' },
-  { value: 'scheduled', label: 'Programada' },
-  { value: 'confirmed', label: 'Confirmada' },
-  { value: 'assigned', label: 'Asignada' },
-  { value: 'in_progress', label: 'En Progreso' },
-  { value: 'completed', label: 'Completada' },
-  { value: 'cancelled', label: 'Cancelada' },
-  { value: 'converted_to_work_order', label: 'Convertida a OT' },
+  ...Object.entries(TECHNICAL_VISIT_STATUS_LABELS).map(([value, label]) => ({ value, label })),
 ];
 
 // Status label helper - groups multiple internal statuses into simplified view
 function getStatusLabel(status: string): string {
   switch (status) {
-    case 'draft': return 'Borrador';
     case 'scheduled':
     case 'confirmed':
     case 'assigned':
       return 'Programada';
-    case 'in_progress':
-      return 'En Progreso';
-    case 'completed':
-      return 'Completada';
-    case 'cancelled':
-      return 'Cancelada';
-    case 'converted_to_work_order':
-      return 'Convertida a OT';
     default:
-      return status;
+      return TECHNICAL_VISIT_STATUS_LABELS[status as keyof typeof TECHNICAL_VISIT_STATUS_LABELS] || status;
   }
 }
 

@@ -8,6 +8,7 @@ import { api, unwrapData } from '@/lib/api-client';
 import { useRole } from '@/dashboard/context/role-context';
 import { SelfAssignmentDrawer } from '@/operations/components/SelfAssignmentDrawer';
 import { formatDateShort as formatDate } from '@/operations/helpers/date-utils';
+import { WORK_ORDER_STATUS_LABELS } from '@/operations/constants/status-labels';
 
 type Tab = 'all' | 'mine';
 
@@ -52,36 +53,21 @@ interface ListResponse {
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Todos' },
-  { value: 'draft', label: 'Borrador' },
-  { value: 'scheduled', label: 'Programada' },
-  { value: 'confirmed', label: 'Confirmada' },
-  { value: 'assigned', label: 'Asignada' },
-  { value: 'in_progress', label: 'En Progreso' },
-  { value: 'paused', label: 'Pausada' },
-  { value: 'completed', label: 'Completada' },
-  { value: 'cancelled', label: 'Cancelada' },
-  { value: 'closed', label: 'Cerrada' },
+  ...Object.entries(WORK_ORDER_STATUS_LABELS).map(([value, label]) => ({ value, label })),
 ];
 
 // Status label helper - groups multiple internal statuses into simplified view
 function getStatusLabel(status: string): string {
   switch (status) {
-    case 'draft': return 'Borrador';
     case 'scheduled':
     case 'confirmed':
     case 'assigned':
       return 'Programada';
-    case 'in_progress':
-      return 'En Progreso';
-    case 'paused':
-      return 'Pausada';
-    case 'completed':
-      return 'Completada';
     case 'cancelled':
     case 'closed':
       return 'Cancelada';
     default:
-      return status;
+      return WORK_ORDER_STATUS_LABELS[status as keyof typeof WORK_ORDER_STATUS_LABELS] || status;
   }
 }
 
