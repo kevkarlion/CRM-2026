@@ -3,8 +3,9 @@
 import Link from 'next/link';
 
 import { EntityEmptyState } from '@/components/entity-detail';
+import { formatDateShort } from '@/operations/helpers/date-utils';
+import { WORK_ORDER_STATUS_LABELS } from '@/operations/constants/status-labels';
 import { WORK_ORDER_STATUS_VARIANT } from '@/operations/constants/status-colors';
-import { formatShortDate } from './lead-detail.constants';
 import type { WorkOrderListItem } from './lead-detail.types';
 
 interface LeadWorkOrdersTabProps {
@@ -12,12 +13,44 @@ interface LeadWorkOrdersTabProps {
   loading: boolean;
 }
 
+function formatWorkOrderNumber(number: string): string {
+  // Format: "2026-WO-000001" or "20260001" → "#06-0001"
+  if (!number) return '';
+  const clean = number.replace(/[^0-9]/g, '');
+  if (clean.length >= 6) {
+    const year = clean.slice(-6, -4);
+    const seq = clean.slice(-4);
+    return `#${year}-${seq}`;
+  }
+  return `#${number}`;
+}
+
 export function LeadWorkOrdersTab({ workOrders, loading }: LeadWorkOrdersTabProps) {
   if (loading) {
     return (
-      <div className="space-y-3">
-        <div className="h-5 w-44 rounded bg-gray-200 animate-pulse" />
-        <div className="h-24 w-full rounded-xl bg-gray-100 animate-pulse" />
+      <div className="overflow-hidden rounded-lg border border-gray-200">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nº</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Título</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acción</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {[1, 2, 3].map((i) => (
+              <tr key={i}>
+                <td className="px-4 py-3"><div className="h-4 w-12 bg-gray-200 rounded animate-pulse" /></td>
+                <td className="px-4 py-3"><div className="h-4 w-32 bg-gray-200 rounded animate-pulse" /></td>
+                <td className="px-4 py-3"><div className="h-4 w-20 bg-gray-200 rounded animate-pulse" /></td>
+                <td className="px-4 py-3"><div className="h-5 w-16 bg-gray-200 rounded animate-pulse" /></td>
+                <td className="px-4 py-3"><div className="h-5 w-10 bg-gray-200 rounded animate-pulse ml-auto" /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     );
   }
@@ -48,44 +81,58 @@ export function LeadWorkOrdersTab({ workOrders, loading }: LeadWorkOrdersTabProp
   }
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-base font-semibold text-gray-900">
-        Órdenes de trabajo{' '}
-        <span className="font-normal text-gray-500">({workOrders.length})</span>
-      </h2>
-
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-        {workOrders.map((workOrder) => (
-          <Link
-            key={workOrder._id}
-            href={`/work-orders/${workOrder._id}`}
-            className="block rounded-xl border border-gray-200 bg-gray-50 p-4 transition-colors hover:border-brand-300 hover:bg-brand-50/40"
-          >
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-gray-900">
-                  {workOrder.title || workOrder.workOrderNumber}
-                </p>
-                <p className="mt-0.5 text-xs text-gray-500">#{workOrder.workOrderNumber}</p>
-              </div>
-              <div className="shrink-0 text-right">
+    <div className="overflow-hidden rounded-lg border border-gray-200">
+      <table className="min-w-full divide-y divide-gray-200">
+        <thead className="bg-gray-50">
+          <tr>
+            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Nº
+            </th>
+            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Título
+            </th>
+            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Fecha
+            </th>
+            <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Estado
+            </th>
+            <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Acción
+            </th>
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {workOrders.map((workOrder) => (
+            <tr key={workOrder._id} className="hover:bg-gray-50">
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                {formatWorkOrderNumber(workOrder.workOrderNumber)}
+              </td>
+              <td className="px-4 py-3 text-sm text-gray-900">
+                {workOrder.title || workOrder.workOrderNumber}
+              </td>
+              <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                {formatDateShort(workOrder.scheduledDate || workOrder.createdAt)}
+              </td>
+              <td className="px-4 py-3 whitespace-nowrap">
                 <span
-                  className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                    WORK_ORDER_STATUS_VARIANT[workOrder.status] || 'bg-gray-100 text-gray-700'
-                  }`}
+                  className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${WORK_ORDER_STATUS_VARIANT[workOrder.status] || 'bg-gray-100 text-gray-700'}`}
                 >
-                  {workOrder.status}
+                  {WORK_ORDER_STATUS_LABELS[workOrder.status as keyof typeof WORK_ORDER_STATUS_LABELS] || workOrder.status}
                 </span>
-                {workOrder.scheduledDate && (
-                  <p className="mt-1 text-xs text-gray-500">
-                    {formatShortDate(workOrder.scheduledDate)}
-                  </p>
-                )}
-              </div>
-            </div>
-          </Link>
-        ))}
-      </div>
+              </td>
+              <td className="px-2 py-1.5 whitespace-nowrap text-right align-middle">
+                <Link
+                  href={`/work-orders/${workOrder._id}`}
+                  className="inline-flex items-center rounded-md bg-brand-50 px-2 py-1 text-xs font-medium text-brand-600 hover:bg-brand-100 cursor-pointer"
+                >
+                  Ver
+                </Link>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 
 import { api } from '@/lib/api-client';
 import { EntityDetailLayout, EntityTab, EntityTabPanel, EntityTabs } from '@/components/entity-detail';
+import { LeadTimeline } from '@/activity/components/LeadTimeline';
 import {
   LeadActivityTabs,
   LeadAdminNotesCard,
@@ -38,7 +39,7 @@ import { useChatMessages } from '@/whatsapp/hooks/useChatMessages';
 import { useChatPolling } from '@/whatsapp/hooks/useChatPolling';
 import { useWhatsAppSend } from '@/whatsapp/hooks/useWhatsAppSend';
 
-type DetailTabId = 'resumen' | 'presupuestos' | 'ordenes' | 'visitas' | 'documentacion';
+type DetailTabId = 'resumen' | 'presupuestos' | 'ordenes' | 'visitas' | 'documentacion' | 'actividad';
 
 function isContactedStatus(status: string): boolean {
   return status === 'contacted' || status === 'quote_sent' || status === 'technical_visit';
@@ -350,6 +351,7 @@ export default function LeadDetailPage() {
           <EntityTab id="ordenes" label="Órdenes de trabajo" count={workOrders.length} />
           <EntityTab id="visitas" label="Visitas técnicas" count={visits.length} />
           <EntityTab id="documentacion" label="Documentación" />
+          <EntityTab id="actividad" label="Actividad" />
 
           <EntityTabPanel id="resumen">
             <div className="space-y-6">
@@ -433,6 +435,10 @@ export default function LeadDetailPage() {
 
           <EntityTabPanel id="documentacion">
             <LeadDocumentationTab />
+          </EntityTabPanel>
+
+          <EntityTabPanel id="actividad">
+            <LeadTimeline leadId={id} refreshKey={timelineRefreshKey} />
           </EntityTabPanel>
         </EntityTabs>
       </div>
