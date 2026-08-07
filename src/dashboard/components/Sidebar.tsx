@@ -103,6 +103,13 @@ export function Sidebar() {
 
   const visibleItems = navItems.filter((item) => item.roles.includes(role));
 
+  // Highlight the most specific nav item matching the current path
+  // (segment-aware prefix match: /leads/abc123 highlights "Leads",
+  // while /leads/pipeline keeps highlighting only "Pipeline").
+  const activeHref = visibleItems
+    .filter((item) => pathname === item.href || pathname.startsWith(item.href + '/'))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
+
   return (
     <>
       {/* Mobile hamburger */}
@@ -128,7 +135,7 @@ export function Sidebar() {
 
         <nav className="sidebar-scroll flex-1 min-h-0 overflow-y-auto p-3 space-y-1">
           {visibleItems.map((item) => {
-            const active = pathname === item.href;
+            const active = item.href === activeHref;
             const ItemIcon = item.icon;
             return (
               <Link

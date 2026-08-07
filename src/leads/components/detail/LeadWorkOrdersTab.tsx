@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 import { EntityEmptyState } from '@/components/entity-detail';
 import { WORK_ORDER_STATUS_VARIANT } from '@/operations/constants/status-colors';
 import { formatShortDate } from './lead-detail.constants';
@@ -54,7 +56,7 @@ export function LeadWorkOrdersTab({ workOrders, loading }: LeadWorkOrdersTabProp
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         {workOrders.map((workOrder) => (
-          <a
+          <Link
             key={workOrder._id}
             href={`/work-orders/${workOrder._id}`}
             className="block rounded-xl border border-gray-200 bg-gray-50 p-4 transition-colors hover:border-brand-300 hover:bg-brand-50/40"
@@ -81,7 +83,7 @@ export function LeadWorkOrdersTab({ workOrders, loading }: LeadWorkOrdersTabProp
                 )}
               </div>
             </div>
-          </a>
+          </Link>
         ))}
       </div>
     </div>

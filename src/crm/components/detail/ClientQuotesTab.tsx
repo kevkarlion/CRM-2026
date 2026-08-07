@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 import { EntityEmptyState } from '@/components/entity-detail';
 import type { QuoteListItem } from './client-detail.types';
 import { QUOTE_STATUS_LABELS, QUOTE_STATUS_VARIANT, formatCurrency } from './client-detail.constants';
@@ -55,7 +57,7 @@ export function ClientQuotesTab({ quotes, loading }: ClientQuotesTabProps) {
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         {quotes.map((quote) => (
-          <a
+          <Link
             key={quote._id}
             href={`/quotes/${quote._id}`}
             className="block rounded-xl border border-gray-200 bg-gray-50 p-4 transition-colors hover:border-brand-300 hover:bg-brand-50/40"
@@ -78,7 +80,7 @@ export function ClientQuotesTab({ quotes, loading }: ClientQuotesTabProps) {
                 </p>
               </div>
             </div>
-          </a>
+          </Link>
         ))}
       </div>
     </div>

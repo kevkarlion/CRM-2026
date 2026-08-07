@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import { api } from '@/lib/api-client';
 import {
@@ -365,10 +366,10 @@ export default function EditWorkOrderPage() {
                 <div className={readonlyClass}>{workOrder.quoteId}</div>
               </div>
               <div className="flex items-end">
-                <a href={`/quotes/${workOrder.quoteId}`}
+                <Link href={`/quotes/${workOrder.quoteId}`}
                   className="text-sm text-brand-600 hover:underline font-medium">
                   Ver presupuesto →
-                </a>
+                </Link>
               </div>
             </div>
           </div>

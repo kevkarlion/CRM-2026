@@ -177,8 +177,11 @@ function WorkOrderCard({ wo }: { wo: WorkOrderRow }) {
             e.stopPropagation();
             router.push(`/work-orders/${wo._id}`);
           }}
-          className="text-xs font-medium text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 bg-brand-50 dark:bg-brand-900/30 hover:bg-brand-100 dark:hover:bg-brand-900/50 px-3 py-1.5 rounded-lg transition-colors"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-brand-50 px-2.5 py-1.5 text-xs font-medium text-brand-600 hover:bg-brand-100 hover:text-brand-700 transition-colors dark:bg-brand-900/30 dark:text-brand-400 dark:hover:bg-brand-900/50 dark:hover:text-brand-300 cursor-pointer"
         >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+          </svg>
           Ver
         </button>
       </div>
@@ -294,6 +297,7 @@ export function WorkOrderListView({ workOrders, onRefresh }: WorkOrderListViewPr
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-100 dark:border-slate-700">
+<th className="text-left text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-2 px-3">Acción</th>
 <th className="text-left text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-2 px-3">Tipo</th>
                   <th className="text-left text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-2 px-3">#</th>
                   <th className="text-left text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-2 px-3">Título</th>
@@ -303,7 +307,6 @@ export function WorkOrderListView({ workOrders, onRefresh }: WorkOrderListViewPr
                   <th className="text-left text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-2 px-3">Programado</th>
                   <th className="text-left text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-2 px-3">Técnico</th>
                   <th className="text-left text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-2 px-3">Días restantes</th>
-                  <th className="text-left text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-2 px-3">Acción</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 dark:divide-slate-700/50">
@@ -312,6 +315,20 @@ export function WorkOrderListView({ workOrders, onRefresh }: WorkOrderListViewPr
                   key={wo._id}
                   className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
                 >
+                  <td className="py-2 px-3">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        router.push(`/work-orders/${wo._id}`);
+                      }}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-brand-50 px-2.5 py-1.5 text-xs font-medium text-brand-600 hover:bg-brand-100 hover:text-brand-700 transition-colors dark:bg-brand-900/30 dark:text-brand-400 dark:hover:bg-brand-900/50 dark:hover:text-brand-300 cursor-pointer"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                      Ver
+                    </button>
+                  </td>
                   <td className="py-2 px-3">
                     <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ${sourceBadge(wo.source).variant}`}>
                       {sourceBadge(wo.source).label}
@@ -372,17 +389,6 @@ export function WorkOrderListView({ workOrders, onRefresh }: WorkOrderListViewPr
                         </span>
                       );
                     })()}
-                  </td>
-                  <td className="py-2 px-3">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        router.push(`/work-orders/${wo._id}`);
-                      }}
-                      className="text-xs font-medium text-brand-600 dark:text-brand-400 hover:text-brand-700 dark:hover:text-brand-300 bg-brand-50 dark:bg-brand-900/30 hover:bg-brand-100 dark:hover:bg-brand-900/50 px-3 py-1.5 rounded-lg transition-colors"
-                    >
-                      Ver
-                    </button>
                   </td>
                 </tr>
               ))}

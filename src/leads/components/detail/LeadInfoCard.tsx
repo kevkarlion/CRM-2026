@@ -1,6 +1,8 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import Link from 'next/link';
+
 import type { LeadDetail, SaleDetail } from './lead-detail.types';
 import {
   SOURCE_LABELS,
@@ -114,12 +116,12 @@ export function LeadInfoCard({
                 <div className="flex items-center gap-3">
                   <dt className="w-32 shrink-0 text-xs font-medium text-gray-500">OT Creada</dt>
                   <dd>
-                    <a
+                    <Link
                       href={`/work-orders/${lead.convertedToWorkOrder}`}
                       className="font-medium text-brand-600 hover:text-brand-700"
                     >
                       Ver Orden de Trabajo →
-                    </a>
+                    </Link>
                   </dd>
                 </div>
               )}
@@ -137,12 +139,12 @@ export function LeadInfoCard({
                     Detalle de Venta
                   </dt>
                   <dd className="flex flex-1 items-center gap-3">
-                    <a
+                    <Link
                       href={`/quotes/${saleDetail.quote._id}`}
                       className="flex-1 font-medium text-brand-600 hover:text-brand-700"
                     >
                       {saleDetail.quote.title} ({formatCurrency(saleDetail.quote.total)}) →
-                    </a>
+                    </Link>
                     <button
                       onClick={() => onViewQuote(saleDetail.quote!._id)}
                       className="text-xs text-gray-500 underline hover:text-gray-700"

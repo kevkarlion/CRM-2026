@@ -63,7 +63,7 @@ function ViewLeadLink({ leadId }: { leadId: string }) {
   return (
     <Link
       href={`/leads/${leadId}`}
-      className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-brand-600 transition-colors"
+      className="inline-flex items-center gap-1.5 rounded-lg bg-brand-50 px-2.5 py-1.5 text-xs font-medium text-brand-600 hover:bg-brand-100 hover:text-brand-700 transition-colors cursor-pointer"
     >
       <svg
         className="w-4 h-4"
@@ -215,6 +215,7 @@ export default function LeadsPage() {
             <table className="w-full text-sm table-fixed">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50">
+                  <th className="w-24 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Acciones</th>
                   <th className="text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nombre</th>
                   <th className="text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Empresa</th>
                   <th className="text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Email</th>
@@ -222,7 +223,6 @@ export default function LeadsPage() {
                   <th className="w-28 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Estado</th>
                   <th className="w-24 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Origen</th>
                   <th className="w-32 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Creado</th>
-                  <th className="w-24 text-right px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Acciones</th>
                 </tr>
               </thead>
               <tbody>
@@ -231,6 +231,9 @@ export default function LeadsPage() {
                     key={lead._id}
                     className={`transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-brand-50/40`}
                   >
+                    <td className="px-2.5 py-1.5 text-left whitespace-nowrap">
+                      <ViewLeadLink leadId={lead._id} />
+                    </td>
                     <td className="px-2.5 py-1.5 text-sm font-medium text-gray-900 truncate">{lead.name}</td>
                     <td className="px-2.5 py-1.5 text-sm text-gray-600 truncate">{lead.companyName || '—'}</td>
                     <td className="px-2.5 py-1.5 text-sm text-gray-500 truncate">{lead.email || '—'}</td>
@@ -242,9 +245,6 @@ export default function LeadsPage() {
                     </td>
                     <td className="px-2.5 py-1.5 text-sm text-gray-500 capitalize truncate">{lead.source}</td>
                     <td className="px-2.5 py-1.5 text-sm text-gray-500 whitespace-nowrap">{formatDate(lead.createdAt)}</td>
-                    <td className="px-2.5 py-1.5 text-right whitespace-nowrap">
-                      <ViewLeadLink leadId={lead._id} />
-                    </td>
                   </tr>
                 ))}
               </tbody>
