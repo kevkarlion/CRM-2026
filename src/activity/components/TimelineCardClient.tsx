@@ -7,11 +7,10 @@ export function TimelineCardClient({ event }: { event: TimelineCardProps['event'
   const sourceId = event.metadata?.sourceId as string | undefined;
   const sourceNumber = getEntityNumber(event.metadata, 'Ver');
 
-  // Determine which entity type to link based on event type
+  // For client-scoped events from quotes, visits, work orders, use sourceId from metadata
   let linkEntityType = 'client';
-  let linkEntityId = event.entityId;
+  let linkEntityId = sourceId || event.entityId;
 
-  // For client-scoped events from quotes, visits, work orders, use those entity routes
   if (event.eventType?.startsWith('quote.')) {
     linkEntityType = 'quote';
   } else if (event.eventType?.startsWith('visit.')) {
@@ -20,7 +19,7 @@ export function TimelineCardClient({ event }: { event: TimelineCardProps['event'
     linkEntityType = 'work_order';
   }
 
-  const href = resolveEntityRoute(linkEntityType, linkEntityId || sourceId || '');
+  const href = resolveEntityRoute(linkEntityType, linkEntityId);
 
   // Get icon and color from metadata or use defaults
   const icon = (event.metadata?.icon as string) || event.icon || 'building';
