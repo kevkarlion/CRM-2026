@@ -19,6 +19,7 @@ import {
   ClipboardList,
   Calendar,
   ClipboardCheck,
+  Contact,
   Menu,
   X,
   Map,
@@ -41,8 +42,9 @@ const iconMap: Record<string, LucideIcon> = {
   Técnicos: Users,
   Admin: Settings,
   Leads: Target,
-  Quotes: FileText,
-  'Centro Operativo': ClipboardCheck,
+  'Centro Operativo Comercial': FileText,
+  'Centro Operativo Técnico': ClipboardCheck,
+  Clientes: Contact,
   'Órdenes de Trabajo': Wrench,
   'Mi Calendario': Calendar,
   'Visitas Técnicas': ClipboardCheck,
@@ -58,9 +60,10 @@ const navItems: NavItem[] = [
   { label: 'Técnicos', href: '/dashboard/technicians', icon: iconMap['Técnicos'], roles: ['Supervisor', 'Dispatcher'] },
   { label: 'Admin', href: '/dashboard/admin', icon: iconMap['Admin'], roles: ['Owner', 'Administrator'] },
   { label: 'Leads', href: '/leads', icon: iconMap['Leads'], roles: ['Sales', 'Administrator', 'Owner', 'Supervisor'] },
-  { label: 'Quotes', href: '/quotes', icon: iconMap['Quotes'], roles: ['Sales', 'Administrator', 'Owner', 'Supervisor'] },
+  { label: 'Clientes', href: '/clients', icon: iconMap['Clientes'], roles: ['Owner', 'Administrator', 'Supervisor', 'Sales', 'Accounting'] },
+  { label: 'Centro Operativo Comercial', href: '/quotes', icon: iconMap['Centro Operativo Comercial'], roles: ['Sales', 'Administrator', 'Owner', 'Supervisor'] },
   // Order for technicians/operations
-  { label: 'Centro Operativo', href: '/centro-operativo', icon: iconMap['Centro Operativo'], roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Technician'] },
+  { label: 'Centro Operativo Técnico', href: '/centro-operativo', icon: iconMap['Centro Operativo Técnico'], roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Technician'] },
   { label: 'Órdenes de Trabajo', href: '/work-orders', icon: iconMap['Órdenes de Trabajo'], roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Technician', 'Sales', 'Accounting'] },
   { label: 'Visitas Técnicas', href: '/technical-visits', icon: iconMap['Visitas Técnicas'], roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Sales', 'Technician'] },
   { label: 'Mi Calendario', href: '/work-orders/calendar', icon: iconMap['Mi Calendario'], roles: ['Technician', 'Supervisor', 'Dispatcher', 'Owner', 'Administrator'] },
@@ -112,8 +115,8 @@ export function Sidebar() {
       </button>
 
       {/* Desktop sidebar — fixed, always black */}
-      <aside className={`fixed top-0 left-0 z-50 h-full w-56 bg-gray-950 border-r border-gray-800 transform transition-transform duration-200 lg:translate-x-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="p-4 border-b border-gray-800">
+      <aside className={`fixed top-0 left-0 z-50 flex h-full w-56 flex-col bg-gray-950 border-r border-gray-800 transform transition-transform duration-200 lg:translate-x-0 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="p-4 border-b border-gray-800 flex-shrink-0">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center">
               <span className="text-white font-bold text-sm">C</span>
@@ -123,7 +126,7 @@ export function Sidebar() {
           <span className="text-xs text-gray-500 mt-1 block capitalize">{role}</span>
         </div>
 
-        <nav className="p-3 space-y-1">
+        <nav className="sidebar-scroll flex-1 min-h-0 overflow-y-auto p-3 space-y-1">
           {visibleItems.map((item) => {
             const active = pathname === item.href;
             const ItemIcon = item.icon;

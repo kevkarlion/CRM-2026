@@ -1,11 +1,14 @@
 import { Document, Types } from 'mongoose';
 import { IAuditFields } from './audit-fields';
 
+export type CustomerType = 'residential' | 'commercial' | 'industrial';
+export type ClientStatus = 'prospect' | 'active' | 'inactive' | 'blacklisted';
+
 export interface IClient extends Document, IAuditFields {
   _id: Types.ObjectId;
   tenantId: Types.ObjectId;
-  customerType: 'residential' | 'commercial' | 'industrial';
-  status: 'prospect' | 'active' | 'inactive' | 'blacklisted';
+  customerType: CustomerType;
+  status: ClientStatus;
   fullName?: string;
   companyName?: string;
   taxId?: string;

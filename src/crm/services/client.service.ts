@@ -1,7 +1,65 @@
+import { Types } from 'mongoose';
 import { ClientModel, ContactModel, LocationModel, EquipmentModel, TaskModel } from '../models';
-import { IClient, CreateClientInput, UpdateClientInput } from '../types/client';
+import { cursorPage } from '../helpers/cursor-pagination';
+import { IClient, ClientStatus, CustomerType, CreateClientInput, UpdateClientInput } from '../types/client';
+
+export interface ClientListFilters {
+  status?: ClientStatus;
+  customerType?: CustomerType;
+  search?: string;
+  cursor?: string;
+  limit?: number;
+}
+
+export interface ClientListResult {
+  data: IClient[];
+  cursor?: string;
+  total: number;
+}
 
 export class ClientService {
+  async listClients(
+    filters: ClientListFilters,
+    tenantId: string,
+  ): Promise<ClientListResult> {
+    const filter: Record<string, unknown> = {
+      tenantId: new Types.ObjectId(tenantId),
+      deletedAt: null,
+    };
+
+    if (filters.status) {
+      filter.status = filters.status;
+    }
+
+    if (filters.customerType) {
+      filter.customerType = filters.customerType;
+    }
+
+    if (filters.search) {
+      const escaped = filters.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      filter.$or = [
+        { fullName: { $regex: escaped, $options: 'i' } },
+        { companyName: { $regex: escaped, $options: 'i' } },
+        { email: { $regex: escaped, $options: 'i' } },
+        { phone: { $regex: escaped, $options: 'i' } },
+      ];
+    }
+
+    const total = await ClientModel.countDocuments(filter).exec();
+
+    const page = await cursorPage(ClientModel, filter, {
+      limit: filters.limit || 20,
+      cursor: filters.cursor,
+      sort: { createdAt: -1 },
+    } as never);
+
+    return {
+      data: page.data as unknown as IClient[],
+      cursor: page.cursor ?? undefined,
+      total,
+    };
+  }
+
   async create(
     data: CreateClientInput,
     tenantId: string,

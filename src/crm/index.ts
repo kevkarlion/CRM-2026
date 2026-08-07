@@ -20,6 +20,8 @@ export {
 export { cursorPage } from './helpers/cursor-pagination';
 export type {
   IClient,
+  ClientStatus,
+  CustomerType,
   CreateClientInput,
   UpdateClientInput,
   IContact,
