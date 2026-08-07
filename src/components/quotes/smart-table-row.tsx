@@ -83,12 +83,10 @@ export function SmartTableRow({ row }: SmartTableRowProps) {
   return (
     <tr className="border-b border-gray-100 hover:bg-brand-50/40 transition-colors">
       <td className="px-2 py-1.5 align-middle">
-        <Link href={href} className="block">
-          <p className="text-xs font-medium text-gray-900">{row.clientName}</p>
-          {row.companyName && (
-            <p className="text-xs text-gray-500">{row.companyName}</p>
-          )}
-        </Link>
+        <p className="text-xs font-medium text-gray-900">{row.clientName}</p>
+        {row.companyName && (
+          <p className="text-xs text-gray-500">{row.companyName}</p>
+        )}
       </td>
       <td className="px-2 py-1.5 align-middle">
         <span className="text-xs text-gray-600">
@@ -133,6 +131,14 @@ export function SmartTableRow({ row }: SmartTableRowProps) {
         ) : (
           <span className="text-xs text-gray-400">—</span>
         )}
+      </td>
+      <td className="px-2 py-1.5 align-middle">
+        <Link
+          href={href}
+          className="inline-flex items-center rounded-md bg-brand-50 px-2 py-1 text-xs font-medium text-brand-600 hover:bg-brand-100"
+        >
+          Ver
+        </Link>
       </td>
     </tr>
   );

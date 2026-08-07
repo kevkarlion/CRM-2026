@@ -38,6 +38,7 @@ export function SmartTable({ rows, loading, error, onRetry, children }: SmartTab
             <th className="px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Vencimiento</th>
             <th className="px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Acción</th>
             <th className="px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Asignado</th>
+            <th className="w-14 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"></th>
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-100 bg-white">
@@ -45,7 +46,7 @@ export function SmartTable({ rows, loading, error, onRetry, children }: SmartTab
             Array.from({ length: 5 }).map((_, i) => <SkeletonRow key={i} />)
           ) : error ? (
             <tr>
-              <td colSpan={7} className="px-2 py-6 text-center">
+              <td colSpan={8} className="px-2 py-6 text-center">
                 <div className="flex flex-col items-center gap-2">
                   <p className="text-xs text-red-600">{error}</p>
                   {onRetry && (
@@ -61,7 +62,7 @@ export function SmartTable({ rows, loading, error, onRetry, children }: SmartTab
             </tr>
           ) : rows.length === 0 ? (
             <tr>
-              <td colSpan={7} className="px-2 py-6 text-center text-xs text-gray-400">
+              <td colSpan={8} className="px-2 py-6 text-center text-xs text-gray-400">
                 No hay cotizaciones o negociaciones
               </td>
             </tr>
