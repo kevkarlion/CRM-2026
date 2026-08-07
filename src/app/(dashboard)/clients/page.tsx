@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { api, unwrapData } from '@/lib/api-client';
+import { SOURCE_LABELS } from '@/leads/components/detail';
 import { SearchInput } from '@/components/ui/SearchInput';
 
 interface Client {
@@ -17,6 +18,7 @@ interface Client {
   address?: string;
   locality?: string;
   province?: string;
+  source?: string;
   notes?: string;
   tags?: string[];
   createdAt: string;
@@ -33,14 +35,14 @@ const STATUS_OPTIONS = [
   { value: 'prospect', label: 'Prospecto' },
   { value: 'active', label: 'Activo' },
   { value: 'inactive', label: 'Inactivo' },
-  { value: 'blacklisted', label: 'Bloqueado' },
+  { value: 'blocked', label: 'Bloqueado' },
 ];
 
 const STATUS_VARIANT: Record<string, string> = {
   prospect: 'bg-brand-50 text-brand-700',
   active: 'bg-success-50 text-success-700',
   inactive: 'bg-gray-100 text-gray-700',
-  blacklisted: 'bg-danger-50 text-danger-700',
+  blocked: 'bg-danger-50 text-danger-700',
 };
 
 const CUSTOMER_TYPE_LABEL: Record<string, string> = {
@@ -155,6 +157,15 @@ export default function ClientsPage() {
             {total > 0 ? `${total} clientes encontrados` : 'Gestiona tus clientes'}
           </p>
         </div>
+        <Link
+          href="/clients/new"
+          className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Nuevo Contacto
+        </Link>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3">
@@ -200,12 +211,13 @@ export default function ClientsPage() {
                 <tr className="border-b border-gray-100 bg-gray-50">
                   <th className="w-24 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Acciones</th>
                   <th className="text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Cliente</th>
+                  <th className="text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nombre</th>
                   <th className="text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Email</th>
                   <th className="text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Teléfono</th>
-                  <th className="w-24 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Tipo</th>
-                  <th className="w-28 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Localidad</th>
                   <th className="w-28 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Estado</th>
                   <th className="w-32 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Creado</th>
+                  <th className="w-24 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Origen</th>
+                  <th className="w-28 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Localidad</th>
                 </tr>
               </thead>
               <tbody>
@@ -218,16 +230,17 @@ export default function ClientsPage() {
                       <ViewClientLink clientId={client._id} />
                     </td>
                     <td className="px-2.5 py-1.5 text-sm font-medium text-gray-900 truncate">{clientName(client)}</td>
+                    <td className="px-2.5 py-1.5 text-sm text-gray-600 truncate">{client.fullName || '—'}</td>
                     <td className="px-2.5 py-1.5 text-sm text-gray-500 truncate">{client.email || '—'}</td>
                     <td className="px-2.5 py-1.5 text-sm text-gray-500 truncate">{client.phone || '—'}</td>
-                    <td className="px-2.5 py-1.5 text-sm text-gray-500 truncate">{CUSTOMER_TYPE_LABEL[client.customerType] || client.customerType}</td>
-                    <td className="px-2.5 py-1.5 text-sm text-gray-500 truncate">{client.locality || '—'}</td>
                     <td className="px-2.5 py-1.5">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[client.status] || 'bg-gray-100 text-gray-700'}`}>
                         {STATUS_OPTIONS.find((o) => o.value === client.status)?.label || client.status}
                       </span>
                     </td>
                     <td className="px-2.5 py-1.5 text-sm text-gray-500 whitespace-nowrap">{formatDate(client.createdAt)}</td>
+                    <td className="px-2.5 py-1.5 text-sm text-gray-500 truncate">{client.source ? (SOURCE_LABELS[client.source] || client.source) : '—'}</td>
+                    <td className="px-2.5 py-1.5 text-sm text-gray-500 truncate">{client.locality || '—'}</td>
                   </tr>
                 ))}
               </tbody>

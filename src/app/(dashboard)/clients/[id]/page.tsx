@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 import { api, unwrapData } from '@/lib/api-client';
 import { EntityDetailLayout, EntityTab, EntityTabPanel, EntityTabs } from '@/components/entity-detail';
 import {
+  ClientBlockHistoryCard,
   ClientDocumentationTab,
   ClientInfoCard,
   ClientMetadataCard,
@@ -44,6 +46,13 @@ export default function ClientDetailPage() {
   const [loadingQuotes, setLoadingQuotes] = useState(false);
   const quotesLoadedRef = useRef(false);
 
+  // Block / unblock flow
+  const [blockModalOpen, setBlockModalOpen] = useState(false);
+  const [unblockModalOpen, setUnblockModalOpen] = useState(false);
+  const [blockReason, setBlockReason] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
   const loadClient = useCallback(async () => {
     try {
       setLoading(true);
@@ -56,6 +65,58 @@ export default function ClientDetailPage() {
       setLoading(false);
     }
   }, [id]);
+
+  async function refreshClient() {
+    try {
+      const data = await api.get<ClientDetail>(`/api/crm/clients/${id}`);
+      setClient(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al cargar cliente');
+    }
+  }
+
+  function closeBlockModal() {
+    if (submitting) return;
+    setBlockModalOpen(false);
+    setBlockReason('');
+    setActionError(null);
+  }
+
+  function closeUnblockModal() {
+    if (submitting) return;
+    setUnblockModalOpen(false);
+    setActionError(null);
+  }
+
+  async function handleBlock() {
+    if (!blockReason.trim()) return;
+    setSubmitting(true);
+    setActionError(null);
+    try {
+      await api.post(`/api/crm/clients/${id}/block`, { reason: blockReason.trim() });
+      setBlockModalOpen(false);
+      setBlockReason('');
+      await refreshClient();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Error al bloquear cliente');
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleUnblock() {
+    setSubmitting(true);
+    setActionError(null);
+    try {
+      await api.post(`/api/crm/clients/${id}/unblock`, {});
+      setUnblockModalOpen(false);
+      await refreshClient();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : 'Error al desbloquear cliente');
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   useEffect(() => {
     loadClient();
@@ -140,69 +201,182 @@ export default function ClientDetailPage() {
   const name = clientName(client);
 
   return (
-    <EntityDetailLayout
-      backHref="/clients"
-      backLabel="Volver a clientes"
-      title={name}
-      subtitle={client.companyName && client.fullName ? client.fullName : client.email}
-      badges={
-        <>
-          <span
-            className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-sm font-medium border ${
-              CLIENT_STATUS_VARIANT[client.status] || 'bg-gray-50 border-gray-200 text-gray-500'
-            }`}
+    <>
+      <EntityDetailLayout
+        backHref="/clients"
+        backLabel="Volver a clientes"
+        title={name}
+        subtitle={client.companyName && client.fullName ? client.fullName : client.email}
+        badges={
+          <>
+            <span
+              className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-sm font-medium border ${
+                CLIENT_STATUS_VARIANT[client.status] || 'bg-gray-50 border-gray-200 text-gray-500'
+              }`}
+            >
+              <span className={`w-2 h-2 rounded-full ${CLIENT_STATUS_DOT_COLOR[client.status] || 'bg-gray-400'}`} />
+              {CLIENT_STATUS_OPTIONS.find((o) => o.value === client.status)?.label || client.status}
+            </span>
+            <span className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium border bg-gray-50 border-gray-200 text-gray-600">
+              {CUSTOMER_TYPE_LABEL[client.customerType] || client.customerType}
+            </span>
+          </>
+        }
+      >
+        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
+          <EntityTabs
+            activeId={activeTab}
+            onChange={handleTabChange}
+            aria-label="Detalle del cliente"
           >
-            <span className={`w-2 h-2 rounded-full ${CLIENT_STATUS_DOT_COLOR[client.status] || 'bg-gray-400'}`} />
-            {CLIENT_STATUS_OPTIONS.find((o) => o.value === client.status)?.label || client.status}
-          </span>
-          <span className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium border bg-gray-50 border-gray-200 text-gray-600">
-            {CUSTOMER_TYPE_LABEL[client.customerType] || client.customerType}
-          </span>
-        </>
-      }
-    >
-      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white">
-        <EntityTabs
-          activeId={activeTab}
-          onChange={handleTabChange}
-          aria-label="Detalle del cliente"
-        >
-          <EntityTab id="resumen" label="Resumen" />
-          <EntityTab id="presupuestos" label="Presupuestos" count={quotes.length} />
-          <EntityTab id="ordenes" label="Órdenes de trabajo" />
-          <EntityTab id="visitas" label="Visitas técnicas" />
-          <EntityTab id="documentacion" label="Documentación" />
+            <EntityTab id="resumen" label="Resumen" />
+            <EntityTab id="presupuestos" label="Presupuestos" count={quotes.length} />
+            <EntityTab id="ordenes" label="Órdenes de trabajo" />
+            <EntityTab id="visitas" label="Visitas técnicas" />
+            <EntityTab id="documentacion" label="Documentación" />
 
-          <EntityTabPanel id="resumen">
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-              <div className="space-y-6 lg:col-span-2">
-                <ClientInfoCard client={client} />
-                <ClientNotesCard notes={client.notes} />
+            <EntityTabPanel id="resumen">
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                <div className="space-y-6 lg:col-span-2">
+                  <ClientInfoCard client={client} />
+                  <ClientNotesCard notes={client.notes} />
+                  <ClientBlockHistoryCard client={client} />
+                </div>
+
+                <aside className="space-y-4">
+                  <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-2">Acciones</h3>
+                    <Link
+                      href={`/clients/${id}/edit`}
+                      className="w-full inline-flex items-center justify-center rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 transition-colors"
+                    >
+                      Editar Cliente
+                    </Link>
+                    {client.status !== 'blocked' && (
+                      <button
+                        onClick={() => setBlockModalOpen(true)}
+                        className="w-full inline-flex items-center justify-center rounded-lg border border-danger-200 bg-danger-50 px-4 py-2.5 text-sm font-semibold text-danger-700 hover:bg-danger-100 transition-colors"
+                      >
+                        Bloquear Cliente
+                      </button>
+                    )}
+                    {client.status === 'blocked' && (
+                      <button
+                        onClick={() => setUnblockModalOpen(true)}
+                        className="w-full inline-flex items-center justify-center rounded-lg bg-success-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-success-700 transition-colors"
+                      >
+                        Desbloquear Cliente
+                      </button>
+                    )}
+                  </div>
+                  <ClientMetadataCard client={client} />
+                </aside>
               </div>
+            </EntityTabPanel>
 
-              <aside className="space-y-4">
-                <ClientMetadataCard client={client} />
-              </aside>
+            <EntityTabPanel id="presupuestos">
+              <ClientQuotesTab quotes={quotes} loading={loadingQuotes} />
+            </EntityTabPanel>
+
+            <EntityTabPanel id="ordenes">
+              <ClientWorkOrdersTab />
+            </EntityTabPanel>
+
+            <EntityTabPanel id="visitas">
+              <ClientVisitsTab />
+            </EntityTabPanel>
+
+            <EntityTabPanel id="documentacion">
+              <ClientDocumentationTab />
+            </EntityTabPanel>
+          </EntityTabs>
+        </div>
+      </EntityDetailLayout>
+
+      {blockModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+            <h2 className="text-lg font-bold text-gray-900 mb-1">Bloquear Cliente</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              El cliente dejará de operar en el CRM hasta que sea desbloqueado.
+            </p>
+
+            {actionError && (
+              <div className="rounded-lg bg-danger-50 px-4 py-3 text-sm text-danger-700 mb-4">
+                {actionError}
+              </div>
+            )}
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Motivo del bloqueo <span className="text-danger-500">*</span>
+              </label>
+              <textarea
+                value={blockReason}
+                onChange={(e) => setBlockReason(e.target.value)}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none min-h-[80px]"
+                placeholder="Describe el motivo del bloqueo"
+                required
+              />
             </div>
-          </EntityTabPanel>
 
-          <EntityTabPanel id="presupuestos">
-            <ClientQuotesTab quotes={quotes} loading={loadingQuotes} />
-          </EntityTabPanel>
+            <div className="flex items-center gap-3 pt-4">
+              <button
+                type="button"
+                onClick={handleBlock}
+                disabled={submitting || !blockReason.trim()}
+                className="rounded-lg bg-danger-500 px-5 py-2 text-sm font-medium text-white hover:bg-danger-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {submitting ? 'Bloqueando...' : 'Bloquear Cliente'}
+              </button>
+              <button
+                type="button"
+                onClick={closeBlockModal}
+                disabled={submitting}
+                className="rounded-lg border border-gray-200 px-5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-          <EntityTabPanel id="ordenes">
-            <ClientWorkOrdersTab />
-          </EntityTabPanel>
+      {unblockModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4">
+            <h2 className="text-lg font-bold text-gray-900 mb-1">Desbloquear Cliente</h2>
+            <p className="text-sm text-gray-500 mb-4">
+              ¿Estás seguro de desbloquear a este cliente? Volverá a estar activo en el CRM.
+            </p>
 
-          <EntityTabPanel id="visitas">
-            <ClientVisitsTab />
-          </EntityTabPanel>
+            {actionError && (
+              <div className="rounded-lg bg-danger-50 px-4 py-3 text-sm text-danger-700 mb-4">
+                {actionError}
+              </div>
+            )}
 
-          <EntityTabPanel id="documentacion">
-            <ClientDocumentationTab />
-          </EntityTabPanel>
-        </EntityTabs>
-      </div>
-    </EntityDetailLayout>
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                type="button"
+                onClick={handleUnblock}
+                disabled={submitting}
+                className="rounded-lg bg-success-600 px-5 py-2 text-sm font-medium text-white hover:bg-success-700 disabled:opacity-50 transition-colors"
+              >
+                {submitting ? 'Desbloqueando...' : 'Desbloquear'}
+              </button>
+              <button
+                type="button"
+                onClick={closeUnblockModal}
+                disabled={submitting}
+                className="rounded-lg border border-gray-200 px-5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

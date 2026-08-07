@@ -1,6 +1,7 @@
 'use client';
 
 import type { ClientDetail } from './client-detail.types';
+import { SOURCE_LABELS } from '@/leads/components/detail';
 import {
   CLIENT_STATUS_DOT_COLOR,
   CLIENT_STATUS_OPTIONS,
@@ -14,6 +15,8 @@ interface ClientMetadataCardProps {
 }
 
 export function ClientMetadataCard({ client }: ClientMetadataCardProps) {
+  const openBlockEntry = (client.blockHistory || []).find((entry) => !entry.unblockedAt);
+
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5">
       <h2 className="mb-4 text-base font-semibold text-gray-900">Detalles</h2>
@@ -44,6 +47,22 @@ export function ClientMetadataCard({ client }: ClientMetadataCardProps) {
             {CUSTOMER_TYPE_LABEL[client.customerType] || client.customerType}
           </dd>
         </div>
+
+        {client.status === 'blocked' && openBlockEntry && (
+          <div>
+            <dt className="text-xs font-medium text-gray-500">Motivo de bloqueo</dt>
+            <dd className="mt-0.5 text-sm text-gray-900">{openBlockEntry.reason || '—'}</dd>
+          </div>
+        )}
+
+        {client.source && (
+          <div>
+            <dt className="text-xs font-medium text-gray-500">Origen</dt>
+            <dd className="mt-0.5 text-sm text-gray-900">
+              {SOURCE_LABELS[client.source] || client.source}
+            </dd>
+          </div>
+        )}
 
         {client.tags && client.tags.length > 0 && (
           <div>

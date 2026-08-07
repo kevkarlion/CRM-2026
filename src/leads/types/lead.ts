@@ -73,6 +73,9 @@ export interface CreateLeadInput {
   score?: number;
   isB2B?: boolean;
   scoringBreakdown?: ScoringBreakdown;
+  address?: string;
+  locality?: string;
+  province?: string;
 }
 
 export interface UpdateLeadInput {
@@ -85,4 +88,7 @@ export interface UpdateLeadInput {
   estimatedValue?: number;
   notes?: string;
   adminNotes?: string;
+  address?: string;
+  locality?: string;
+  province?: string;
 }

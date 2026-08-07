@@ -82,6 +82,9 @@
   html {
     @apply antialiased;
     -webkit-text-size-adjust: 100%;
+    /* Reserve scrollbar space so the layout doesn't shift when
+       the document scrollbar appears/disappears (e.g. filtering a table). */
+    scrollbar-gutter: stable;
   }
 
   body {

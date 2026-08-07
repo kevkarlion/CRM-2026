@@ -30,6 +30,7 @@ export default function NewLeadPage() {
     companyName: '',
     email: '',
     phone: '',
+    locality: '',
     source: 'whatsapp',
     notes: '',
     assignedTo: '',
@@ -72,6 +73,7 @@ export default function NewLeadPage() {
         status,
       };
       if (form.phone) body.phone = form.phone;
+      if (form.locality) body.locality = form.locality;
       if (form.notes) body.notes = form.notes;
       if (form.assignedTo) body.assignedTo = form.assignedTo;
       if (status === 'lost') {
@@ -142,6 +144,11 @@ export default function NewLeadPage() {
             <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
             <input type="tel" value={form.phone} onChange={(e) => handleChange('phone', e)}
               className={inputClass} placeholder="+56 9 1234 5678" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Localidad</label>
+            <input type="text" value={form.locality} onChange={(e) => handleChange('locality', e)}
+              className={inputClass} placeholder="Ciudad o localidad" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Origen</label>

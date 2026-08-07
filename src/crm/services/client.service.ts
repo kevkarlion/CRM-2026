@@ -3,6 +3,27 @@ import { ClientModel, ContactModel, LocationModel, EquipmentModel, TaskModel } f
 import { cursorPage } from '../helpers/cursor-pagination';
 import { IClient, ClientStatus, CustomerType, CreateClientInput, UpdateClientInput } from '../types/client';
 
+export class ConflictError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ConflictError';
+  }
+}
+
+export class ValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'ValidationError';
+  }
+}
+
+export class NotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'NotFoundError';
+  }
+}
+
 export interface ClientListFilters {
   status?: ClientStatus;
   customerType?: CustomerType;
@@ -65,8 +86,10 @@ export class ClientService {
     tenantId: string,
     userId: string
   ): Promise<IClient> {
+    const { status, blockHistory, ...safeData } = data as CreateClientInput &
+      Partial<Pick<IClient, 'status' | 'blockHistory'>>;
     const client = await ClientModel.create({
-      ...data,
+      ...safeData,
       tenantId,
       createdBy: userId,
       updatedBy: userId,
@@ -76,7 +99,8 @@ export class ClientService {
 
   async findById(id: string, tenantId: string): Promise<IClient | null> {
     return ClientModel.findOne({ _id: id, tenantId, deletedAt: null })
-      
+      .populate('blockHistory.blockedBy', 'firstName lastName email')
+      .populate('blockHistory.unblockedBy', 'firstName lastName email')
       .exec() as unknown as Promise<IClient | null>;
   }
 
@@ -96,13 +120,96 @@ export class ClientService {
     tenantId: string,
     userId: string
   ): Promise<IClient | null> {
+    const { status, blockHistory, ...safeData } = data as UpdateClientInput &
+      Partial<Pick<IClient, 'status' | 'blockHistory'>>;
     return ClientModel.findOneAndUpdate(
       { _id: id, tenantId, deletedAt: null },
-      { $set: { ...data, updatedBy: userId } },
+      { $set: { ...safeData, updatedBy: userId } },
       { new: true }
     )
-      
+      .populate('blockHistory.blockedBy', 'firstName lastName email')
+      .populate('blockHistory.unblockedBy', 'firstName lastName email')
       .exec() as unknown as Promise<IClient | null>;
+  }
+
+  async blockClient(
+    id: string,
+    reason: string,
+    tenantId: string,
+    userId: string
+  ): Promise<IClient> {
+    if (!reason || !reason.trim()) {
+      throw new ValidationError('Block reason is required');
+    }
+
+    const existing = await this.findById(id, tenantId);
+    if (!existing) {
+      throw new NotFoundError('Client not found');
+    }
+    if (existing.status === 'blocked') {
+      throw new ConflictError('Client is already blocked');
+    }
+
+    const client = await ClientModel.findOneAndUpdate(
+      { _id: id, tenantId, deletedAt: null },
+      {
+        $set: {
+          status: 'blocked',
+          updatedBy: userId,
+        },
+        $push: {
+          blockHistory: {
+            reason: reason.trim(),
+            blockedAt: new Date(),
+            blockedBy: userId,
+          },
+        },
+      },
+      { new: true }
+    )
+      .populate('blockHistory.blockedBy', 'firstName lastName email')
+      .populate('blockHistory.unblockedBy', 'firstName lastName email')
+      .exec() as unknown as IClient | null;
+
+    if (!client) {
+      throw new NotFoundError('Client not found');
+    }
+    return client;
+  }
+
+  async unblockClient(
+    id: string,
+    tenantId: string,
+    userId: string
+  ): Promise<IClient> {
+    const existing = await this.findById(id, tenantId);
+    if (!existing) {
+      throw new NotFoundError('Client not found');
+    }
+    if (existing.status !== 'blocked') {
+      throw new ConflictError('Client is not blocked');
+    }
+
+    const client = await ClientModel.findOneAndUpdate(
+      { _id: id, tenantId, deletedAt: null, 'blockHistory.unblockedAt': null },
+      {
+        $set: {
+          status: 'active',
+          updatedBy: userId,
+          'blockHistory.$.unblockedAt': new Date(),
+          'blockHistory.$.unblockedBy': userId,
+        },
+      },
+      { new: true }
+    )
+      .populate('blockHistory.blockedBy', 'firstName lastName email')
+      .populate('blockHistory.unblockedBy', 'firstName lastName email')
+      .exec() as unknown as IClient | null;
+
+    if (!client) {
+      throw new NotFoundError('Client not found');
+    }
+    return client;
   }
 
   async softDelete(id: string, tenantId: string, userId: string): Promise<void> {

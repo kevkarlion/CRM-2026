@@ -1,4 +1,5 @@
 import type { QuoteStatus } from '@/quotes/types/quote';
+import type { BlockHistoryEntry } from '@/crm/types/client';
 
 /** Client as returned by GET /api/crm/clients/:id. */
 export interface ClientDetail {
@@ -13,8 +14,10 @@ export interface ClientDetail {
   address?: string;
   locality?: string;
   province?: string;
+  source?: string;
   notes?: string;
   tags: string[];
+  blockHistory?: BlockHistoryEntry[];
   createdAt: string;
   updatedAt: string;
 }

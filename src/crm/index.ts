@@ -22,6 +22,7 @@ export type {
   IClient,
   ClientStatus,
   CustomerType,
+  BlockHistoryEntry,
   CreateClientInput,
   UpdateClientInput,
   IContact,

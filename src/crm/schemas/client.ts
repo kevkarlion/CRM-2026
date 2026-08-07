@@ -1,5 +1,5 @@
 import { Schema } from 'mongoose';
-import { IClient } from '../types/client';
+import { IClient, ClientStatus } from '../types/client';
 
 const auditFields = {
   createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
@@ -18,8 +18,8 @@ export const clientSchema = new Schema<IClient>(
     },
     status: {
       type: String,
-      enum: ['prospect', 'active', 'inactive', 'blacklisted'],
-      default: 'prospect',
+      enum: ['prospect', 'active', 'inactive', 'blocked'] satisfies ClientStatus[],
+      default: 'active',
     },
     fullName: String,
     companyName: String,
@@ -29,8 +29,21 @@ export const clientSchema = new Schema<IClient>(
     address: String,
     locality: String,
     province: String,
+    source: {
+      type: String,
+      enum: ['whatsapp', 'call', 'form', 'referral', 'walk_in', 'other'],
+    },
     notes: String,
     tags: { type: [String], default: [] },
+    blockHistory: [
+      {
+        reason: { type: String, required: true },
+        blockedAt: { type: Date, required: true },
+        blockedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+        unblockedAt: { type: Date, default: null },
+        unblockedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+      },
+    ],
     ...auditFields,
   },
   { timestamps: true }

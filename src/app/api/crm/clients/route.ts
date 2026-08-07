@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
 import { ClientService } from '@/crm/services/client.service';
 import type { ClientListFilters } from '@/crm/services/client.service';
+import type { CreateClientInput } from '@/crm/types/client';
 
 const service = new ClientService();
 
@@ -26,6 +27,27 @@ export async function GET(request: NextRequest) {
     );
 
     return NextResponse.json(result);
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { status: 500 },
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    await connectDB();
+    const tenantId = request.headers.get('x-tenant-id');
+    const userId = request.headers.get('x-user-id');
+    if (!tenantId || !userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json() as CreateClientInput;
+    const client = await service.create(body, tenantId, userId);
+
+    return NextResponse.json(client, { status: 201 });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Internal server error' },

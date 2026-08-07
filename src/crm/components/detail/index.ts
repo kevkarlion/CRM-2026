@@ -1,6 +1,7 @@
 export { ClientInfoCard } from './ClientInfoCard';
 export { ClientNotesCard } from './ClientNotesCard';
 export { ClientMetadataCard } from './ClientMetadataCard';
+export { ClientBlockHistoryCard } from './ClientBlockHistoryCard';
 export { ClientQuotesTab } from './ClientQuotesTab';
 export { ClientWorkOrdersTab } from './ClientWorkOrdersTab';
 export { ClientVisitsTab } from './ClientVisitsTab';

@@ -5,12 +5,15 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { api, unwrapData } from '@/lib/api-client';
 import { LEAD_STATUS_LABELS } from '@/leads/constants/lead-status.constants';
+import { SOURCE_LABELS } from '@/leads/components/detail';
 import { SearchInput } from '@/components/ui/SearchInput';
 
 interface Lead {
   _id: string;
   name: string;
   companyName?: string;
+  profileName?: string;
+  locality?: string;
   email?: string;
   phone?: string;
   source: string;
@@ -216,13 +219,14 @@ export default function LeadsPage() {
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50">
                   <th className="w-24 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Acciones</th>
+                  <th className="text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Cliente</th>
                   <th className="text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nombre</th>
-                  <th className="text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Empresa</th>
                   <th className="text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Email</th>
                   <th className="text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Teléfono</th>
                   <th className="w-28 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Estado</th>
-                  <th className="w-24 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Origen</th>
                   <th className="w-32 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Creado</th>
+                  <th className="w-24 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Origen</th>
+                  <th className="w-28 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Localidad</th>
                 </tr>
               </thead>
               <tbody>
@@ -234,8 +238,8 @@ export default function LeadsPage() {
                     <td className="px-2.5 py-1.5 text-left whitespace-nowrap">
                       <ViewLeadLink leadId={lead._id} />
                     </td>
-                    <td className="px-2.5 py-1.5 text-sm font-medium text-gray-900 truncate">{lead.name}</td>
-                    <td className="px-2.5 py-1.5 text-sm text-gray-600 truncate">{lead.companyName || '—'}</td>
+                    <td className="px-2.5 py-1.5 text-sm font-medium text-gray-900 truncate">{lead.companyName || lead.profileName || '—'}</td>
+                    <td className="px-2.5 py-1.5 text-sm text-gray-600 truncate">{lead.name}</td>
                     <td className="px-2.5 py-1.5 text-sm text-gray-500 truncate">{lead.email || '—'}</td>
                     <td className="px-2.5 py-1.5 text-sm text-gray-500 truncate">{lead.phone || '—'}</td>
                     <td className="px-2.5 py-1.5">
@@ -243,8 +247,9 @@ export default function LeadsPage() {
                         {statusLabel(lead.status)}
                       </span>
                     </td>
-                    <td className="px-2.5 py-1.5 text-sm text-gray-500 capitalize truncate">{lead.source}</td>
                     <td className="px-2.5 py-1.5 text-sm text-gray-500 whitespace-nowrap">{formatDate(lead.createdAt)}</td>
+                    <td className="px-2.5 py-1.5 text-sm text-gray-500 truncate">{SOURCE_LABELS[lead.source] || lead.source || '—'}</td>
+                    <td className="px-2.5 py-1.5 text-sm text-gray-500 truncate">{lead.locality || '—'}</td>
                   </tr>
                 ))}
               </tbody>

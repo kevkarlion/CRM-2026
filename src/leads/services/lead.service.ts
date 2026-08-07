@@ -208,6 +208,7 @@ export class LeadService {
       status: 'active',
       fullName: lead.name,
       companyName: lead.companyName || undefined,
+      source: lead.source,
       address: lead.address || undefined,
       locality: lead.locality || undefined,
       province: lead.province || undefined,
@@ -528,6 +529,10 @@ export class LeadService {
         status: 'active',
         fullName: lead.name,
         companyName: lead.companyName || undefined,
+        source: lead.source,
+        address: lead.address || undefined,
+        locality: lead.locality || undefined,
+        province: lead.province || undefined,
         createdBy: userId,
         updatedBy: userId,
       }], { session });

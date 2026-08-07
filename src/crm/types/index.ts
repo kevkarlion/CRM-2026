@@ -1,6 +1,6 @@
 export type { IAuditFields } from './audit-fields';
 export type { CursorPage, CursorOptions, IPolymorphicRef } from './common';
-export type { IClient, ClientStatus, CustomerType, CreateClientInput, UpdateClientInput } from './client';
+export type { IClient, ClientStatus, CustomerType, BlockHistoryEntry, CreateClientInput, UpdateClientInput } from './client';
 export type { IContact, CreateContactInput, UpdateContactInput } from './contact';
 export type { ILocation, CreateLocationInput, UpdateLocationInput } from './location';
 export type { IEquipment, CreateEquipmentInput, UpdateEquipmentInput } from './equipment';
