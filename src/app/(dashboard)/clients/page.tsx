@@ -214,10 +214,9 @@ export default function ClientsPage() {
                   <th className="text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nombre</th>
                   <th className="text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Email</th>
                   <th className="text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Teléfono</th>
-                  <th className="w-28 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Estado</th>
-                  <th className="w-32 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Creado</th>
-                  <th className="w-24 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Origen</th>
-                  <th className="w-28 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Localidad</th>
+                  <th className="w-24 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Estado</th>
+                  <th className="w-20 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Creado</th>
+                  <th className="w-24 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Localidad</th>
                 </tr>
               </thead>
               <tbody>
@@ -239,7 +238,6 @@ export default function ClientsPage() {
                       </span>
                     </td>
                     <td className="px-2.5 py-1.5 text-sm text-gray-500 whitespace-nowrap">{formatDate(client.createdAt)}</td>
-                    <td className="px-2.5 py-1.5 text-sm text-gray-500 truncate">{client.source ? (SOURCE_LABELS[client.source] || client.source) : '—'}</td>
                     <td className="px-2.5 py-1.5 text-sm text-gray-500 truncate">{client.locality || '—'}</td>
                   </tr>
                 ))}
