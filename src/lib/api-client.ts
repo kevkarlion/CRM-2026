@@ -16,6 +16,11 @@ export function unwrapData<T>(response: unknown): T {
   if (!response || typeof response !== 'object') {
     return [] as T;
   }
+  // If the response is already a plain array (some endpoints return it directly),
+  // return it as-is — do NOT look for a .data wrapper.
+  if (Array.isArray(response)) {
+    return response as T;
+  }
   const resp = response as Record<string, unknown>;
   const data = resp.data;
   // If data is another wrapper, unwrap again

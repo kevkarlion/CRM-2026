@@ -241,6 +241,33 @@
     text-wrap: balance;
   }
 
+  /* ── Entity Tabs ──────────────────────────────
+     Hidden scrollbar for horizontal tab strips
+     (keeps mobile tabs scrollable without a visible bar). */
+  .entity-tab-scroll {
+    scrollbar-width: none;
+  }
+
+  .entity-tab-scroll::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Subtle fade-up used when a tab panel activates. */
+  @keyframes entity-panel-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .entity-panel-in {
+    animation: entity-panel-in 180ms ease-out;
+  }
+
   /* ── Sidebar Custom Scrollbar ──────────────────
      Thin, rounded scrollbar for the dark sidebar.
      Track invisible; thumb appears while scrolling and
