@@ -292,68 +292,65 @@ export function WorkOrderListView({ workOrders, onRefresh }: WorkOrderListViewPr
       </div>
 
       {/* Desktop table */}
-      <div className="hidden md:block bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl overflow-hidden">
+<div className="hidden md:block bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full text-xs">
             <thead>
-              <tr className="border-b border-gray-100 dark:border-slate-700">
-<th className="text-left text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-2 px-3">Acción</th>
-<th className="text-left text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-2 px-3">Tipo</th>
-                  <th className="text-left text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-2 px-3">#</th>
-                  <th className="text-left text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-2 px-3">Título</th>
-                  <th className="text-left text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-2 px-3">Cliente</th>
-                  <th className="text-left text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-2 px-3">Estado</th>
-                  <th className="text-left text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-2 px-3">Prioridad</th>
-                  <th className="text-left text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-2 px-3">Programado</th>
-                  <th className="text-left text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-2 px-3">Técnico</th>
-                  <th className="text-left text-[10px] font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-2 px-3">Días restantes</th>
+              <tr className="border-b border-gray-200 dark:border-slate-700 bg-gray-50/80 dark:bg-slate-800/80">
+                <th className="w-14 px-2 py-2 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Acción</th>
+                <th className="w-14 px-2 py-2 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Tipo</th>
+                <th className="w-14 px-2 py-2 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">#</th>
+                <th className="min-w-[120px] px-2 py-2 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Título</th>
+                <th className="min-w-[100px] px-2 py-2 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Cliente</th>
+                <th className="w-20 px-2 py-2 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Estado</th>
+                <th className="w-20 px-2 py-2 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Prioridad</th>
+                <th className="w-24 px-2 py-2 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Programado</th>
+                <th className="w-24 px-2 py-2 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Técnico</th>
+                <th className="px-2 py-2 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Días</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-50 dark:divide-slate-700/50">
-              {filteredWorkOrders.map((wo) => (
+              {filteredWorkOrders.map((wo, idx) => (
                 <tr
                   key={wo._id}
-                  className="hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
+                  className={`border-b border-gray-100 dark:border-slate-700/50 ${idx % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-gray-50/50 dark:bg-slate-800/50'} hover:bg-brand-50/40 dark:hover:bg-brand-900/20 transition-colors`}
                 >
-                  <td className="py-2 px-3">
+                  <td className="px-2 py-1.5 align-middle">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         router.push(`/work-orders/${wo._id}`);
                       }}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-brand-50 px-2.5 py-1.5 text-xs font-medium text-brand-600 hover:bg-brand-100 hover:text-brand-700 transition-colors dark:bg-brand-900/30 dark:text-brand-400 dark:hover:bg-brand-900/50 dark:hover:text-brand-300 cursor-pointer"
+                      className="inline-flex items-center gap-1 rounded-md bg-brand-50 dark:bg-brand-900/30 px-2 py-1 text-xs font-medium text-brand-600 dark:text-brand-400 hover:bg-brand-100 dark:hover:bg-brand-900/50"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
                       Ver
                     </button>
                   </td>
-                  <td className="py-2 px-3">
+                  <td className="px-2 py-1.5 align-middle">
                     <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold ${sourceBadge(wo.source).variant}`}>
                       {sourceBadge(wo.source).label}
                     </span>
                   </td>
-                  <td className="py-2 px-3">
+                  <td className="px-2 py-1.5 align-middle">
                     <span className="text-xs font-medium text-gray-900 dark:text-slate-100">#{shortWO(wo.workOrderNumber)}</span>
                   </td>
-                  <td className="py-2 px-3">
+                  <td className="px-2 py-1.5 align-middle">
                     <span className="text-xs text-gray-900 dark:text-slate-100 max-w-[200px] truncate block">{wo.title}</span>
                   </td>
-                  <td className="py-2 px-3">
-                    <span className="text-xs text-gray-600 dark:text-slate-300">{wo.clientSnapshot?.name || '—'}</span>
+                  <td className="px-2 py-1.5 align-middle">
+                    <span className="text-xs text-gray-600 dark:text-slate-300 truncate block">{wo.clientSnapshot?.name || '—'}</span>
                   </td>
-                  <td className="py-2 px-3">
+                  <td className="px-2 py-1.5 align-middle">
                     <Badge variant={WORK_ORDER_STATUS_VARIANT[wo.status] || 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300'}>
                       {STATUS_LABELS[wo.status] || wo.status}
                     </Badge>
                   </td>
-                  <td className="py-2 px-3">
+                  <td className="px-2 py-1.5 align-middle">
                     <Badge variant={WORK_ORDER_PRIORITY_VARIANT[wo.priority] || 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300'}>
                       {PRIORITY_LABELS[wo.priority] || wo.priority}
                     </Badge>
                   </td>
-                  <td className="py-2 px-3">
+                  <td className="px-2 py-1.5 align-middle">
                     <div className="text-xs text-gray-600 dark:text-slate-300 whitespace-nowrap">
                       {wo.scheduledDate ? (
                         <div>
@@ -367,24 +364,24 @@ export function WorkOrderListView({ workOrders, onRefresh }: WorkOrderListViewPr
                       )}
                     </div>
                   </td>
-                  <td className="py-2 px-3">
+                  <td className="px-2 py-1.5 align-middle">
                     {wo.assignedTechnicians?.length > 0 ? (
-                      <div className="flex items-center gap-2">
-                        <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/50 text-[10px] font-medium text-blue-700 dark:text-blue-300">
+                      <div className="flex items-center gap-1">
+                        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/50 text-[10px] font-medium text-blue-700 dark:text-blue-300">
                           {getInitials(wo.assignedTechnicians[0])}
                         </span>
-                        <span className="text-xs text-gray-600 dark:text-slate-300">{wo.assignedTechnicians[0]}</span>
+                        <span className="text-xs text-gray-600 dark:text-slate-300 truncate">{wo.assignedTechnicians[0]}</span>
                       </div>
                     ) : (
                       <span className="text-xs text-gray-400 dark:text-slate-500">Sin asignar</span>
                     )}
                   </td>
-                  <td className="py-2 px-3">
+                  <td className="px-2 py-1.5 align-middle">
                     {(() => {
                       const badge = daysRemaining(wo.scheduledStart, wo.scheduledDate);
                       if (!badge) return <span className="text-[10px] text-gray-400 dark:text-slate-500">—</span>;
                       return (
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium ${badge.variant}`}>
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium ${badge.variant}`}>
                           {badge.label}
                         </span>
                       );

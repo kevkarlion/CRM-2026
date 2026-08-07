@@ -201,70 +201,67 @@ export function TechnicalVisitsView({ visits, onRefresh }: TechnicalVisitsViewPr
 
       {/* Desktop Table */}
       <div className="hidden md:block bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
+        <table className="w-full text-xs">
           <thead>
-            <tr className="border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800/50">
-              <th className="text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-3 px-4">Acción</th>
-              <th className="text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-3 px-4">Tipo</th>
-              <th className="text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-3 px-4">#</th>
-              <th className="text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-3 px-4">Título</th>
-              <th className="text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-3 px-4">Cliente</th>
-              <th className="text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-3 px-4">Estado</th>
-              <th className="text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-3 px-4">Prioridad</th>
-              <th className="text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-3 px-4">Programado</th>
-              <th className="text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-3 px-4">Técnico</th>
-              <th className="text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wide py-3 px-4">Días restantes</th>
+            <tr className="border-b border-gray-200 dark:border-slate-700 bg-gray-50/80 dark:bg-slate-800/80">
+              <th className="w-14 px-2 py-2 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Acción</th>
+              <th className="w-14 px-2 py-2 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Tipo</th>
+              <th className="w-14 px-2 py-2 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">#</th>
+              <th className="min-w-[120px] px-2 py-2 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Título</th>
+              <th className="min-w-[100px] px-2 py-2 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Cliente</th>
+              <th className="w-20 px-2 py-2 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Estado</th>
+              <th className="w-20 px-2 py-2 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Prioridad</th>
+              <th className="w-24 px-2 py-2 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Programado</th>
+              <th className="w-24 px-2 py-2 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Técnico</th>
+              <th className="px-2 py-2 text-left text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider">Días</th>
             </tr>
           </thead>
           <tbody>
-            {sorted.map((visit) => (
+            {sorted.map((visit, idx) => (
               <tr
                 key={visit._id}
-                className="border-b border-gray-100 dark:border-slate-700/50 last:border-0 hover:bg-gray-50 dark:hover:bg-slate-700/50 transition-colors"
+                className={`border-b border-gray-100 dark:border-slate-700/50 ${idx % 2 === 0 ? 'bg-white dark:bg-slate-800' : 'bg-gray-50/50 dark:bg-slate-800/50'} hover:bg-brand-50/40 dark:hover:bg-brand-900/20 transition-colors`}
               >
-                <td className="px-4 py-2.5">
+                <td className="px-2 py-1.5 align-middle">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       router.push(`/technical-visits/${visit._id}`);
                     }}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-brand-50 px-2.5 py-1.5 text-xs font-medium text-brand-600 hover:bg-brand-100 hover:text-brand-700 transition-colors dark:bg-brand-900/30 dark:text-brand-400 dark:hover:bg-brand-900/50 dark:hover:text-brand-300 cursor-pointer"
+                    className="inline-flex items-center gap-1 rounded-md bg-brand-50 dark:bg-brand-900/30 px-2 py-1 text-xs font-medium text-brand-600 dark:text-brand-400 hover:bg-brand-100 dark:hover:bg-brand-900/50"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
                     Ver
                   </button>
                 </td>
-                <td className="px-4 py-2.5">
-                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300">VT</span>
+                <td className="px-2 py-1.5 align-middle">
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300">VT</span>
                 </td>
-                <td className="px-4 py-2.5">
-                  <span className="text-sm font-medium text-gray-900 dark:text-slate-100">#{shortNumber(visit.visitNumber)}</span>
+                <td className="px-2 py-1.5 align-middle">
+                  <span className="text-xs font-medium text-gray-900 dark:text-slate-100">#{shortNumber(visit.visitNumber)}</span>
                 </td>
-                <td className="px-4 py-2.5">
-                  <span className="text-sm text-gray-900 dark:text-slate-100 max-w-[200px] truncate block">{visit.title}</span>
+                <td className="px-2 py-1.5 align-middle">
+                  <span className="text-xs text-gray-900 dark:text-slate-100 max-w-[200px] truncate block">{visit.title}</span>
                 </td>
-                <td className="px-4 py-2.5">
-                  <span className="text-sm text-gray-600 dark:text-slate-300">{visit.clientSnapshot?.name || '—'}</span>
+                <td className="px-2 py-1.5 align-middle">
+                  <span className="text-xs text-gray-600 dark:text-slate-300 truncate block">{visit.clientSnapshot?.name || '—'}</span>
                 </td>
-                <td className="px-4 py-2.5">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${TECHNICAL_VISIT_STATUS_VARIANT[visit.status] || 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300'}`}>
+                <td className="px-2 py-1.5 align-middle">
+                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-medium ${TECHNICAL_VISIT_STATUS_VARIANT[visit.status] || 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300'}`}>
                     {STATUS_LABELS[visit.status] || visit.status}
                   </span>
                 </td>
-                <td className="px-4 py-2.5">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${TECHNICAL_VISIT_PRIORITY_VARIANT[visit.priority] || 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300'}`}>
+                <td className="px-2 py-1.5 align-middle">
+                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-medium ${TECHNICAL_VISIT_PRIORITY_VARIANT[visit.priority] || 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300'}`}>
                     {PRIORITY_LABELS[visit.priority] || visit.priority}
                   </span>
                 </td>
-                <td className="px-4 py-2.5">
-                  <div className="text-sm text-gray-600 dark:text-slate-300 whitespace-nowrap">
+                <td className="px-2 py-1.5 align-middle">
+                  <div className="text-xs text-gray-600 dark:text-slate-300 whitespace-nowrap">
                     {visit.scheduledDate ? (
                       <div>
                         <p>{formatDate(visit.scheduledDate)}</p>
                         {visit.scheduledStart && (
-                          <p className="text-xs text-gray-400 dark:text-slate-500">{formatTime(visit.scheduledStart)}</p>
+                          <p className="text-[10px] text-gray-400 dark:text-slate-500">{formatTime(visit.scheduledStart)}</p>
                         )}
                       </div>
                     ) : (
@@ -272,15 +269,15 @@ export function TechnicalVisitsView({ visits, onRefresh }: TechnicalVisitsViewPr
                     )}
                   </div>
                 </td>
-                <td className="px-4 py-2.5">
-                  <span className="text-sm text-gray-600 dark:text-slate-300">{visit.technicianName || 'Sin asignar'}</span>
+                <td className="px-2 py-1.5 align-middle">
+                  <span className="text-xs text-gray-600 dark:text-slate-300 truncate block">{visit.technicianName || 'Sin asignar'}</span>
                 </td>
-                <td className="px-4 py-2.5">
+                <td className="px-2 py-1.5 align-middle">
                   {(() => {
                     const badge = daysRemaining(visit.scheduledStart, visit.scheduledDate);
                     if (!badge) return <span className="text-xs text-gray-400 dark:text-slate-500">—</span>;
                     return (
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${badge.variant}`}>
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-medium ${badge.variant}`}>
                         {badge.label}
                       </span>
                     );
