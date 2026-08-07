@@ -91,7 +91,6 @@ const PRIORITY_OPTIONS = [
   { value: 'normal', label: 'Normal' },
   { value: 'high', label: 'Alta' },
   { value: 'urgent', label: 'Urgente' },
-  { value: 'emergency', label: 'Emergencia' },
 ];
 
 const PRIORITY_VARIANT: Record<string, string> = {
@@ -99,7 +98,6 @@ const PRIORITY_VARIANT: Record<string, string> = {
   normal: 'bg-blue-50 text-blue-700',
   high: 'bg-orange-50 text-orange-700',
   urgent: 'bg-red-50 text-red-700',
-  emergency: 'bg-red-100 text-red-900',
 };
 
 const PRIORITY_LABELS: Record<string, string> = {
@@ -107,7 +105,6 @@ const PRIORITY_LABELS: Record<string, string> = {
   normal: 'Normal',
   high: 'Alta',
   urgent: 'Urgente',
-  emergency: 'Emergencia',
 };
 
 // Check if work order is overdue (past scheduled date and not completed/closed)

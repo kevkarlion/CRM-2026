@@ -185,12 +185,12 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // Órdenes urgentes (prioridad high, urgent, emergency) - no completadas
+    // Órdenes urgentes (prioridad high, urgent) - no completadas
     const urgentOrders = await WorkOrderModel.countDocuments({
       tenantId: tenantObjectId,
       deletedAt: null,
       status: { $nin: ['completed', 'cancelled', 'closed'] },
-      priority: { $in: ['high', 'urgent', 'emergency'] },
+      priority: { $in: ['high', 'urgent'] },
     });
 
     // Visitas técnicas totales (sin asignar o del técnico)

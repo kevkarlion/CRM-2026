@@ -71,7 +71,6 @@ const PRIORITY_OPTIONS = [
   { value: 'normal', label: 'Normal' },
   { value: 'high', label: 'Alta' },
   { value: 'urgent', label: 'Urgente' },
-  { value: 'emergency', label: 'Emergencia' },
 ];
 
 const CATEGORY_OPTIONS = [

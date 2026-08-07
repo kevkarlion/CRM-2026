@@ -128,7 +128,6 @@ function EventBlock({ event, onClick, compact, currentTechnicianId }: { event: C
     switch (event.priority) {
       case 'urgent': return { label: 'Urgente', color: 'text-red-600 dark:text-red-400', bg: 'bg-red-50 dark:bg-red-900/20' };
       case 'high': return { label: 'Alta', color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-50 dark:bg-orange-900/20' };
-      case 'emergency': return { label: 'Emergencia', color: 'text-red-700 dark:text-red-300', bg: 'bg-red-100 dark:bg-red-900/30' };
       case 'normal': return { label: 'Normal', color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-900/20' };
       case 'low': return { label: 'Baja', color: 'text-gray-500 dark:text-slate-400', bg: 'bg-gray-50 dark:bg-slate-800' };
       default: return null;

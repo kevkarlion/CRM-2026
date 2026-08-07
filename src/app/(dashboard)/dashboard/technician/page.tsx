@@ -17,7 +17,6 @@ const PRIORITY_COLORS: Record<string, string> = {
   normal: 'bg-blue-50 text-blue-700',
   high: 'bg-orange-50 text-orange-700',
   urgent: 'bg-red-50 text-red-700',
-  emergency: 'bg-red-100 text-red-900',
 };
 
 const PRIORITY_LABELS: Record<string, string> = {
@@ -25,7 +24,6 @@ const PRIORITY_LABELS: Record<string, string> = {
   normal: 'Normal',
   high: 'Alta',
   urgent: 'Urgente',
-  emergency: 'Emergencia',
 };
 
 // ── Helpers ────────────────────────────────────────────────
@@ -119,12 +117,12 @@ function TechnicianDashboardContent() {
 
   // Priority alerts shown as highlighted cards on top
   const urgentItems = activeItems.filter(item => 
-    item.priority === 'urgent' || item.priority === 'emergency'
+    item.priority === 'urgent'
   );
 
   // Rest of assigned tasks (all statuses, non-expired)
   const visibleItems = activeItems.filter(item => 
-    item.priority !== 'urgent' && item.priority !== 'emergency'
+    item.priority !== 'urgent'
   );
 
   return (
@@ -391,14 +389,14 @@ function AlertCard({ item }: { item: TaskItem }) {
   const number = isWorkOrder ? (item as any).workOrderNumber : (item as any).visitNumber;
   const shortNumber = number ? number.slice(-7) : '';
   const link = isWorkOrder ? `/work-orders/${item._id}` : `/technical-visits/${item._id}`;
-  const isEmergency = item.priority === 'emergency';
+  const isUrgent = item.priority === 'urgent';
   const typeLabel = isWorkOrder ? 'OT' : 'VT';
   
-  const alertColor = isEmergency 
+  const alertColor = isUrgent 
     ? 'bg-danger-50 border-danger-200 text-danger-800' 
     : 'bg-warning-50 border-warning-200 text-warning-800';
   
-  const alertIcon = isEmergency ? '🚨' : '⚠️';
+  const alertIcon = isUrgent ? '🚨' : '⚠️';
 
   const dateInfo = getTaskDateInfo(item.scheduledDate);
 

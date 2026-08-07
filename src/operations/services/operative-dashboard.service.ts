@@ -112,7 +112,7 @@ export class OperativeDashboardService {
     const summary = {
       totalWorkOrders,
       pending: (statusMap.draft || 0) + (statusMap.scheduled || 0),
-      urgent: priorityMap.urgent + priorityMap.emergency,
+      urgent: priorityMap.urgent,
       overdue: await this.countOverdue(tenantObjectId),
       withoutTechnician: await this.countWithoutTechnician(tenantObjectId),
       inExecution: (statusMap.assigned || 0) + (statusMap.in_progress || 0),

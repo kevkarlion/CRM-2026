@@ -101,11 +101,10 @@ const PRIORITY_VARIANT: Record<string, string> = {
   normal: 'bg-blue-50 text-blue-700',
   high: 'bg-orange-50 text-orange-700',
   urgent: 'bg-red-50 text-red-700',
-  emergency: 'bg-red-100 text-red-900',
 };
 
 const PRIORITY_LABELS: Record<string, string> = {
-  low: 'Baja', normal: 'Normal', high: 'Alta', urgent: 'Urgente', emergency: 'Emergencia',
+  low: 'Baja', normal: 'Normal', high: 'Alta', urgent: 'Urgente',
 };
 
 const NEXT_STATUSES: Record<string, { value: string; label: string }[]> = {

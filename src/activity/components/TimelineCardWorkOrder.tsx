@@ -44,7 +44,6 @@ const PRIORITY_COLORS: Record<string, string> = {
   normal: 'bg-blue-50 text-blue-600',
   high: 'bg-orange-50 text-orange-600',
   urgent: 'bg-red-50 text-red-600',
-  emergency: 'bg-red-100 text-red-700 font-semibold',
 };
 
 export function TimelineCardWorkOrder({ event }: TimelineCardProps) {

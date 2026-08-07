@@ -29,15 +29,13 @@ const PRIORITY_LABELS: Record<string, string> = {
   normal: 'Normal',
   high: 'Alta',
   urgent: 'Urgente',
-  emergency: 'Emergencia',
 };
 
 const PRIORITY_ORDER: Record<string, number> = {
-  emergency: 0,
-  urgent: 1,
-  high: 2,
-  normal: 3,
-  low: 4,
+  urgent: 0,
+  high: 1,
+  normal: 2,
+  low: 3,
 };
 
 function formatTime(iso: string | null | undefined): string {
@@ -117,7 +115,7 @@ function filterWorkOrders(orders: WorkOrderRow[], filter: OrderFilter): WorkOrde
     case 'today':
       return orders.filter((wo) => wo.scheduledDate === todayStr);
     case 'urgent':
-      return orders.filter((wo) => wo.priority === 'urgent' || wo.priority === 'emergency');
+      return orders.filter((wo) => wo.priority === 'urgent');
     case 'completed':
       // TODO: enlazar lógica de completadas
       return [];
