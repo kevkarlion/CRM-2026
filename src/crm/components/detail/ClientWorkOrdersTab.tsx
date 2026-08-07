@@ -180,10 +180,10 @@ export function ClientWorkOrdersTab({ clientId }: ClientWorkOrdersTabProps) {
                     {WORK_ORDER_STATUS_LABELS[workOrder.status as keyof typeof WORK_ORDER_STATUS_LABELS] || workOrder.status}
                   </span>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-right">
+                <td className="px-2 py-1.5 whitespace-nowrap text-right align-middle">
                   <Link
                     href={`/work-orders/${workOrder._id}`}
-                    className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-brand-700 bg-brand-50 rounded-md hover:bg-brand-100"
+                    className="inline-flex items-center rounded-md bg-brand-50 px-2 py-1 text-xs font-medium text-brand-600 hover:bg-brand-100 cursor-pointer"
                   >
                     Ver
                   </Link>
