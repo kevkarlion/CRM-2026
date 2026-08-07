@@ -8,6 +8,7 @@ import { api, unwrapData } from '@/lib/api-client';
 import { useRole } from '@/dashboard/context/role-context';
 import { SelfAssignmentVisitDrawer } from '@/operations/components/SelfAssignmentVisitDrawer';
 import { TECHNICAL_VISIT_STATUS_LABELS } from '@/operations/constants/status-labels';
+import { SearchInput } from '@/components/ui/SearchInput';
 
 type Tab = 'all' | 'mine';
 
@@ -317,7 +318,7 @@ export default function TechnicalVisitsPage() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter((e.target as any).value)}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
             >
               {STATUS_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -329,7 +330,7 @@ export default function TechnicalVisitsPage() {
             <select
               value={priorityFilter}
               onChange={(e) => setPriorityFilter((e.target as any).value)}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
             >
               {PRIORITY_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -341,25 +342,18 @@ export default function TechnicalVisitsPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Filtrar por Búsqueda:</label>
-            <div className="relative">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch((e.target as any).value)}
-                placeholder="Buscar por título o cliente..."
-                className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-200 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
-              />
-            </div>
+            <SearchInput
+              value={search}
+              onChange={setSearch}
+              placeholder="Buscar por título o cliente..."
+            />
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">Filtrar por Técnico:</label>
             <select
               value={technicianFilter}
               onChange={(e) => setTechnicianFilter((e.target as any).value)}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
             >
               <option value="">Todos los técnicos</option>
               {technicians.map((tech) => (
@@ -372,7 +366,7 @@ export default function TechnicalVisitsPage() {
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter((e.target as any).value)}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
             >
               {STATUS_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -384,7 +378,7 @@ export default function TechnicalVisitsPage() {
             <select
               value={priorityFilter}
               onChange={(e) => setPriorityFilter((e.target as any).value)}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
             >
               {PRIORITY_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
