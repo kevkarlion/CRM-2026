@@ -26,7 +26,7 @@ export function formatDateShort(dateStr?: string): string {
     return date.toLocaleDateString('es-CL', {
       day: '2-digit',
       month: '2-digit',
-      year: 'numeric',
+      year: '2-digit',
     });
   } catch {
     return '—';

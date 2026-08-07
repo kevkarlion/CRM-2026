@@ -240,10 +240,10 @@ export function TechnicalVisitsView({ visits, onRefresh }: TechnicalVisitsViewPr
                   <span className="text-xs font-medium text-gray-900 dark:text-slate-100">#{shortNumber(visit.visitNumber)}</span>
                 </td>
                 <td className="px-2 py-1.5 align-middle">
-                  <span className="text-xs text-gray-900 dark:text-slate-100 max-w-[200px] truncate block">{visit.title}</span>
+                  <span className="text-xs text-gray-900 dark:text-slate-100 max-w-[140px] truncate block">{visit.title}</span>
                 </td>
                 <td className="px-2 py-1.5 align-middle">
-                  <span className="text-xs text-gray-600 dark:text-slate-300 truncate block">{visit.clientSnapshot?.name || '—'}</span>
+                  <span className="text-xs text-gray-600 dark:text-slate-300 max-w-[100px] truncate block">{visit.clientSnapshot?.name || '—'}</span>
                 </td>
                 <td className="px-2 py-1.5 align-middle">
                   <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-medium ${TECHNICAL_VISIT_STATUS_VARIANT[visit.status] || 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300'}`}>
@@ -270,7 +270,7 @@ export function TechnicalVisitsView({ visits, onRefresh }: TechnicalVisitsViewPr
                   </div>
                 </td>
                 <td className="px-2 py-1.5 align-middle">
-                  <span className="text-xs text-gray-600 dark:text-slate-300 truncate block">{visit.technicianName || 'Sin asignar'}</span>
+                  <span className="text-xs text-gray-600 dark:text-slate-300 max-w-[80px] truncate block">{visit.technicianName || 'Sin asignar'}</span>
                 </td>
                 <td className="px-2 py-1.5 align-middle">
                   {(() => {

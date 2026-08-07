@@ -335,10 +335,10 @@ export function WorkOrderListView({ workOrders, onRefresh }: WorkOrderListViewPr
                     <span className="text-xs font-medium text-gray-900 dark:text-slate-100">#{shortWO(wo.workOrderNumber)}</span>
                   </td>
                   <td className="px-2 py-1.5 align-middle">
-                    <span className="text-xs text-gray-900 dark:text-slate-100 max-w-[200px] truncate block">{wo.title}</span>
+                    <span className="text-xs text-gray-900 dark:text-slate-100 max-w-[140px] truncate block">{wo.title}</span>
                   </td>
                   <td className="px-2 py-1.5 align-middle">
-                    <span className="text-xs text-gray-600 dark:text-slate-300 truncate block">{wo.clientSnapshot?.name || '—'}</span>
+                    <span className="text-xs text-gray-600 dark:text-slate-300 max-w-[100px] truncate block">{wo.clientSnapshot?.name || '—'}</span>
                   </td>
                   <td className="px-2 py-1.5 align-middle">
                     <Badge variant={WORK_ORDER_STATUS_VARIANT[wo.status] || 'bg-gray-100 dark:bg-slate-700 text-gray-700 dark:text-slate-300'}>
@@ -366,8 +366,8 @@ export function WorkOrderListView({ workOrders, onRefresh }: WorkOrderListViewPr
                   </td>
                   <td className="px-2 py-1.5 align-middle">
                     {wo.assignedTechnicians?.length > 0 ? (
-                      <div className="flex items-center gap-1">
-                        <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/50 text-[10px] font-medium text-blue-700 dark:text-blue-300">
+                      <div className="flex items-center gap-1 max-w-[80px]">
+                        <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/50 text-[10px] font-medium text-blue-700 dark:text-blue-300">
                           {getInitials(wo.assignedTechnicians[0])}
                         </span>
                         <span className="text-xs text-gray-600 dark:text-slate-300 truncate">{wo.assignedTechnicians[0]}</span>
