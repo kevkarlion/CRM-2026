@@ -180,34 +180,34 @@ export default function ContractsPage() {
       ) : (
         <>
           <div className="hidden sm:block bg-white border border-gray-200 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
+            <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50">
-                  <th className="text-left px-5 py-3 font-semibold text-gray-600">Nombre</th>
-                  <th className="text-left px-5 py-3 font-semibold text-gray-600">Cliente</th>
-                  <th className="text-left px-5 py-3 font-semibold text-gray-600">Estado</th>
-                  <th className="text-left px-5 py-3 font-semibold text-gray-600">Inicio</th>
-                  <th className="text-left px-5 py-3 font-semibold text-gray-600">Término</th>
-                  <th className="text-left px-5 py-3 font-semibold text-gray-600">Frecuencia</th>
+                <tr className="border-b border-gray-200 bg-gray-50/80">
+                  <th className="min-w-[120px] px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Nombre</th>
+                  <th className="min-w-[100px] px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Cliente</th>
+                  <th className="w-20 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Estado</th>
+                  <th className="w-20 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Inicio</th>
+                  <th className="w-20 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Término</th>
+                  <th className="px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Frecuencia</th>
                 </tr>
               </thead>
               <tbody>
-                {contracts.map((contract) => (
+                {contracts.map((contract, idx) => (
                   <tr
                     key={contract._id}
                     onClick={() => handleRowClick(contract._id)}
-                    className="border-b border-gray-100 last:border-0 hover:bg-gray-50 cursor-pointer transition-colors"
+                    className={`border-b border-gray-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-brand-50/40 cursor-pointer transition-colors`}
                   >
-                    <td className="px-5 py-3 font-medium text-gray-900">{contract.name}</td>
-                    <td className="px-5 py-3 text-gray-700">{clientName(contract)}</td>
-                    <td className="px-5 py-3">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[contract.status] || 'bg-gray-100 text-gray-700'}`}>
+                    <td className="px-2 py-1.5 font-medium text-gray-900 truncate align-middle">{contract.name}</td>
+                    <td className="px-2 py-1.5 text-gray-700 truncate align-middle">{clientName(contract)}</td>
+                    <td className="px-2 py-1.5 align-middle">
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-medium ${STATUS_VARIANT[contract.status] || 'bg-gray-100 text-gray-700'}`}>
                         {STATUS_OPTIONS.find((o) => o.value === contract.status)?.label || contract.status}
                       </span>
                     </td>
-                    <td className="px-5 py-3 text-gray-500">{formatDate(contract.startDate)}</td>
-                    <td className="px-5 py-3 text-gray-500">{formatDate(contract.endDate)}</td>
-                    <td className="px-5 py-3 text-gray-500">{frequencyLabel(contract.frequency)}</td>
+                    <td className="px-2 py-1.5 text-gray-500 whitespace-nowrap align-middle">{formatDate(contract.startDate)}</td>
+                    <td className="px-2 py-1.5 text-gray-500 whitespace-nowrap align-middle">{formatDate(contract.endDate)}</td>
+                    <td className="px-2 py-1.5 text-gray-500 align-middle">{frequencyLabel(contract.frequency)}</td>
                   </tr>
                 ))}
               </tbody>

@@ -431,30 +431,30 @@ const fetchOrders = useCallback(async () => {
 
           {/* Desktop table skeleton */}
           <div className="hidden sm:block bg-white border border-gray-200 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
+            <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50">
-                  <th className="text-left px-5 py-3"><div className="h-4 w-12 bg-gray-200 rounded animate-pulse" /></th>
-                  <th className="text-left px-5 py-3"><div className="h-4 w-24 bg-gray-200 rounded animate-pulse" /></th>
-                  <th className="text-left px-5 py-3"><div className="h-4 w-28 bg-gray-200 rounded animate-pulse" /></th>
-                  <th className="text-left px-5 py-3"><div className="h-4 w-20 bg-gray-200 rounded animate-pulse" /></th>
-                  <th className="text-left px-5 py-3"><div className="h-4 w-16 bg-gray-200 rounded animate-pulse" /></th>
-                  <th className="text-left px-5 py-3"><div className="h-4 w-24 bg-gray-200 rounded animate-pulse" /></th>
-                  <th className="text-left px-5 py-3"><div className="h-4 w-20 bg-gray-200 rounded animate-pulse" /></th>
-                  <th className="text-left px-5 py-3"><div className="h-4 w-12 bg-gray-200 rounded animate-pulse" /></th>
+                <tr className="border-b border-gray-200 bg-gray-50/80">
+                  <th className="w-14 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase"></th>
+                  <th className="w-16 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase"></th>
+                  <th className="min-w-[120px] px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase"></th>
+                  <th className="min-w-[100px] px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase"></th>
+                  <th className="w-20 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase"></th>
+                  <th className="w-20 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase"></th>
+                  <th className="w-24 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase"></th>
+                  <th className="px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase"></th>
                 </tr>
               </thead>
               <tbody>
                 {[1, 2, 3, 4, 5].map((i) => (
                   <tr key={i} className="border-b border-gray-100">
-                    <td className="px-5 py-3"><div className="h-4 w-16 bg-gray-200 rounded animate-pulse" /></td>
-                    <td className="px-5 py-3"><div className="h-4 w-32 bg-gray-200 rounded animate-pulse" /></td>
-                    <td className="px-5 py-3"><div className="h-4 w-28 bg-gray-200 rounded animate-pulse" /></td>
-                    <td className="px-5 py-3"><div className="h-5 w-20 bg-gray-200 rounded-full animate-pulse" /></td>
-                    <td className="px-5 py-3"><div className="h-5 w-16 bg-gray-200 rounded-full animate-pulse" /></td>
-                    <td className="px-5 py-3"><div className="h-4 w-24 bg-gray-200 rounded animate-pulse" /></td>
-                    <td className="px-5 py-3"><div className="h-4 w-24 bg-gray-200 rounded animate-pulse" /></td>
-                    <td className="px-5 py-3"><div className="h-6 w-12 bg-gray-200 rounded animate-pulse" /></td>
+                    <td className="px-2 py-1.5"><div className="h-5 w-10 bg-gray-200 rounded animate-pulse" /></td>
+                    <td className="px-2 py-1.5"><div className="h-4 w-12 bg-gray-200 rounded animate-pulse" /></td>
+                    <td className="px-2 py-1.5"><div className="h-4 w-24 bg-gray-200 rounded animate-pulse" /></td>
+                    <td className="px-2 py-1.5"><div className="h-4 w-20 bg-gray-200 rounded animate-pulse" /></td>
+                    <td className="px-2 py-1.5"><div className="h-5 w-16 bg-gray-200 rounded animate-pulse" /></td>
+                    <td className="px-2 py-1.5"><div className="h-5 w-14 bg-gray-200 rounded animate-pulse" /></td>
+                    <td className="px-2 py-1.5"><div className="h-4 w-16 bg-gray-200 rounded animate-pulse" /></td>
+                    <td className="px-2 py-1.5"><div className="h-4 w-20 bg-gray-200 rounded animate-pulse" /></td>
                   </tr>
                 ))}
               </tbody>
@@ -493,43 +493,39 @@ const fetchOrders = useCallback(async () => {
         </div>
       ) : (
         <>
-          <div className="hidden sm:block bg-white border border-gray-200 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
+<div className="hidden sm:block bg-white border border-gray-200 rounded-xl overflow-hidden">
+            <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50">
-                  <th className="text-left px-5 py-3 font-semibold text-gray-600"></th>
-                  <th className="text-left px-5 py-3 font-semibold text-gray-600">#</th>
-                  <th className="text-left px-5 py-3 font-semibold text-gray-600">Título</th>
-                  <th className="text-left px-5 py-3 font-semibold text-gray-600">Cliente</th>
-                  <th className="text-left px-5 py-3 font-semibold text-gray-600">Estado</th>
-                  <th className="text-left px-5 py-3 font-semibold text-gray-600">Prioridad</th>
-                  <th className="text-left px-5 py-3 font-semibold text-gray-600 cursor-pointer hover:text-brand-600" onClick={() => handleSort('scheduledDate')}>Fecha ejecución <SortIcon field="scheduredDate" /></th>
-                  <th className="text-left px-5 py-3 font-semibold text-gray-600">Técnico</th>
+                <tr className="border-b border-gray-200 bg-gray-50/80">
+                  <th className="w-14 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"></th>
+                  <th className="w-16 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">#</th>
+                  <th className="min-w-[120px] px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Título</th>
+                  <th className="min-w-[100px] px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Cliente</th>
+                  <th className="w-20 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Estado</th>
+                  <th className="w-20 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Prioridad</th>
+                  <th className="w-24 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-brand-600" onClick={() => handleSort('scheduledDate')}>Fecha <SortIcon field="scheduledDate" /></th>
+                  <th className="px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Técnico</th>
                 </tr>
               </thead>
               <tbody>
                 {sortedOrders.map((wo, idx) => {
                   const isOwn = isTechAssigned(wo, isTechnician ? user.name : null, isTechnician ? user.email : null);
-                  const rowBg = idx % 2 === 0 ? 'bg-white' : 'bg-gray-100';
+                  const rowBg = idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50';
                   return (
                     <tr
                       key={wo._id}
-                      className={`${rowBg} border-b border-gray-100 last:border-0 hover:bg-gray-100 transition-colors`}
+                      className={`${rowBg} border-b border-gray-100 hover:bg-brand-50/40 transition-colors`}
                     >
-                      <td className="px-5 py-3">
+                      <td className="px-2 py-1.5 align-middle">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
                             router.push(`/work-orders/${wo._id}`);
                           }}
-                          className="inline-flex items-center gap-1.5 rounded-lg bg-brand-50 px-2.5 py-1.5 text-xs font-medium text-brand-600 hover:bg-brand-100 hover:text-brand-700 transition-colors cursor-pointer"
+                          className="inline-flex items-center gap-1 rounded-md bg-brand-50 px-2 py-1 text-xs font-medium text-brand-600 hover:bg-brand-100"
                         >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                          </svg>
                           Ver
                         </button>
-                        {/* Botón "Solicitar" para técnicos - en OTs Programadas (sin técnico) o Asignadas (a otro técnico) */}
                         {isTechnician && !isAdmin && !isOwn && activeTab === 'all' && 
                          (wo.status === 'scheduled' || wo.status === 'assigned') && (
                           <button
@@ -538,34 +534,34 @@ const fetchOrders = useCallback(async () => {
                               setSelfAssignWO({ id: wo._id, number: wo.workOrderNumber });
                               setSelfAssignOpen(true);
                             }}
-                            className="text-xs font-medium text-brand-600 hover:text-brand-700 transition-colors ml-2"
+                            className="text-xs font-medium text-brand-600 hover:text-brand-700 ml-2"
                           >
                             Solicitar
                           </button>
                         )}
                       </td>
-                      <td className="px-5 py-3 font-medium text-gray-900">#{shortWO(wo.workOrderNumber)}</td>
-                      <td className="px-5 py-3 font-medium text-gray-900">{wo.title}</td>
-                      <td className="px-5 py-3 text-gray-700">{clientName(wo)}</td>
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[wo.status] || 'bg-gray-100 text-gray-700'}`}>
+                      <td className="px-2 py-1.5 font-medium text-gray-900 align-middle">#{shortWO(wo.workOrderNumber)}</td>
+                      <td className="px-2 py-1.5 font-medium text-gray-900 truncate align-middle">{wo.title}</td>
+                      <td className="px-2 py-1.5 text-gray-700 truncate align-middle">{clientName(wo)}</td>
+                      <td className="px-2 py-1.5 align-middle">
+                        <div className="flex items-center gap-1 flex-wrap">
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-medium ${STATUS_VARIANT[wo.status] || 'bg-gray-100 text-gray-700'}`}>
                             {label(STATUS_OPTIONS, wo.status)}
                           </span>
                           {isOverdue(wo) && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold bg-red-600 text-white">
+                            <span className="inline-flex items-center px-1 py-0.5 rounded text-xs font-bold bg-red-600 text-white">
                               VENCIDA
                             </span>
                           )}
                         </div>
                       </td>
-                      <td className="px-5 py-3">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${PRIORITY_VARIANT[wo.priority] || 'bg-gray-100 text-gray-700'}`}>
+                      <td className="px-2 py-1.5 align-middle">
+                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-medium ${PRIORITY_VARIANT[wo.priority] || 'bg-gray-100 text-gray-700'}`}>
                           {label(PRIORITY_OPTIONS, wo.priority)}
                         </span>
                       </td>
-                      <td className="px-5 py-3 text-gray-500">{formatDate(wo.scheduledDate)}</td>
-                      <td className="px-5 py-3 text-gray-500">{technicianName(wo)}</td>
+                      <td className="px-2 py-1.5 text-gray-500 whitespace-nowrap align-middle">{formatDate(wo.scheduledDate)}</td>
+                      <td className="px-2 py-1.5 text-gray-500 truncate align-middle">{technicianName(wo)}</td>
                     </tr>
                   );
                 })}

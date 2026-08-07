@@ -194,20 +194,20 @@ function CommercialDashboardContent() {
         <SectionHeader title="Top Clientes por Facturación" subtitle="Clientes con mayor volumen cotizado" />
         {commercial && commercial.topClients.length > 0 ? (
           <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
+            <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50">
-                  <th className="text-left px-5 py-3 font-semibold text-gray-600">#</th>
-                  <th className="text-left px-5 py-3 font-semibold text-gray-600">Cliente</th>
-                  <th className="text-right px-5 py-3 font-semibold text-gray-600">Total Cotizado</th>
+                <tr className="border-b border-gray-200 bg-gray-50/80">
+                  <th className="w-10 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">#</th>
+                  <th className="px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Cliente</th>
+                  <th className="w-24 px-2 py-2 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Total</th>
                 </tr>
               </thead>
               <tbody>
                 {commercial.topClients.map((client, idx) => (
-                  <tr key={client.clientId} className="border-b border-gray-100 last:border-0">
-                    <td className="px-5 py-3 text-gray-400 font-mono">{idx + 1}</td>
-                    <td className="px-5 py-3 font-medium text-gray-900">{client.name}</td>
-                    <td className="px-5 py-3 text-right font-mono text-gray-700">${(client.totalQuoted / 1000).toFixed(0)}k</td>
+                  <tr key={client.clientId} className={`border-b border-gray-100 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-brand-50/40 transition-colors`}>
+                    <td className="px-2 py-1.5 text-gray-400 font-mono align-middle">{idx + 1}</td>
+                    <td className="px-2 py-1.5 font-medium text-gray-900 truncate align-middle">{client.name}</td>
+                    <td className="px-2 py-1.5 text-right font-mono text-gray-700 align-middle">${(client.totalQuoted / 1000).toFixed(0)}k</td>
                   </tr>
                 ))}
               </tbody>
