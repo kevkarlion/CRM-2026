@@ -71,12 +71,8 @@ export function LeadBotControlCard({
           <div className="space-y-2 pt-2">
             <button
               onClick={onTakeControl}
-              disabled={actionLoading || conversation.owner === 'OPERATOR'}
-              className={`w-full rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                conversation.owner === 'OPERATOR'
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : 'bg-gray-800 text-white hover:bg-gray-900'
-              }`}
+              disabled={actionLoading}
+              className="w-full rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-gray-800 text-white hover:bg-gray-900"
             >
               {actionLoading ? 'Tomando...' : '👤 Tomar control'}
             </button>
