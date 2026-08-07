@@ -19,6 +19,18 @@ interface WorkOrderListItem {
   createdAt?: string;
 }
 
+function formatWorkOrderNumber(number: string): string {
+  // Format: "2026-WO-000001" or "20260001" → "#06-0001"
+  if (!number) return '';
+  const clean = number.replace(/[^0-9]/g, '');
+  if (clean.length >= 6) {
+    const year = clean.slice(-6, -4);
+    const seq = clean.slice(-4);
+    return `#${year}-${seq}`;
+  }
+  return `#${number}`;
+}
+
 interface ClientWorkOrdersTabProps {
   clientId: string;
 }
@@ -150,7 +162,7 @@ export function ClientWorkOrdersTab({ clientId }: ClientWorkOrdersTabProps) {
             {workOrders.map((workOrder) => (
               <tr key={workOrder._id} className="hover:bg-gray-50">
                 <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                  #{workOrder.workOrderNumber}
+                  {formatWorkOrderNumber(workOrder.workOrderNumber)}
                 </td>
                 <td className="px-4 py-3">
                   <Link
