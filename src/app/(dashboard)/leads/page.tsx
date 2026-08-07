@@ -215,37 +215,37 @@ export default function LeadsPage() {
       ) : (
         <>
             <div className="hidden sm:block bg-white border border-gray-200 rounded-xl overflow-hidden">
-            <table className="w-full text-xs table-fixed">
+            <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50">
-                  <th className="w-16 text-left px-1.5 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Acción</th>
-                  <th className="w-28 text-left px-1.5 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Cliente</th>
-                  <th className="w-28 text-left px-1.5 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nombre</th>
-                  <th className="w-20 text-left px-1.5 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Teléfono</th>
-                  <th className="w-20 text-left px-1.5 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Estado</th>
-                  <th className="w-14 text-left px-1.5 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Creado</th>
-                  <th className="text-left px-1.5 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Localidad</th>
+                <tr className="border-b border-gray-200 bg-gray-50/80">
+                  <th className="w-14 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Acción</th>
+                  <th className="min-w-[100px] px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Cliente</th>
+                  <th className="min-w-[80px] px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Nombre</th>
+                  <th className="w-20 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Teléfono</th>
+                  <th className="w-20 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Estado</th>
+                  <th className="w-16 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Creado</th>
+                  <th className="px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Localidad</th>
                 </tr>
               </thead>
               <tbody>
                 {sortedLeads.map((lead, i) => (
                   <tr
                     key={lead._id}
-                    className={`transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-brand-50/40`}
+                    className={`border-b border-gray-100 transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'} hover:bg-brand-50/40`}
                   >
-                    <td className="px-1.5 py-1.5 text-left whitespace-nowrap">
+                    <td className="px-2 py-1.5 whitespace-nowrap align-middle">
                       <ViewLeadLink leadId={lead._id} />
                     </td>
-                    <td className="px-1.5 py-1.5 text-xs font-medium text-gray-900 truncate">{lead.companyName || lead.profileName || '—'}</td>
-                    <td className="px-1.5 py-1.5 text-xs text-gray-600 truncate">{lead.name}</td>
-                    <td className="px-1.5 py-1.5 text-xs text-gray-500 truncate">{lead.phone || '—'}</td>
-                    <td className="px-1.5 py-1.5">
-                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[lead.status] || 'bg-gray-100 text-gray-700'}`}>
+                    <td className="px-2 py-1.5 font-medium text-gray-900 truncate align-middle">{lead.companyName || lead.profileName || '—'}</td>
+                    <td className="px-2 py-1.5 text-gray-600 truncate align-middle">{lead.name}</td>
+                    <td className="px-2 py-1.5 text-gray-500 truncate align-middle">{lead.phone || '—'}</td>
+                    <td className="px-2 py-1.5 align-middle">
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-medium ${STATUS_VARIANT[lead.status] || 'bg-gray-100 text-gray-700'}`}>
                         {statusLabel(lead.status)}
                       </span>
                     </td>
-                    <td className="px-1.5 py-1.5 text-xs text-gray-500 whitespace-nowrap">{formatDate(lead.createdAt)}</td>
-                    <td className="px-1.5 py-1.5 text-xs text-gray-500 truncate">{lead.locality || '—'}</td>
+                    <td className="px-2 py-1.5 text-gray-500 whitespace-nowrap align-middle">{formatDate(lead.createdAt)}</td>
+                    <td className="px-2 py-1.5 text-gray-500 truncate align-middle">{lead.locality || '—'}</td>
                   </tr>
                 ))}
               </tbody>
