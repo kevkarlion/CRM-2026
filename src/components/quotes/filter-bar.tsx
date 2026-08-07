@@ -1,22 +1,22 @@
 'use client';
 
 import type { FilterState } from '@/quotes/types/client-quote-types';
+import { QUOTE_STATUS_LABELS } from '@/leads/components/detail/lead-detail.constants';
 
-const AVAILABLE_STATUSES = [
-  'draft', 'sent', 'approved', 'rejected', 'expired', 'cancelled',
-  'open', 'counteroffer_made', 'accepted',
-];
-
-const STATUS_LABELS: Record<string, string> = {
-  draft: 'Borrador',
-  sent: 'Enviada',
-  approved: 'Aprobada',
-  rejected: 'Rechazada',
-  expired: 'Vencida',
-  cancelled: 'Cancelada',
+const NEGOTIATION_STATUS_LABELS: Record<string, string> = {
   open: 'Abierta',
   counteroffer_made: 'Contraoferta',
   accepted: 'Aceptada',
+};
+
+const AVAILABLE_STATUSES = [
+  ...Object.keys(QUOTE_STATUS_LABELS),
+  ...Object.keys(NEGOTIATION_STATUS_LABELS),
+];
+
+const STATUS_LABELS: Record<string, string> = {
+  ...QUOTE_STATUS_LABELS,
+  ...NEGOTIATION_STATUS_LABELS,
 };
 
 interface FilterBarProps {
