@@ -352,52 +352,58 @@ export default function LeadDetailPage() {
           <EntityTab id="documentacion" label="Documentación" />
 
           <EntityTabPanel id="resumen">
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-              <div className="space-y-6 lg:col-span-2">
-                <LeadInfoCard
-                  lead={lead}
-                  isConverted={isConverted}
-                  saleDetail={saleDetail}
-                  loadingSaleDetail={loadingSaleDetail}
-                  onViewQuote={handleViewQuoteDetail}
-                />
-                <LeadSummaryNoteCard notes={lead.notes} />
-                <LeadAdminNotesCard notes={lead.adminNotes} onSave={saveNotes} />
-                <LeadActivityTabs
-                  activeTab={activeDetailTab}
-                  onActiveTabChange={setActiveDetailTab}
-                  leadId={id}
-                  phone={phone}
-                  messages={messages}
-                  chatLoading={chatLoading}
-                  chatError={chatError}
-                  hasMore={hasMore}
-                  chatSending={chatSending}
-                  onLoadMore={loadMore}
-                  onSendChat={handleSendChat}
-                  handoffPending={conversationStatus?.isHandoffPending ?? false}
-                  timelineRefreshKey={timelineRefreshKey}
-                />
-              </div>
+            <div className="space-y-6">
+              <LeadInfoCard
+                lead={lead}
+                isConverted={isConverted}
+                saleDetail={saleDetail}
+                loadingSaleDetail={loadingSaleDetail}
+                onViewQuote={handleViewQuoteDetail}
+              />
+              <LeadSummaryNoteCard notes={lead.notes} />
+              <LeadAdminNotesCard notes={lead.adminNotes} onSave={saveNotes} />
 
-              <aside className="space-y-4">
-                <LeadEditActionCard onEdit={() => router.push(`/leads/${id}/edit`)} />
-                <LeadBotControlCard
-                  conversation={conversation}
-                  loading={loadingConversation}
-                  actionLoading={actionLoading}
-                  onTakeControl={handleTakeControl}
-                  onMarkResolved={handleMarkResolved}
-                />
-                {canCreateQuoteOrVisit && (
-                  <LeadCommercialActionsCard
-                    onOpenQuoteDrawer={() => setShowQuoteDrawer(true)}
-                    onOpenVisitDrawer={() => setShowVisitDrawer(true)}
-                    onOpenQuickSaleDrawer={() => setShowQuickSaleDrawer(true)}
+              {/* Chat + Bot Control - side by side on desktop */}
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+                <div className="lg:col-span-3">
+                  <LeadActivityTabs
+                    activeTab={activeDetailTab}
+                    onActiveTabChange={setActiveDetailTab}
+                    leadId={id}
+                    phone={phone}
+                    messages={messages}
+                    chatLoading={chatLoading}
+                    chatError={chatError}
+                    hasMore={hasMore}
+                    chatSending={chatSending}
+                    onLoadMore={loadMore}
+                    onSendChat={handleSendChat}
+                    handoffPending={conversationStatus?.isHandoffPending ?? false}
+                    timelineRefreshKey={timelineRefreshKey}
                   />
-                )}
-              </aside>
+                </div>
+                <div className="lg:col-span-1">
+                  <LeadBotControlCard
+                    conversation={conversation}
+                    loading={loadingConversation}
+                    actionLoading={actionLoading}
+                    onTakeControl={handleTakeControl}
+                    onMarkResolved={handleMarkResolved}
+                  />
+                </div>
+              </div>
             </div>
+
+            <aside className="space-y-4 mt-6">
+              <LeadEditActionCard onEdit={() => router.push(`/leads/${id}/edit`)} />
+              {canCreateQuoteOrVisit && (
+                <LeadCommercialActionsCard
+                  onOpenQuoteDrawer={() => setShowQuoteDrawer(true)}
+                  onOpenVisitDrawer={() => setShowVisitDrawer(true)}
+                  onOpenQuickSaleDrawer={() => setShowQuickSaleDrawer(true)}
+                />
+              )}
+            </aside>
           </EntityTabPanel>
 
           <EntityTabPanel id="presupuestos">
