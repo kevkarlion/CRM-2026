@@ -26,6 +26,10 @@ import {
 import { LeadCommercialActionsCard } from '@/leads/components/detail';
 import { CreateQuoteDrawer } from '@/leads/components/CreateQuoteDrawer';
 import { CreateVisitDrawer } from '@/leads/components/CreateVisitDrawer';
+import { ChatPanel } from '@/whatsapp/components/ChatPanel';
+import { useChatMessages } from '@/whatsapp/hooks/useChatMessages';
+import { useChatPolling } from '@/whatsapp/hooks/useChatPolling';
+import { useWhatsAppSend } from '@/whatsapp/hooks/useWhatsAppSend';
 import type { ClientDetail, QuoteListItem } from '@/crm/components/detail';
 
 type DetailTabId = 'resumen' | 'presupuestos' | 'ordenes' | 'visitas' | 'documentacion' | 'actividad';
@@ -62,6 +66,32 @@ export default function ClientDetailPage() {
   const [showQuoteDrawer, setShowQuoteDrawer] = useState(false);
   const [showVisitDrawer, setShowVisitDrawer] = useState(false);
   const [showConfirmSaleDrawer, setShowConfirmSaleDrawer] = useState(false);
+
+  // Chat state
+  const [activeDetailTab, setActiveDetailTab] = useState<'chat' | 'timeline'>('chat');
+  const [timelineRefreshKey, setTimelineRefreshKey] = useState(0);
+  const phone = client?.phone || null;
+  const {
+    messages,
+    loading: chatLoading,
+    error: chatError,
+    hasMore,
+    loadMore,
+    refetch: refetchChat,
+  } = useChatMessages(phone);
+  const { sendMessage, sending: chatSending } = useWhatsAppSend();
+
+  useChatPolling({
+    interval: 5000,
+    enabled: activeDetailTab === 'chat',
+    onPoll: refetchChat,
+  });
+
+  const handleSendChat = useCallback(async (content: string) => {
+    if (!phone) return;
+    await sendMessage(phone, content);
+    refetchChat();
+  }, [phone, sendMessage, refetchChat]);
 
   const loadClient = useCallback(async () => {
     try {
@@ -247,31 +277,63 @@ export default function ClientDetailPage() {
             <EntityTab id="actividad" label="Actividad" />
 
             <EntityTabPanel id="resumen">
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                <div className="space-y-6 lg:col-span-2">
-                  <ClientInfoCard client={client} />
-                  <ClientNotesCard notes={client.notes} />
-                  <ClientBlockHistoryCard client={client} />
-                </div>
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                  <div className="space-y-6 lg:col-span-2">
+                    <ClientInfoCard client={client} />
+                    <ClientNotesCard notes={client.notes} />
+                    <ClientBlockHistoryCard client={client} />
 
-                <aside className="space-y-4">
-                  <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
-                    <h3 className="text-sm font-semibold text-gray-900 mb-2">Acciones</h3>
-                    <Link
-                      href={`/clients/${id}/edit`}
-                      className="w-full inline-flex items-center justify-center rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 transition-colors"
-                    >
-                      Editar Cliente
-                    </Link>
-                    {client.status !== 'blocked' && (
-                      <button
-                        onClick={() => setBlockModalOpen(true)}
-                        className="w-full inline-flex items-center justify-center rounded-lg border border-danger-200 bg-danger-50 px-4 py-2.5 text-sm font-semibold text-danger-700 hover:bg-danger-100 transition-colors"
+                    {/* Chat + Timeline tabs - side by side on desktop */}
+                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+                      <div className="lg:col-span-3">
+                        <EntityTabs
+                          activeId={activeDetailTab}
+                          onChange={(id) => setActiveDetailTab(id as 'chat' | 'timeline')}
+                          aria-label="Comunicación y actividad del cliente"
+                        >
+                          <EntityTab id="chat" label="Chat WhatsApp" />
+                          <EntityTab id="timeline" label="Actividad" />
+
+                          <EntityTabPanel id="chat" className="h-[500px] p-0">
+                            <ChatPanel
+                              messages={messages}
+                              loading={chatLoading}
+                              error={chatError}
+                              hasMore={hasMore}
+                              onLoadMore={loadMore}
+                              onSend={handleSendChat}
+                              sending={chatSending}
+                              selectedPhone={phone}
+                            />
+                          </EntityTabPanel>
+
+                          <EntityTabPanel id="timeline" className="p-6">
+                            <ClientActivityTab clientId={id} />
+                          </EntityTabPanel>
+                        </EntityTabs>
+                      </div>
+                    </div>
+                  </div>
+
+                  <aside className="space-y-4">
+                    <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
+                      <h3 className="text-sm font-semibold text-gray-900 mb-2">Acciones</h3>
+                      <Link
+                        href={`/clients/${id}/edit`}
+                        className="w-full inline-flex items-center justify-center rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 transition-colors"
                       >
-                        Bloquear Cliente
-                      </button>
-                    )}
-                    {client.status === 'blocked' && (
+                        Editar Cliente
+                      </Link>
+                      {client.status !== 'blocked' && (
+                        <button
+                          onClick={() => setBlockModalOpen(true)}
+                          className="w-full inline-flex items-center justify-center rounded-lg border border-danger-200 bg-danger-50 px-4 py-2.5 text-sm font-semibold text-danger-700 hover:bg-danger-100 transition-colors"
+                        >
+                          Bloquear Cliente
+                        </button>
+                      )}
+                      {client.status === 'blocked' && (
                       <button
                         onClick={() => setUnblockModalOpen(true)}
                         className="w-full inline-flex items-center justify-center rounded-lg bg-success-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-success-700 transition-colors"
@@ -288,6 +350,7 @@ export default function ClientDetailPage() {
                   />
                   <ClientMetadataCard client={client} />
                 </aside>
+              </div>
               </div>
             </EntityTabPanel>
 
