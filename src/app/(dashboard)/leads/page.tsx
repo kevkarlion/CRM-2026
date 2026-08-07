@@ -221,10 +221,10 @@ export default function LeadsPage() {
                   <th className="w-20 text-left px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Acción</th>
                   <th className="text-left px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Cliente</th>
                   <th className="text-left px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nombre</th>
-                  <th className="text-left px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Teléfono</th>
+                  <th className="w-20 text-left px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Teléfono</th>
                   <th className="w-20 text-left px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Estado</th>
-                  <th className="w-16 text-left px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Creado</th>
-                  <th className="w-20 text-left px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Localidad</th>
+                  <th className="w-14 text-left px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Creado</th>
+                  <th className="text-left px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Localidad</th>
                 </tr>
               </thead>
               <tbody>
