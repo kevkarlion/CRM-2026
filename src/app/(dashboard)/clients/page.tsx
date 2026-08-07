@@ -53,7 +53,7 @@ const CUSTOMER_TYPE_LABEL: Record<string, string> = {
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('es-CL', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
+    day: '2-digit', month: '2-digit', year: '2-digit',
   });
 }
 
@@ -206,17 +206,16 @@ export default function ClientsPage() {
       ) : (
         <>
           <div className="hidden sm:block bg-white border border-gray-200 rounded-xl overflow-hidden">
-            <table className="w-full text-sm table-fixed">
+            <table className="w-full text-xs table-fixed">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50">
-                  <th className="w-24 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Acciones</th>
-                  <th className="text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Cliente</th>
-                  <th className="text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nombre</th>
-                  <th className="text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Email</th>
-                  <th className="text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Teléfono</th>
-                  <th className="w-24 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Estado</th>
-                  <th className="w-20 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Creado</th>
-                  <th className="w-24 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Localidad</th>
+                  <th className="w-20 text-left px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Acción</th>
+                  <th className="text-left px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Cliente</th>
+                  <th className="text-left px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nombre</th>
+                  <th className="text-left px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Teléfono</th>
+                  <th className="w-20 text-left px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Estado</th>
+                  <th className="w-16 text-left px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Creado</th>
+                  <th className="w-20 text-left px-2 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Localidad</th>
                 </tr>
               </thead>
               <tbody>
@@ -225,20 +224,19 @@ export default function ClientsPage() {
                     key={client._id}
                     className={`transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-brand-50/40`}
                   >
-                    <td className="px-2.5 py-1.5 text-left whitespace-nowrap">
+                    <td className="px-2 py-1.5 text-left whitespace-nowrap">
                       <ViewClientLink clientId={client._id} />
                     </td>
-                    <td className="px-2.5 py-1.5 text-sm font-medium text-gray-900 truncate">{clientName(client)}</td>
-                    <td className="px-2.5 py-1.5 text-sm text-gray-600 truncate">{client.fullName || '—'}</td>
-                    <td className="px-2.5 py-1.5 text-sm text-gray-500 truncate">{client.email || '—'}</td>
-                    <td className="px-2.5 py-1.5 text-sm text-gray-500 truncate">{client.phone || '—'}</td>
-                    <td className="px-2.5 py-1.5">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[client.status] || 'bg-gray-100 text-gray-700'}`}>
+                    <td className="px-2 py-1.5 text-xs font-medium text-gray-900 truncate">{clientName(client)}</td>
+                    <td className="px-2 py-1.5 text-xs text-gray-600 truncate">{client.fullName || '—'}</td>
+                    <td className="px-2 py-1.5 text-xs text-gray-500 truncate">{client.phone || '—'}</td>
+                    <td className="px-2 py-1.5">
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[client.status] || 'bg-gray-100 text-gray-700'}`}>
                         {STATUS_OPTIONS.find((o) => o.value === client.status)?.label || client.status}
                       </span>
                     </td>
-                    <td className="px-2.5 py-1.5 text-sm text-gray-500 whitespace-nowrap">{formatDate(client.createdAt)}</td>
-                    <td className="px-2.5 py-1.5 text-sm text-gray-500 truncate">{client.locality || '—'}</td>
+                    <td className="px-2 py-1.5 text-xs text-gray-500 whitespace-nowrap">{formatDate(client.createdAt)}</td>
+                    <td className="px-2 py-1.5 text-xs text-gray-500 truncate">{client.locality || '—'}</td>
                   </tr>
                 ))}
               </tbody>
