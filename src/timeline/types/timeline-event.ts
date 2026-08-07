@@ -3,7 +3,8 @@ import { Types, Document } from 'mongoose';
 export interface ITimelineEvent extends Document {
   _id: Types.ObjectId;
   tenantId: Types.ObjectId;
-  leadId: Types.ObjectId;
+  leadId?: Types.ObjectId;
+  clientId?: Types.ObjectId;
   entityType: string;
   entityId: Types.ObjectId;
   eventType: string;
@@ -19,7 +20,8 @@ export interface ITimelineEvent extends Document {
 
 export type CreateTimelineEventInput = {
   tenantId: string;
-  leadId: string;
+  leadId?: string;
+  clientId?: string;
   entityType: string;
   entityId: string;
   eventType: string;

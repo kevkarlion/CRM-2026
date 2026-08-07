@@ -76,6 +76,7 @@ export class TechnicalVisitService {
           payload: {
             visitId: visit._id.toString(),
             leadId: data.leadId?.toString() || null,
+            clientId: data.clientId?.toString() || null,
             number: visitNumber,
             title: data.title,
             scheduledDate: data.scheduledDate?.toISOString(),
@@ -169,6 +170,7 @@ export class TechnicalVisitService {
             payload: {
               visitId: id,
               number: (current as any).visitNumber,
+              clientId: (current as any).clientId?.toString() || null,
             } as VisitCompletedPayload,
           });
         }

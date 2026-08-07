@@ -44,6 +44,10 @@ export const DOMAIN_EVENTS = {
   
   // Sale
   SALE_CONFIRMED: 'SALE_CONFIRMED',
+
+  // Client
+  CLIENT_CREATED: 'CLIENT_CREATED',
+  CLIENT_STATUS_CHANGED: 'CLIENT_STATUS_CHANGED',
 } as const;
 
 export type DomainEventType = typeof DOMAIN_EVENTS[keyof typeof DOMAIN_EVENTS];
@@ -76,6 +80,7 @@ export interface QuoteCreatedPayload {
   quoteId: string;
   number: string;
   leadId: string | null;
+  clientId?: string | null;
   total: number;
   status: string;
   validUntil: string | null;
@@ -87,6 +92,7 @@ export interface QuoteCreatedPayload {
 export interface QuoteSentPayload {
   quoteId: string;
   leadId: string;
+  clientId?: string | null;
   number: string;
   total: number;
   title?: string;
@@ -97,6 +103,7 @@ export interface QuoteSentPayload {
 export interface QuoteApprovedPayload {
   quoteId: string;
   leadId: string | null;
+  clientId?: string | null;
   number?: string;
   total?: number;
   title?: string;
@@ -164,6 +171,7 @@ export interface WorkOrderStatusChangedPayload {
   to: string;
   number?: string;
   title?: string;
+  category?: string;
 }
 
 export interface WorkOrderStartedPayload {
@@ -176,11 +184,13 @@ export interface WorkOrderStartedPayload {
 export interface WorkOrderCompletedPayload {
   workOrderId: string;
   number?: string;
+  clientId?: string | null;
 }
 
 export interface VisitCreatedPayload {
   visitId: string;
   leadId: string | null;
+  clientId?: string | null;
   number: string;
   title?: string;
   scheduledDate?: string;
@@ -201,6 +211,7 @@ export interface VisitStatusChangedPayload {
 export interface VisitCompletedPayload {
   visitId: string;
   number?: string;
+  clientId?: string | null;
 }
 
 export interface WorkOrderSelfAssignedPayload {
@@ -237,4 +248,21 @@ export interface SaleConfirmedPayload {
   saleMode: 'quotes' | 'direct';
   leadName?: string;
   quotesCount?: number;
+}
+
+export interface ClientCreatedPayload {
+  clientId: string;
+  name: string;
+  customerType?: string;
+  email?: string;
+  phone?: string;
+  source?: string;
+}
+
+export interface ClientStatusChangedPayload {
+  clientId: string;
+  from: string;
+  to: string;
+  reason?: string;
+  name?: string;
 }

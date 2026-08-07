@@ -1,5 +1,6 @@
 import { eventBus } from './event-bus';
 import { timelineHandler } from '@/timeline/handlers/timeline.handler';
+import { clientActivityOrchestrator } from '@/timeline/handlers/client-activity.handler';
 import { auditHandler } from '@/audit/handlers/audit.handler';
 
 /**
@@ -15,6 +16,9 @@ export function setupEventHandlers(): void {
 
   // Timeline handlers (Phase 1)
   timelineHandler.register();
+
+  // Client activity orchestrator (Phase 2) - single writer of entityType 'client' entries
+  clientActivityOrchestrator.register();
 
   // Audit handlers (Phase 6)
   auditHandler.register();

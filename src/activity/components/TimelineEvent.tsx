@@ -6,6 +6,7 @@ import { TimelineCardQuote } from './TimelineCardQuote';
 import { TimelineCardNegotiation } from './TimelineCardNegotiation';
 import { TimelineCardVisit } from './TimelineCardVisit';
 import { TimelineCardWorkOrder } from './TimelineCardWorkOrder';
+import { TimelineCardClient } from './TimelineCardClient';
 
 const CARD_REGISTRY: Record<string, React.ComponentType<TimelineCardProps>> = {
   lead: TimelineCardLead,
@@ -13,6 +14,7 @@ const CARD_REGISTRY: Record<string, React.ComponentType<TimelineCardProps>> = {
   negotiation: TimelineCardNegotiation,
   visit: TimelineCardVisit,
   work_order: TimelineCardWorkOrder,
+  client: TimelineCardClient,
 };
 
 interface TimelineEventProps {

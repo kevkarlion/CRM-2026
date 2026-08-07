@@ -218,7 +218,7 @@ export class WorkOrderService {
 
     try {
       const current = await WorkOrderModel.findOne({ _id: id, tenantId, deletedAt: null })
-        .select('status version workOrderNumber title category')
+        .select('status version workOrderNumber title category clientId')
         .session(session)
         .exec();
 
@@ -298,6 +298,7 @@ export class WorkOrderService {
             payload: {
               workOrderId: id,
               number: current.workOrderNumber,
+              clientId: current.clientId?.toString() || null,
             } as WorkOrderCompletedPayload,
           });
         }

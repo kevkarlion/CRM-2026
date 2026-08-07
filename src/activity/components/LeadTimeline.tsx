@@ -23,6 +23,17 @@ interface LeadTimelineProps {
   refreshKey?: number;
 }
 
+interface ClientTimelineProps {
+  clientId: string;
+  refreshKey?: number;
+}
+
+type EntityTimelineProps = LeadTimelineProps | ClientTimelineProps;
+
+function isLeadTimelineProps(props: EntityTimelineProps): props is LeadTimelineProps {
+  return 'leadId' in props;
+}
+
 function SkeletonRow() {
   return (
     <div className="flex gap-3 py-3 animate-pulse">
@@ -36,9 +47,29 @@ function SkeletonRow() {
 }
 
 export function LeadTimeline({ leadId, refreshKey = 0 }: LeadTimelineProps) {
+  return <EntityTimeline entityId={leadId} entityType="lead" refreshKey={refreshKey} />;
+}
+
+export function ClientTimeline({ clientId, refreshKey = 0 }: ClientTimelineProps) {
+  return <EntityTimeline entityId={clientId} entityType="client" refreshKey={refreshKey} />;
+}
+
+function EntityTimeline({
+  entityId,
+  entityType,
+  refreshKey = 0,
+}: {
+  entityId: string;
+  entityType: 'lead' | 'client';
+  refreshKey?: number;
+}) {
   const [activities, setActivities] = useState<TimelineEventData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const endpointUrl = entityType === 'client'
+    ? `/api/crm/clients/${entityId}/activity`
+    : `/api/crm/leads/${entityId}/activity`;
 
   useEffect(() => {
     let cancelled = false;
@@ -47,9 +78,7 @@ export function LeadTimeline({ leadId, refreshKey = 0 }: LeadTimelineProps) {
       try {
         setLoading(true);
         setError(null);
-        const data = await api.get<TimelineEventData[]>(
-          `/api/crm/leads/${leadId}/activity`,
-        );
+        const data = await api.get<TimelineEventData[]>(endpointUrl);
         if (!cancelled) setActivities(data);
       } catch (err) {
         if (!cancelled) {
@@ -64,7 +93,7 @@ export function LeadTimeline({ leadId, refreshKey = 0 }: LeadTimelineProps) {
 
     fetchActivities();
     return () => { cancelled = true; };
-  }, [leadId, refreshKey]);
+  }, [entityId, entityType, refreshKey]);
 
   if (loading) {
     return (

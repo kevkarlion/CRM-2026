@@ -2,6 +2,12 @@ import { Types } from 'mongoose';
 import { ClientModel, ContactModel, LocationModel, EquipmentModel, TaskModel } from '../models';
 import { cursorPage } from '../helpers/cursor-pagination';
 import { IClient, ClientStatus, CustomerType, CreateClientInput, UpdateClientInput } from '../types/client';
+import { eventBus } from '@/infrastructure/events/event-bus';
+import { DOMAIN_EVENTS, ClientCreatedPayload, ClientStatusChangedPayload } from '@/infrastructure/events/event.types';
+
+function clientDisplayName(client: { fullName?: string; companyName?: string }): string | undefined {
+  return client.fullName || client.companyName || undefined;
+}
 
 export class ConflictError extends Error {
   constructor(message: string) {
@@ -94,7 +100,30 @@ export class ClientService {
       createdBy: userId,
       updatedBy: userId,
     });
-    return client.toObject();
+    const doc = client.toObject();
+
+    try {
+      await eventBus.publish({
+        type: DOMAIN_EVENTS.CLIENT_CREATED,
+        aggregateId: doc._id.toString(),
+        aggregateType: 'Client',
+        tenantId,
+        userId,
+        timestamp: new Date(),
+        payload: {
+          clientId: doc._id.toString(),
+          name: clientDisplayName(doc) || '',
+          customerType: doc.customerType,
+          email: doc.email,
+          phone: doc.phone,
+          source: doc.source,
+        } as ClientCreatedPayload,
+      });
+    } catch (eventError) {
+      console.error('[ClientService] Failed to publish CLIENT_CREATED:', eventError);
+    }
+
+    return doc;
   }
 
   async findById(id: string, tenantId: string): Promise<IClient | null> {
@@ -174,6 +203,27 @@ export class ClientService {
     if (!client) {
       throw new NotFoundError('Client not found');
     }
+
+    try {
+      await eventBus.publish({
+        type: DOMAIN_EVENTS.CLIENT_STATUS_CHANGED,
+        aggregateId: id,
+        aggregateType: 'Client',
+        tenantId,
+        userId,
+        timestamp: new Date(),
+        payload: {
+          clientId: id,
+          from: existing.status,
+          to: 'blocked',
+          reason: reason.trim(),
+          name: clientDisplayName(existing),
+        } as ClientStatusChangedPayload,
+      });
+    } catch (eventError) {
+      console.error('[ClientService] Failed to publish CLIENT_STATUS_CHANGED:', eventError);
+    }
+
     return client;
   }
 
@@ -209,6 +259,26 @@ export class ClientService {
     if (!client) {
       throw new NotFoundError('Client not found');
     }
+
+    try {
+      await eventBus.publish({
+        type: DOMAIN_EVENTS.CLIENT_STATUS_CHANGED,
+        aggregateId: id,
+        aggregateType: 'Client',
+        tenantId,
+        userId,
+        timestamp: new Date(),
+        payload: {
+          clientId: id,
+          from: 'blocked',
+          to: 'active',
+          name: clientDisplayName(existing),
+        } as ClientStatusChangedPayload,
+      });
+    } catch (eventError) {
+      console.error('[ClientService] Failed to publish CLIENT_STATUS_CHANGED:', eventError);
+    }
+
     return client;
   }
 

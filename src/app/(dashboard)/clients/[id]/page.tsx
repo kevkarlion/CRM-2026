@@ -16,6 +16,7 @@ import {
   ClientQuotesTab,
   ClientVisitsTab,
   ClientWorkOrdersTab,
+  ClientActivityTab,
   CLIENT_STATUS_DOT_COLOR,
   CLIENT_STATUS_OPTIONS,
   CLIENT_STATUS_VARIANT,
@@ -27,7 +28,7 @@ import { CreateQuoteDrawer } from '@/leads/components/CreateQuoteDrawer';
 import { CreateVisitDrawer } from '@/leads/components/CreateVisitDrawer';
 import type { ClientDetail, QuoteListItem } from '@/crm/components/detail';
 
-type DetailTabId = 'resumen' | 'presupuestos' | 'ordenes' | 'visitas' | 'documentacion';
+type DetailTabId = 'resumen' | 'presupuestos' | 'ordenes' | 'visitas' | 'documentacion' | 'actividad';
 
 function isNotFoundError(message: string): boolean {
   return /not found/i.test(message);
@@ -243,6 +244,7 @@ export default function ClientDetailPage() {
             <EntityTab id="ordenes" label="Órdenes de trabajo" />
             <EntityTab id="visitas" label="Visitas técnicas" />
             <EntityTab id="documentacion" label="Documentación" />
+            <EntityTab id="actividad" label="Actividad" />
 
             <EntityTabPanel id="resumen">
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -303,6 +305,10 @@ export default function ClientDetailPage() {
 
             <EntityTabPanel id="documentacion">
               <ClientDocumentationTab />
+            </EntityTabPanel>
+
+            <EntityTabPanel id="actividad">
+              <ClientActivityTab clientId={id} />
             </EntityTabPanel>
           </EntityTabs>
         </div>

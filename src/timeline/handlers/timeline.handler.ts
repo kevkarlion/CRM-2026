@@ -39,7 +39,7 @@ const STATUS_LABELS: Record<string, string> = {
   low: 'Baja', normal: 'Normal', high: 'Alta', urgent: 'Urgente',
 };
 
-function label(key?: string): string | undefined {
+export function label(key?: string): string | undefined {
   return key ? (STATUS_LABELS[key] || key) : undefined;
 }
 
@@ -154,7 +154,7 @@ export const timelineHandler = {
     const statusLabel = label(p.status) || p.status;
     await timelineService.create({
       tenantId: event.tenantId,
-      leadId: p.leadId || '',
+      leadId: p.leadId || undefined,
       entityType: 'quote',
       entityId: p.quoteId,
       eventType: 'quote.created',
@@ -180,7 +180,7 @@ export const timelineHandler = {
     const p = event.payload;
     await timelineService.create({
       tenantId: event.tenantId,
-      leadId: p.leadId,
+      leadId: p.leadId ?? undefined,
       entityType: 'quote',
       entityId: p.quoteId,
       eventType: 'quote.sent',
@@ -204,7 +204,7 @@ export const timelineHandler = {
     const p = event.payload;
     await timelineService.create({
       tenantId: event.tenantId,
-      leadId: p.leadId ?? '',
+      leadId: p.leadId ?? undefined,
       entityType: 'quote',
       entityId: p.quoteId,
       eventType: 'quote.approved',
@@ -229,7 +229,7 @@ export const timelineHandler = {
     const p = event.payload;
     await timelineService.create({
       tenantId: event.tenantId,
-      leadId: p.leadId ?? '',
+      leadId: p.leadId ?? undefined,
       entityType: 'quote',
       entityId: p.quoteId,
       eventType: 'quote.rejected',
@@ -255,7 +255,6 @@ export const timelineHandler = {
     const p = event.payload;
     await timelineService.create({
       tenantId: event.tenantId,
-      leadId: '',
       entityType: 'quote',
       entityId: p.quoteId,
       eventType: 'quote.converted',
@@ -344,7 +343,7 @@ export const timelineHandler = {
     const priorityLabel = label(p.priority);
     await timelineService.create({
       tenantId: event.tenantId,
-      leadId: p.leadId ?? '',
+      leadId: p.leadId ?? undefined,
       entityType: 'work_order',
       entityId: p.workOrderId,
       eventType: 'workorder.created',
@@ -376,7 +375,6 @@ export const timelineHandler = {
     const toLabel = label(to) || to;
     await timelineService.create({
       tenantId: event.tenantId,
-      leadId: '',
       entityType: 'work_order',
       entityId: workOrderId,
       eventType: 'workorder.status_changed',
@@ -402,7 +400,6 @@ export const timelineHandler = {
     const p = event.payload;
     await timelineService.create({
       tenantId: event.tenantId,
-      leadId: '',
       entityType: 'work_order',
       entityId: p.workOrderId,
       eventType: 'workorder.started',
@@ -425,7 +422,6 @@ export const timelineHandler = {
     const p = event.payload;
     await timelineService.create({
       tenantId: event.tenantId,
-      leadId: '',
       entityType: 'work_order',
       entityId: p.workOrderId,
       eventType: 'workorder.completed',
@@ -445,7 +441,6 @@ export const timelineHandler = {
     const p = event.payload;
     await timelineService.create({
       tenantId: event.tenantId,
-      leadId: '',
       entityType: 'work_order',
       entityId: p.workOrderId,
       eventType: 'workorder.self_assigned',
@@ -469,7 +464,7 @@ export const timelineHandler = {
     const p = event.payload;
     await timelineService.create({
       tenantId: event.tenantId,
-      leadId: p.leadId ?? '',
+      leadId: p.leadId ?? undefined,
       entityType: 'work_order',
       entityId: p.workOrderId,
       eventType: 'workorder.technician_assigned',
@@ -500,7 +495,7 @@ export const timelineHandler = {
     const previousName = p.previousTechnicianName || p.previousTechnicianId || 'otro técnico';
     await timelineService.create({
       tenantId: event.tenantId,
-      leadId: p.leadId ?? '',
+      leadId: p.leadId ?? undefined,
       entityType: 'work_order',
       entityId: p.workOrderId,
       eventType: 'workorder.technician_changed',
@@ -530,7 +525,7 @@ export const timelineHandler = {
     const p = event.payload;
     await timelineService.create({
       tenantId: event.tenantId,
-      leadId: p.leadId ?? '',
+      leadId: p.leadId ?? undefined,
       entityType: 'work_order',
       entityId: p.workOrderId,
       eventType: 'workorder.technician_unassigned',
@@ -564,7 +559,7 @@ export const timelineHandler = {
     const priorityLabel = label(p.priority);
     await timelineService.create({
       tenantId: event.tenantId,
-      leadId: p.leadId ?? '',
+      leadId: p.leadId ?? undefined,
       entityType: 'visit',
       entityId: p.visitId,
       eventType: 'visit.created',
@@ -596,7 +591,6 @@ export const timelineHandler = {
     const toLabel = label(to) || to;
     await timelineService.create({
       tenantId: event.tenantId,
-      leadId: '',
       entityType: 'visit',
       entityId: visitId,
       eventType: 'visit.status_changed',
@@ -620,7 +614,6 @@ export const timelineHandler = {
     const p = event.payload;
     await timelineService.create({
       tenantId: event.tenantId,
-      leadId: '',
       entityType: 'visit',
       entityId: p.visitId,
       eventType: 'visit.completed',
@@ -640,14 +633,14 @@ export const timelineHandler = {
 
   async onSaleConfirmed(event: DomainEvent<SaleConfirmedPayload>): Promise<void> {
     const p = event.payload;
-    const isClient = p.leadId === null;
+    if (p.leadId === null) return; // client-scoped entries are written by clientActivityOrchestrator
     const modeLabel = p.saleMode === 'quotes' ? 'mediante presupuestos' : 'venta directa';
     await timelineService.create({
       tenantId: event.tenantId,
-      leadId: p.leadId ?? '',
-      entityType: isClient ? 'client' : 'lead',
-      entityId: isClient ? p.clientId : (p.leadId ?? ''),
-      eventType: isClient ? 'client.sale_confirmed' : 'lead.converted',
+      leadId: p.leadId,
+      entityType: 'lead',
+      entityId: p.leadId,
+      eventType: 'lead.converted',
       title: 'Venta confirmada',
       summary: `$${p.amount.toLocaleString('es-AR')} — ${modeLabel}${p.quotesCount ? ` (${p.quotesCount} presupuesto${p.quotesCount > 1 ? 's' : ''})` : ''}`,
       icon: 'check-circle',

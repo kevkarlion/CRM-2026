@@ -5,6 +5,7 @@ const ENTITY_ROUTES: Record<string, string> = {
   work_order: '/work-orders/',
   workorder: '/work-orders/',
   lead: '/leads/',
+  client: '/clients/',
 };
 
 export function resolveEntityRoute(

@@ -4,7 +4,8 @@ import { ITimelineEvent } from '../types/timeline-event';
 export const timelineEventSchema = new Schema<ITimelineEvent>(
   {
     tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
-    leadId: { type: Schema.Types.ObjectId, ref: 'Lead', required: true, index: true },
+    leadId: { type: Schema.Types.ObjectId, ref: 'Lead', index: true },
+    clientId: { type: Schema.Types.ObjectId, ref: 'Client' },
     entityType: { type: String, required: true },
     entityId: { type: Schema.Types.ObjectId, required: true },
     eventType: { type: String, required: true },
@@ -20,4 +21,5 @@ export const timelineEventSchema = new Schema<ITimelineEvent>(
 );
 
 timelineEventSchema.index({ tenantId: 1, leadId: 1, createdAt: -1 });
+timelineEventSchema.index({ tenantId: 1, clientId: 1, createdAt: -1 });
 timelineEventSchema.index({ tenantId: 1, entityType: 1, entityId: 1 });

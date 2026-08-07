@@ -159,6 +159,7 @@ export class QuoteService {
             quoteId: String(quote._id),
             number,
             leadId: data.leadId || null,
+            clientId: data.clientId || null,
             total,
             status: 'draft',
             validUntil: data.validUntil || null,
@@ -550,6 +551,7 @@ export class QuoteService {
         payload: {
           quoteId: quote._id.toString(),
           leadId: quote.leadId?.toString() || '',
+          clientId: quote.clientId?.toString() || null,
           number: quote.number,
           total: quote.total,
           title: quote.title,
@@ -633,6 +635,7 @@ export class QuoteService {
         payload: {
           quoteId: quote._id.toString(),
           leadId: quote.leadId?.toString() || null,
+          clientId: quote.clientId?.toString() || null,
           number: quote.number,
           total: quote.total,
           title: quote.title,
