@@ -87,6 +87,9 @@ export function ClientQuotesTab({ quotes, loading }: ClientQuotesTabProps) {
               <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Total
               </th>
+              <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Acción
+              </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -95,13 +98,8 @@ export function ClientQuotesTab({ quotes, loading }: ClientQuotesTabProps) {
                 <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                   #{quote.number}
                 </td>
-                <td className="px-4 py-3">
-                  <Link
-                    href={`/quotes/${quote._id}`}
-                    className="text-sm font-medium text-gray-900 hover:text-brand-600"
-                  >
-                    {quote.title}
-                  </Link>
+                <td className="px-4 py-3 text-sm text-gray-900">
+                  {quote.title}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap">
                   <span
@@ -112,6 +110,14 @@ export function ClientQuotesTab({ quotes, loading }: ClientQuotesTabProps) {
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-sm text-right font-medium text-gray-900">
                   {formatCurrency(quote.total)}
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap text-right">
+                  <Link
+                    href={`/quotes/${quote._id}`}
+                    className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-brand-700 bg-brand-50 rounded-md hover:bg-brand-100"
+                  >
+                    Ver
+                  </Link>
                 </td>
               </tr>
             ))}

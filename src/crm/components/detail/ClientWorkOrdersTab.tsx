@@ -156,6 +156,9 @@ export function ClientWorkOrdersTab({ clientId }: ClientWorkOrdersTabProps) {
               <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Estado
               </th>
+              <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Acción
+              </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -164,13 +167,8 @@ export function ClientWorkOrdersTab({ clientId }: ClientWorkOrdersTabProps) {
                 <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                   {formatWorkOrderNumber(workOrder.workOrderNumber)}
                 </td>
-                <td className="px-4 py-3">
-                  <Link
-                    href={`/work-orders/${workOrder._id}`}
-                    className="text-sm font-medium text-gray-900 hover:text-brand-600"
-                  >
-                    {workOrder.title}
-                  </Link>
+                <td className="px-4 py-3 text-sm text-gray-900">
+                  {workOrder.title}
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                   {formatDateShort(workOrder.scheduledDate || workOrder.createdAt)}
@@ -181,6 +179,14 @@ export function ClientWorkOrdersTab({ clientId }: ClientWorkOrdersTabProps) {
                   >
                     {WORK_ORDER_STATUS_LABELS[workOrder.status as keyof typeof WORK_ORDER_STATUS_LABELS] || workOrder.status}
                   </span>
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap text-right">
+                  <Link
+                    href={`/work-orders/${workOrder._id}`}
+                    className="inline-flex items-center px-2.5 py-1.5 text-xs font-medium text-brand-700 bg-brand-50 rounded-md hover:bg-brand-100"
+                  >
+                    Ver
+                  </Link>
                 </td>
               </tr>
             ))}
