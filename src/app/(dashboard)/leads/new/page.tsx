@@ -4,8 +4,13 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api-client';
 import { LeadStatus, type ILead } from '@/leads/types/lead';
+import { LEAD_STATUS_LABELS } from '@/leads/constants/lead-status.constants';
 import { CreateQuoteModal } from '@/quotes/components/CreateQuoteModal';
 import { ScheduleVisitModal } from '@/operations/components/ScheduleVisitModal';
+
+const STATUS_OPTIONS = Object.entries(LEAD_STATUS_LABELS)
+  .filter(([value]) => value !== 'disqualified')
+  .map(([value, label]) => ({ value, label }));
 
 const SOURCE_OPTIONS = [
   { value: 'whatsapp', label: 'WhatsApp' },
@@ -163,12 +168,9 @@ export default function NewLeadPage() {
               setLostDescription('');
             }
           }} className={inputClass}>
-            <option value="new">Nuevo Lead</option>
-            <option value="contacted">Contactado</option>
-            <option value="quote_sent">Presupuesto enviado</option>
-            <option value="technical_visit">Visita técnica</option>
-            <option value="won">Lead ganado</option>
-            <option value="lost">Lead perdido</option>
+            {STATUS_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
           </select>
         </div>
         {status === 'lost' && (

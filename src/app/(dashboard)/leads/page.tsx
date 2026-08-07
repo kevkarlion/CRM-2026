@@ -2,7 +2,9 @@
 
 import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { api, unwrapData } from '@/lib/api-client';
+import { LEAD_STATUS_LABELS } from '@/leads/constants/lead-status.constants';
 
 interface Lead {
   _id: string;
@@ -24,22 +26,25 @@ interface ListResponse {
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Todos' },
-  { value: 'new', label: 'Nuevo' },
-  { value: 'contacted', label: 'Contactado' },
-  { value: 'qualified', label: 'Calificado' },
-  { value: 'won', label: 'Ganado' },
-  { value: 'lost', label: 'Perdido' },
-  { value: 'disqualified', label: 'Descalificado' },
+  ...Object.entries(LEAD_STATUS_LABELS)
+    .filter(([value]) => value !== 'disqualified')
+    .map(([value, label]) => ({ value, label })),
 ];
 
 const STATUS_VARIANT: Record<string, string> = {
   new: 'bg-info-50 text-info-700',
   contacted: 'bg-brand-50 text-brand-700',
-  qualified: 'bg-warning-50 text-warning-700',
+  quote_sent: 'bg-blue-50 text-blue-700',
+  technical_visit: 'bg-purple-50 text-purple-700',
+  negotiation: 'bg-warning-50 text-warning-700',
   won: 'bg-success-50 text-success-700',
   lost: 'bg-danger-50 text-danger-700',
   disqualified: 'bg-gray-100 text-gray-700',
 };
+
+function statusLabel(status: string): string {
+  return (LEAD_STATUS_LABELS as Record<string, string>)[status] || status;
+}
 
 function formatDate(dateStr: string) {
   return new Date(dateStr).toLocaleDateString('es-CL', {
@@ -51,6 +56,31 @@ function assigneeName(lead: Lead): string {
   if (!lead.assignedTo) return '—';
   if (typeof lead.assignedTo === 'object') return lead.assignedTo.name;
   return lead.assignedTo;
+}
+
+function ViewLeadLink({ leadId }: { leadId: string }) {
+  return (
+    <Link
+      href={`/leads/${leadId}`}
+      className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-2.5 py-1 text-sm font-medium text-gray-700 hover:bg-gray-50 hover:text-brand-600 transition-colors"
+    >
+      <svg
+        className="w-4 h-4"
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+        />
+      </svg>
+      Ver
+    </Link>
+  );
 }
 
 export default function LeadsPage() {
@@ -81,12 +111,12 @@ export default function LeadsPage() {
       if (!reset && cursor) params.cursor = cursor;
 
       const result = await api.get<ListResponse>('/api/crm/leads', params);
-      const leadsData = unwrapData(result);
+      const leadsData = unwrapData<Lead[]>(result);
 
       if (reset) {
         setLeads(leadsData);
       } else {
-        setLeads((prev) => [...prev, ...(leadsData as Lead[])]);
+        setLeads((prev) => [...prev, ...leadsData]);
       }
       setCursor((result as any).cursor);
       setTotal((result as any).total);
@@ -110,10 +140,6 @@ export default function LeadsPage() {
     }, search ? 400 : 0);
     return () => clearTimeout(timer);
   }, [search, statusFilter]);
-
-  function handleRowClick(id: string) {
-    router.push(`/leads/${id}`);
-  }
 
   function handleNew() {
     router.push('/leads/new');
@@ -160,7 +186,7 @@ export default function LeadsPage() {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter((e.target as any).value)}
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
+          className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
         >
           {STATUS_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -192,36 +218,39 @@ export default function LeadsPage() {
       ) : (
         <>
             <div className="hidden sm:block bg-white border border-gray-200 rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm table-fixed">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50">
-                  <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nombre</th>
-                  <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Empresa</th>
-                  <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Email</th>
-                  <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Teléfono</th>
-                  <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Estado</th>
-                  <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Origen</th>
-                  <th className="text-left px-3 py-2.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Creado</th>
+                  <th className="text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Nombre</th>
+                  <th className="text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Empresa</th>
+                  <th className="text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Email</th>
+                  <th className="text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Teléfono</th>
+                  <th className="w-28 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Estado</th>
+                  <th className="w-24 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Origen</th>
+                  <th className="w-32 text-left px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Creado</th>
+                  <th className="w-24 text-right px-2.5 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Acciones</th>
                 </tr>
               </thead>
               <tbody>
                 {sortedLeads.map((lead, i) => (
                   <tr
                     key={lead._id}
-                    onClick={() => handleRowClick(lead._id)}
-                    className={`cursor-pointer transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-gray-100`}
+                    className={`transition-colors ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:bg-brand-50/40`}
                   >
-                    <td className="px-3 py-2 text-sm font-medium text-gray-900">{lead.name}</td>
-                    <td className="px-3 py-2 text-sm text-gray-600">{lead.companyName || '—'}</td>
-                    <td className="px-3 py-2 text-sm text-gray-500">{lead.email || '—'}</td>
-                    <td className="px-3 py-2 text-sm text-gray-500">{lead.phone || '—'}</td>
-                    <td className="px-3 py-2">
+                    <td className="px-2.5 py-1.5 text-sm font-medium text-gray-900 truncate">{lead.name}</td>
+                    <td className="px-2.5 py-1.5 text-sm text-gray-600 truncate">{lead.companyName || '—'}</td>
+                    <td className="px-2.5 py-1.5 text-sm text-gray-500 truncate">{lead.email || '—'}</td>
+                    <td className="px-2.5 py-1.5 text-sm text-gray-500 truncate">{lead.phone || '—'}</td>
+                    <td className="px-2.5 py-1.5">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[lead.status] || 'bg-gray-100 text-gray-700'}`}>
-                        {STATUS_OPTIONS.find((o) => o.value === lead.status)?.label || lead.status}
+                        {statusLabel(lead.status)}
                       </span>
                     </td>
-                    <td className="px-3 py-2 text-sm text-gray-500 capitalize">{lead.source}</td>
-                    <td className="px-3 py-2 text-sm text-gray-500 whitespace-nowrap">{formatDate(lead.createdAt)}</td>
+                    <td className="px-2.5 py-1.5 text-sm text-gray-500 capitalize truncate">{lead.source}</td>
+                    <td className="px-2.5 py-1.5 text-sm text-gray-500 whitespace-nowrap">{formatDate(lead.createdAt)}</td>
+                    <td className="px-2.5 py-1.5 text-right whitespace-nowrap">
+                      <ViewLeadLink leadId={lead._id} />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -232,8 +261,7 @@ export default function LeadsPage() {
             {sortedLeads.map((lead) => (
               <div
                 key={lead._id}
-                onClick={() => handleRowClick(lead._id)}
-                className="bg-white border border-gray-200 rounded-xl p-4 cursor-pointer hover:border-gray-300 transition-colors"
+                className="bg-white border border-gray-200 rounded-xl p-3.5 hover:border-gray-300 transition-colors"
               >
                 <div className="flex items-start justify-between mb-2">
                   <div>
@@ -242,8 +270,8 @@ export default function LeadsPage() {
                       <p className="text-sm text-gray-500">{lead.companyName}</p>
                     )}
                   </div>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[lead.status] || 'bg-gray-100 text-gray-700'}`}>
-                    {STATUS_OPTIONS.find((o) => o.value === lead.status)?.label || lead.status}
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[lead.status] || 'bg-gray-100 text-gray-700'}`}>
+                    {statusLabel(lead.status)}
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400">
@@ -252,6 +280,9 @@ export default function LeadsPage() {
                   <span className="capitalize">Origen: {lead.source}</span>
                   <span>Asignado: {assigneeName(lead)}</span>
                   <span>{formatDate(lead.createdAt)}</span>
+                </div>
+                <div className="mt-3 flex justify-end border-t border-gray-100 pt-3">
+                  <ViewLeadLink leadId={lead._id} />
                 </div>
               </div>
             ))}
