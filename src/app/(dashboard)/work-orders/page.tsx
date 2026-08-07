@@ -541,8 +541,8 @@ const fetchOrders = useCallback(async () => {
                         )}
                       </td>
                       <td className="px-2 py-1.5 font-medium text-gray-900 align-middle">#{shortWO(wo.workOrderNumber)}</td>
-                      <td className="px-2 py-1.5 font-medium text-gray-900 truncate align-middle">{wo.title}</td>
-                      <td className="px-2 py-1.5 text-gray-700 truncate align-middle">{clientName(wo)}</td>
+                      <td className="px-2 py-1.5 font-medium text-gray-900 align-middle">{wo.title}</td>
+                      <td className="px-2 py-1.5 text-gray-700 align-middle">{clientName(wo)}</td>
                       <td className="px-2 py-1.5 align-middle">
                         <div className="flex items-center gap-1 flex-wrap">
                           <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-medium ${STATUS_VARIANT[wo.status] || 'bg-gray-100 text-gray-700'}`}>

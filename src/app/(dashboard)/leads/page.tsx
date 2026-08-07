@@ -236,16 +236,16 @@ export default function LeadsPage() {
                     <td className="px-2 py-1.5 whitespace-nowrap align-middle">
                       <ViewLeadLink leadId={lead._id} />
                     </td>
-                    <td className="px-2 py-1.5 font-medium text-gray-900 truncate align-middle">{lead.companyName || lead.profileName || '—'}</td>
-                    <td className="px-2 py-1.5 text-gray-600 truncate align-middle">{lead.name}</td>
-                    <td className="px-2 py-1.5 text-gray-500 truncate align-middle">{lead.phone || '—'}</td>
+                    <td className="px-2 py-1.5 font-medium text-gray-900 align-middle">{lead.companyName || lead.profileName || '—'}</td>
+                    <td className="px-2 py-1.5 text-gray-600 align-middle">{lead.name}</td>
+                    <td className="px-2 py-1.5 text-gray-500 align-middle">{lead.phone || '—'}</td>
                     <td className="px-2 py-1.5 align-middle">
                       <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-medium ${STATUS_VARIANT[lead.status] || 'bg-gray-100 text-gray-700'}`}>
                         {statusLabel(lead.status)}
                       </span>
                     </td>
                     <td className="px-2 py-1.5 text-gray-500 whitespace-nowrap align-middle">{formatDate(lead.createdAt)}</td>
-                    <td className="px-2 py-1.5 text-gray-500 truncate align-middle">{lead.locality || '—'}</td>
+                    <td className="px-2 py-1.5 text-gray-500 align-middle">{lead.locality || '—'}</td>
                   </tr>
                 ))}
               </tbody>

@@ -81,24 +81,24 @@ export function SmartTableRow({ row }: SmartTableRowProps) {
   const validDate = row.validUntil ? formatDateShort(row.validUntil) : null;
 
   return (
-    <tr className="hover:bg-gray-50">
-      <td className="px-3 py-3">
+    <tr className="border-b border-gray-100 hover:bg-brand-50/40 transition-colors">
+      <td className="px-2 py-1.5 align-middle">
         <Link href={href} className="block">
-          <p className="text-sm font-medium text-gray-900">{row.clientName}</p>
+          <p className="text-xs font-medium text-gray-900">{row.clientName}</p>
           {row.companyName && (
             <p className="text-xs text-gray-500">{row.companyName}</p>
           )}
         </Link>
       </td>
-      <td className="px-3 py-3">
-        <span className="text-sm text-gray-600">
+      <td className="px-2 py-1.5 align-middle">
+        <span className="text-xs text-gray-600">
           {ENTITY_LABELS[row.entityType] || row.entityType}
         </span>
       </td>
-      <td className="px-3 py-3">
+      <td className="px-2 py-1.5 align-middle">
         <div className="flex flex-col gap-1">
           <span
-            className="text-sm"
+            className="text-xs"
             style={statusColor ? { color: statusColor } : undefined}
           >
             {STATUS_LABELS[row.status] ?? row.status}
@@ -106,32 +106,32 @@ export function SmartTableRow({ row }: SmartTableRowProps) {
           <ExpiryBadge entity={{ status: row.entityStatus, validUntil: row.validUntil }} />
         </div>
       </td>
-      <td className="px-3 py-3 text-right text-sm tabular-nums text-gray-900">
+      <td className="px-2 py-1.5 text-right text-xs tabular-nums text-gray-900 align-middle">
         {renderTotal(row.total)}
       </td>
-      <td className="hidden lg:table-cell px-3 py-3">
+      <td className="hidden lg:table-cell px-2 py-1.5 align-middle">
         {validDate ? (
-          <div className="text-sm text-gray-600">
+          <div className="text-xs text-gray-600">
             <p>{validDate}</p>
-            <p className="text-xs text-gray-400">{renderDaysUntilExpiry(row.validUntil)}</p>
+            <p className="text-[10px] text-gray-400">{renderDaysUntilExpiry(row.validUntil)}</p>
           </div>
         ) : (
-          <span className="text-sm text-gray-400">—</span>
+          <span className="text-xs text-gray-400">—</span>
         )}
       </td>
-      <td className="px-3 py-3">
+      <td className="px-2 py-1.5 align-middle">
         <NextActionBadge type={nextAction.type} label={nextAction.label} />
       </td>
-      <td className="hidden lg:table-cell px-3 py-3">
+      <td className="hidden lg:table-cell px-2 py-1.5 align-middle">
         {row.assignedName ? (
-          <div className="flex items-center gap-2">
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-blue-100 text-xs font-medium text-blue-700">
+          <div className="flex items-center gap-1">
+            <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-blue-100 text-[10px] font-medium text-blue-700">
               {getInitials(row.assignedName)}
             </span>
-            <span className="text-sm text-gray-600">{row.assignedName}</span>
+            <span className="text-xs text-gray-600">{row.assignedName}</span>
           </div>
         ) : (
-          <span className="text-sm text-gray-400">—</span>
+          <span className="text-xs text-gray-400">—</span>
         )}
       </td>
     </tr>

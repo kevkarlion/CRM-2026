@@ -227,16 +227,16 @@ export default function ClientsPage() {
                     <td className="px-2 py-1.5 whitespace-nowrap align-middle">
                       <ViewClientLink clientId={client._id} />
                     </td>
-                    <td className="px-2 py-1.5 font-medium text-gray-900 truncate align-middle">{clientName(client)}</td>
-                    <td className="px-2 py-1.5 text-gray-600 truncate align-middle">{client.fullName || '—'}</td>
-                    <td className="px-2 py-1.5 text-gray-500 truncate align-middle">{client.phone || '—'}</td>
+                    <td className="px-2 py-1.5 font-medium text-gray-900 align-middle">{clientName(client)}</td>
+                    <td className="px-2 py-1.5 text-gray-600 align-middle">{client.fullName || '—'}</td>
+                    <td className="px-2 py-1.5 text-gray-500 align-middle">{client.phone || '—'}</td>
                     <td className="px-2 py-1.5 align-middle">
                       <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-medium ${STATUS_VARIANT[client.status] || 'bg-gray-100 text-gray-700'}`}>
                         {STATUS_OPTIONS.find((o) => o.value === client.status)?.label || client.status}
                       </span>
                     </td>
                     <td className="px-2 py-1.5 text-gray-500 whitespace-nowrap align-middle">{formatDate(client.createdAt)}</td>
-                    <td className="px-2 py-1.5 text-gray-500 truncate align-middle">{client.locality || '—'}</td>
+                    <td className="px-2 py-1.5 text-gray-500 align-middle">{client.locality || '—'}</td>
                   </tr>
                 ))}
               </tbody>
