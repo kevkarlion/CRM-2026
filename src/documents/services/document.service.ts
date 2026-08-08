@@ -187,14 +187,17 @@ export class DocumentService {
         : 'crm/temp';
 
 // Upload to Cloudinary (use "raw" for PDFs and other documents)
-      const uploadResult = await cloudinaryService.uploadBuffer(
-        file.buffer,
-        file.originalname,
-        {
-          folder: `crm/${options.tenantId}`,
-          resourceType: 'raw', // Use raw to preserve file as-is
-        }
-      );
+    // Use original filename as public_id to keep the name
+    const cleanFilename = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const uploadResult = await cloudinaryService.uploadBuffer(
+      file.buffer,
+      file.originalname,
+      {
+        folder: `crm/${options.tenantId}`,
+        resourceType: 'raw',
+        publicId: cleanFilename,
+      }
+    );
 
     // Generate title if not provided
     const title = options.title || this.generateTitle(
