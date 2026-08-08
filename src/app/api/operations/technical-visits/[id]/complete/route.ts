@@ -179,20 +179,30 @@ export async function POST(
     await session.commitTransaction();
 
     // Log activities (outside transaction - best effort)
+    const techName = technician ? 
+      `${(technician as any).firstName || ''} ${(technician as any).lastName || ''}`.trim() || (technician as any).name || 'Técnico' 
+      : 'Técnico';
+
     try {
       await logActivity({
         tenantId: new mongoose.Types.ObjectId(tenantId),
         entityType: 'technicalVisit',
         entityId: new mongoose.Types.ObjectId(visitId),
-        action: 'work_completed',
+        action: 'visit_completed',
         actorId: new mongoose.Types.ObjectId(userId),
         metadata: {
+          visitNumber: visit.visitNumber,
+          title: visit.title,
           previousStatus: 'in_progress',
           newStatus: TARGET_STATUS,
           technicianId: technicianId.toString(),
+          technicianName: techName,
           result: body.result,
           workReportId: workReport._id.toString(),
           duration,
+          scheduledDate: visit.scheduledDate,
+          category: visit.category,
+          completedAt: new Date().toISOString(),
         },
       });
 
@@ -204,8 +214,12 @@ export async function POST(
         actorId: new mongoose.Types.ObjectId(userId),
         metadata: {
           technicalVisitId: visitId.toString(),
+          visitNumber: visit.visitNumber,
           technicianId: technicianId.toString(),
+          technicianName: techName,
           result: body.result,
+          duration,
+          createdAt: new Date().toISOString(),
         },
       });
     } catch (logError) {

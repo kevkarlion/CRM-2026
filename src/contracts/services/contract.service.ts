@@ -109,6 +109,13 @@ export class ContractService {
       entityId: id,
       action: 'updated',
       actorId: userId,
+      metadata: {
+        contractName: contract?.name,
+        contractNumber: contract?.number,
+        status: contract?.status,
+        startDate: contract?.startDate,
+        endDate: contract?.endDate,
+      },
       changes: { before: {}, after: data as Record<string, unknown> },
     });
 
@@ -158,12 +165,24 @@ export class ContractService {
     };
     const action = actionMap[targetStatus];
 
+    // Get contract details for more context
+    const contractDetails = await ContractModel.findOne({ _id: id, tenantId, deletedAt: null })
+      .lean() as any;
+
     await logActivity({
       tenantId,
       entityType: 'contract',
       entityId: id,
       action,
       actorId: userId,
+      metadata: {
+        contractName: contractDetails?.name,
+        contractNumber: contractDetails?.number,
+        previousStatus: currentStatus,
+        newStatus: targetStatus,
+        startDate: contractDetails?.startDate,
+        endDate: contractDetails?.endDate,
+      },
       changes: {
         before: { status: currentStatus },
         after: { status: targetStatus },
@@ -204,6 +223,11 @@ export class ContractService {
       entityId: id,
       action: 'deleted',
       actorId: userId,
+      metadata: {
+        contractName: contract?.name,
+        contractNumber: contract?.number,
+        status: contract?.status,
+      },
     });
 
     return true;
@@ -250,7 +274,11 @@ export class ContractService {
       entityId: contractId,
       action: 'equipment_added',
       actorId: tenantId,
-      metadata: { equipmentId },
+      metadata: {
+        equipmentId,
+        contractName: contract?.name,
+        contractNumber: contract?.number,
+      },
     });
   }
 
@@ -283,7 +311,10 @@ export class ContractService {
       entityId: contractId,
       action: 'equipment_removed',
       actorId: tenantId,
-      metadata: { equipmentId },
+      metadata: { 
+        equipmentId,
+        contractName: record?.contractId ? 'Contrato' : undefined,
+      },
     });
   }
 

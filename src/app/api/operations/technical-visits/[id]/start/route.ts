@@ -97,16 +97,25 @@ export async function POST(
     });
 
     // Log activity
+    const techName = technician ? 
+      `${(technician as any).firstName || ''} ${(technician as any).lastName || ''}`.trim() || (technician as any).name || 'Técnico' 
+      : 'Técnico';
+
     await logActivity({
       tenantId: new mongoose.Types.ObjectId(tenantId),
       entityType: 'technicalVisit',
       entityId: new mongoose.Types.ObjectId(visitId),
-      action: 'work_started',
+      action: 'visit_started',
       actorId: new mongoose.Types.ObjectId(userId),
       metadata: {
+        visitNumber: visit.visitNumber,
+        title: visit.title,
         previousStatus: visit.status,
         newStatus: TARGET_STATUS,
         technicianId: technicianId.toString(),
+        technicianName: techName,
+        scheduledDate: visit.scheduledDate,
+        category: visit.category,
       },
     });
 

@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
 import TimelineEventModel from '@/timeline/models/timeline-event';
 import '@/core/models/user'; // Register User model for ref resolution
+import { LeadService } from '@/leads/services/lead.service';
 import { Types } from 'mongoose';
+
+const leadService = new LeadService();
 
 interface TimelineEvent {
   _id: Types.ObjectId;
@@ -33,6 +36,12 @@ export async function GET(
     }
 
     const { id: leadId } = await params;
+
+    // Verify lead exists
+    const lead = await leadService.findById(leadId, tenantId);
+    if (!lead) {
+      return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
+    }
 
     const events = await TimelineEventModel.find({
       tenantId: new Types.ObjectId(tenantId),

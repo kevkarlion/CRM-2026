@@ -143,7 +143,14 @@ export class QuoteService {
         entityId: String(quote._id),
         action: 'created',
         actorId: userId,
-        metadata: { number, version: 1 },
+        metadata: { 
+          number: quote.number, 
+          version: 1,
+          title: quote.title,
+          total: quote.total,
+          status: 'draft',
+          clientName: quote.clientId ? 'Cliente asociado' : (quote.leadId ? 'Lead asociado' : null),
+        },
       });
 
       // Publish QUOTE_CREATED event
@@ -563,6 +570,22 @@ export class QuoteService {
       console.error('[QuoteService] Failed to publish QUOTE_SENT:', eventError);
     }
 
+    // Log activity for sent quote
+    await logActivity({
+      tenantId,
+      entityType: 'quote',
+      entityId: quoteId,
+      action: 'sent',
+      actorId: userId,
+      metadata: {
+        number: quote.number,
+        title: quote.title,
+        total: quote.total,
+        status: 'sent',
+        validUntil: quote.validUntil?.toISOString(),
+      },
+    });
+
     return updated as unknown as IQuote;
   }
 
@@ -644,6 +667,21 @@ export class QuoteService {
     } catch (eventError) {
       console.error('[QuoteService] Failed to publish QUOTE_APPROVED:', eventError);
     }
+
+    // Log activity for approved quote
+    await logActivity({
+      tenantId,
+      entityType: 'quote',
+      entityId: quoteId,
+      action: 'approved',
+      actorId: userId,
+      metadata: {
+        number: quote.number,
+        title: quote.title,
+        total: quote.total,
+        status: 'approved',
+      },
+    });
 
     return updated as unknown as IQuote;
   }
@@ -727,6 +765,22 @@ export class QuoteService {
     } catch (eventError) {
       console.error('[QuoteService] Failed to publish QUOTE_REJECTED:', eventError);
     }
+
+    // Log activity for rejected quote
+    await logActivity({
+      tenantId,
+      entityType: 'quote',
+      entityId: quoteId,
+      action: 'rejected',
+      actorId: userId,
+      metadata: {
+        number: quote.number,
+        title: quote.title,
+        total: quote.total,
+        status: 'rejected',
+        reason: reason,
+      },
+    });
 
     return updated as unknown as IQuote;
   }

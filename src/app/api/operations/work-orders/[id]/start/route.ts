@@ -124,6 +124,10 @@ export async function POST(
     }
 
     // Log activity
+    const techName = technician ? 
+      `${(technician as any).firstName || ''} ${(technician as any).lastName || ''}`.trim() || (technician as any).name || 'Técnico' 
+      : 'Técnico';
+    
     await logActivity({
       tenantId: new mongoose.Types.ObjectId(tenantId),
       entityType: 'workOrder',
@@ -131,9 +135,14 @@ export async function POST(
       action: 'work_started',
       actorId: new mongoose.Types.ObjectId(userId),
       metadata: {
+        workOrderNumber: workOrder.workOrderNumber,
+        title: workOrder.title,
         previousStatus: workOrder.status,
         newStatus: TARGET_STATUS,
         technicianId: technicianId.toString(),
+        technicianName: techName,
+        scheduledDate: workOrder.scheduledDate,
+        priority: workOrder.priority,
       },
     });
 
