@@ -440,7 +440,7 @@ export default function ClientDetailPage() {
             </EntityTabPanel>
 
             <EntityTabPanel id="documentacion">
-              <ClientDocumentationTab />
+              <ClientDocumentationTab clientId={id} />
             </EntityTabPanel>
 
             <EntityTabPanel id="actividad">
