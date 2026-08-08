@@ -191,7 +191,7 @@ export class DocumentService {
         file.buffer,
         file.originalname,
         {
-          folder: `crm/${tenantId}`,
+          folder: `crm/${options.tenantId}`,
           resourceType: 'raw', // Use raw to preserve file as-is
         }
       );
