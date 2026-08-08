@@ -143,6 +143,8 @@ export class QuoteService {
         entityId: String(quote._id),
         action: 'created',
         actorId: userId,
+        leadId: quote.leadId?.toString(),
+        clientId: quote.clientId?.toString(),
         metadata: { 
           number: quote.number, 
           version: 1,
@@ -577,6 +579,8 @@ export class QuoteService {
       entityId: quoteId,
       action: 'sent',
       actorId: userId,
+      leadId: quote.leadId?.toString(),
+      clientId: quote.clientId?.toString(),
       metadata: {
         number: quote.number,
         title: quote.title,
@@ -675,6 +679,8 @@ export class QuoteService {
       entityId: quoteId,
       action: 'approved',
       actorId: userId,
+      leadId: quote.leadId?.toString(),
+      clientId: quote.clientId?.toString(),
       metadata: {
         number: quote.number,
         title: quote.title,
@@ -773,6 +779,8 @@ export class QuoteService {
       entityId: quoteId,
       action: 'rejected',
       actorId: userId,
+      leadId: quote.leadId?.toString(),
+      clientId: quote.clientId?.toString(),
       metadata: {
         number: quote.number,
         title: quote.title,
