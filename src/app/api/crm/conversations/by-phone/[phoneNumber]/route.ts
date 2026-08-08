@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
 import ConversationModel from '@/conversation/models/conversation';
+import { Types } from 'mongoose';
 
 /**
  * GET /api/crm/conversations/by-phone/[phoneNumber]
@@ -24,7 +25,7 @@ export async function GET(
 
     // Find the latest conversation for this phone number
     const conversation = await ConversationModel.findOne({
-      tenantId: { $oid: tenantId },
+      tenantId: new Types.ObjectId(tenantId),
       phoneNumber: { $regex: new RegExp(normalizedPhone, 'i') },
     })
       .sort({ lastMessageAt: -1 })
