@@ -23,7 +23,7 @@ import {
   CUSTOMER_TYPE_LABEL,
   clientName,
 } from '@/crm/components/detail';
-import { LeadCommercialActionsCard } from '@/leads/components/detail';
+import { LeadCommercialActionsCard, LeadBotControlCard } from '@/leads/components/detail';
 import { CreateQuoteDrawer } from '@/leads/components/CreateQuoteDrawer';
 import { CreateVisitDrawer } from '@/leads/components/CreateVisitDrawer';
 import { ChatPanel } from '@/whatsapp/components/ChatPanel';
@@ -92,6 +92,70 @@ export default function ClientDetailPage() {
     await sendMessage(phone, content);
     refetchChat();
   }, [phone, sendMessage, refetchChat]);
+
+  // Bot control state (same as lead)
+  const [conversation, setConversation] = useState<any>(null);
+  const [loadingConversation, setLoadingConversation] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
+
+  // Fetch conversation for bot control
+  useEffect(() => {
+    if (!id || !phone) return;
+
+    const fetchConversation = async () => {
+      setLoadingConversation(true);
+      try {
+        // For clients, we need a different endpoint or use the general one
+        const res = await api.get<{ conversation: any }>(
+          `/api/crm/conversations/by-phone/${phone}`,
+        );
+        setConversation(res.conversation);
+      } catch (conversationError) {
+        console.error('Error fetching conversation:', conversationError);
+      } finally {
+        setLoadingConversation(false);
+      }
+    };
+
+    fetchConversation();
+  }, [id, phone]);
+
+  const handleTakeControl = async () => {
+    if (!conversation?._id) return;
+    setActionLoading(true);
+    try {
+      await api.post(`/api/crm/conversations/${conversation._id}/take-control`, {});
+      setConversation((prev: any) =>
+        prev ? { ...prev, owner: 'OPERATOR', lifecycleState: 'IN_PROGRESS' } : null,
+      );
+    } catch (err) {
+      console.error('Error taking control:', err);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleMarkResolved = async () => {
+    if (!conversation?._id) return;
+    setActionLoading(true);
+    try {
+      await api.post(`/api/crm/conversations/${conversation._id}/resolve`, {});
+      setConversation((prev: any) =>
+        prev
+          ? {
+              ...prev,
+              owner: 'OPERATOR',
+              lifecycleState: 'RESOLVED',
+              resolvedAt: new Date().toISOString(),
+            }
+          : null,
+      );
+    } catch (err) {
+      console.error('Error marking resolved:', err);
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   const loadClient = useCallback(async () => {
     try {
@@ -284,7 +348,7 @@ export default function ClientDetailPage() {
                     <ClientNotesCard notes={client.notes} />
                     <ClientBlockHistoryCard client={client} />
 
-                    {/* Chat + Timeline tabs - side by side on desktop */}
+                    {/* Chat + Timeline + Bot Control - side by side on desktop */}
                     <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
                       <div className="lg:col-span-3">
                         <EntityTabs
@@ -312,6 +376,15 @@ export default function ClientDetailPage() {
                             <ClientActivityTab clientId={id} />
                           </EntityTabPanel>
                         </EntityTabs>
+                      </div>
+                      <div className="lg:col-span-1">
+                        <LeadBotControlCard
+                          conversation={conversation}
+                          loading={loadingConversation}
+                          actionLoading={actionLoading}
+                          onTakeControl={handleTakeControl}
+                          onMarkResolved={handleMarkResolved}
+                        />
                       </div>
                     </div>
                   </div>
