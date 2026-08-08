@@ -4,6 +4,7 @@ interface ApiClient {
   put<T>(path: string, body: unknown, isFormData?: boolean): Promise<T>;
   patch<T>(path: string, body: unknown, isFormData?: boolean): Promise<T>;
   del<T>(path: string): Promise<T>;
+  delete<T>(path: string): Promise<T>;
 }
 
 /**
@@ -133,4 +134,5 @@ export const api: ApiClient = {
   put: <T>(path: string, body: unknown, isFormData?: boolean) => request<T>('PUT', path, body, undefined, isFormData),
   patch: <T>(path: string, body: unknown, isFormData?: boolean) => request<T>('PATCH', path, body, undefined, isFormData),
   del: <T>(path: string) => request<T>('DELETE', path),
+  delete: <T>(path: string) => request<T>('DELETE', path), // alias
 };

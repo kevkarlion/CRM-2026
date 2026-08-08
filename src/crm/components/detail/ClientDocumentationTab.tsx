@@ -164,7 +164,7 @@ export function ClientDocumentationTab({ clientId }: ClientDocumentationTabProps
     if (!confirm('¿Estás seguro de eliminar este documento?')) return;
     
     try {
-      await api.delete(`/api/crm/documents/${docId}`);
+      await api.del(`/api/crm/documents/${docId}`);
       setDocuments(prev => prev.filter(d => d._id !== docId));
     } catch (err) {
       console.error('Error deleting document:', err);
