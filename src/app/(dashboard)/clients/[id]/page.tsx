@@ -340,53 +340,13 @@ export default function ClientDetailPage() {
             <EntityTab id="documentacion" label="Documentación" />
             <EntityTab id="actividad" label="Actividad" />
 
-            <EntityTabPanel id="resumen">
+<EntityTabPanel id="resumen">
               <div className="space-y-6">
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                   <div className="space-y-6 lg:col-span-2">
                     <ClientInfoCard client={client} />
                     <ClientNotesCard notes={client.notes} />
                     <ClientBlockHistoryCard client={client} />
-
-                    {/* Chat + Timeline + Bot Control - side by side on desktop */}
-                    <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-                      <div className="lg:col-span-3">
-                        <EntityTabs
-                          activeId={activeDetailTab}
-                          onChange={(id) => setActiveDetailTab(id as 'chat' | 'timeline')}
-                          aria-label="Comunicación y actividad del cliente"
-                        >
-                          <EntityTab id="chat" label="Chat WhatsApp" />
-                          <EntityTab id="timeline" label="Actividad" />
-
-                          <EntityTabPanel id="chat" className="h-[500px] p-0">
-                            <ChatPanel
-                              messages={messages}
-                              loading={chatLoading}
-                              error={chatError}
-                              hasMore={hasMore}
-                              onLoadMore={loadMore}
-                              onSend={handleSendChat}
-                              sending={chatSending}
-                              selectedPhone={phone}
-                            />
-                          </EntityTabPanel>
-
-                          <EntityTabPanel id="timeline" className="p-6">
-                            <ClientActivityTab clientId={id} />
-                          </EntityTabPanel>
-                        </EntityTabs>
-                      </div>
-                      <div className="lg:col-span-1">
-                        <LeadBotControlCard
-                          conversation={conversation}
-                          loading={loadingConversation}
-                          actionLoading={actionLoading}
-                          onTakeControl={handleTakeControl}
-                          onMarkResolved={handleMarkResolved}
-                        />
-                      </div>
-                    </div>
                   </div>
 
                   <aside className="space-y-4">
@@ -407,23 +367,63 @@ export default function ClientDetailPage() {
                         </button>
                       )}
                       {client.status === 'blocked' && (
-                      <button
-                        onClick={() => setUnblockModalOpen(true)}
-                        className="w-full inline-flex items-center justify-center rounded-lg bg-success-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-success-700 transition-colors"
-                      >
-                        Desbloquear Cliente
-                      </button>
-                    )}
+                        <button
+                          onClick={() => setUnblockModalOpen(true)}
+                          className="w-full inline-flex items-center justify-center rounded-lg bg-success-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-success-700 transition-colors"
+                        >
+                          Desbloquear Cliente
+                        </button>
+                      )}
+                    </div>
+                    <LeadCommercialActionsCard
+                      onOpenQuoteDrawer={() => setShowQuoteDrawer(true)}
+                      onOpenVisitDrawer={() => setShowVisitDrawer(true)}
+                      onOpenQuickSaleDrawer={() => setShowConfirmSaleDrawer(true)}
+                      disabled={client.status === 'blocked'}
+                    />
+                    <ClientMetadataCard client={client} />
+                  </aside>
+                </div>
+
+                {/* Chat + Bot Control - full width, same proportions as lead */}
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+                  <div className="lg:col-span-3">
+                    <EntityTabs
+                      activeId={activeDetailTab}
+                      onChange={(id) => setActiveDetailTab(id as 'chat' | 'timeline')}
+                      aria-label="Comunicación y actividad del cliente"
+                    >
+                      <EntityTab id="chat" label="Chat WhatsApp" />
+                      <EntityTab id="timeline" label="Actividad" />
+
+                      <EntityTabPanel id="chat" className="h-[500px] p-0">
+                        <ChatPanel
+                          messages={messages}
+                          loading={chatLoading}
+                          error={chatError}
+                          hasMore={hasMore}
+                          onLoadMore={loadMore}
+                          onSend={handleSendChat}
+                          sending={chatSending}
+                          selectedPhone={phone}
+                        />
+                      </EntityTabPanel>
+
+                      <EntityTabPanel id="timeline" className="p-6">
+                        <ClientActivityTab clientId={id} />
+                      </EntityTabPanel>
+                    </EntityTabs>
                   </div>
-                  <LeadCommercialActionsCard
-                    onOpenQuoteDrawer={() => setShowQuoteDrawer(true)}
-                    onOpenVisitDrawer={() => setShowVisitDrawer(true)}
-                    onOpenQuickSaleDrawer={() => setShowConfirmSaleDrawer(true)}
-                    disabled={client.status === 'blocked'}
-                  />
-                  <ClientMetadataCard client={client} />
-                </aside>
-              </div>
+                  <div className="lg:col-span-1">
+                    <LeadBotControlCard
+                      conversation={conversation}
+                      loading={loadingConversation}
+                      actionLoading={actionLoading}
+                      onTakeControl={handleTakeControl}
+                      onMarkResolved={handleMarkResolved}
+                    />
+                  </div>
+                </div>
               </div>
             </EntityTabPanel>
 
