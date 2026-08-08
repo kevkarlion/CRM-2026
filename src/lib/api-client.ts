@@ -1,8 +1,8 @@
 interface ApiClient {
   get<T>(path: string, params?: Record<string, string>): Promise<T>;
-  post<T>(path: string, body: unknown): Promise<T>;
-  put<T>(path: string, body: unknown): Promise<T>;
-  patch<T>(path: string, body: unknown): Promise<T>;
+  post<T>(path: string, body: unknown, isFormData?: boolean): Promise<T>;
+  put<T>(path: string, body: unknown, isFormData?: boolean): Promise<T>;
+  patch<T>(path: string, body: unknown, isFormData?: boolean): Promise<T>;
   del<T>(path: string): Promise<T>;
 }
 
@@ -75,6 +75,7 @@ async function request<T>(
   path: string,
   body?: unknown,
   params?: Record<string, string>,
+  isFormData?: boolean,
 ): Promise<T> {
   const token = getToken();
   const tenantId = getTenantId();
@@ -104,13 +105,17 @@ async function request<T>(
   }
 
   if (body !== undefined) {
-    headers['Content-Type'] = 'application/json';
+    if (isFormData && body instanceof FormData) {
+      // Let fetch set the Content-Type automatically for FormData (includes boundary)
+    } else {
+      headers['Content-Type'] = 'application/json';
+    }
   }
 
   const res = await fetch(url, {
     method,
     headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body: body !== undefined ? (isFormData && body instanceof FormData ? body : JSON.stringify(body)) : undefined,
   });
 
   if (!res.ok) {
@@ -124,8 +129,8 @@ async function request<T>(
 export const api: ApiClient = {
   get: <T>(path: string, params?: Record<string, string>) =>
     request<T>('GET', path, undefined, params),
-  post: <T>(path: string, body: unknown) => request<T>('POST', path, body),
-  put: <T>(path: string, body: unknown) => request<T>('PUT', path, body),
-  patch: <T>(path: string, body: unknown) => request<T>('PATCH', path, body),
+  post: <T>(path: string, body: unknown, isFormData?: boolean) => request<T>('POST', path, body, undefined, isFormData),
+  put: <T>(path: string, body: unknown, isFormData?: boolean) => request<T>('PUT', path, body, undefined, isFormData),
+  patch: <T>(path: string, body: unknown, isFormData?: boolean) => request<T>('PATCH', path, body, undefined, isFormData),
   del: <T>(path: string) => request<T>('DELETE', path),
 };

@@ -9,6 +9,9 @@ import { documentService } from '@/documents/services/document.service';
  * Multipart form data with: file, clientId (optional), leadId (optional), 
  * title (optional), description (optional), documentType (optional)
  */
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 export async function POST(req: NextRequest) {
   try {
     await connectDB();

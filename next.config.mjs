@@ -6,6 +6,13 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
+  experimental: {
+    serverActions: {
+      bodyParser: {
+        sizeLimit: '10mb',
+      },
+    },
+  },
 };
 
 export default nextConfig;
