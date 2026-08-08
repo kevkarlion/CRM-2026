@@ -91,6 +91,13 @@ export function LeadVisitsTab({ visits, loading, canCreate, onNewVisit }: LeadVi
     );
   }
 
+  // Sort by scheduledDate descending (newest first)
+  const sortedVisits = [...visits].sort((a, b) => {
+    const aDate = a.scheduledDate || a.createdAt || '';
+    const bDate = b.scheduledDate || b.createdAt || '';
+    return new Date(bDate).getTime() - new Date(aDate).getTime();
+  });
+
   return (
     <div className="space-y-4">
       {canCreate && (
@@ -126,7 +133,7 @@ export function LeadVisitsTab({ visits, loading, canCreate, onNewVisit }: LeadVi
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {visits.map((visit) => (
+            {sortedVisits.map((visit) => (
               <tr key={visit._id} className="hover:bg-gray-50">
                 <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                   {formatVisitNumber(visit.visitNumber)}

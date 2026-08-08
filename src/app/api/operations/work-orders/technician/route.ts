@@ -36,6 +36,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const startDateParam = searchParams.get('startDate');
     const endDateParam = searchParams.get('endDate');
+    const status = searchParams.get('status') || undefined;
+    const priority = searchParams.get('priority') || undefined;
+    const search = searchParams.get('search') || undefined;
 
     const dateFilter: Record<string, unknown> = {};
     if (startDateParam) {
@@ -50,6 +53,22 @@ export async function GET(request: NextRequest) {
       assignedTechnicians: technician._id,
       deletedAt: null,
     };
+
+    if (status) {
+      query.status = status;
+    }
+
+    if (priority) {
+      query.priority = priority;
+    }
+
+    if (search) {
+      const searchRegex = new RegExp(search, 'i');
+      query.$or = [
+        { title: searchRegex },
+        { 'clientSnapshot.name': searchRegex },
+      ];
+    }
 
     if (Object.keys(dateFilter).length > 0) {
       query.scheduledDate = dateFilter;

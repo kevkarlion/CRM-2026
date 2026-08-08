@@ -64,9 +64,12 @@ function getStatusLabel(status: string): string {
     case 'confirmed':
     case 'assigned':
       return 'Programada';
+    case 'paused':
+      return 'Pausada';
     case 'cancelled':
-    case 'closed':
       return 'Cancelada';
+    case 'closed':
+      return 'Cerrada';
     default:
       return WORK_ORDER_STATUS_LABELS[status as keyof typeof WORK_ORDER_STATUS_LABELS] || status;
   }
@@ -91,6 +94,7 @@ const PRIORITY_OPTIONS = [
   { value: 'normal', label: 'Normal' },
   { value: 'high', label: 'Alta' },
   { value: 'urgent', label: 'Urgente' },
+  { value: 'emergency', label: 'Emergencia' },
 ];
 
 const PRIORITY_VARIANT: Record<string, string> = {
@@ -149,7 +153,7 @@ export default function WorkOrdersPage() {
   const [technicians, setTechnicians] = useState<{ _id: string; name: string }[]>([]);
   const [technicianFilter, setTechnicianFilter] = useState('');
   const [sortField, setSortField] = useState<'scheduledDate' | 'createdAt' | 'workOrderNumber'>('scheduledDate');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
   // Self-assignment drawer state
   const [selfAssignOpen, setSelfAssignOpen] = useState(false);

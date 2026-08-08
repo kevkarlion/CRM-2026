@@ -158,10 +158,19 @@ export default function CentroOperativoPage() {
       <div className="bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-4 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100">Centro Operativo</h1>
-            <p className="text-sm text-gray-500 dark:text-slate-400 mt-0.5">
-              {loading ? 'Cargando...' : `${workOrders.length} órdenes`}
-            </p>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-slate-100">CENTRO OPERATIVO TÉCNICO</h1>
+            <div className="text-sm text-gray-500 dark:text-slate-400 mt-0.5 space-y-0.5">
+              {loading ? 'Cargando...' : (
+                <>
+                  <div>
+                    <span className="text-brand-600 dark:text-brand-400 font-medium">Órdenes de trabajo: {workOrders.filter(w => ['scheduled', 'confirmed', 'assigned', 'in_progress'].includes(w.status)).length}</span>
+                  </div>
+                  <div>
+                    <span className="text-purple-600 dark:text-purple-400 font-medium">Visitas técnicas: {technicalVisits.filter(v => ['scheduled', 'confirmed', 'assigned', 'in_progress'].includes(v.status)).length}</span>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
           <button
             onClick={fetchAll}

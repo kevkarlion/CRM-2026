@@ -12,6 +12,7 @@ export interface MapMarker {
   status: string;
   priority: 'low' | 'normal' | 'high' | 'urgent';
   technician?: string;
+  technicianId?: string;
   scheduledAt: string;
   serviceType: string;
   clientName: string;

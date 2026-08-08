@@ -8,6 +8,8 @@ import { MapMarkerCard } from './MapMarkerCard';
 interface MapMarkerComponentProps {
   marker: MapMarkerType;
   onClick?: (marker: MapMarkerType) => void;
+  currentTechnicianId?: string;
+  isTechnician?: boolean;
 }
 
 // Priority color mapping
@@ -24,18 +26,57 @@ const ENTITY_COLORS: Record<string, string> = {
   TechnicalVisit: '#0891b2', // cyan-600
 };
 
+// Technician colors palette - distinct colors for each technician
+const TECHNICIAN_COLORS = [
+  '#7c3aed', // violet
+  '#0891b2', // cyan
+  '#059669', // emerald
+  '#dc2626', // red
+  '#d97706', // amber
+  '#7c3aed', // violet
+  '#db2777', // pink
+  '#4f46e5', // indigo
+  '#2563eb', // blue
+  '#16a34a', // green
+];
+
+// Get technician color based on ID
+function getTechnicianColor(technicianId?: string): string | null {
+  if (!technicianId) return null;
+  // Generate a consistent color based on the ID string
+  let hash = 0;
+  for (let i = 0; i < technicianId.length; i++) {
+    hash = technicianId.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % TECHNICIAN_COLORS.length;
+  return TECHNICIAN_COLORS[index];
+}
+
 // Function to create colored icon HTML
-function getIconHtml(priority: string, entityType: string): string {
+function getIconHtml(
+  priority: string, 
+  entityType: string, 
+  technicianId?: string,
+  isOwn: boolean = false
+): string {
   const priorityColor = PRIORITY_COLORS[priority] || PRIORITY_COLORS.normal;
   const entityColor = ENTITY_COLORS[entityType] || ENTITY_COLORS.WorkOrder;
+  const techColor = getTechnicianColor(technicianId);
   const label = entityType === 'WorkOrder' ? 'OT' : 'VT';
+
+  // Use technician color if available, otherwise use entity color
+  const bgColor = techColor || entityColor;
+  
+  // Add border for own markers
+  const borderStyle = isOwn ? 'border: 3px solid #fbbf24;' : ''; // yellow border for own
 
   return `
     <div style="
       width: 32px;
       height: 32px;
-      background: ${entityColor};
+      background: ${bgColor};
       border: 3px solid ${priorityColor};
+      ${borderStyle}
       border-radius: 50% 50% 50% 0;
       transform: rotate(-45deg);
       box-shadow: 0 2px 6px rgba(0,0,0,0.3);
@@ -53,8 +94,12 @@ function getIconHtml(priority: string, entityType: string): string {
   `;
 }
 
-export function MapMarkerComponent({ marker, onClick }: MapMarkerComponentProps) {
+export function MapMarkerComponent({ marker, onClick, currentTechnicianId, isTechnician }: MapMarkerComponentProps) {
   const [leaflet, setLeaflet] = useState<typeof import('leaflet') | null>(null);
+  
+  // Check if this marker belongs to current technician
+  const isOwn = isTechnician && currentTechnicianId && marker.technicianId === currentTechnicianId;
+  
   const handleClick = () => {
     if (onClick) {
       onClick(marker);
@@ -76,12 +121,12 @@ export function MapMarkerComponent({ marker, onClick }: MapMarkerComponentProps)
     
     return leaflet.divIcon({
       className: 'custom-marker',
-      html: getIconHtml(marker.priority, marker.entityType),
+      html: getIconHtml(marker.priority, marker.entityType, marker.technicianId, isOwn),
       iconSize: [32, 32],
       iconAnchor: [16, 32],
       popupAnchor: [0, -32],
     });
-  }, [leaflet, marker.priority, marker.entityType]);
+  }, [leaflet, marker.priority, marker.entityType, marker.technicianId, isOwn]);
 
   // Don't render marker until Leaflet is loaded
   if (!leaflet || !icon) {

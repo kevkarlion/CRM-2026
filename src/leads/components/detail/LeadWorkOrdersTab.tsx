@@ -80,6 +80,13 @@ export function LeadWorkOrdersTab({ workOrders, loading }: LeadWorkOrdersTabProp
     );
   }
 
+  // Sort by scheduledDate descending (newest first)
+  const sortedWorkOrders = [...workOrders].sort((a, b) => {
+    const aDate = a.scheduledDate || a.createdAt || '';
+    const bDate = b.scheduledDate || b.createdAt || '';
+    return new Date(bDate).getTime() - new Date(aDate).getTime();
+  });
+
   return (
     <div className="overflow-hidden rounded-lg border border-gray-200">
       <table className="min-w-full divide-y divide-gray-200">
@@ -103,7 +110,7 @@ export function LeadWorkOrdersTab({ workOrders, loading }: LeadWorkOrdersTabProp
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
-          {workOrders.map((workOrder) => (
+          {sortedWorkOrders.map((workOrder) => (
             <tr key={workOrder._id} className="hover:bg-gray-50">
               <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
                 {formatWorkOrderNumber(workOrder.workOrderNumber)}

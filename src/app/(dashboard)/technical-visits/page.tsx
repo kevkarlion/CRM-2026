@@ -158,7 +158,7 @@ export default function TechnicalVisitsPage() {
   const [technicians, setTechnicians] = useState<{ _id: string; name: string }[]>([]);
   const [technicianFilter, setTechnicianFilter] = useState('');
   const [sortField, setSortField] = useState<'scheduledDate' | 'createdAt' | 'visitNumber'>('scheduledDate');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const mountedRef = useRef<boolean>(false);
   
   // Self-assignment state for visits

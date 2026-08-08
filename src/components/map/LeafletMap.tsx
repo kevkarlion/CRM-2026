@@ -61,6 +61,8 @@ interface LeafletMapProps {
   onMarkerClick?: (marker: MapMarker) => void;
   userLocation?: { lat: number; lng: number } | null;
   onUserLocationRequest?: () => void;
+  currentTechnicianId?: string;
+  isTechnician?: boolean;
 }
 
 function MapController({ markers, userLocation }: { markers: MapMarker[]; userLocation?: { lat: number; lng: number } | null }) {
@@ -96,7 +98,7 @@ function MapController({ markers, userLocation }: { markers: MapMarker[]; userLo
   return null;
 }
 
-export function LeafletMap({ markers, onMarkerClick, userLocation }: LeafletMapProps) {
+export function LeafletMap({ markers, onMarkerClick, userLocation, currentTechnicianId, isTechnician }: LeafletMapProps) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -138,6 +140,8 @@ return (
           key={`${marker.entityType}-${marker.id}`}
           marker={marker}
           onClick={onMarkerClick}
+          currentTechnicianId={currentTechnicianId}
+          isTechnician={isTechnician}
         />
       ))}
     </MapContainer>

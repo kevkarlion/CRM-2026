@@ -212,36 +212,6 @@ export function MapFilters({ filters, onFiltersChange, technicians = [] }: MapFi
             />
           </div>
         </div>
-
-        {/* Status Checkboxes */}
-        <div className="md:col-span-2 lg:col-span-3">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Estado
-          </label>
-          <div className="flex flex-wrap gap-2">
-            {STATUS_OPTIONS.map((opt) => {
-              const isChecked = (localFilters.status || []).includes(opt.value);
-              return (
-                <label
-                  key={opt.value}
-                  className={`inline-flex items-center px-2.5 py-1.5 rounded-md text-xs font-medium cursor-pointer transition-colors ${
-                    isChecked
-                      ? 'bg-brand-50 text-brand-700 border border-brand-200'
-                      : 'bg-gray-50 text-gray-600 border border-gray-200 hover:bg-gray-100'
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={isChecked}
-                    onChange={(e) => handleStatusChange(opt.value, e.target.checked)}
-                    className="sr-only"
-                  />
-                  {opt.label}
-                </label>
-              );
-            })}
-          </div>
-        </div>
       </div>
     </div>
   );

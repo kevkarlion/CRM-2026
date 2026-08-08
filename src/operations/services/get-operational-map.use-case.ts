@@ -159,6 +159,7 @@ export class GetOperationalMapUseCase {
    */
   private transformWorkOrder(wo: any): MapMarker {
     const technicianNames = wo.assignedTechnicians?.map((t: any) => t.name).join(', ') || undefined;
+    const technicianIds = wo.assignedTechnicians?.map((t: any) => String(t._id)) || [];
     
     // Check both locationSnapshot and root level for coordinates
     const lat = wo.locationSnapshot?.latitude ?? wo.latitude ?? 0;
@@ -174,6 +175,7 @@ export class GetOperationalMapUseCase {
       status: wo.status,
       priority: wo.priority,
       technician: technicianNames,
+      technicianId: technicianIds[0] || undefined,
       scheduledAt: wo.scheduledDate || '',
       serviceType: wo.category,
       clientName: wo.clientSnapshot?.name || '',
@@ -188,6 +190,9 @@ export class GetOperationalMapUseCase {
     const technician = tv.assignedTechnicianId;
     const technicianName = technician && typeof technician === 'object' 
       ? (technician as any).name 
+      : undefined;
+    const technicianId = technician && typeof technician === 'object'
+      ? String((technician as any)._id)
       : undefined;
     
     // Check locationSnapshot and root level for coordinates
@@ -204,6 +209,7 @@ export class GetOperationalMapUseCase {
       status: tv.status,
       priority: tv.priority,
       technician: technicianName,
+      technicianId: technicianId,
       scheduledAt: tv.scheduledDate ? new Date(tv.scheduledDate).toISOString().slice(0, 10) : '',
       serviceType: tv.category,
       clientName: tv.clientSnapshot?.name || '',

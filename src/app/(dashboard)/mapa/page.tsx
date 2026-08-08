@@ -2,8 +2,9 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
-import { LeafletMap, MapFilters } from '@/components/map';
+import { useRole } from '@/dashboard/context/role-context';
 import type { MapMarker, MapFilters as MapFiltersType, MapApiResponse } from '@/operations/types/map-marker';
+import { MapFilters } from '@/components/map/MapFilters';
 
 interface Technician {
   _id: string;
@@ -20,12 +21,14 @@ const Map = dynamic(() => import('@/components/map/LeafletMap').then((mod) => mo
   ),
 });
 
-// Default filters
+// Default filters - show all active except completed/closed
 const DEFAULT_FILTERS: MapFiltersType = {
   entityType: 'ALL',
+  status: ['draft', 'scheduled', 'confirmed', 'assigned', 'in_progress', 'paused'],
 };
 
 export default function MapaOperativoPage() {
+  const { user, isTechnician } = useRole();
   const [markers, setMarkers] = useState<MapMarker[]>([]);
   const [filters, setFilters] = useState<MapFiltersType>(DEFAULT_FILTERS);
   const [technicians, setTechnicians] = useState<Technician[]>([]);
@@ -64,14 +67,13 @@ export default function MapaOperativoPage() {
       setLoading(true);
       setError(null);
 
-      // Build query params
+      // Build query params - always filter by scheduled statuses
       const params = new URLSearchParams();
       if (filters.entityType && filters.entityType !== 'ALL') {
         params.set('entityType', filters.entityType);
       }
-      if (filters.status && filters.status.length > 0) {
-        params.set('status', filters.status.join(','));
-      }
+      // Always show scheduled statuses (programadas, vencidas y no vencidas)
+      params.set('status', 'scheduled,confirmed,assigned,in_progress,paused,draft');
       if (filters.dateFrom) {
         params.set('dateFrom', filters.dateFrom);
       }
@@ -110,6 +112,11 @@ export default function MapaOperativoPage() {
       console.error('Error loading technicians:', err);
     }
   }, []);
+
+  // Get current technician ID based on logged in user
+  const currentTechnicianId = technicians.find(t => 
+    t.name.toLowerCase().includes(user.name?.toLowerCase() || '')
+  )?._id;
 
   // Initial load
   useEffect(() => {
@@ -207,7 +214,13 @@ export default function MapaOperativoPage() {
             </div>
           </div>
         ) : (
-          <Map markers={markers} onMarkerClick={handleMarkerClick} userLocation={userLocation} />
+          <Map 
+            markers={markers} 
+            onMarkerClick={handleMarkerClick} 
+            userLocation={userLocation}
+            currentTechnicianId={currentTechnicianId}
+            isTechnician={isTechnician}
+          />
         )}
       </div>
 
@@ -216,12 +229,12 @@ export default function MapaOperativoPage() {
         <h3 className="text-sm font-medium text-gray-700 mb-2">Leyenda</h3>
         <div className="flex flex-wrap gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full bg-violet-600 border-2 border-red-600" />
-            <span className="text-xs text-gray-600">Orden de Trabajo</span>
+            <div className="w-4 h-4 rounded-full bg-violet-600" />
+            <span className="text-xs text-gray-600">Por técnico</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full bg-cyan-600 border-2 border-red-600" />
-            <span className="text-xs text-gray-600">Visita Técnica</span>
+            <div className="w-4 h-4 rounded-full bg-amber-500 border-2 border-yellow-400" />
+            <span className="text-xs text-gray-600">Mi trabajo</span>
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-red-600" />
@@ -237,7 +250,7 @@ export default function MapaOperativoPage() {
           </div>
           <div className="flex items-center gap-2">
             <div className="w-3 h-3 rounded-full bg-gray-500" />
-            <span className="text-xs text-gray-600">Baja</span>
+            <span className="text-xs text-gray-600">Baja prioridad</span>
           </div>
         </div>
       </div>

@@ -92,7 +92,7 @@ interface FilterPill {
 const FILTER_PILLS: FilterPill[] = [
   { key: 'all', label: 'Todas', color: 'bg-gray-50 dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 border-gray-200 dark:border-slate-600', activeColor: 'bg-gray-900 dark:bg-slate-100 text-white dark:text-slate-900 border-gray-900 dark:border-slate-100' },
   { key: 'withoutTechnician', label: 'Sin asignar', color: 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/30 border-amber-200 dark:border-amber-800', activeColor: 'bg-amber-600 text-white border-amber-600' },
-  { key: 'overdue', label: 'Atrasadas', color: 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30 border-red-200 dark:border-red-800', activeColor: 'bg-red-600 text-white border-red-600' },
+  { key: 'overdue', label: 'Vencidas', color: 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30 border-red-200 dark:border-red-800', activeColor: 'bg-red-600 text-white border-red-600' },
   { key: 'today', label: 'Hoy', color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 border-blue-200 dark:border-blue-800', activeColor: 'bg-blue-600 text-white border-blue-600' },
   { key: 'urgent', label: 'Urgentes', color: 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30 border-red-200 dark:border-red-800', activeColor: 'bg-red-600 text-white border-red-600' },
   { key: 'completed', label: 'Completadas', color: 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/30 border-green-200 dark:border-green-800', activeColor: 'bg-green-600 text-white border-green-600' },
@@ -117,8 +117,7 @@ function filterWorkOrders(orders: WorkOrderRow[], filter: OrderFilter): WorkOrde
     case 'urgent':
       return orders.filter((wo) => wo.priority === 'urgent');
     case 'completed':
-      // TODO: enlazar lógica de completadas
-      return [];
+      return orders.filter((wo) => wo.status === 'completed');
   }
 }
 
@@ -186,7 +185,7 @@ function WorkOrderCard({ wo }: { wo: WorkOrderRow }) {
 
 export function WorkOrderListView({ workOrders, onRefresh }: WorkOrderListViewProps) {
   const router = useRouter();
-  const [sortPriority, setSortPriority] = useState(true);
+  const [sortPriority, setSortPriority] = useState(false);
   const [sortDate, setSortDate] = useState<'asc' | 'desc'>('desc');
   const [orderFilter, setOrderFilter] = useState<OrderFilter>('all');
 
@@ -198,7 +197,7 @@ export function WorkOrderListView({ workOrders, onRefresh }: WorkOrderListViewPr
       ['overdue', () => filterWorkOrders(workOrders, 'overdue').length],
       ['today', () => filterWorkOrders(workOrders, 'today').length],
       ['urgent', () => filterWorkOrders(workOrders, 'urgent').length],
-      ['completed', () => 0], // TODO: enlazar lógica
+      ['completed', () => filterWorkOrders(workOrders, 'completed').length],
     ];
     return Object.fromEntries(entries.map(([k, fn]) => [k, fn()])) as Record<OrderFilter, number>;
   }, [workOrders]);

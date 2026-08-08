@@ -29,7 +29,7 @@ interface FilterPill {
 const FILTER_PILLS: FilterPill[] = [
   { key: 'all', label: 'Todas', color: 'bg-gray-50 dark:bg-slate-800 text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 border-gray-200 dark:border-slate-600', activeColor: 'bg-gray-900 dark:bg-slate-100 text-white dark:text-slate-900 border-gray-900 dark:border-slate-100' },
   { key: 'withoutTechnician', label: 'Sin asignar', color: 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/30 border-amber-200 dark:border-amber-800', activeColor: 'bg-amber-600 text-white border-amber-600' },
-  { key: 'overdue', label: 'Atrasadas', color: 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30 border-red-200 dark:border-red-800', activeColor: 'bg-red-600 text-white border-red-600' },
+  { key: 'overdue', label: 'Vencidas', color: 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30 border-red-200 dark:border-red-800', activeColor: 'bg-red-600 text-white border-red-600' },
   { key: 'today', label: 'Hoy', color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 border-blue-200 dark:border-blue-800', activeColor: 'bg-blue-600 text-white border-blue-600' },
   { key: 'urgent', label: 'Urgentes', color: 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30 border-red-200 dark:border-red-800', activeColor: 'bg-red-600 text-white border-red-600' },
   { key: 'completed', label: 'Completadas', color: 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/30 border-green-200 dark:border-green-800', activeColor: 'bg-green-600 text-white border-green-600' },
@@ -53,8 +53,7 @@ function matchVisitFilter(visit: TechnicalVisitRow, filter: VisitFilter): boolea
     case 'urgent':
       return visit.priority === 'urgent';
     case 'completed':
-      // TODO: enlazar lógica de completadas
-      return false;
+      return visit.status === 'completed';
     default:
       return true;
   }
@@ -84,8 +83,8 @@ const PRIORITY_LABELS: Record<string, string> = {
 export function TechnicalVisitsView({ visits, onRefresh }: TechnicalVisitsViewProps) {
   const router = useRouter();
   const [visitFilter, setVisitFilter] = useState<VisitFilter>('all');
-  const [sortPriority, setSortPriority] = useState(true);
-  const [sortDate, setSortDate] = useState<'asc' | 'desc' | null>(null);
+  const [sortPriority, setSortPriority] = useState(false);
+  const [sortDate, setSortDate] = useState<'asc' | 'desc' | null>('desc');
 
   // Compute counts for pills from raw visits (unfiltered)
   const counts = useMemo(() => {
@@ -103,7 +102,7 @@ export function TechnicalVisitsView({ visits, onRefresh }: TechnicalVisitsViewPr
         return !!d && d.getTime() === now.getTime();
       }).length,
       urgent: visits.filter(v => v.priority === 'urgent').length,
-      completed: 0, // TODO: enlazar lógica
+      completed: visits.filter(v => v.status === 'completed').length,
     };
   }, [visits]);
 
