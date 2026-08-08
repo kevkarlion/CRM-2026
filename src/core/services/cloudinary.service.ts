@@ -167,6 +167,22 @@ export class CloudinaryService {
   }
 
   /**
+   * Get download URL with filename for proper download
+   */
+  getDownloadUrl(publicId: string, filename: string): string {
+    // Get the file extension from the original filename
+    const ext = filename.split('.').pop() || '';
+    // Remove extension from filename for the URL
+    const nameWithoutExt = filename.replace(/\.[^/.]+$/, '');
+    
+    return cloudinary.url(publicId, {
+      secure: true,
+      flags: [`attachment:${nameWithoutExt}`],
+      format: ext || 'auto',
+    });
+  }
+
+  /**
    * Get metadata for a file
    */
   async getMetadata(publicId: string): Promise<any> {

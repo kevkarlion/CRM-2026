@@ -186,15 +186,15 @@ export class DocumentService {
         ? `crm/leads/${options.leadId}`
         : 'crm/temp';
 
-    // Upload to Cloudinary
-    const uploadResult: CloudinaryUploadResult = await cloudinaryService.uploadBuffer(
-      file.buffer,
-      file.originalname,
-      {
-        folder,
-        resourceType,
-      }
-    );
+// Upload to Cloudinary (use "raw" for PDFs and other documents)
+      const uploadResult = await cloudinaryService.uploadBuffer(
+        file.buffer,
+        file.originalname,
+        {
+          folder: `crm/${tenantId}`,
+          resourceType: 'raw', // Use raw to preserve file as-is
+        }
+      );
 
     // Generate title if not provided
     const title = options.title || this.generateTitle(

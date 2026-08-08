@@ -372,8 +372,7 @@ export function ClientDocumentationTab({ clientId }: ClientDocumentationTabProps
                   </svg>
                 </a>
                 <a
-                  href={doc.secureUrl}
-                  download={doc.filename}
+                  href={`/api/crm/documents/${doc._id}/download`}
                   className="p-2 text-gray-500 hover:text-brand-600 transition-colors"
                   title="Descargar"
                 >

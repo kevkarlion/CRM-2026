@@ -33,6 +33,7 @@ export interface IDocument extends Document {
   cloudinaryPublicId: string;
   cloudinaryUrl: string;
   secureUrl: string;
+  downloadUrl?: string;
   
   // File metadata
   mimeType: string;
@@ -72,6 +73,7 @@ export interface CreateDocumentInput {
   cloudinaryPublicId: string;
   cloudinaryUrl: string;
   secureUrl: string;
+  downloadUrl?: string;
   
   // File metadata
   mimeType: string;
