@@ -117,7 +117,11 @@ export async function POST(request: NextRequest) {
     // Limpiar el nombre del archivo
     const cleanFilename = filename.replace(/[^a-zA-Z0-9.-]/g, '_').replace(/\.+/g, '.');
     const extension = mediaInfo.mimeType.split('/')[1] || 'bin';
-    const fullFilename = cleanFilename.endsWith('.' + extension) ? cleanFilename : cleanFilename + '.' + extension;
+    // Asegurar que siempre tenga extensión
+    const hasExtension = cleanFilename.match(/\.[a-zA-Z0-9]+$/);
+    const fullFilename = hasExtension ? cleanFilename : cleanFilename + '.' + extension;
+    
+    console.log('[download-media] filename:', filename, '-> clean:', cleanFilename, '-> full:', fullFilename);
 
     // Subir a Cloudinary
     const { default: cloudinaryService } = await import('@/core/services/cloudinary.service');
