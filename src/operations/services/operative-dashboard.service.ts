@@ -111,19 +111,19 @@ export class OperativeDashboardService {
 
     const summary = {
       totalWorkOrders,
-      pending: (statusMap.draft || 0) + (statusMap.scheduled || 0),
+      pending: statusMap.pending_assignment || 0,
       urgent: priorityMap.urgent,
       overdue: await this.countOverdue(tenantObjectId),
       withoutTechnician: await this.countWithoutTechnician(tenantObjectId),
-      inExecution: (statusMap.assigned || 0) + (statusMap.in_progress || 0),
+      inExecution: (statusMap.assigned || 0) + (statusMap.scheduled || 0) + (statusMap.in_progress || 0),
       pendingReport: pendingReports,
     };
 
     const nextActions = {
       unassigned: await this.countUnassigned(tenantObjectId),
       unscheduled: await this.countUnscheduled(tenantObjectId),
-      pendingApproval: statusMap.confirmed || 0,
-      awaitingExecution: (statusMap.assigned || 0),
+      pendingApproval: 0,
+      awaitingExecution: (statusMap.assigned || 0) + (statusMap.scheduled || 0),
       pendingReport: pendingReports,
     };
 
@@ -155,7 +155,7 @@ export class OperativeDashboardService {
   private async countWithoutTechnician(tenantId: Types.ObjectId): Promise<number> {
     return WorkOrderModel.countDocuments({
       tenantId,
-      status: { $in: ['draft', 'scheduled', 'confirmed'] },
+      status: { $in: ['pending_assignment', 'assigned'] },
       $or: [
         { assignedTechnicians: { $size: 0 } },
         { assignedTechnicians: { $exists: false } },
@@ -167,7 +167,7 @@ export class OperativeDashboardService {
   private async countUnassigned(tenantId: Types.ObjectId): Promise<number> {
     return WorkOrderModel.countDocuments({
       tenantId,
-      status: { $in: ['draft', 'scheduled', 'confirmed'] },
+      status: 'pending_assignment',
       $or: [
         { assignedTechnicians: { $size: 0 } },
         { assignedTechnicians: { $exists: false } },
@@ -179,7 +179,7 @@ export class OperativeDashboardService {
   private async countUnscheduled(tenantId: Types.ObjectId): Promise<number> {
     return WorkOrderModel.countDocuments({
       tenantId,
-      status: { $in: ['draft', 'confirmed'] },
+      status: 'assigned',
       scheduledDate: null,
       deletedAt: null,
     });

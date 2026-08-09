@@ -37,9 +37,13 @@ export class WorkOrderService {
         throw new ValidationError(`Client ${data.clientId} not found`);
       }
 
-      const location = await LocationModel.findById(data.locationId).session(session).exec();
-      if (!location) {
-        throw new ValidationError(`Location ${data.locationId} not found`);
+      // Location is optional - either provide locationId (existing) or locationSnapshot (new)
+      let location = null;
+      if (data.locationId) {
+        location = await LocationModel.findById(data.locationId).session(session).exec();
+        if (!location) {
+          throw new ValidationError(`Location ${data.locationId} not found`);
+        }
       }
 
       let equipmentSnapshot: Record<string, unknown> | null = null;
@@ -64,7 +68,7 @@ export class WorkOrderService {
         ...data,
         tenantId,
         workOrderNumber,
-        status: 'draft' as WorkOrderStatus,
+        status: 'pending_assignment' as WorkOrderStatus,
         clientSnapshot: {
           name: client.fullName || client.companyName,
           email: client.email,
@@ -73,16 +77,18 @@ export class WorkOrderService {
           customerType: client.customerType,
           status: client.status,
         },
-        locationSnapshot: {
-          name: location.name,
-          address: location.address,
-          city: location.city,
-          province: location.province,
-          country: location.country,
-          postalCode: location.postalCode,
-        },
+        locationSnapshot: location 
+          ? {
+              name: location.name,
+              address: location.address,
+              city: location.city,
+              province: location.province,
+              country: location.country,
+              postalCode: location.postalCode,
+            }
+          : data.locationSnapshot,
         equipmentSnapshot,
-        assignedTechnicians: [],
+        assignedTechnicians: data.assignedTechnicians || [],
         createdBy: userId,
         updatedBy: userId,
       }], { session });
@@ -186,12 +192,22 @@ export class WorkOrderService {
     userId: string,
     version: number,
   ): Promise<IWorkOrder | null> {
+    // Auto-transition: si se programa y está "Asignada", pasar a "Programada"
+    const isScheduling = !!(data.scheduledDate || data.scheduledStart || data.scheduledEnd);
+    let autoStatus: string | undefined;
+
+    if (isScheduling) {
+      const current = await WorkOrderModel.findOne({ _id: id, tenantId, deletedAt: null }).select('status version').lean();
+      if (current && current.status === 'assigned') {
+        autoStatus = 'scheduled';
+      }
+    }
+
     const updated = await WorkOrderModel.findOneAndUpdate(
       { _id: id, tenantId, deletedAt: null, version },
-      { $set: { ...data, updatedBy: userId }, $inc: { version: 1 } },
+      { $set: { ...data, ...(autoStatus ? { status: autoStatus } : {}), updatedBy: userId }, $inc: { version: 1 } },
       { new: true },
     )
-      
       .exec();
 
     if (!updated) {
@@ -238,7 +254,7 @@ export class WorkOrderService {
           $set: {
             status: targetStatus,
             updatedBy: userId,
-            ...(targetStatus === 'completed' ? { completedAt: new Date() } : {}),
+            ...(targetStatus === 'closed' ? { closedAt: new Date() } : {}),
           },
           $inc: { version: 1 },
         },
@@ -254,7 +270,7 @@ export class WorkOrderService {
       }
 
       const eventType = targetStatus === 'cancelled' ? 'closed'
-        : targetStatus === 'completed' ? 'visit_completed'
+        : targetStatus === 'closed' ? 'visit_completed'
         : 'status_changed';
 
       await WorkOrderEventModel.create([{
@@ -286,8 +302,8 @@ export class WorkOrderService {
           } as WorkOrderStatusChangedPayload,
         });
 
-        // Also publish WORK_ORDER_COMPLETED when status is completed
-        if (targetStatus === 'completed') {
+        // Also publish WORK_ORDER_COMPLETED when status is closed
+        if (targetStatus === 'closed') {
           await eventBus.publish({
             type: DOMAIN_EVENTS.WORK_ORDER_COMPLETED,
             aggregateId: id,
@@ -428,9 +444,9 @@ export class WorkOrderService {
     }
 
     const status = workOrder.status as WorkOrderStatus;
-    if (status !== 'draft' && status !== 'cancelled') {
+    if (status !== 'pending_assignment' && status !== 'cancelled') {
       throw new ValidationError(
-        `Cannot delete WorkOrder in status '${status}'. Only 'draft' or 'cancelled' can be deleted.`,
+        `Cannot delete WorkOrder in status '${status}'. Only 'pending_assignment' or 'cancelled' can be deleted.`,
       );
     }
 

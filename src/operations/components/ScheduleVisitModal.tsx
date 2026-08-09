@@ -20,7 +20,6 @@ const CATEGORY_OPTIONS = [
 ];
 
 const PRIORITY_OPTIONS = [
-  { value: 'low', label: 'Baja' },
   { value: 'normal', label: 'Normal' },
   { value: 'high', label: 'Alta' },
   { value: 'urgent', label: 'Urgente' },

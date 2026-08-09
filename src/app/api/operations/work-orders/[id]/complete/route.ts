@@ -10,7 +10,7 @@ import { DOMAIN_EVENTS, WorkOrderCompletedPayload } from '@/infrastructure/event
 import mongoose from 'mongoose';
 
 const VALID_STATUSES = ['in_progress'] as const;
-const TARGET_STATUS = 'completed';
+const TARGET_STATUS = 'closed';
 
 interface WorkReportInput {
   result: string;
@@ -163,7 +163,7 @@ export async function POST(
       $set: {
         status: TARGET_STATUS,
         finishedAt: now,
-        completedAt: now,
+        closedAt: now,
         duration: duration,
         workReportId: workReport._id,
         updatedBy: new mongoose.Types.ObjectId(userId),
@@ -222,7 +222,7 @@ export async function POST(
           workReportId: workReport._id.toString(),
           duration,
           scheduledDate: workOrder.scheduledDate,
-          completedAt: new Date().toISOString(),
+          closedAt: new Date().toISOString(),
         },
       });
 

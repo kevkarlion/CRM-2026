@@ -90,22 +90,18 @@ const STATUS_VARIANT: Record<string, string> = {
 
 const PRIORITY_OPTIONS = [
   { value: '', label: 'Todas' },
-  { value: 'low', label: 'Baja' },
   { value: 'normal', label: 'Normal' },
   { value: 'high', label: 'Alta' },
   { value: 'urgent', label: 'Urgente' },
-  { value: 'emergency', label: 'Emergencia' },
 ];
 
 const PRIORITY_VARIANT: Record<string, string> = {
-  low: 'bg-gray-100 text-gray-700',
   normal: 'bg-blue-50 text-blue-700',
   high: 'bg-orange-50 text-orange-700',
   urgent: 'bg-red-50 text-red-700',
 };
 
 const PRIORITY_LABELS: Record<string, string> = {
-  low: 'Baja',
   normal: 'Normal',
   high: 'Alta',
   urgent: 'Urgente',

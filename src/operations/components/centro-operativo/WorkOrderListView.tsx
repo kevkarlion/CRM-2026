@@ -13,19 +13,21 @@ interface WorkOrderListViewProps {
 }
 
 const STATUS_LABELS: Record<string, string> = {
+  // Estados canónicos
+  pending_assignment: 'Pendiente',
+  assigned: 'Asignada',
+  scheduled: 'Programada',
+  in_progress: 'En Ejecución',
+  closed: 'Cerrada',
+  cancelled: 'Cancelada',
+  // Estados viejos (compatibilidad con datos existentes)
+  completed: 'Cerrada',
   draft: 'Borrador',
-  scheduled: 'Programado',
-  confirmed: 'Confirmado',
-  assigned: 'Asignado',
-  in_progress: 'En Progreso',
-  paused: 'Suspendido',
-  completed: 'Completado',
-  cancelled: 'Cancelado',
-  closed: 'Cerrado',
+  confirmed: 'Confirmada',
+  paused: 'Pausada',
 };
 
 const PRIORITY_LABELS: Record<string, string> = {
-  low: 'Baja',
   normal: 'Normal',
   high: 'Alta',
   urgent: 'Urgente',
@@ -35,7 +37,6 @@ const PRIORITY_ORDER: Record<string, number> = {
   urgent: 0,
   high: 1,
   normal: 2,
-  low: 3,
 };
 
 function formatTime(iso: string | null | undefined): string {
@@ -80,7 +81,7 @@ function sourceBadge(source: string): { label: string; variant: string } {
   }
 }
 
-type OrderFilter = 'all' | 'withoutTechnician' | 'overdue' | 'today' | 'urgent' | 'completed';
+type OrderFilter = 'all' | 'withoutTechnician' | 'overdue' | 'today' | 'urgent' | 'closed';
 
 interface FilterPill {
   key: OrderFilter;
@@ -95,7 +96,7 @@ const FILTER_PILLS: FilterPill[] = [
   { key: 'overdue', label: 'Vencidas', color: 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30 border-red-200 dark:border-red-800', activeColor: 'bg-red-600 text-white border-red-600' },
   { key: 'today', label: 'Hoy', color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/30 border-blue-200 dark:border-blue-800', activeColor: 'bg-blue-600 text-white border-blue-600' },
   { key: 'urgent', label: 'Urgentes', color: 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30 border-red-200 dark:border-red-800', activeColor: 'bg-red-600 text-white border-red-600' },
-  { key: 'completed', label: 'Completadas', color: 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/30 border-green-200 dark:border-green-800', activeColor: 'bg-green-600 text-white border-green-600' },
+  { key: 'closed', label: 'Cerradas', color: 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900/30 border-green-200 dark:border-green-800', activeColor: 'bg-green-600 text-white border-green-600' },
 ];
 
 function filterWorkOrders(orders: WorkOrderRow[], filter: OrderFilter): WorkOrderRow[] {
@@ -110,14 +111,15 @@ function filterWorkOrders(orders: WorkOrderRow[], filter: OrderFilter): WorkOrde
     case 'overdue':
       return orders.filter((wo) => {
         if (!wo.scheduledDate) return false;
-        return wo.scheduledDate < todayStr && !['completed', 'cancelled', 'closed'].includes(wo.status);
+        // Excluir estados terminales canónicos y legacy
+        return wo.scheduledDate < todayStr && !['closed', 'cancelled', 'completed'].includes(wo.status);
       });
     case 'today':
       return orders.filter((wo) => wo.scheduledDate === todayStr);
     case 'urgent':
       return orders.filter((wo) => wo.priority === 'urgent');
-    case 'completed':
-      return orders.filter((wo) => wo.status === 'completed');
+    case 'closed':
+      return orders.filter((wo) => wo.status === 'closed' || wo.status === 'completed');
   }
 }
 
@@ -197,7 +199,7 @@ export function WorkOrderListView({ workOrders, onRefresh }: WorkOrderListViewPr
       ['overdue', () => filterWorkOrders(workOrders, 'overdue').length],
       ['today', () => filterWorkOrders(workOrders, 'today').length],
       ['urgent', () => filterWorkOrders(workOrders, 'urgent').length],
-      ['completed', () => filterWorkOrders(workOrders, 'completed').length],
+      ['closed', () => filterWorkOrders(workOrders, 'closed').length],
     ];
     return Object.fromEntries(entries.map(([k, fn]) => [k, fn()])) as Record<OrderFilter, number>;
   }, [workOrders]);

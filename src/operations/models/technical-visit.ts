@@ -33,7 +33,7 @@ const technicalVisitSchema = new Schema<ITechnicalVisit>(
     },
     priority: {
       type: String,
-      enum: ['low', 'normal', 'high', 'urgent'],
+      enum: ['normal', 'high', 'urgent'],
       default: 'normal',
     },
     category: {

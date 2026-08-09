@@ -55,7 +55,6 @@ function getStatusLabel(status: string): string {
 
 const PRIORITY_OPTIONS = [
   { value: '', label: 'Todas' },
-  { value: 'low', label: 'Baja' },
   { value: 'normal', label: 'Normal' },
   { value: 'high', label: 'Alta' },
   { value: 'urgent', label: 'Urgente' },
@@ -82,11 +81,9 @@ const STATUS_VARIANT: Record<string, string> = {
 };
 
 const PRIORITY_VARIANT: Record<string, string> = {
-  low: 'bg-gray-100 text-gray-700',
   normal: 'bg-blue-50 text-blue-700',
   high: 'bg-orange-50 text-orange-700',
   urgent: 'bg-red-50 text-red-700',
-  emergency: 'bg-red-100 text-red-900',
 };
 
 const CATEGORY_VARIANT: Record<string, string> = {

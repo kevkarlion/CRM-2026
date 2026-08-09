@@ -129,7 +129,6 @@ function EventBlock({ event, onClick, compact, currentTechnicianId }: { event: C
       case 'urgent': return { label: 'Urgente', color: 'text-red-600 dark:text-red-400', bg: 'bg-red-50 dark:bg-red-900/20' };
       case 'high': return { label: 'Alta', color: 'text-orange-600 dark:text-orange-400', bg: 'bg-orange-50 dark:bg-orange-900/20' };
       case 'normal': return { label: 'Normal', color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-900/20' };
-      case 'low': return { label: 'Baja', color: 'text-gray-500 dark:text-slate-400', bg: 'bg-gray-50 dark:bg-slate-800' };
       default: return null;
     }
   })();
@@ -138,9 +137,23 @@ function EventBlock({ event, onClick, compact, currentTechnicianId }: { event: C
   const statusInfo = (() => {
     if (!event.scheduledDate || event.scheduledDate === '') {
       switch (event.status) {
-        case 'draft': return { label: 'Borrador', color: 'text-gray-600 dark:text-slate-300', bg: 'bg-gray-100 dark:bg-slate-700' };
-        case 'pending': return { label: 'Pendiente', color: 'text-yellow-600 dark:text-yellow-400', bg: 'bg-yellow-50 dark:bg-yellow-900/20' };
-        default: return { label: 'Sin fecha', color: 'text-gray-500 dark:text-slate-400', bg: 'bg-gray-50 dark:bg-slate-800' };
+        case 'draft':
+        case 'pending_assignment':
+          return { label: 'Pendiente', color: 'text-gray-600 dark:text-slate-300', bg: 'bg-gray-100 dark:bg-slate-700' };
+        case 'assigned':
+          return { label: 'Asignada', color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-50 dark:bg-indigo-900/20' };
+        case 'scheduled':
+          return { label: 'Programada', color: 'text-blue-600 dark:text-blue-400', bg: 'bg-blue-50 dark:bg-blue-900/20' };
+        case 'in_progress':
+          return { label: 'En Ejecución', color: 'text-yellow-600 dark:text-yellow-400', bg: 'bg-yellow-50 dark:bg-yellow-900/20' };
+        case 'completed':
+          return { label: 'Completada', color: 'text-green-600 dark:text-green-400', bg: 'bg-green-50 dark:bg-green-900/20' };
+        case 'closed':
+          return { label: 'Cerrada', color: 'text-green-600 dark:text-green-400', bg: 'bg-green-50 dark:bg-green-900/20' };
+        case 'cancelled':
+          return { label: 'Cancelada', color: 'text-red-600 dark:text-red-400', bg: 'bg-red-50 dark:bg-red-900/20' };
+        default:
+          return { label: 'Sin fecha', color: 'text-gray-500 dark:text-slate-400', bg: 'bg-gray-50 dark:bg-slate-800' };
       }
     }
     return null;

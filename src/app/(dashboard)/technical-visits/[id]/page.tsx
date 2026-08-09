@@ -78,7 +78,6 @@ const NEXT_STATUSES: Record<string, Array<{ value: string; label: string }>> = {
 };
 
 const PRIORITY_OPTIONS = [
-  { value: 'low', label: 'Baja' },
   { value: 'normal', label: 'Normal' },
   { value: 'high', label: 'Alta' },
   { value: 'urgent', label: 'Urgente' },
@@ -104,7 +103,6 @@ const STATUS_VARIANT: Record<string, string> = {
 };
 
 const PRIORITY_VARIANT: Record<string, string> = {
-  low: 'bg-gray-100 text-gray-600',
   normal: 'bg-blue-50 text-blue-700',
   high: 'bg-orange-50 text-orange-700',
   urgent: 'bg-red-50 text-red-700',

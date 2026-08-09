@@ -87,7 +87,7 @@ export const workOrderSchema = new Schema<IWorkOrder>(
     description: String,
     priority: {
       type: String,
-      enum: ['low', 'normal', 'high', 'urgent', 'emergency'],
+      enum: ['normal', 'high', 'urgent'],
       required: true,
       default: 'normal',
     },
@@ -98,9 +98,9 @@ export const workOrderSchema = new Schema<IWorkOrder>(
     },
     status: {
       type: String,
-      enum: ['draft', 'scheduled', 'confirmed', 'assigned', 'in_progress', 'paused', 'completed', 'cancelled', 'closed'],
+      enum: ['pending_assignment', 'assigned', 'scheduled', 'in_progress', 'closed', 'cancelled'],
       required: true,
-      default: 'draft',
+      default: 'pending_assignment',
     },
     scheduledDate: String,
     scheduledStart: Date,
@@ -114,7 +114,7 @@ export const workOrderSchema = new Schema<IWorkOrder>(
     startedAt: { type: Date, default: null },        // Cuándo se inició el trabajo
     startedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null }, // Quién lo inició
     finishedAt: { type: Date, default: null },       // Cuándo se terminó
-    completedAt: { type: Date, default: null },      // Cuándo se completó (solo status 'completed')
+    closedAt: { type: Date, default: null },        // Cuándo se cerró la OT
     duration: { type: Number, default: null },       // Duración en minutos (calculada automáticamente)
     
     // Referencia al WorkReport
@@ -131,6 +131,6 @@ workOrderSchema.index({ tenantId: 1, workOrderNumber: 1 }, { unique: true });
 workOrderSchema.index({ tenantId: 1, clientId: 1, status: 1 });
 workOrderSchema.index({ tenantId: 1, assignedTechnicians: 1, status: 1 });
 workOrderSchema.index({ tenantId: 1, scheduledDate: 1, status: 1 });
-workOrderSchema.index({ tenantId: 1, status: 1, completedAt: 1 });
+workOrderSchema.index({ tenantId: 1, status: 1, closedAt: 1 });
 workOrderSchema.index({ tenantId: 1, deletedAt: 1 });
 workOrderSchema.index({ tenantId: 1, priority: 1, status: 1, scheduledDate: -1 });

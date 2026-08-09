@@ -67,7 +67,6 @@ function toISOStringWithLocalTime(dateStr: string, timeStr: string): string {
 }
 
 const PRIORITY_OPTIONS = [
-  { value: 'low', label: 'Baja' },
   { value: 'normal', label: 'Normal' },
   { value: 'high', label: 'Alta' },
   { value: 'urgent', label: 'Urgente' },
@@ -258,17 +257,24 @@ export default function EditWorkOrderPage() {
       body.version = workOrder?.version ?? 0;
 
       if (approve) {
-        // Promote to 'assigned' when a technician is selected so approved+assigned
-        // orders are consistent. Only legal from 'scheduled'/'confirmed' per the state
-        // machine; an already-assigned order stays 'assigned' (never downgrade); draft
-        // orders go through 'scheduled' instead.
+        // El estado se determina según tenga técnico y fecha:
+        // - Si tiene técnico y fecha → scheduled
+        // - Si tiene técnico sin fecha → assigned
+        // - Si tiene fecha sin técnico → pending_assignment
         const currentStatus = workOrder?.status;
-        if (currentStatus === 'assigned') {
+        
+        if (form.assignedTechnician && form.scheduledDate) {
+          // Tiene técnico Y fecha → Programada
+          body.status = 'scheduled';
+        } else if (form.assignedTechnician && !form.scheduledDate) {
+          // Tiene técnico sin fecha → Asignada
           body.status = 'assigned';
+        } else if (!form.assignedTechnician && form.scheduledDate) {
+          // Tiene fecha sin técnico → Pendiente (fecha sin asignar)
+          body.status = 'pending_assignment';
         } else {
-          body.status = form.assignedTechnician && (currentStatus === 'scheduled' || currentStatus === 'confirmed')
-            ? 'assigned'
-            : 'scheduled';
+          // Ni técnico ni fecha → Pendiente de asignación
+          body.status = 'pending_assignment';
         }
       }
 

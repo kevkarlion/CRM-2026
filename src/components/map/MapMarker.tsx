@@ -4,13 +4,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { Marker, Popup } from 'react-leaflet';
 import type { MapMarker as MapMarkerType } from '@/operations/types/map-marker';
 import { MapMarkerCard } from './MapMarkerCard';
-
-interface MapMarkerComponentProps {
-  marker: MapMarkerType;
-  onClick?: (marker: MapMarkerType) => void;
-  currentTechnicianId?: string;
-  isTechnician?: boolean;
-}
+import { getTechnicianColorByName } from '@/operations/config/technician-colors';
 
 // Priority color mapping
 const PRIORITY_COLORS: Record<string, string> = {
@@ -20,48 +14,28 @@ const PRIORITY_COLORS: Record<string, string> = {
   low: '#6b7280',      // gray-500
 };
 
-// Entity type color mapping
+// Entity type color mapping (fallback when no technician)
 const ENTITY_COLORS: Record<string, string> = {
   WorkOrder: '#7c3aed',     // violet-600
   TechnicalVisit: '#0891b2', // cyan-600
 };
-
-// Technician colors palette - distinct colors for each technician
-const TECHNICIAN_COLORS = [
-  '#7c3aed', // violet
-  '#0891b2', // cyan
-  '#059669', // emerald
-  '#dc2626', // red
-  '#d97706', // amber
-  '#7c3aed', // violet
-  '#db2777', // pink
-  '#4f46e5', // indigo
-  '#2563eb', // blue
-  '#16a34a', // green
-];
-
-// Get technician color based on ID
-function getTechnicianColor(technicianId?: string): string | null {
-  if (!technicianId) return null;
-  // Generate a consistent color based on the ID string
-  let hash = 0;
-  for (let i = 0; i < technicianId.length; i++) {
-    hash = technicianId.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const index = Math.abs(hash) % TECHNICIAN_COLORS.length;
-  return TECHNICIAN_COLORS[index];
-}
 
 // Function to create colored icon HTML
 function getIconHtml(
   priority: string, 
   entityType: string, 
   technicianId?: string,
+  technicianName?: string,
   isOwn: boolean = false
 ): string {
   const priorityColor = PRIORITY_COLORS[priority] || PRIORITY_COLORS.normal;
   const entityColor = ENTITY_COLORS[entityType] || ENTITY_COLORS.WorkOrder;
-  const techColor = getTechnicianColor(technicianId);
+  
+  // Usar sistema canónico de colores
+  const techColor = technicianName 
+    ? getTechnicianColorByName(technicianName)
+    : (technicianId ? getColorByHash(technicianId) : null);
+  
   const label = entityType === 'WorkOrder' ? 'OT' : 'VT';
 
   // Use technician color if available, otherwise use entity color
@@ -85,13 +59,27 @@ function getIconHtml(
       justify-content: center;
     ">
       <span style="
-        font-size: 12px;
-        font-weight: bold;
-        color: white;
         transform: rotate(45deg);
+        color: white;
+        font-size: 10px;
+        font-weight: bold;
+        font-family: system-ui, sans-serif;
       ">${label}</span>
     </div>
   `;
+}
+
+// Hash fallback para cuando no hay nombre
+function getColorByHash(key: string): string {
+  const palette = [
+    '#2563eb', '#dc2626', '#16a34a', '#d97706', '#7c3aed', 
+    '#0891b2', '#db2777', '#4f46e5', '#059669', '#ea580c'
+  ];
+  let hash = 0;
+  for (let i = 0; i < key.length; i++) {
+    hash = key.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return palette[Math.abs(hash) % palette.length];
 }
 
 export function MapMarkerComponent({ marker, onClick, currentTechnicianId, isTechnician }: MapMarkerComponentProps) {
@@ -121,12 +109,12 @@ export function MapMarkerComponent({ marker, onClick, currentTechnicianId, isTec
     
     return leaflet.divIcon({
       className: 'custom-marker',
-      html: getIconHtml(marker.priority, marker.entityType, marker.technicianId, isOwn),
+      html: getIconHtml(marker.priority, marker.entityType, marker.technicianId, marker.technician, isOwn),
       iconSize: [32, 32],
       iconAnchor: [16, 32],
       popupAnchor: [0, -32],
     });
-  }, [leaflet, marker.priority, marker.entityType, marker.technicianId, isOwn]);
+  }, [leaflet, marker.priority, marker.entityType, marker.technicianId, marker.technician, isOwn]);
 
   // Don't render marker until Leaflet is loaded
   if (!leaflet || !icon) {

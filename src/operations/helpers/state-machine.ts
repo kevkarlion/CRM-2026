@@ -7,22 +7,37 @@ export interface TransitionContext {
   hasSchedule?: boolean;
 }
 
+/**
+ * Transiciones canónicas de estados de OT
+ * 
+ * Flujo: pending_assignment → assigned → scheduled → in_progress → closed
+ *                                                              ↓
+ *                                                            cancelled
+ */
 export const VALID_TRANSITIONS: Record<WorkOrderStatus, WorkOrderStatus[]> = {
-  draft: ['scheduled', 'cancelled'],
-  scheduled: ['confirmed', 'assigned', 'cancelled'],
-  confirmed: ['assigned', 'cancelled'],
-  assigned: ['in_progress', 'scheduled', 'cancelled'],
-  in_progress: ['paused', 'completed', 'cancelled'],
-  paused: ['in_progress', 'cancelled'],
-  completed: ['closed'],
-  cancelled: [],
+  // 1. Pendiente de asignación → puede asignarse o cancelarse
+  pending_assignment: ['assigned', 'cancelled'],
+  
+  // 2. Asignada → puede programarse o cancelarse
+  assigned: ['scheduled', 'cancelled'],
+  
+  // 3. Programada → puede iniciar o cancelarse
+  scheduled: ['in_progress', 'cancelled'],
+  
+  // 4. En ejecución → puede cerrarse o cancelarse
+  in_progress: ['closed', 'cancelled'],
+  
+  // 5. Cerrada → estado terminal
   closed: [],
+  
+  // 6. Cancelada → estado terminal
+  cancelled: [],
 };
 
 export const TERMINAL_STATUSES: WorkOrderStatus[] = ['cancelled', 'closed'];
 
 export const ACTIVE_STATUSES: WorkOrderStatus[] = [
-  'scheduled', 'confirmed', 'assigned', 'in_progress', 'paused',
+  'pending_assignment', 'assigned', 'scheduled', 'in_progress',
 ];
 
 export function canTransition(from: WorkOrderStatus, to: WorkOrderStatus): boolean {
@@ -70,6 +85,7 @@ export function validateTransition(
     );
   }
 
+  // Para pasar a "Asignada" debe tener al menos un técnico
   if (to === 'assigned' && !context.hasTechnicians) {
     throw new TransitionError(
       `Technicians required: ${from} → ${to}`,
@@ -78,11 +94,12 @@ export function validateTransition(
     );
   }
 
-  if (from === 'draft' && to === 'scheduled' && !context.hasSchedule) {
+  // Para pasar a "Programada" debe tener técnico Y fecha/hora
+  if (to === 'scheduled' && (!context.hasTechnicians || !context.hasSchedule)) {
     throw new TransitionError(
       `Schedule required: ${from} → ${to}`,
       from, to,
-      'scheduledDate, scheduledStart, and scheduledEnd must be set.',
+      'At least one technician AND scheduledDate/scheduledStart must be set.',
     );
   }
 }

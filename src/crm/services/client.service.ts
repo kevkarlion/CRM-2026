@@ -80,8 +80,32 @@ export class ClientService {
       sort: { createdAt: -1 },
     } as never);
 
+    // Get locations for all clients
+    const clientIds = page.data.map((c: IClient) => c._id);
+    const locations = await LocationModel.find({
+      clientId: { $in: clientIds },
+      deletedAt: null,
+    }).lean();
+
+    const locationsByClientId = new Map(
+      locations.map((loc) => [loc.clientId.toString(), loc])
+    );
+
+    // Attach locations to each client
+    const data = page.data.map((client: IClient) => {
+      const clientObj = client.toObject();
+      const clientIdStr = client._id.toString();
+      const clientLocations = locations.filter(
+        (loc) => loc.clientId.toString() === clientIdStr
+      );
+      return {
+        ...clientObj,
+        locations: clientLocations.length > 0 ? clientLocations : undefined,
+      };
+    });
+
     return {
-      data: page.data as unknown as IClient[],
+      data: data as unknown as IClient[],
       cursor: page.cursor ?? undefined,
       total,
     };

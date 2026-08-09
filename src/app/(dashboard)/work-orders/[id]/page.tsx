@@ -9,6 +9,7 @@ import { SelfAssignmentDrawer } from '@/operations/components/SelfAssignmentDraw
 import { WorkCompletionForm } from '@/operations/components/WorkCompletionForm';
 import { formatDateLong as formatDate } from '@/operations/helpers/date-utils';
 import { useRole } from '@/dashboard/context/role-context';
+import { WORK_ORDER_STATUS_LABELS } from '@/operations/constants/status-labels';
 
 // Helper to get short WO number (last 7 chars)
 function shortWO(number: string): string {
@@ -73,50 +74,51 @@ interface VisitReport {
 }
 
 const STATUS_OPTIONS: Record<string, string> = {
+  pending_assignment: 'Pendiente',
+  assigned: 'Asignada',
+  scheduled: 'Programada',
+  in_progress: 'En Ejecución',
+  completed: 'Cerrada',
+  closed: 'Cerrada',
+  cancelled: 'Cancelada',
+  // Estados viejos
   draft: 'Borrador',
-  scheduled: 'Programado',
-  confirmed: 'Confirmado',
-  assigned: 'Asignado',
-  in_progress: 'En Progreso',
-  paused: 'Pausado',
-  completed: 'Completado',
-  cancelled: 'Cancelado',
-  closed: 'Cerrado',
+  confirmed: 'Confirmada',
+  paused: 'Pausada',
 };
 
 const STATUS_VARIANT: Record<string, string> = {
-  draft: 'bg-gray-100 text-gray-700',
-  scheduled: 'bg-blue-50 text-blue-700',
-  confirmed: 'bg-teal-50 text-teal-700',
+  pending_assignment: 'bg-gray-100 text-gray-700',
   assigned: 'bg-indigo-50 text-indigo-700',
+  scheduled: 'bg-blue-50 text-blue-700',
   in_progress: 'bg-amber-50 text-amber-700',
-  paused: 'bg-yellow-50 text-yellow-700',
   completed: 'bg-green-50 text-green-700',
   cancelled: 'bg-red-50 text-red-700',
   closed: 'bg-slate-50 text-slate-700',
+  // Estados viejos
+  draft: 'bg-gray-100 text-gray-700',
+  confirmed: 'bg-teal-50 text-teal-700',
+  paused: 'bg-yellow-50 text-yellow-700',
 };
 
 const PRIORITY_VARIANT: Record<string, string> = {
-  low: 'bg-gray-100 text-gray-700',
   normal: 'bg-blue-50 text-blue-700',
   high: 'bg-orange-50 text-orange-700',
   urgent: 'bg-red-50 text-red-700',
 };
 
 const PRIORITY_LABELS: Record<string, string> = {
-  low: 'Baja', normal: 'Normal', high: 'Alta', urgent: 'Urgente',
+  normal: 'Normal', high: 'Alta', urgent: 'Urgente',
 };
 
 const NEXT_STATUSES: Record<string, { value: string; label: string }[]> = {
-  draft: [{ value: 'scheduled', label: 'Programar' }, { value: 'cancelled', label: 'Cancelar' }],
-  scheduled: [{ value: 'confirmed', label: 'Confirmar' }, { value: 'cancelled', label: 'Cancelar' }],
-  confirmed: [{ value: 'assigned', label: 'Asignar' }, { value: 'cancelled', label: 'Cancelar' }],
-  assigned: [{ value: 'in_progress', label: 'En Progreso' }, { value: 'cancelled', label: 'Cancelar' }],
-  in_progress: [{ value: 'paused', label: 'Pausar' }, { value: 'completed', label: 'Completar' }, { value: 'cancelled', label: 'Cancelar' }],
-  paused: [{ value: 'in_progress', label: 'Reanudar' }, { value: 'cancelled', label: 'Cancelar' }],
+  pending_assignment: [{ value: 'assigned', label: 'Asignar' }, { value: 'cancelled', label: 'Cancelar' }],
+  assigned: [{ value: 'scheduled', label: 'Programar' }, { value: 'cancelled', label: 'Cancelar' }],
+  scheduled: [{ value: 'in_progress', label: 'Iniciar' }, { value: 'cancelled', label: 'Cancelar' }],
+  in_progress: [{ value: 'closed', label: 'Cerrar' }, { value: 'cancelled', label: 'Cancelar' }],
   completed: [{ value: 'closed', label: 'Cerrar' }],
-  cancelled: [],
   closed: [],
+  cancelled: [],
 };
 
 function DetailRow({ label, value }: { label: string; value: string }) {

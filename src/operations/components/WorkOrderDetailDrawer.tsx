@@ -53,27 +53,30 @@ const STATUS_CONFIG: Record<string, { variant: string; label: string }> = {
   closed: { variant: 'bg-gray-400 text-gray-700', label: 'Cerrado' },
 };
 
+// Canonical transitions only — legacy statuses map to display labels via STATUS_CONFIG above
 const STATUS_ACTIONS: Record<string, { status: string; label: string }[]> = {
-  draft: [
+  pending_assignment: [
+    { status: '__assign__', label: 'Asignar técnico' },
+    { status: 'cancelled', label: 'Cancelar' },
+  ],
+  assigned: [
     { status: '__schedule__', label: 'Programar' },
     { status: 'cancelled', label: 'Cancelar' },
   ],
   scheduled: [
-    { status: 'completed', label: 'Completar' },
+    { status: 'in_progress', label: 'Iniciar' },
     { status: 'cancelled', label: 'Cancelar' },
-    { status: 'paused', label: 'Suspender' },
-    { status: '__reschedule__', label: 'Reagendar' },
   ],
-  paused: [
-    { status: 'scheduled', label: 'Reanudar' },
+  in_progress: [
+    { status: 'closed', label: 'Cerrar' },
     { status: 'cancelled', label: 'Cancelar' },
-    { status: '__reschedule__', label: 'Reagendar' },
   ],
+  // Legacy statuses — no actions available (data already in DB)
+  draft: [],
+  confirmed: [],
+  paused: [],
   completed: [],
   cancelled: [],
-  confirmed: [],
-  assigned: [],
-  in_progress: [],
   closed: [],
 };
 
@@ -202,7 +205,7 @@ export function WorkOrderDetailDrawer({ isOpen, onClose, workOrderId }: WorkOrde
         ? `${rescheduleDate}T${rescheduleEnd}:00${tz}`
         : `${rescheduleDate}T18:00:00${tz}`;
 
-      if (data.workOrder.status === 'draft') {
+      if (data.workOrder.status === 'pending_assignment') {
         // First: save dates
         const updateRes = await api.patch<{ data: WorkOrder }>(`/api/operations/work-orders/${workOrderId}`, {
           scheduledDate: rescheduleDate,
@@ -249,7 +252,7 @@ export function WorkOrderDetailDrawer({ isOpen, onClose, workOrderId }: WorkOrde
 
   const wo = data?.workOrder;
   const actions = wo ? STATUS_ACTIONS[wo.status] || [] : [];
-  const isTerminal = ['completed', 'cancelled', 'closed'].includes(wo?.status || '');
+  const isTerminal = ['completed', 'closed', 'cancelled'].includes(wo?.status || '');
   const statusBadge = wo ? STATUS_CONFIG[wo.status] : null;
 
   return (
@@ -303,7 +306,7 @@ export function WorkOrderDetailDrawer({ isOpen, onClose, workOrderId }: WorkOrde
                     );
                   }
                   const isDanger = action.status === 'cancelled';
-                  const isPrimary = action.status === 'completed' || action.status === 'scheduled';
+                  const isPrimary = action.status === 'closed' || action.status === 'scheduled';
                   return (
                     <button
                       key={action.status}

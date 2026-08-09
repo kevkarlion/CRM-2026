@@ -74,7 +74,6 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const PRIORITY_LABELS: Record<string, string> = {
-  low: 'Baja',
   normal: 'Normal',
   high: 'Alta',
   urgent: 'Urgente',
@@ -107,7 +106,7 @@ export function TechnicalVisitsView({ visits, onRefresh }: TechnicalVisitsViewPr
   }, [visits]);
 
   // Filter by pill, then sort
-  const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 1, normal: 2, low: 3 };
+  const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 1, normal: 2 };
 
   const sorted = useMemo(() => {
     const filtered = visits.filter((v) => matchVisitFilter(v, visitFilter));

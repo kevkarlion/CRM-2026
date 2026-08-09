@@ -40,7 +40,7 @@ export interface ITechnicalVisit {
   status: 'draft' | 'scheduled' | 'confirmed' | 'assigned' | 'in_progress' | 'completed' | 'cancelled' | 'converted_to_work_order';
   
   // Priority
-  priority: 'low' | 'normal' | 'high' | 'urgent';
+  priority: 'normal' | 'high' | 'urgent';
   
   // Category (type of visit)
   category: 'inspection' | 'budget' | 'assessment' | 'emergency' | 'other';

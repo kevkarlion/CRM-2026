@@ -14,16 +14,14 @@ interface MapFiltersProps {
   technicians?: Technician[];
 }
 
-// Status options
+// Status options — canonical OT statuses only
 const STATUS_OPTIONS = [
-  { value: 'scheduled', label: 'Programado' },
-  { value: 'confirmed', label: 'Confirmado' },
-  { value: 'assigned', label: 'Asignado' },
-  { value: 'in_progress', label: 'En Progreso' },
-  { value: 'paused', label: 'Pausado' },
-  { value: 'completed', label: 'Completado' },
-  { value: 'cancelled', label: 'Cancelado' },
-  { value: 'closed', label: 'Cerrado' },
+  { value: 'pending_assignment', label: 'Pendiente' },
+  { value: 'assigned', label: 'Asignada' },
+  { value: 'scheduled', label: 'Programada' },
+  { value: 'in_progress', label: 'En Ejecución' },
+  { value: 'closed', label: 'Cerrada' },
+  { value: 'cancelled', label: 'Cancelada' },
 ];
 
 // Entity type options

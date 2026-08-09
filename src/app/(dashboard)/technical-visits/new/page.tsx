@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { api, unwrapData } from '@/lib/api-client';
 
 const PRIORITY_OPTIONS = [
-  { value: 'low', label: 'Baja' },
   { value: 'normal', label: 'Normal' },
   { value: 'high', label: 'Alta' },
   { value: 'urgent', label: 'Urgente' },

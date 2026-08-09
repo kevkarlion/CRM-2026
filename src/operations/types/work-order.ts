@@ -1,9 +1,26 @@
 import { Document, Types } from 'mongoose';
 import { IAuditFields } from '../../crm/types/audit-fields';
 
-export type WorkOrderPriority = 'low' | 'normal' | 'high' | 'urgent' | 'emergency';
+export type WorkOrderPriority = 'normal' | 'high' | 'urgent';
 export type WorkOrderCategory = 'installation' | 'maintenance' | 'repair' | 'inspection' | 'warranty' | 'emergency';
-export type WorkOrderStatus = 'draft' | 'scheduled' | 'confirmed' | 'assigned' | 'in_progress' | 'paused' | 'completed' | 'cancelled' | 'closed';
+
+/**
+ * Estados canónicos de Orden de Trabajo
+ * 
+ * 1. pending_assignment - Pendiente de asignación (sin técnico)
+ * 2. assigned - Asignada (tiene técnico, sin fecha)
+ * 3. scheduled - Programada (tiene técnico + fecha/hora)
+ * 4. in_progress - En ejecución (técnico comenzó el trabajo)
+ * 5. closed - Cerrada (OT completamente finalizada)
+ * 6. cancelled - Cancelada (la orden dejó de ejecutarse)
+ */
+export type WorkOrderStatus = 
+  | 'pending_assignment'  // 1. Pendiente de asignación
+  | 'assigned'            // 2. Asignada
+  | 'scheduled'           // 3. Programada
+  | 'in_progress'         // 4. En ejecución
+  | 'closed'              // 5. Cerrada
+  | 'cancelled';          // 6. Cancelada
 
 export interface IClientSnapshot {
   name?: string;
@@ -70,7 +87,7 @@ export interface IWorkOrder extends Document, IAuditFields {
   _id: Types.ObjectId;
   tenantId: Types.ObjectId;
   clientId: Types.ObjectId;
-  locationId: Types.ObjectId;
+  locationId?: Types.ObjectId | null;
   leadId?: Types.ObjectId | null;
   equipmentId: Types.ObjectId | null;
   quoteId?: Types.ObjectId;
@@ -97,7 +114,7 @@ export interface IWorkOrder extends Document, IAuditFields {
   startedAt?: Date | null;
   startedBy?: Types.ObjectId | null;
   finishedAt?: Date | null;
-  completedAt?: Date | null;
+  closedAt?: Date | null;
   duration?: number | null;
   // Referencia al WorkReport
   workReportId?: Types.ObjectId | null;

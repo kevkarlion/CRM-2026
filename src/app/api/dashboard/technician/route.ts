@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({
         assignedCount: 0,
         assignedBreakdown: { workOrders: 0, visits: 0 },
-        completedToday: 0,
+        closedToday: 0,
         pendingOrders: 0,
         inProgressOrders: 0,
         upcomingSevenDays: 0,
@@ -66,13 +66,13 @@ export async function GET(request: NextRequest) {
       status: { $in: ['assigned', 'in_progress', 'paused'] },
     });
 
-    // Get completed today (work orders + technical visits via completedAt)
-    const workOrdersCompletedToday = await WorkOrderModel.countDocuments({
+    // Get closed today (work orders + technical visits)
+    const workOrdersClosedToday = await WorkOrderModel.countDocuments({
       tenantId: tenantObjectId,
       assignedTechnicians: { $in: [technicianId] },
       deletedAt: null,
-      status: 'completed',
-      completedAt: { $gte: todayStart, $lt: todayEnd },
+      status: 'closed',
+      closedAt: { $gte: todayStart, $lt: todayEnd },
     });
 
     const visitsCompletedToday = await TechnicalVisitModel.countDocuments({
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
       completedAt: { $gte: todayStart, $lt: todayEnd },
     });
 
-    const completedToday = workOrdersCompletedToday + visitsCompletedToday;
+    const closedToday = workOrdersClosedToday + visitsCompletedToday;
 
     // Get pending (scheduled for future)
     const pendingOrders = await WorkOrderModel.countDocuments({
@@ -292,7 +292,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       assignedCount,
       assignedBreakdown: { workOrders: assignedOrdersWO, visits: assignedVisitsVT },
-      completedToday,
+      closedToday,
       pendingOrders,
       inProgressOrders,
       upcomingSevenDays,

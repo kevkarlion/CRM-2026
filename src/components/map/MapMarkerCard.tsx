@@ -21,7 +21,6 @@ const PRIORITY_LABELS: Record<string, string> = {
   urgent: 'Urgente',
   high: 'Alta',
   normal: 'Normal',
-  low: 'Baja',
 };
 
 interface MapMarkerCardProps {
@@ -62,7 +61,6 @@ export function MapMarkerCard({ marker }: MapMarkerCardProps) {
         <span className={`px-2 py-0.5 rounded text-xs font-medium ${
           marker.priority === 'urgent' ? 'bg-red-100 text-red-700' :
           marker.priority === 'high' ? 'bg-orange-100 text-orange-700' :
-          marker.priority === 'low' ? 'bg-gray-100 text-gray-600' :
           'bg-blue-100 text-blue-700'
         }`}>
           {priorityLabel}

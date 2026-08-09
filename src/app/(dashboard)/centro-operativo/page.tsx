@@ -163,7 +163,7 @@ export default function CentroOperativoPage() {
               {loading ? 'Cargando...' : (
                 <>
                   <div>
-                    <span className="text-brand-600 dark:text-brand-400 font-medium">Órdenes de trabajo: {workOrders.filter(w => ['scheduled', 'confirmed', 'assigned', 'in_progress'].includes(w.status)).length}</span>
+                    <span className="text-brand-600 dark:text-brand-400 font-medium">Órdenes de trabajo: {workOrders.filter(w => ['pending_assignment', 'assigned', 'scheduled', 'in_progress'].includes(w.status)).length}</span>
                   </div>
                   <div>
                     <span className="text-purple-600 dark:text-purple-400 font-medium">Visitas técnicas: {technicalVisits.filter(v => ['scheduled', 'confirmed', 'assigned', 'in_progress'].includes(v.status)).length}</span>

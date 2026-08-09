@@ -114,20 +114,32 @@ export function CalendarView({ onItemClick, initialDate = new Date() }: Calendar
 
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
-      pending: 'bg-gray-100 text-gray-700',
+      pending_assignment: 'bg-gray-100 text-gray-700',
+      assigned: 'bg-indigo-100 text-indigo-700',
       scheduled: 'bg-blue-100 text-blue-700',
       in_progress: 'bg-yellow-100 text-yellow-700',
       completed: 'bg-green-100 text-green-700',
+      closed: 'bg-slate-100 text-slate-700',
       cancelled: 'bg-red-100 text-red-700',
+      // Estados viejos
+      draft: 'bg-gray-100 text-gray-700',
+      confirmed: 'bg-teal-100 text-teal-700',
+      paused: 'bg-yellow-100 text-yellow-700',
     };
     const labels: Record<string, string> = {
-      pending: 'Pendiente',
-      scheduled: 'Programado',
-      in_progress: 'En curso',
-      completed: 'Completado',
-      cancelled: 'Cancelado',
+      pending_assignment: 'Pendiente',
+      assigned: 'Asignada',
+      scheduled: 'Programada',
+      in_progress: 'En Ejecución',
+      completed: 'Cerrada',
+      closed: 'Cerrada',
+      cancelled: 'Cancelada',
+      // Estados viejos
+      draft: 'Borrador',
+      confirmed: 'Confirmada',
+      paused: 'Pausada',
     };
-    return { style: styles[status] || styles.pending, label: labels[status] || status };
+    return { style: styles[status] || styles.pending_assignment, label: labels[status] || status };
   };
 
   const formatTime = (time?: string) => {

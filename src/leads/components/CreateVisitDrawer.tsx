@@ -48,7 +48,7 @@ export function CreateVisitDrawer({
   const [address, setAddress] = useState('');
   const [description, setDescription] = useState('');
   const [observations, setObservations] = useState('');
-  const [priority, setPriority] = useState<'low' | 'normal' | 'high' | 'urgent'>('normal');
+  const [priority, setPriority] = useState<'normal' | 'high' | 'urgent'>('normal');
 
   useEffect(() => {
     if (isOpen) {
@@ -180,7 +180,6 @@ export function CreateVisitDrawer({
             onChange={(e) => setPriority(e.target.value as typeof priority)}
             className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
           >
-            <option value="low">Baja</option>
             <option value="normal">Normal</option>
             <option value="high">Alta</option>
             <option value="urgent">Urgente</option>
