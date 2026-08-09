@@ -220,8 +220,16 @@ export function ChatMessage({ message, onDownload, clientId, leadId }: ChatMessa
                         (message.type === 'document' ? message.content.replace('[Documento: ', '').replace(']', '') : undefined);
   
   // Verificar si hay multimedia pendiente de descarga
-  const pendingDownload = message.metadata?.pendingDownload === true;
+  // Condición: es documento/entrada, tiene mediaId, y NO tiene cloudinaryUrl (no se ha descargado)
+  const isMediaType = message.type === 'document' || message.type === 'image' || message.type === 'video' || message.type === 'audio';
+  const pendingDownload = isMediaType 
+    && !!message.metadata?.mediaId 
+    && !message.metadata?.cloudinaryUrl;
+
   const hasMediaId = !!message.metadata?.mediaId;
+
+  // Debug: mostrar en consola
+  console.log('[ChatMessage] isMediaType:', isMediaType, 'pendingDownload:', pendingDownload, 'hasMediaId:', hasMediaId, 'type:', message.type, 'content:', message.content, 'metadata:', message.metadata);
 
   const handleDownloadClick = () => {
     // Prellenar con el nombre original del archivo
@@ -230,19 +238,23 @@ export function ChatMessage({ message, onDownload, clientId, leadId }: ChatMessa
   };
 
   const handleDownloadConfirm = async () => {
+    console.log('[ChatMessage] Descargando - messageId:', message.messageId, 'filename:', downloadFilename, 'onDownload:', !!onDownload);
     if (!downloadFilename.trim() || !onDownload) return;
     
     setDownloading(true);
     try {
       await onDownload(message.messageId, downloadFilename.trim());
       setShowDownloadInput(false);
+    } catch (err) {
+      console.error('[ChatMessage] Error al descargar:', err);
     } finally {
       setDownloading(false);
     }
   };
 
   // Si hay multimedia pendiente de descarga, mostrar UI especial
-  if (pendingDownload && hasMediaId && !isOutbound) {
+  // (es tipo multimedia, tiene mediaId, y no tiene cloudinaryUrl = no descargado)
+  if (pendingDownload && !isOutbound) {
     return (
       <div className={`flex ${isOutbound ? 'justify-end' : 'justify-start'} mb-2`}>
         <div

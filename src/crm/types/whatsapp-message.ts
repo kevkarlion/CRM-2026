@@ -20,6 +20,11 @@ export interface IWhatsAppMessage extends Document {
     filename?: string;
     fromMe?: boolean;
     waMessageId?: string;
+    cloudinaryUrl?: string;
+    cloudinaryPublicId?: string;
+    pendingDownload?: boolean;
+    downloadedAt?: Date;
+    mimeType?: string;
   };
   errorMessage?: string;
   readAt?: Date;
