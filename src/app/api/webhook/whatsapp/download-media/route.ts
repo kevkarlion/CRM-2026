@@ -95,7 +95,48 @@ export async function POST(request: NextRequest) {
 
     console.log('[download-media] MediaId:', metadata.mediaId, 'phone:', message.phone);
 
-    // Si no se proporciona clientId, buscar por teléfono
+    // Descargar el media desde WhatsApp y subir a Cloudinary SIN crear mensaje nuevo
+    const mediaInfo = await whatsappMediaService.getMediaInfo(metadata.mediaId);
+    if (!mediaInfo) {
+      return NextResponse.json(
+        { error: 'No se pudo obtener info del media de WhatsApp' },
+        { status: 400 }
+      );
+    }
+
+    console.log('[download-media] Media info:', mediaInfo);
+
+    const buffer = await whatsappMediaService.downloadMedia(mediaInfo.url);
+    if (!buffer) {
+      return NextResponse.json(
+        { error: 'No se pudo descargar el media de WhatsApp' },
+        { status: 400 }
+      );
+    }
+
+    // Limpiar el nombre del archivo
+    const cleanFilename = filename.replace(/[^a-zA-Z0-9.-]/g, '_').replace(/\.+/g, '.');
+    const extension = mediaInfo.mimeType.split('/')[1] || 'bin';
+    const fullFilename = cleanFilename.endsWith('.' + extension) ? cleanFilename : cleanFilename + '.' + extension;
+
+    // Subir a Cloudinary
+    const { default: cloudinaryService } = await import('@/core/services/cloudinary.service');
+    const resourceType = mediaInfo.mimeType.startsWith('image/') ? 'image' : 
+                         mediaInfo.mimeType.startsWith('video/') ? 'video' : 'raw';
+    
+    const cloudinaryResult = await cloudinaryService.uploadBuffer(
+      buffer,
+      fullFilename,
+      {
+        folder: `crm/${tenantId}/whatsapp`,
+        resourceType: resourceType as 'image' | 'video' | 'raw',
+        publicId: fullFilename.replace(/\.[^/.]+$/, ''),
+      }
+    );
+
+    console.log('[download-media] Uploaded to Cloudinary:', cloudinaryResult.publicId);
+
+    // Buscar cliente y lead asociados para crear el documento
     let clientId = providedClientId;
     let leadId = providedLeadId;
 
@@ -107,36 +148,52 @@ export async function POST(request: NextRequest) {
       leadId = leadInfo?.leadId;
     }
 
-    // Descargar y guardar en documentación
-    const result = await whatsappMediaService.processIncomingMedia(
+    console.log('[download-media] Creating document - clientId:', clientId, 'leadId:', leadId);
+
+    // Crear documento en la documentación
+    const { default: documentService } = await import('@/documents/services/document.service');
+    const documentType = mediaInfo.mimeType.startsWith('image/') ? 'imagen' : 
+                        mediaInfo.mimeType === 'application/pdf' ? 'presupuesto' : 'otro';
+
+    const conversationId = await whatsappMediaService.findConversationByPhone(message.phone);
+
+    const doc = await documentService.create({
       tenantId,
-      message.phone,
-      messageId,
-      metadata.mediaId,
-      metadata.caption,
-      filename
-    );
+      clientId,
+      leadId,
+      conversationId,
+      whatsappMessageId: messageId,
+      filename: fullFilename,
+      title: fullFilename.replace(/\.[^/.]+$/, ''),
+      description: `Recibido por WhatsApp: ${fullFilename}`,
+      documentType,
+      cloudinaryPublicId: cloudinaryResult.publicId,
+      cloudinaryUrl: cloudinaryResult.url,
+      secureUrl: cloudinaryResult.secureUrl,
+      mimeType: mediaInfo.mimeType,
+      fileSize: cloudinaryResult.bytes,
+      format: cloudinaryResult.format,
+      source: 'whatsapp',
+      mediaId: metadata.mediaId,
+    });
 
-    if (!result) {
-      return NextResponse.json(
-        { error: 'Error al procesar el archivo' },
-        { status: 500 }
-      );
-    }
+    console.log('[download-media] Document created:', doc._id);
 
-    // Actualizar el mensaje para marcar como descargado
+    // Actualizar el mensaje con la URL de Cloudinary
     await whatsappService.updateMessageMetadata(messageId, {
       pendingDownload: false,
       downloadedAt: new Date(),
-      cloudinaryUrl: result.cloudinaryUrl,
-      cloudinaryPublicId: result.cloudinaryPublicId,
+      cloudinaryUrl: cloudinaryResult.secureUrl,
+      cloudinaryPublicId: cloudinaryResult.publicId,
     });
+
+    console.log('[download-media] Done!');
 
     return NextResponse.json({
       success: true,
-      documentId: result.document?._id,
-      cloudinaryUrl: result.cloudinaryUrl,
-      filename,
+      documentId: doc._id,
+      cloudinaryUrl: cloudinaryResult.secureUrl,
+      filename: fullFilename,
     });
   } catch (error) {
     console.error('[download-media] Error:', error);
