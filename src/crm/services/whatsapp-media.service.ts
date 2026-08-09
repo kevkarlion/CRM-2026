@@ -296,8 +296,8 @@ export class WhatsAppMediaService {
       const resourceType = mediaInfo.mimeType.startsWith('image/') ? 'image' : 
                            mediaInfo.mimeType.startsWith('video/') ? 'video' : 'raw';
       
-      // Generar publicId limpio para Cloudinary
-      const cleanPublicId = filename.replace(/\.[^/.]+$/, ''); // sin extensión
+      // Mantener extensión en publicId para que Cloudinary guarde correctamente
+      const cleanPublicId = filename;
       
       cloudinaryResult = await cloudinaryService.uploadBuffer(
         buffer,
