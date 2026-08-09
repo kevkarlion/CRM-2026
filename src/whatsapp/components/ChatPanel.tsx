@@ -37,7 +37,7 @@ export function ChatPanel({
   leadId,
 }: ChatPanelProps) {
   // Debug
-  console.log('[ChatPanel] onDownload:', !!onDownload, 'messages:', messages.length);
+  console.log('[ChatPanel] RENDER onDownload:', !!onDownload, 'messages:', messages.length);
 
   const containerRef = useRef<HTMLDivElement>(null);
 

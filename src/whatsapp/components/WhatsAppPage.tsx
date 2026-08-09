@@ -34,6 +34,9 @@ export function WhatsAppPage() {
 
   const { sendMessage, downloadMedia, sending } = useWhatsAppSend();
 
+  console.log('[WhatsAppPage] downloadMedia hook:', !!downloadMedia);
+  console.log('[WhatsAppPage] handleDownload:', !!handleDownload);
+
   const handleSelectPhone = useCallback((phone: string) => {
     setSelectedPhone(phone);
     const conv = conversations.find((c) => c.phone === phone);
