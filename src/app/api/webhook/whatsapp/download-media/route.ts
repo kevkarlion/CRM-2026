@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 
 /**
  * POST /api/webhook/whatsapp/download-media
@@ -16,9 +14,11 @@ import { authOptions } from '@/lib/auth';
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
-  // Imports dinámicos para evitar errores de fs en Turbopack
+  // Todos los imports son dinámicos para evitar errores de fs/next-auth en Turbopack
   const { default: whatsappMediaService } = await import('@/crm/services/whatsapp-media.service');
   const { default: whatsappService } = await import('@/crm/services/whatsapp.service');
+  const { getServerSession } = await import('next-auth');
+  const { authOptions } = await import('@/lib/auth');
   try {
     // Verificar autenticación
     const session = await getServerSession(authOptions);
