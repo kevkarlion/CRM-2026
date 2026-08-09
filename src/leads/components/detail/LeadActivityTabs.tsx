@@ -3,6 +3,8 @@
 import { EntityTab, EntityTabPanel, EntityTabs } from '@/components/entity-detail';
 import { ChatPanel } from '@/whatsapp/components/ChatPanel';
 import { LeadTimeline } from '@/activity/components/LeadTimeline';
+import { useWhatsAppSend } from '@/whatsapp/hooks/useWhatsAppSend';
+import { useChatMessages } from '@/whatsapp/hooks/useChatMessages';
 import type { ChatMessage } from '@/whatsapp/types/chat';
 
 export type ActivityTabId = 'chat' | 'timeline';
@@ -20,6 +22,7 @@ interface LeadActivityTabsProps {
   onLoadMore: () => void;
   onSendChat: (content: string) => void;
   onAttachChat?: (file: File) => void;
+  onDownloadChat?: (messageId: string, filename: string) => Promise<void>;
   handoffPending: boolean;
   timelineRefreshKey: number;
 }
@@ -38,6 +41,7 @@ export function LeadActivityTabs({
   onLoadMore,
   onSendChat,
   onAttachChat,
+  onDownloadChat,
   handoffPending,
   timelineRefreshKey,
 }: LeadActivityTabsProps) {
@@ -67,8 +71,10 @@ export function LeadActivityTabs({
           onLoadMore={onLoadMore}
           onSend={onSendChat}
           onAttach={onAttachChat}
+          onDownload={onDownloadChat}
           sending={chatSending}
           selectedPhone={phone}
+          leadId={leadId}
         />
       </EntityTabPanel>
 

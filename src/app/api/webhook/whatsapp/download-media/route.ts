@@ -30,13 +30,42 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Imports dinámicos para evitar errores de fs en Turbopack
-  const { default: whatsappMediaService } = await import('@/crm/services/whatsapp-media.service');
-  const { default: whatsappService } = await import('@/crm/services/whatsapp.service');
+  console.log('[download-media] Starting...');
+
+  // Imports - probar primero método alternativo
+  let whatsappMediaService: any;
+  let whatsappService: any;
+  
+  try {
+    // Método 1: require dinámico (funciona mejor en algunos casos)
+    const waMediaModule = await import('@/crm/services/whatsapp-media.service');
+    whatsappMediaService = waMediaModule.default || waMediaModule.whatsappMediaService;
+    
+    const waModule = await import('@/crm/services/whatsapp.service');
+    whatsappService = waModule.default || waModule.whatsappService;
+    
+    console.log('[download-media] Services loaded - waMediaService:', !!whatsappMediaService, 'whatsappService:', !!whatsappService);
+  } catch (importErr: any) {
+    console.error('[download-media] Import error:', importErr?.message || importErr);
+    return NextResponse.json(
+      { error: 'Error cargando servicios: ' + (importErr?.message || 'unknown') },
+      { status: 500 }
+    );
+  }
+
+  if (!whatsappMediaService || !whatsappService) {
+    console.error('[download-media] Services not loaded properly');
+    return NextResponse.json(
+      { error: 'Servicios no cargados' },
+      { status: 500 }
+    );
+  }
 
   try {
     const body = await request.json();
     const { messageId, filename, clientId: providedClientId, leadId: providedLeadId } = body;
+
+    console.log('[download-media] Request - messageId:', messageId, 'filename:', filename);
 
     if (!messageId || !filename) {
       return NextResponse.json(
@@ -47,6 +76,8 @@ export async function POST(request: NextRequest) {
 
     // Buscar el mensaje para obtener el mediaId
     const message = await whatsappService.findMessageById(messageId);
+    console.log('[download-media] Message found:', !!message, 'metadata:', message?.metadata);
+
     if (!message) {
       return NextResponse.json(
         { error: 'Mensaje no encontrado' },
@@ -61,6 +92,8 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    console.log('[download-media] MediaId:', metadata.mediaId, 'phone:', message.phone);
 
     // Si no se proporciona clientId, buscar por teléfono
     let clientId = providedClientId;

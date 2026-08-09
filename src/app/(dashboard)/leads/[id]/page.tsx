@@ -94,7 +94,7 @@ export default function LeadDetailPage() {
     loadMore,
     refetch: refetchChat,
   } = useChatMessages(phone);
-  const { sendMessage, sendMedia, sending: chatSending } = useWhatsAppSend();
+  const { sendMessage, sendMedia, downloadMedia, sending: chatSending } = useWhatsAppSend();
   const { statusMap } = useConversationStatus([id]);
   const conversationStatus = statusMap.get(id) || null;
 
@@ -219,6 +219,18 @@ export default function LeadDetailPage() {
       leadId: id,
     });
     if (result) {
+      refetchChat();
+    }
+  };
+
+  const handleDownloadChat = async (messageId: string, filename: string) => {
+    if (!lead?.phone) return;
+    const result = await downloadMedia({
+      messageId,
+      filename,
+      leadId: id,
+    });
+    if (result.success) {
       refetchChat();
     }
   };
@@ -405,6 +417,7 @@ export default function LeadDetailPage() {
                     onLoadMore={loadMore}
                     onSendChat={handleSendChat}
                     onAttachChat={handleAttachChat}
+                    onDownloadChat={handleDownloadChat}
                     handoffPending={conversationStatus?.isHandoffPending ?? false}
                     timelineRefreshKey={timelineRefreshKey}
                   />

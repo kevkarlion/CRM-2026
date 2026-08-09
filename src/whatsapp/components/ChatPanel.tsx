@@ -5,6 +5,9 @@ import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
 import type { ChatMessage as ChatMessageType } from '../types/chat';
 
+// Debug: cuenta renders
+let renderCount = 0;
+
 interface ChatPanelProps {
   messages: ChatMessageType[];
   loading: boolean;
@@ -36,6 +39,9 @@ export function ChatPanel({
   clientId,
   leadId,
 }: ChatPanelProps) {
+  renderCount++;
+  console.log(`[ChatPanel] Render #${renderCount} - onDownload:`, typeof onDownload, 'selectedPhone:', selectedPhone);
+  
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Scroll to bottom when messages are loaded
