@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { api } from '@/lib/api-client';
 import { DOCUMENT_TYPE_OPTIONS, DOCUMENT_TYPE_LABELS, DocumentType } from '@/documents/types/document';
 
@@ -72,7 +72,7 @@ export function ClientDocumentationTab({ clientId }: ClientDocumentationTabProps
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load documents
-  useState(() => {
+  useEffect(() => {
     async function loadDocuments() {
       try {
         const res = await api.get<{ documents: Document[] }>('/api/crm/documents', {
@@ -86,7 +86,7 @@ export function ClientDocumentationTab({ clientId }: ClientDocumentationTabProps
       }
     }
     loadDocuments();
-  });
+  }, [clientId]);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();

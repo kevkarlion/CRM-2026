@@ -79,7 +79,7 @@ export default function ClientDetailPage() {
     loadMore,
     refetch: refetchChat,
   } = useChatMessages(phone);
-  const { sendMessage, sending: chatSending } = useWhatsAppSend();
+  const { sendMessage, sendMedia, sending: chatSending } = useWhatsAppSend();
 
   useChatPolling({
     interval: 5000,
@@ -89,9 +89,19 @@ export default function ClientDetailPage() {
 
   const handleSendChat = useCallback(async (content: string) => {
     if (!phone) return;
-    await sendMessage(phone, content);
+    await sendMessage({ phone, content });
     refetchChat();
   }, [phone, sendMessage, refetchChat]);
+
+  const handleAttachChat = useCallback(async (file: File) => {
+    if (!phone) return;
+    await sendMedia({
+      file,
+      to: phone,
+      clientId: id,
+    });
+    refetchChat();
+  }, [phone, sendMedia, id, refetchChat]);
 
   // Bot control state (same as lead)
   const [conversation, setConversation] = useState<any>(null);
@@ -404,6 +414,7 @@ export default function ClientDetailPage() {
                           hasMore={hasMore}
                           onLoadMore={loadMore}
                           onSend={handleSendChat}
+                          onAttach={handleAttachChat}
                           sending={chatSending}
                           selectedPhone={phone}
                         />

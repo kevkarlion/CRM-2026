@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import whatsappService from '@/crm/services/whatsapp.service';
+import whatsappMediaService from '@/crm/services/whatsapp-media.service';
 import WhatsAppMessageModel from '@/crm/models/whatsapp-message';
 // Importar modelos para asegurar que se registran en Mongoose
 import '@/crm/models/whatsapp-message';
@@ -90,6 +91,8 @@ console.log(`📩 Mensaje recibido de ${fromNumber}, tipo: ${messageType}, id: $
         
       // Procesar según el tipo de mensaje
       let content = '';
+      let mediaId: string | undefined;
+      let mediaCaption: string | undefined;
       
       if (messageType === 'text') {
         content = message.text.body;
@@ -97,21 +100,52 @@ console.log(`📩 Mensaje recibido de ${fromNumber}, tipo: ${messageType}, id: $
         const buttonReply = message.button?.text || message.list_reply?.title;
         content = buttonReply || 'Interactive message';
       } else if (messageType === 'image') {
-        content = message.image?.caption || '[Imagen]';
+        mediaId = message.image?.id;
+        mediaCaption = message.image?.caption;
+        content = mediaCaption || '[Imagen]';
       } else if (messageType === 'audio') {
+        mediaId = message.audio?.id;
         content = '[Audio]';
       } else if (messageType === 'video') {
-        content = message.video?.caption || '[Video]';
+        mediaId = message.video?.id;
+        mediaCaption = message.video?.caption;
+        content = mediaCaption || '[Video]';
       } else if (messageType === 'document') {
+        mediaId = message.document?.id;
+        mediaCaption = message.document?.filename;
         content = `[Documento: ${message.document?.filename || 'archivo'}]`;
+        console.log(`[Webhook] Document - id: ${message.document?.id}, filename: ${message.document?.filename}`);
       }
 
       console.log(`📝 Contenido: "${content}"`);
+      console.log(`📎 mediaId después del procesamiento: ${mediaId}, messageType: ${messageType}`);
+      if (mediaId) {
+        console.log(`📎 Media ID: ${mediaId}, Tipo: ${messageType}`);
+      }
 
       // Obtener el tenant activo
       console.log('[Webhook] Getting tenant ID...');
       const tenantId = await whatsappService.getActiveTenantId();
       console.log('[Webhook] Tenant ID:', tenantId);
+
+      // Procesar multimedia si existe
+      let mediaResult = null;
+      if (mediaId) {
+        console.log('[Webhook] Procesando multimedia...');
+        try {
+          mediaResult = await whatsappMediaService.processIncomingMedia(
+            tenantId,
+            fromNumber,
+            messageId,
+            mediaId,
+            mediaCaption
+          );
+          console.log('[Webhook] Multimedia procesada:', mediaResult ? 'OK' : 'FAILED');
+        } catch (mediaError) {
+          console.error('[Webhook] Error procesando multimedia:', mediaError);
+          // Continuar con el flujo normal aunque falle el multimedia
+        }
+      }
 
       // Procesar mensaje con el servicio de WhatsApp
       console.log('[Webhook] Calling processIncomingMessage...');

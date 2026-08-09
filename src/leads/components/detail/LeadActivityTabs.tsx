@@ -19,6 +19,7 @@ interface LeadActivityTabsProps {
   chatSending: boolean;
   onLoadMore: () => void;
   onSendChat: (content: string) => void;
+  onAttachChat?: (file: File) => void;
   handoffPending: boolean;
   timelineRefreshKey: number;
 }
@@ -36,6 +37,7 @@ export function LeadActivityTabs({
   chatSending,
   onLoadMore,
   onSendChat,
+  onAttachChat,
   handoffPending,
   timelineRefreshKey,
 }: LeadActivityTabsProps) {
@@ -64,6 +66,7 @@ export function LeadActivityTabs({
           hasMore={hasMore}
           onLoadMore={onLoadMore}
           onSend={onSendChat}
+          onAttach={onAttachChat}
           sending={chatSending}
           selectedPhone={phone}
         />

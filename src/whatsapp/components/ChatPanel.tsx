@@ -12,6 +12,7 @@ interface ChatPanelProps {
   hasMore: boolean;
   onLoadMore: () => void;
   onSend: (content: string) => void;
+  onAttach?: (file: File) => Promise<void>;
   sending: boolean;
   selectedPhone: string | null;
 }
@@ -23,6 +24,7 @@ export function ChatPanel({
   hasMore,
   onLoadMore,
   onSend,
+  onAttach,
   sending,
   selectedPhone,
 }: ChatPanelProps) {
@@ -104,7 +106,12 @@ export function ChatPanel({
         ))}
       </div>
 
-      <ChatInput onSend={onSend} disabled={!selectedPhone} sending={sending} />
+      <ChatInput 
+        onSend={onSend} 
+        onAttach={onAttach}
+        disabled={!selectedPhone} 
+        sending={sending} 
+      />
     </div>
   );
 }

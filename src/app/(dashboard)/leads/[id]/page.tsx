@@ -94,7 +94,7 @@ export default function LeadDetailPage() {
     loadMore,
     refetch: refetchChat,
   } = useChatMessages(phone);
-  const { sendMessage, sending: chatSending } = useWhatsAppSend();
+  const { sendMessage, sendMedia, sending: chatSending } = useWhatsAppSend();
   const { statusMap } = useConversationStatus([id]);
   const conversationStatus = statusMap.get(id) || null;
 
@@ -211,12 +211,30 @@ export default function LeadDetailPage() {
     }
   };
 
+  const handleAttachChat = async (file: File) => {
+    if (!lead?.phone) return;
+    const result = await sendMedia({
+      file,
+      to: lead.phone,
+      leadId: id,
+    });
+    if (result) {
+      refetchChat();
+    }
+  };
+
   const handleTakeControl = async () => {
     if (!conversation?._id) return;
 
     setActionLoading(true);
     try {
-      await api.post(`/api/crm/conversations/${conversation._id}/take-control`, {});
+      console.log('[LeadDetail] Taking control of conversation:', conversation._id);
+      const res = await api.post<{ success: boolean }>(
+        `/api/crm/conversations/${conversation._id}/take-control`, 
+        {}
+      );
+      console.log('[LeadDetail] Take control response:', res);
+      
       setConversation((prev) =>
         prev ? { ...prev, owner: 'OPERATOR', lifecycleState: 'IN_PROGRESS' } : null,
       );
@@ -232,7 +250,13 @@ export default function LeadDetailPage() {
 
     setActionLoading(true);
     try {
-      await api.post(`/api/crm/conversations/${conversation._id}/resolve`, {});
+      console.log('[LeadDetail] Resolving conversation:', conversation._id);
+      const res = await api.post<{ success: boolean }>(
+        `/api/crm/conversations/${conversation._id}/resolve`, 
+        {}
+      );
+      console.log('[LeadDetail] Resolve response:', res);
+      
       setConversation((prev) =>
         prev
           ? {
@@ -380,6 +404,7 @@ export default function LeadDetailPage() {
                     chatSending={chatSending}
                     onLoadMore={loadMore}
                     onSendChat={handleSendChat}
+                    onAttachChat={handleAttachChat}
                     handoffPending={conversationStatus?.isHandoffPending ?? false}
                     timelineRefreshKey={timelineRefreshKey}
                   />

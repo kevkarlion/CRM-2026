@@ -323,14 +323,21 @@ export class WhatsAppService {
     );
 
     const metaResponse = await response.json();
-
+    
+    let waMessageId: string;
+    let messageStatus: 'sent' | 'failed' = 'sent';
+    let errorMessage: string | undefined;
+    
     if (!response.ok) {
       console.error('[WhatsApp] Error enviando mensaje:', metaResponse);
-      throw new Error(metaResponse.error?.message || 'Error enviando mensaje de WhatsApp');
+      messageStatus = 'failed';
+      errorMessage = metaResponse.error?.message || 'Error enviando mensaje';
+      waMessageId = `failed_${Date.now()}`;
+    } else {
+      waMessageId = metaResponse.messages?.[0]?.id || '';
     }
 
-    const waMessageId = metaResponse.messages?.[0]?.id || '';
-
+    // Always save message, even if WhatsApp API failed
     const message = await this.saveMessage({
       tenantId: new Types.ObjectId(tenantId),
       phone: normalizedTo,
@@ -338,6 +345,8 @@ export class WhatsAppService {
       direction: 'outbound',
       type: 'text',
       content: text,
+      status: messageStatus,
+      errorMessage,
       ...(leadId ? { leadId: new Types.ObjectId(leadId) } : {}),
     });
 

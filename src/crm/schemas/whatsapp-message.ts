@@ -30,6 +30,8 @@ export const whatsappMessageSchema = new Schema<IWhatsAppMessage>(
       filename: String,
       fromMe: Boolean,
       waMessageId: String,
+      cloudinaryUrl: String,
+      cloudinaryPublicId: String,
     },
     errorMessage: { type: String },
     readAt: { type: Date },

@@ -4,8 +4,17 @@ import { useState, useCallback } from 'react';
 import { api } from '@/lib/api-client';
 import type { ChatMessage, SendMessageInput } from '../types/chat';
 
+interface SendMediaInput {
+  file: File;
+  to: string;
+  caption?: string;
+  leadId?: string;
+  clientId?: string;
+}
+
 interface UseWhatsAppSendReturn {
   sendMessage: (input: SendMessageInput) => Promise<ChatMessage | null>;
+  sendMedia: (input: SendMediaInput) => Promise<ChatMessage | null>;
   sending: boolean;
   error: string | null;
 }
@@ -34,5 +43,33 @@ export function useWhatsAppSend(): UseWhatsAppSendReturn {
     }
   }, []);
 
-  return { sendMessage, sending, error };
+  const sendMedia = useCallback(async (input: SendMediaInput): Promise<ChatMessage | null> => {
+    try {
+      setSending(true);
+      setError(null);
+
+      const formData = new FormData();
+      formData.append('file', input.file);
+      formData.append('to', input.to);
+      if (input.caption) formData.append('caption', input.caption);
+      if (input.leadId) formData.append('leadId', input.leadId);
+      if (input.clientId) formData.append('clientId', input.clientId);
+
+      const result = await api.post<{ message: ChatMessage }>(
+        '/api/webhook/whatsapp/send-media',
+        formData,
+        true // isFormData
+      );
+
+      return result.message;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error al enviar archivo';
+      setError(msg);
+      return null;
+    } finally {
+      setSending(false);
+    }
+  }, []);
+
+  return { sendMessage, sendMedia, sending, error };
 }

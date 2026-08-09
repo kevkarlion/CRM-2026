@@ -98,6 +98,13 @@ export class ChatService {
   }
 
   /**
+   * Normaliza un número de teléfono (quita espacios, guiones, código de país)
+   */
+  private normalizePhone(phone: string): string {
+    return phone.replace(/[\s\-\(\)\+]/g, '').replace(/^0/, '');
+  }
+
+  /**
    * Gets messages for a specific phone conversation, ordered chronologically.
    */
   async getConversationMessages(
@@ -106,9 +113,13 @@ export class ChatService {
     options: { limit?: number; before?: Date; after?: Date } = {}
   ): Promise<IWhatsAppMessage[]> {
     const { limit = 50, before, after } = options;
+    const normalizedPhone = this.normalizePhone(phone);
+    
+    console.log('[ChatService] getConversationMessages - phone:', phone, 'normalized:', normalizedPhone);
+    
     const query: Record<string, unknown> = {
       tenantId: new Types.ObjectId(tenantId),
-      phone,
+      phone: normalizedPhone, // Direct match on normalized phone
     };
 
     if (before) {

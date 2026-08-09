@@ -28,6 +28,8 @@ export interface ChatMessage {
     filename?: string;
     fromMe?: boolean;
     waMessageId?: string;
+    cloudinaryUrl?: string;
+    cloudinaryPublicId?: string;
   };
   errorMessage?: string;
   readAt?: string;

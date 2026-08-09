@@ -391,7 +391,7 @@ export function LeadChatDrawer({ isOpen, onClose, lead, conversationStatus }: Le
     refetch,
   } = useChatMessages(phone);
 
-  const { sendMessage, sending } = useWhatsAppSend();
+  const { sendMessage, sendMedia, sending } = useWhatsAppSend();
 
   const handleSend = async (content: string) => {
     if (!lead) return;
@@ -402,6 +402,19 @@ export function LeadChatDrawer({ isOpen, onClose, lead, conversationStatus }: Le
     });
     if (result) {
       refetch();
+    }
+  };
+
+  const handleAttach = async (file: File) => {
+    if (!lead) return;
+    const result = await sendMedia({
+      file,
+      to: phone,
+      leadId: lead._id ? String(lead._id) : undefined,
+    });
+    if (result) {
+      // Delay refetch to ensure DB write completes
+      setTimeout(() => refetch(), 300);
     }
   };
 
@@ -596,6 +609,7 @@ export function LeadChatDrawer({ isOpen, onClose, lead, conversationStatus }: Le
               hasMore={hasMore}
               onLoadMore={loadMore}
               onSend={handleSend}
+              onAttach={handleAttach}
               sending={sending}
               selectedPhone={phone}
             />
