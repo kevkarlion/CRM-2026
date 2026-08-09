@@ -228,9 +228,6 @@ export function ChatMessage({ message, onDownload, clientId, leadId }: ChatMessa
 
   const hasMediaId = !!message.metadata?.mediaId;
 
-  // Debug: mostrar en consola
-  console.log('[ChatMessage] isMediaType:', isMediaType, 'pendingDownload:', pendingDownload, 'hasMediaId:', hasMediaId, 'type:', message.type, 'content:', message.content, 'metadata:', message.metadata);
-
   const handleDownloadClick = () => {
     // Prellenar con el nombre original del archivo
     setDownloadFilename(mediaFilename || '');
@@ -238,8 +235,10 @@ export function ChatMessage({ message, onDownload, clientId, leadId }: ChatMessa
   };
 
   const handleDownloadConfirm = async () => {
-    console.log('[ChatMessage] Descargando - messageId:', message.messageId, 'filename:', downloadFilename, 'onDownload:', !!onDownload);
-    if (!downloadFilename.trim() || !onDownload) return;
+    if (!downloadFilename.trim() || !onDownload) {
+      console.log('[ChatMessage] No se puede descargar - filename:', downloadFilename, 'onDownload:', !!onDownload);
+      return;
+    }
     
     setDownloading(true);
     try {

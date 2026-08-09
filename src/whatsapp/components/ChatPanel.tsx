@@ -36,9 +36,6 @@ export function ChatPanel({
   clientId,
   leadId,
 }: ChatPanelProps) {
-  // Debug
-  console.log('[ChatPanel] RENDER onDownload:', !!onDownload, 'messages:', messages.length);
-
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Scroll to bottom when messages are loaded
