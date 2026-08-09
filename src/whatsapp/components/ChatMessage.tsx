@@ -5,6 +5,9 @@ import type { ChatMessage as ChatMessageType } from '../types/chat';
 
 interface ChatMessageProps {
   message: ChatMessageType;
+  onDownload?: (messageId: string, filename: string) => Promise<void>;
+  clientId?: string;
+  leadId?: string;
 }
 
 function formatTime(dateStr: string): string {
@@ -204,14 +207,114 @@ function DocumentMessage({
   );
 }
 
-export function ChatMessage({ message }: ChatMessageProps) {
+export function ChatMessage({ message, onDownload, clientId, leadId }: ChatMessageProps) {
   const isOutbound = message.direction === 'outbound';
+  const [downloading, setDownloading] = useState(false);
+  const [showDownloadInput, setShowDownloadInput] = useState(false);
+  const [downloadFilename, setDownloadFilename] = useState('');
 
   // Extraer URLs de multimedia desde metadata
   const mediaUrl = message.metadata?.cloudinaryUrl || 
                    (message.content.startsWith('http') ? message.content : undefined);
   const mediaFilename = message.metadata?.filename || 
-                       (message.type === 'document' ? message.content.replace('[Documento: ', '').replace(']', '') : undefined);
+                        (message.type === 'document' ? message.content.replace('[Documento: ', '').replace(']', '') : undefined);
+  
+  // Verificar si hay multimedia pendiente de descarga
+  const pendingDownload = message.metadata?.pendingDownload === true;
+  const hasMediaId = !!message.metadata?.mediaId;
+
+  const handleDownloadClick = () => {
+    // Prellenar con el nombre original del archivo
+    setDownloadFilename(mediaFilename || '');
+    setShowDownloadInput(true);
+  };
+
+  const handleDownloadConfirm = async () => {
+    if (!downloadFilename.trim() || !onDownload) return;
+    
+    setDownloading(true);
+    try {
+      await onDownload(message.messageId, downloadFilename.trim());
+      setShowDownloadInput(false);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
+  // Si hay multimedia pendiente de descarga, mostrar UI especial
+  if (pendingDownload && hasMediaId && !isOutbound) {
+    return (
+      <div className={`flex ${isOutbound ? 'justify-end' : 'justify-start'} mb-2`}>
+        <div
+          className={`max-w-[75%] rounded-2xl px-4 py-3 ${
+            isOutbound
+              ? 'bg-brand-600 text-white rounded-br-md'
+              : 'bg-gray-100 text-gray-900 rounded-bl-md'
+          }`}
+        >
+          {/* Indicador de archivo recibido */}
+          <div className="flex items-center gap-2 mb-2">
+            {message.type === 'image' ? (
+              <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            ) : (
+              <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            )}
+            <span className="text-sm font-medium">
+              {message.metadata?.caption || message.content}
+            </span>
+          </div>
+
+          {/* Mostrar input para nombre si está abierto */}
+          {showDownloadInput ? (
+            <div className="space-y-2">
+              <input
+                type="text"
+                value={downloadFilename}
+                onChange={(e) => setDownloadFilename(e.target.value)}
+                placeholder="Nombre del archivo"
+                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                autoFocus
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={handleDownloadConfirm}
+                  disabled={downloading || !downloadFilename.trim()}
+                  className="flex-1 px-3 py-1.5 text-sm bg-brand-600 text-white rounded-lg hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {downloading ? 'Descargando...' : 'Guardar'}
+                </button>
+                <button
+                  onClick={() => setShowDownloadInput(false)}
+                  className="px-3 py-1.5 text-sm text-gray-500 hover:text-gray-700"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={handleDownloadClick}
+              className="flex items-center gap-2 px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              <span>Guardar en documentos</span>
+            </button>
+          )}
+
+          {/* Timestamp */}
+          <div className={`flex items-center gap-1 mt-2 text-xs ${isOutbound ? 'text-brand-200' : 'text-gray-400'}`}>
+            <span>{formatTime(message.createdAt)}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`flex ${isOutbound ? 'justify-end' : 'justify-start'} mb-2`}>

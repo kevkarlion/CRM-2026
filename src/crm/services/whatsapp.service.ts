@@ -477,7 +477,13 @@ export class WhatsAppService {
     messageId: string,
     content: string,
     messageType: WhatsAppMessageType = 'text',
-    profileName?: string
+    profileName?: string,
+    mediaMetadata?: {
+      mediaId: string;
+      caption?: string;
+      filename?: string;
+      mimeType?: string;
+    }
   ): Promise<ProcessMessageResult> {
     
     const normalizedPhone = this.normalizePhone(phone);
@@ -490,6 +496,13 @@ export class WhatsAppService {
       direction: 'inbound',
       type: messageType,
       content,
+      metadata: mediaMetadata ? {
+        pendingDownload: true,  // Flag para indicar que requiere acción del usuario
+        mediaId: mediaMetadata.mediaId,
+        caption: mediaMetadata.caption || '',
+        filename: mediaMetadata.filename || '',
+        mimeType: mediaMetadata.mimeType || 'application/octet-stream',
+      } : undefined,
     });
 
     // 2. Buscar o crear lead
@@ -994,6 +1007,27 @@ export class WhatsAppService {
       tenantId: new Types.ObjectId(tenantId),
       phone: this.normalizePhone(phone),
     }).sort({ createdAt: 1 });
+  }
+
+  /**
+   * Busca un mensaje por su ID
+   */
+  async findMessageById(messageId: string): Promise<IWhatsAppMessage | null> {
+    return WhatsAppMessageModel.findOne({ messageId }).lean();
+  }
+
+  /**
+   * Actualiza los metadatos de un mensaje
+   */
+  async updateMessageMetadata(
+    messageId: string,
+    metadata: Record<string, any>
+  ): Promise<IWhatsAppMessage | null> {
+    return WhatsAppMessageModel.findOneAndUpdate(
+      { messageId },
+      { $set: { metadata } },
+      { new: true }
+    ).lean();
   }
 }
 

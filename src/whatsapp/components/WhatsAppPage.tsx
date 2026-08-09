@@ -32,7 +32,7 @@ export function WhatsAppPage() {
     refetch: refetchMessages,
   } = useChatMessages(selectedPhone);
 
-  const { sendMessage, sending } = useWhatsAppSend();
+  const { sendMessage, downloadMedia, sending } = useWhatsAppSend();
 
   const handleSelectPhone = useCallback((phone: string) => {
     setSelectedPhone(phone);
@@ -77,6 +77,21 @@ export function WhatsAppPage() {
       }
     },
     [selectedPhone, selectedLead, sendMessage, refetchMessages, refetchConversations]
+  );
+
+  const handleDownload = useCallback(
+    async (messageId: string, filename: string) => {
+      const result = await downloadMedia({
+        messageId,
+        filename,
+        leadId: selectedLead?._id,
+      });
+
+      if (result.success) {
+        refetchMessages();
+      }
+    },
+    [selectedLead, downloadMedia, refetchMessages]
   );
 
   useChatPolling({
@@ -131,8 +146,10 @@ export function WhatsAppPage() {
                 hasMore={hasMore}
                 onLoadMore={loadMore}
                 onSend={handleSend}
+                onDownload={handleDownload}
                 sending={sending}
                 selectedPhone={selectedPhone}
+                leadId={selectedLead?._id}
               />
             </div>
           )}
@@ -158,9 +175,11 @@ export function WhatsAppPage() {
               hasMore={hasMore}
               onLoadMore={loadMore}
               onSend={handleSend}
+              onDownload={handleDownload}
               sending={sending}
               selectedPhone={selectedPhone}
               selectedName={selectedLead?.name}
+              leadId={selectedLead?._id}
             />
           </div>
         </div>
@@ -185,9 +204,11 @@ export function WhatsAppPage() {
               hasMore={hasMore}
               onLoadMore={loadMore}
               onSend={handleSend}
+              onDownload={handleDownload}
               sending={sending}
               selectedPhone={selectedPhone}
               selectedName={selectedLead?.name}
+              leadId={selectedLead?._id}
             />
           </div>
           <div className="w-72 shrink-0">

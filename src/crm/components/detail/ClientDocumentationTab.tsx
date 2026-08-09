@@ -29,10 +29,14 @@ function formatFileSize(bytes: number): string {
 }
 
 function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('es-AR', {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('es-AR', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
+  }) + ' ' + date.toLocaleTimeString('es-AR', {
+    hour: '2-digit',
+    minute: '2-digit',
   });
 }
 

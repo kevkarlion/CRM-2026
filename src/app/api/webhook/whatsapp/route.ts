@@ -128,24 +128,20 @@ console.log(`📩 Mensaje recibido de ${fromNumber}, tipo: ${messageType}, id: $
       const tenantId = await whatsappService.getActiveTenantId();
       console.log('[Webhook] Tenant ID:', tenantId);
 
-      // Procesar multimedia si existe
-      let mediaResult = null;
+      // Ya no procesamos multimedia automáticamente - se maneja desde el chat
+      // Solo guardamos los metadatos para mostrar en el chat
+      let mediaMetadata = null;
       if (mediaId) {
-        console.log('[Webhook] Procesando multimedia...');
-        try {
-          mediaResult = await whatsappMediaService.processIncomingMedia(
-            tenantId,
-            fromNumber,
-            messageId,
-            mediaId,
-            mediaCaption,
-            message.document?.filename  // Pass filename explicitly
-          );
-          console.log('[Webhook] Multimedia procesada:', mediaResult ? 'OK' : 'FAILED');
-        } catch (mediaError) {
-          console.error('[Webhook] Error procesando multimedia:', mediaError);
-          // Continuar con el flujo normal aunque falle el multimedia
-        }
+        mediaMetadata = {
+          mediaId,
+          caption: mediaCaption || '',
+          filename: message.document?.filename || '',
+          mimeType: message.document?.mime_type || 
+                   (message.image ? 'image/jpeg' : 
+                    message.video ? 'video/mp4' : 
+                    message.audio ? 'audio/ogg' : 'application/octet-stream'),
+        };
+        console.log('[Webhook] Media metadata guardado para chat:', mediaMetadata);
       }
 
       // Procesar mensaje con el servicio de WhatsApp
@@ -158,7 +154,8 @@ console.log(`📩 Mensaje recibido de ${fromNumber}, tipo: ${messageType}, id: $
           messageId,
           content,
           messageType,
-          profileName
+          profileName,
+          mediaMetadata  // Pasar metadatos del media
         );
         console.log('[Webhook] processIncomingMessage completed');
       } catch (processError) {

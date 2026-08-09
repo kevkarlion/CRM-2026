@@ -13,8 +13,12 @@ interface ChatPanelProps {
   onLoadMore: () => void;
   onSend: (content: string) => void;
   onAttach?: (file: File) => Promise<void>;
+  onDownload?: (messageId: string, filename: string) => Promise<void>;
   sending: boolean;
   selectedPhone: string | null;
+  selectedName?: string;
+  clientId?: string;
+  leadId?: string;
 }
 
 export function ChatPanel({
@@ -25,8 +29,12 @@ export function ChatPanel({
   onLoadMore,
   onSend,
   onAttach,
+  onDownload,
   sending,
   selectedPhone,
+  selectedName,
+  clientId,
+  leadId,
 }: ChatPanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -102,7 +110,13 @@ export function ChatPanel({
         )}
 
         {messages.map((msg) => (
-          <ChatMessage key={msg._id} message={msg} />
+          <ChatMessage 
+            key={msg._id} 
+            message={msg} 
+            onDownload={onDownload}
+            clientId={clientId}
+            leadId={leadId}
+          />
         ))}
       </div>
 

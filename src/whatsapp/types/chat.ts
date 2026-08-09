@@ -30,6 +30,9 @@ export interface ChatMessage {
     waMessageId?: string;
     cloudinaryUrl?: string;
     cloudinaryPublicId?: string;
+    pendingDownload?: boolean;
+    downloadedAt?: string;
+    mimeType?: string;
   };
   errorMessage?: string;
   readAt?: string;

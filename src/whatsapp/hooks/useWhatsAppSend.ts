@@ -12,9 +12,17 @@ interface SendMediaInput {
   clientId?: string;
 }
 
+interface DownloadMediaInput {
+  messageId: string;
+  filename: string;
+  clientId?: string;
+  leadId?: string;
+}
+
 interface UseWhatsAppSendReturn {
   sendMessage: (input: SendMessageInput) => Promise<ChatMessage | null>;
   sendMedia: (input: SendMediaInput) => Promise<ChatMessage | null>;
+  downloadMedia: (input: DownloadMediaInput) => Promise<{ success: boolean; cloudinaryUrl?: string; error?: string }>;
   sending: boolean;
   error: string | null;
 }
@@ -71,5 +79,25 @@ export function useWhatsAppSend(): UseWhatsAppSendReturn {
     }
   }, []);
 
-  return { sendMessage, sendMedia, sending, error };
+  const downloadMedia = useCallback(async (input: DownloadMediaInput): Promise<{ success: boolean; cloudinaryUrl?: string; error?: string }> => {
+    try {
+      setSending(true);
+      setError(null);
+
+      const result = await api.post<{ success: boolean; cloudinaryUrl?: string; error?: string }>(
+        '/api/webhook/whatsapp/download-media',
+        input
+      );
+
+      return result;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Error al descargar archivo';
+      setError(msg);
+      return { success: false, error: msg };
+    } finally {
+      setSending(false);
+    }
+  }, []);
+
+  return { sendMessage, sendMedia, downloadMedia, sending, error };
 }

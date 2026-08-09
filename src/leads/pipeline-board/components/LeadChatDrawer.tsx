@@ -391,7 +391,7 @@ export function LeadChatDrawer({ isOpen, onClose, lead, conversationStatus }: Le
     refetch,
   } = useChatMessages(phone);
 
-  const { sendMessage, sendMedia, sending } = useWhatsAppSend();
+  const { sendMessage, sendMedia, downloadMedia, sending } = useWhatsAppSend();
 
   const handleSend = async (content: string) => {
     if (!lead) return;
@@ -414,6 +414,19 @@ export function LeadChatDrawer({ isOpen, onClose, lead, conversationStatus }: Le
     });
     if (result) {
       // Delay refetch to ensure DB write completes
+      setTimeout(() => refetch(), 300);
+    }
+  };
+
+  const handleDownload = async (messageId: string, filename: string) => {
+    if (!lead) return;
+    const result = await downloadMedia({
+      messageId,
+      filename,
+      leadId: lead._id ? String(lead._id) : undefined,
+    });
+    if (result.success) {
+      // Refrescar mensajes para ver el archivo descargado
       setTimeout(() => refetch(), 300);
     }
   };
@@ -610,8 +623,10 @@ export function LeadChatDrawer({ isOpen, onClose, lead, conversationStatus }: Le
               onLoadMore={loadMore}
               onSend={handleSend}
               onAttach={handleAttach}
+              onDownload={handleDownload}
               sending={sending}
               selectedPhone={phone}
+              leadId={lead?._id ? String(lead._id) : undefined}
             />
           ) : activeTab === 'handoff' && conversationStatus ? (
             <HandoffTab
