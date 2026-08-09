@@ -138,7 +138,8 @@ console.log(`📩 Mensaje recibido de ${fromNumber}, tipo: ${messageType}, id: $
             fromNumber,
             messageId,
             mediaId,
-            mediaCaption
+            mediaCaption,
+            message.document?.filename  // Pass filename explicitly
           );
           console.log('[Webhook] Multimedia procesada:', mediaResult ? 'OK' : 'FAILED');
         } catch (mediaError) {

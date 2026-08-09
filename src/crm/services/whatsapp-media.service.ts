@@ -218,7 +218,8 @@ export class WhatsAppMediaService {
     phone: string,
     messageId: string,
     mediaId: string,
-    caption?: string
+    caption?: string,
+    originalFilename?: string
   ): Promise<ProcessMediaResult | null> {
     
     console.log('[WhatsAppMedia] Procesando media:', { mediaId, phone, messageId });
@@ -239,14 +240,25 @@ export class WhatsAppMediaService {
       return null;
     }
 
-    // 3. Generar nombre de archivo - usar caption si está disponible, sino generar uno
-    // El caption puede ser el nombre del archivo que WhatsApp envía
+    // 3. Generar nombre de archivo - usar originalFilename si está disponible, sino caption, sino generar uno
+    // El originalFilename es el nombre del archivo que WhatsApp envía
     const extension = mediaInfo.mimeType.split('/')[1] || 'bin';
-    const cleanCaption = caption?.replace(/[^a-zA-Z0-9.\-_]/g, '_');
     
-    const filename = (cleanCaption && cleanCaption.length > 3) 
-      ? cleanCaption 
-      : `whatsapp_${messageId}.${extension}`;
+    // Limpiar el nombre del archivo igual que en send-media/route.ts
+    const cleanOriginalName = originalFilename?.replace(/[^a-zA-Z0-9.-]/g, '_').replace(/\.+/g, '.');
+    const cleanCaption = caption?.replace(/[^a-zA-Z0-9.-]/g, '_').replace(/\.+/g, '.');
+    
+    // Usar: originalFilename > caption > generar nombre
+    let filename: string;
+    if (cleanOriginalName && cleanOriginalName.length > 3) {
+      filename = cleanOriginalName;
+    } else if (cleanCaption && cleanCaption.length > 3) {
+      filename = cleanCaption;
+    } else {
+      // Generar nombre con extensión correcta
+      const timestamp = Date.now();
+      filename = `whatsapp_${timestamp}.${extension}`;
+    }
 
     // 4. Subir a Cloudinary
     let cloudinaryResult;
@@ -311,7 +323,19 @@ export class WhatsAppMediaService {
     const docLeadId = leadInfo?.leadId;
     const documentType = this.getDocumentType(mediaInfo.mimeType);
 
+    console.log('[WhatsAppMedia] Client info:', clientInfo);
+    console.log('[WhatsAppMedia] Lead info:', leadInfo);
+    console.log('[WhatsAppMedia] docClientId:', docClientId, 'docLeadId:', docLeadId);
+
     try {
+      // Usar el filename real para el título del documento
+      const isGeneratedFilename = filename.startsWith('whatsapp_') && filename.includes('.');
+      const docTitle = !isGeneratedFilename
+        ? filename.replace(/\.[^/.]+$/, '') // Quitar extensión para el título
+        : `${messageType === 'image' ? 'Imagen' : 'Documento'} - ${new Date().toLocaleDateString('es-AR')}`;
+      
+      console.log('[WhatsAppMedia] Creating document with title:', docTitle, 'clientId:', docClientId);
+      
       document = await documentService.create({
         tenantId: docTenantId,
         clientId: docClientId,
@@ -319,8 +343,8 @@ export class WhatsAppMediaService {
         conversationId,
         whatsappMessageId: messageId,
         filename,
-        title: caption || `${messageType === 'image' ? 'Imagen' : 'Documento'} - ${new Date().toLocaleDateString('es-AR')}`,
-        description: `Recibido por WhatsApp${caption ? `: ${caption}` : ''}`,
+        title: docTitle,
+        description: `Recibido por WhatsApp${originalFilename ? `: ${originalFilename}` : caption ? `: ${caption}` : ''}`,
         documentType,
         cloudinaryPublicId: cloudinaryResult.publicId,
         cloudinaryUrl: cloudinaryResult.url,
