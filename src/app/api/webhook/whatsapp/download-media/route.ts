@@ -10,37 +10,37 @@ import { NextRequest, NextResponse } from 'next/server';
  *   clientId?: string,      // ID del cliente (opcional, se busca automáticamente)
  *   leadId?: string         // ID del lead (opcional)
  * }
+ * 
+ * Headers: {
+ *   x-tenant-id: string,    // Required
+ *   Authorization: string  // Required
+ * }
  */
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
-  // Todos los imports son dinámicos para evitar errores de fs/next-auth en Turbopack
+  // Verificar autenticación con headers del proyecto
+  const tenantId = request.headers.get('x-tenant-id');
+  const auth = request.headers.get('Authorization');
+
+  if (!tenantId || !auth) {
+    return NextResponse.json(
+      { error: 'x-tenant-id and Authorization headers are required' },
+      { status: 401 }
+    );
+  }
+
+  // Imports dinámicos para evitar errores de fs en Turbopack
   const { default: whatsappMediaService } = await import('@/crm/services/whatsapp-media.service');
   const { default: whatsappService } = await import('@/crm/services/whatsapp.service');
-  const { getServerSession } = await import('next-auth');
-  const { authOptions } = await import('@/lib/auth');
-  try {
-    // Verificar autenticación
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    }
 
+  try {
     const body = await request.json();
     const { messageId, filename, clientId: providedClientId, leadId: providedLeadId } = body;
 
     if (!messageId || !filename) {
       return NextResponse.json(
         { error: 'messageId y filename son requeridos' },
-        { status: 400 }
-      );
-    }
-
-    // Obtener el tenant del usuario
-    const tenantId = session.user.tenantId;
-    if (!tenantId) {
-      return NextResponse.json(
-        { error: 'Tenant no encontrado' },
         { status: 400 }
       );
     }
