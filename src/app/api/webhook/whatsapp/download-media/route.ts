@@ -1,8 +1,4 @@
-'use client';
-
 import { NextRequest, NextResponse } from 'next/server';
-import { whatsappMediaService } from '@/crm/services/whatsapp-media.service';
-import { whatsappService } from '@/crm/services/whatsapp.service';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
@@ -17,7 +13,12 @@ import { authOptions } from '@/lib/auth';
  *   leadId?: string         // ID del lead (opcional)
  * }
  */
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
+  // Imports dinámicos para evitar errores de fs en Turbopack
+  const { default: whatsappMediaService } = await import('@/crm/services/whatsapp-media.service');
+  const { default: whatsappService } = await import('@/crm/services/whatsapp.service');
   try {
     // Verificar autenticación
     const session = await getServerSession(authOptions);
