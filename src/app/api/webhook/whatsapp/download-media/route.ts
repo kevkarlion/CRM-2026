@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
       {
         folder: `crm/${tenantId}/whatsapp`,
         resourceType: resourceType as 'image' | 'video' | 'raw',
-        publicId: fullFilename.replace(/\.[^/.]+$/, ''),
+        publicId: fullFilename, // Mantener extensión en publicId
       }
     );
 
