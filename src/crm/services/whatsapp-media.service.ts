@@ -123,7 +123,20 @@ export class WhatsAppMediaService {
     
     const normalizedPhone = phone.replace(/[\s\-\(\)\+]/g, '').replace(/^0/, '');
     
-    // Buscar en Contactos
+    // 1. Buscar directamente en Client por teléfono
+    const clientByPhone = await ClientModel.findOne({
+      phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+      deletedAt: null,
+    }).lean();
+
+    if (clientByPhone) {
+      return {
+        clientId: String(clientByPhone._id),
+        tenantId: String(clientByPhone.tenantId),
+      };
+    }
+
+    // 2. Buscar en Contactos
     const contact = await ContactModel.findOne({
       phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
       deletedAt: null,
@@ -139,19 +152,36 @@ export class WhatsAppMediaService {
       }
     }
 
-    // Buscar en Leads ganados
+    // 3. Buscar en Leads (cualquier status, no solo won)
     const lead = await LeadModel.findOne({
+      phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+      deletedAt: null,
+    }).lean();
+
+    // Si el lead tiene clientId, usar ese cliente
+    if (lead?.clientId) {
+      const client = await ClientModel.findById(lead.clientId).lean();
+      if (client) {
+        return {
+          clientId: String(client._id),
+          tenantId: String(client.tenantId),
+        };
+      }
+    }
+
+    // 4. Buscar en Leads ganados (por si acaso no tiene clientId)
+    const wonLead = await LeadModel.findOne({
       phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
       status: { $in: ['won', 'qualified'] },
       deletedAt: null,
     }).lean();
 
-    if (lead) {
-      // Buscar cliente asociado al lead
+    if (wonLead) {
+      // Buscar cliente asociado al lead por source
       const client = await ClientModel.findOne({
-        tenantId: lead.tenantId,
+        tenantId: wonLead.tenantId,
         source: 'lead',
-        sourceId: lead._id,
+        sourceId: wonLead._id,
         deletedAt: null,
       }).lean();
 
@@ -266,12 +296,16 @@ export class WhatsAppMediaService {
       const resourceType = mediaInfo.mimeType.startsWith('image/') ? 'image' : 
                            mediaInfo.mimeType.startsWith('video/') ? 'video' : 'raw';
       
+      // Generar publicId limpio para Cloudinary
+      const cleanPublicId = filename.replace(/\.[^/.]+$/, ''); // sin extensión
+      
       cloudinaryResult = await cloudinaryService.uploadBuffer(
         buffer,
         filename,
         {
           folder: `crm/${tenantId}/whatsapp`,
           resourceType: resourceType as 'image' | 'video' | 'raw',
+          publicId: cleanPublicId,
         }
       );
     } catch (error) {
