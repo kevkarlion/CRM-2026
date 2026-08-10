@@ -7,20 +7,18 @@ export type WorkOrderCategory = 'installation' | 'maintenance' | 'repair' | 'ins
 /**
  * Estados canónicos de Orden de Trabajo
  * 
- * 1. pending_assignment - Pendiente de asignación (sin técnico)
- * 2. assigned - Asignada (tiene técnico, sin fecha)
- * 3. scheduled - Programada (tiene técnico + fecha/hora)
- * 4. in_progress - En ejecución (técnico comenzó el trabajo)
- * 5. closed - Cerrada (OT completamente finalizada)
- * 6. cancelled - Cancelada (la orden dejó de ejecutarse)
+ * draft - Borrador (sin fecha ni técnico)
+ * scheduled - Programada (con fecha y técnico)
+ * in_progress - En ejecución
+ * completed - Completada
+ * cancelled - Cancelada
  */
 export type WorkOrderStatus = 
-  | 'pending_assignment'  // 1. Pendiente de asignación
-  | 'assigned'            // 2. Asignada
-  | 'scheduled'           // 3. Programada
-  | 'in_progress'         // 4. En ejecución
-  | 'closed'              // 5. Cerrada
-  | 'cancelled';          // 6. Cancelada
+  | 'draft'            // Borrador
+  | 'scheduled'        // Programada
+  | 'in_progress'      // En ejecución
+  | 'completed'        // Completada
+  | 'cancelled';       // Cancelada
 
 export interface IClientSnapshot {
   name?: string;

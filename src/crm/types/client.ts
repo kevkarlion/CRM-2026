@@ -5,6 +5,16 @@ import type { LeadSource } from '@/leads/types/lead';
 export type CustomerType = 'residential' | 'commercial' | 'industrial';
 export type ClientStatus = 'prospect' | 'active' | 'inactive' | 'blocked';
 
+/**
+ * Estados internos de operación comercial del cliente
+ * (independientes del pipeline de leads)
+ */
+export type ClientOperationStatus = 
+  | 'none'                    // Sin operación activa
+  | 'quote_pending'           // Presupuesto enviado
+  | 'visit_scheduled'          // Visita técnica programada
+  | 'sale_confirmed';          // Venta confirmada
+
 export interface BlockHistoryEntry {
   reason: string;
   blockedAt: Date;
@@ -30,6 +40,8 @@ export interface IClient extends Document, IAuditFields {
   notes?: string;
   tags: string[];
   blockHistory?: BlockHistoryEntry[];
+  operationStatus?: ClientOperationStatus;
+  operationStatusUpdatedAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }

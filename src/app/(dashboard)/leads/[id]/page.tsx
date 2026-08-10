@@ -435,7 +435,7 @@ const handleCedeControl = async () => {
                     timelineRefreshKey={timelineRefreshKey}
                   />
                 </div>
-                <div className="lg:col-span-1">
+                <div className="lg:col-span-1 space-y-4">
                   <LeadBotControlCard
                     conversation={conversation}
                     loading={loadingConversation}
@@ -443,19 +443,23 @@ const handleCedeControl = async () => {
                     onTakeControl={handleTakeControl}
                     onCedeControl={handleCedeControl}
                   />
+                  {canCreateQuoteOrVisit && (
+                    <LeadCommercialActionsCard
+                      onOpenQuoteDrawer={() => setShowQuoteDrawer(true)}
+                      onOpenVisitDrawer={() => setShowVisitDrawer(true)}
+                      onOpenQuickSaleDrawer={() => setShowQuickSaleDrawer(true)}
+                      leadId={id}
+                      currentStatus={lead?.status}
+                      onSendQuotePdf={refreshLeadAndTimeline}
+                      onConfirmSalePdf={refreshLeadAndTimeline}
+                    />
+                  )}
                 </div>
               </div>
             </div>
 
             <aside className="space-y-4 mt-6">
               <LeadEditActionCard onEdit={() => router.push(`/leads/${id}/edit`)} />
-              {canCreateQuoteOrVisit && (
-                <LeadCommercialActionsCard
-                  onOpenQuoteDrawer={() => setShowQuoteDrawer(true)}
-                  onOpenVisitDrawer={() => setShowVisitDrawer(true)}
-                  onOpenQuickSaleDrawer={() => setShowQuickSaleDrawer(true)}
-                />
-              )}
             </aside>
           </EntityTabPanel>
 

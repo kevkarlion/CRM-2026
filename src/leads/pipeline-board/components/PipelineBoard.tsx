@@ -6,10 +6,12 @@ import { usePipelineLeads } from '../hooks/usePipelineLeads';
 import { usePipelineBoard } from '../hooks/usePipelineBoard';
 import { useConversationStatus } from '../hooks/useConversationStatus';
 import { usePendingHandoffs } from '../hooks/usePendingHandoffs';
+import { useBotClients } from '../hooks/useBotClients';
 import { PipelineColumn } from './PipelineColumn';
 import { LeadFilters } from './LeadFilters';
 import { LeadChatDrawer } from './LeadChatDrawer';
 import type { ILead } from '../../types/lead';
+import type { IClient } from '@/crm/types/client';
 
 function SkeletonColumn() {
   return (
@@ -119,6 +121,7 @@ export function PipelineBoard() {
 
   const { statusMap: conversationStatusMap } = useConversationStatus(allLeadIds);
   const { count: pendingHandoffs, handoffs: handoffList } = usePendingHandoffs();
+  const { clients: botClients, refetch: refetchBotClients } = useBotClients();
 
   // Open WhatsApp chat drawer for a lead
   const handleLeadWhatsAppClick = useCallback((lead: ILead) => {
@@ -182,9 +185,10 @@ export function PipelineBoard() {
   useEffect(() => {
     const interval = setInterval(() => {
       refetch();
+      refetchBotClients();
     }, 5000);
     return () => clearInterval(interval);
-  }, [refetch]);
+  }, [refetch, refetchBotClients]);
 
   const hasData = Object.keys(groups).length > 0;
 
@@ -339,6 +343,49 @@ export function PipelineBoard() {
               />
             );
           })}
+
+          {/* Columna de clientes con conversación activa */}
+          {botClients.length > 0 && (
+            <div className="bg-blue-50 rounded-lg border border-blue-200 min-w-[85vw] md:min-w-[280px] md:flex-1 snap-start">
+              <div className="flex items-center justify-between px-3 py-2 border-b border-blue-200 bg-blue-50 rounded-t-lg">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-blue-700 truncate">
+                    Clientes - Bot Activo
+                  </h3>
+                  <span className="badge badge-primary text-xs shrink-0">
+                    {botClients.length}
+                  </span>
+                </div>
+              </div>
+              <div className="p-2 space-y-2">
+                {botClients.map((client) => (
+                  <div
+                    key={String(client._id)}
+                    className="bg-white rounded-lg border border-blue-100 p-2.5 cursor-pointer shadow-sm hover:shadow-md transition-shadow"
+                    onClick={() => {
+                      // Navigate to client detail
+                      window.location.href = `/clients/${client._id}`;
+                    }}
+                  >
+                    <p className="text-xs md:text-[13px] font-semibold text-gray-900 leading-tight">
+                      {client.companyName || client.fullName || 'Cliente'}
+                    </p>
+                    {client.phone && (
+                      <div className="flex items-center gap-2 mt-1">
+                        <a
+                          href={`tel:${client.phone}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="text-xs text-brand-600 hover:underline"
+                        >
+                          {client.phone}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {unmatched.length > 0 && (
             <div className="bg-gray-100 rounded-lg border border-dashed border-gray-300 min-w-[85vw] md:min-w-[260px] snap-start">

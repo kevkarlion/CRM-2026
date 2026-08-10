@@ -10,34 +10,31 @@ export interface TransitionContext {
 /**
  * Transiciones canónicas de estados de OT
  * 
- * Flujo: pending_assignment → assigned → scheduled → in_progress → closed
- *                                                              ↓
- *                                                            cancelled
+ * Flujo: draft → scheduled → in_progress → completed
+ *                                                    ↓
+ *                                                  cancelled
  */
 export const VALID_TRANSITIONS: Record<WorkOrderStatus, WorkOrderStatus[]> = {
-  // 1. Pendiente de asignación → puede asignarse o cancelarse
-  pending_assignment: ['assigned', 'cancelled'],
+  // 1. Borrador → puede programarse o cancelarse
+  draft: ['scheduled', 'cancelled'],
   
-  // 2. Asignada → puede programarse o cancelarse
-  assigned: ['scheduled', 'cancelled'],
-  
-  // 3. Programada → puede iniciar o cancelarse
+  // 2. Programada → puede iniciarse o cancelarse
   scheduled: ['in_progress', 'cancelled'],
   
-  // 4. En ejecución → puede cerrarse o cancelarse
-  in_progress: ['closed', 'cancelled'],
+  // 3. En ejecución → puede completarse o cancelarse
+  in_progress: ['completed', 'cancelled'],
   
-  // 5. Cerrada → estado terminal
-  closed: [],
+  // 4. Completada → estado terminal
+  completed: [],
   
-  // 6. Cancelada → estado terminal
+  // 5. Cancelada → estado terminal
   cancelled: [],
 };
 
-export const TERMINAL_STATUSES: WorkOrderStatus[] = ['cancelled', 'closed'];
+export const TERMINAL_STATUSES: WorkOrderStatus[] = ['cancelled', 'completed'];
 
 export const ACTIVE_STATUSES: WorkOrderStatus[] = [
-  'pending_assignment', 'assigned', 'scheduled', 'in_progress',
+  'draft', 'scheduled', 'in_progress',
 ];
 
 export function canTransition(from: WorkOrderStatus, to: WorkOrderStatus): boolean {
@@ -69,7 +66,7 @@ export function validateTransition(
     );
   }
 
-  if (from === 'assigned' && to === 'in_progress' && !context.hasChecklist) {
+  if (from === 'scheduled' && to === 'in_progress' && !context.hasChecklist) {
     throw new TransitionError(
       `Checklist required: ${from} → ${to}`,
       from, to,
@@ -82,15 +79,6 @@ export function validateTransition(
       `VisitReport required: ${from} → ${to}`,
       from, to,
       'VisitReport must exist before transitioning to completed.',
-    );
-  }
-
-  // Para pasar a "Asignada" debe tener al menos un técnico
-  if (to === 'assigned' && !context.hasTechnicians) {
-    throw new TransitionError(
-      `Technicians required: ${from} → ${to}`,
-      from, to,
-      'At least one technician must be assigned.',
     );
   }
 

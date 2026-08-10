@@ -384,12 +384,6 @@ export default function ClientDetailPage() {
                   </div>
 
                   <aside className="space-y-4">
-                    <LeadCommercialActionsCard
-                      onOpenQuoteDrawer={() => setShowQuoteDrawer(true)}
-                      onOpenVisitDrawer={() => setShowVisitDrawer(true)}
-                      onOpenQuickSaleDrawer={() => setShowConfirmSaleDrawer(true)}
-                      disabled={client.status === 'blocked'}
-                    />
                     <ClientMetadataCard client={client} />
                   </aside>
                 </div>
@@ -433,6 +427,16 @@ export default function ClientDetailPage() {
                       actionLoading={actionLoading}
                       onTakeControl={handleTakeControl}
                       onMarkResolved={handleMarkResolved}
+                    />
+                    <LeadCommercialActionsCard
+                      onOpenQuoteDrawer={() => setShowQuoteDrawer(true)}
+                      onOpenVisitDrawer={() => setShowVisitDrawer(true)}
+                      onOpenQuickSaleDrawer={() => setShowConfirmSaleDrawer(true)}
+                      disabled={client.status === 'blocked'}
+                      clientId={id}
+                      clientOperationStatus={client.operationStatus}
+                      onSendQuotePdf={refreshClient}
+                      onConfirmSalePdf={refreshClient}
                     />
                   </div>
                 </div>

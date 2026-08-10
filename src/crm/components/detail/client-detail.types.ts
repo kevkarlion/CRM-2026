@@ -18,6 +18,7 @@ export interface ClientDetail {
   notes?: string;
   tags: string[];
   blockHistory?: BlockHistoryEntry[];
+  operationStatus?: string;
   createdAt: string;
   updatedAt: string;
 }

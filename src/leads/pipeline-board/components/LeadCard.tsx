@@ -115,6 +115,11 @@ export const LeadCard = React.memo(function LeadCard({
           <span className={`inline-flex items-center px-1.5 py-px rounded text-[9px] font-medium ${STATUS_VARIANTS[lead.status] || 'bg-gray-100 text-gray-700'}`}>
             {STATUS_LABELS[lead.status] || lead.status}
           </span>
+          {lead.convertedToClient && (
+            <span className="inline-flex items-center px-1.5 py-px rounded text-[9px] font-medium bg-success-100 text-success-700 border border-success-200">
+              Convertido
+            </span>
+          )}
         </div>
       </div>
 

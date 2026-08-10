@@ -1,17 +1,11 @@
 import type { WorkOrderStatus } from '@/operations/types/work-order';
 
 export const WORK_ORDER_STATUS_LABELS: Record<string, string> = {
-  pending_assignment: 'Pendiente',
-  assigned: 'Asignada',
+  draft: 'Borrador',
   scheduled: 'Programada',
   in_progress: 'En Ejecución',
-  closed: 'Cerrada',
+  completed: 'Completada',
   cancelled: 'Cancelada',
-  // Estados viejos (compatibilidad)
-  draft: 'Borrador',
-  confirmed: 'Confirmada',
-  paused: 'Pausada',
-  completed: 'Cerrada',
 };
 
 type TechnicalVisitStatus =

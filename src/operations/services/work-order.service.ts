@@ -68,7 +68,7 @@ export class WorkOrderService {
         ...data,
         tenantId,
         workOrderNumber,
-        status: 'pending_assignment' as WorkOrderStatus,
+        status: 'draft' as WorkOrderStatus,
         clientSnapshot: {
           name: client.fullName || client.companyName,
           email: client.email,
@@ -192,13 +192,13 @@ export class WorkOrderService {
     userId: string,
     version: number,
   ): Promise<IWorkOrder | null> {
-    // Auto-transition: si se programa y está "Asignada", pasar a "Programada"
+    // Auto-transition: si se programa y está en "Borrador", pasar a "Programada"
     const isScheduling = !!(data.scheduledDate || data.scheduledStart || data.scheduledEnd);
     let autoStatus: string | undefined;
 
     if (isScheduling) {
       const current = await WorkOrderModel.findOne({ _id: id, tenantId, deletedAt: null }).select('status version').lean();
-      if (current && current.status === 'assigned') {
+      if (current && current.status === 'draft') {
         autoStatus = 'scheduled';
       }
     }
@@ -254,7 +254,7 @@ export class WorkOrderService {
           $set: {
             status: targetStatus,
             updatedBy: userId,
-            ...(targetStatus === 'closed' ? { closedAt: new Date() } : {}),
+            ...(targetStatus === 'completed' ? { closedAt: new Date() } : {}),
           },
           $inc: { version: 1 },
         },
@@ -269,8 +269,8 @@ export class WorkOrderService {
         );
       }
 
-      const eventType = targetStatus === 'cancelled' ? 'closed'
-        : targetStatus === 'closed' ? 'visit_completed'
+      const eventType = targetStatus === 'cancelled' ? 'cancelled'
+        : targetStatus === 'completed' ? 'visit_completed'
         : 'status_changed';
 
       await WorkOrderEventModel.create([{
@@ -302,8 +302,8 @@ export class WorkOrderService {
           } as WorkOrderStatusChangedPayload,
         });
 
-        // Also publish WORK_ORDER_COMPLETED when status is closed
-        if (targetStatus === 'closed') {
+        // Also publish WORK_ORDER_COMPLETED when status is completed
+        if (targetStatus === 'completed') {
           await eventBus.publish({
             type: DOMAIN_EVENTS.WORK_ORDER_COMPLETED,
             aggregateId: id,
@@ -444,9 +444,9 @@ export class WorkOrderService {
     }
 
     const status = workOrder.status as WorkOrderStatus;
-    if (status !== 'pending_assignment' && status !== 'cancelled') {
+    if (status !== 'draft' && status !== 'cancelled') {
       throw new ValidationError(
-        `Cannot delete WorkOrder in status '${status}'. Only 'pending_assignment' or 'cancelled' can be deleted.`,
+        `Cannot delete WorkOrder in status '${status}'. Only 'draft' or 'cancelled' can be deleted.`,
       );
     }
 

@@ -98,9 +98,9 @@ export const workOrderSchema = new Schema<IWorkOrder>(
     },
     status: {
       type: String,
-      enum: ['pending_assignment', 'assigned', 'scheduled', 'in_progress', 'closed', 'cancelled'],
+      enum: ['draft', 'scheduled', 'in_progress', 'completed', 'cancelled'],
       required: true,
-      default: 'pending_assignment',
+      default: 'draft',
     },
     scheduledDate: String,
     scheduledStart: Date,

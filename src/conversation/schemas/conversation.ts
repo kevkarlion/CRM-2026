@@ -1,4 +1,4 @@
-import { Schema } from 'mongoose';
+import mongoose, { Schema, Model, Document } from 'mongoose';
 import type { IConversation, ConversationState, ConversationLifecycleState, HandoffStatus } from '../domain/conversation';
 
 const contextSchema = new Schema(
