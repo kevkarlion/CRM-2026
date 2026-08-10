@@ -144,6 +144,32 @@ export class ConversionService {
         console.error('[ConversionService] Failed to publish QUOTE_CONVERTED:', eventError);
       }
 
+      // Emitir WORK_ORDER_CREATED para ActivityLog y Timeline
+      try {
+        await eventBus.publish({
+          type: DOMAIN_EVENTS.WORK_ORDER_CREATED,
+          aggregateId: workOrder._id.toString(),
+          aggregateType: 'WorkOrder',
+          tenantId,
+          userId,
+          timestamp: new Date(),
+          payload: {
+            workOrderId: workOrder._id.toString(),
+            leadId: null,
+            number: workOrderNumber,
+            clientId: quote.clientId.toString(),
+            title: workOrderTitle,
+            category: options?.category || 'installation',
+            priority: options?.priority || 'normal',
+            scheduledDate: null,
+            clientName: client?.fullName || client?.companyName || undefined,
+            address: location?.address || undefined,
+          },
+        });
+      } catch (eventError) {
+        console.error('[ConversionService] Failed to publish WORK_ORDER_CREATED:', eventError);
+      }
+
       return {
         quote: quote.toObject() as unknown as IQuote,
         workOrder: workOrder.toObject() as unknown as Record<string, unknown>,

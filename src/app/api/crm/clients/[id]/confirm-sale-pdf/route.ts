@@ -4,6 +4,8 @@ import ClientModel from '@/crm/models/client';
 import WorkOrderModel from '@/operations/models/work-order';
 import { Types } from 'mongoose';
 import { getNextWorkOrderNumber } from '@/operations/helpers/counter';
+import { eventBus } from '@/infrastructure/events/event-bus';
+import { DOMAIN_EVENTS } from '@/infrastructure/events/event.types';
 
 /**
  * POST /api/crm/clients/[id]/confirm-sale-pdf
@@ -80,6 +82,32 @@ export async function POST(
     ]);
 
     console.log('[confirm-sale-pdf] OT creada:', workOrder._id, 'estado: draft');
+
+    // Emitir evento para ActivityLog y Timeline
+    try {
+      await eventBus.publish({
+        type: DOMAIN_EVENTS.WORK_ORDER_CREATED,
+        aggregateId: workOrder._id.toString(),
+        aggregateType: 'WorkOrder',
+        tenantId,
+        userId: userId || undefined,
+        timestamp: new Date(),
+        payload: {
+          workOrderId: workOrder._id.toString(),
+          leadId: null,
+          number: workOrderNumber,
+          clientId: client._id.toString(),
+          title: workOrder.title,
+          category: workOrder.category,
+          priority: workOrder.priority,
+          scheduledDate: workOrder.scheduledDate,
+          clientName: clientName,
+          address: client.address || undefined,
+        },
+      });
+    } catch (eventError) {
+      console.error('[confirm-sale-pdf] Failed to publish WORK_ORDER_CREATED:', eventError);
+    }
 
     return NextResponse.json({ 
       success: true, 
