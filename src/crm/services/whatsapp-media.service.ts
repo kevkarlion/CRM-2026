@@ -414,7 +414,8 @@ export class WhatsAppMediaService {
     mimeType: string,
     caption?: string,
     leadId?: string,
-    clientId?: string
+    clientId?: string,
+    filename?: string
   ): Promise<{ message: any; metaResponse: any }> {
     if (!WHATSAPP_ACCESS_TOKEN) {
       throw new Error('WHATSAPP_ACCESS_TOKEN no configurado');
@@ -478,19 +479,24 @@ export class WhatsAppMediaService {
     const waMessageId = metaResponse.messages?.[0]?.id || `failed_${Date.now()}`;
 
     // Guardar mensaje saliente (siempre guardamos, incluso si falló)
+    const contentText = filename 
+      ? `[${isImage ? 'Imagen' : 'Documento'}: ${filename}]`
+      : (caption || `[${isImage ? 'Imagen' : 'Documento'} enviado]`);
+    
     const messageData: any = {
       tenantId: new Types.ObjectId(tenantId),
       phone: normalizedTo,
       messageId: waMessageId,
       direction: 'outbound',
       type: mediaType,
-      content: caption || `[${isImage ? 'Imagen' : 'Documento'} enviado]`,
+      content: contentText,
       status: messageStatus,
       errorMessage: errorMsg,
       metadata: {
         mediaId: '',
         caption: caption || '',
         cloudinaryUrl,
+        filename: filename || '',
       },
     };
 

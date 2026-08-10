@@ -97,7 +97,8 @@ export async function POST(req: NextRequest) {
       file.type,
       caption || undefined,
       leadId || undefined,
-      clientId || undefined
+      clientId || undefined,
+      file.name // filename
     );
 
     console.log('[WhatsApp Send Media] Enviado a WhatsApp:', result.message._id);
