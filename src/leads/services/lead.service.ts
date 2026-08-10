@@ -654,6 +654,34 @@ export class LeadService {
       .lean()
       .exec() as unknown as ILead[];
 
+    // Ordenar leads: prioridad > temperatura > score > fecha
+    const sortLeads = (a: ILead, b: ILead): number => {
+      const getPriorityScore = (p?: string) => {
+        if (p === 'high') return 300;
+        if (p === 'medium') return 200;
+        if (p === 'low') return 100;
+        return 0;
+      };
+      
+      const getTempScore = (t?: string) => {
+        if (t === 'hot') return 30;
+        if (t === 'warm') return 20;
+        if (t === 'cold') return 10;
+        return 0;
+      };
+      
+      const aScore = a.score || 0;
+      const bScore = b.score || 0;
+      
+      // Score compuesto: priority(300/200/100) + temp(30/20/10) + score + recencia
+      const aTotal = getPriorityScore(a.priority) + getTempScore(a.temperature) + aScore + (a.createdAt ? (10000000000 - new Date(a.createdAt).getTime() / 1000000) : 0);
+      const bTotal = getPriorityScore(b.priority) + getTempScore(b.temperature) + bScore + (b.createdAt ? (10000000000 - new Date(b.createdAt).getTime() / 1000000) : 0);
+      
+      return bTotal - aTotal; // Mayor score primero
+    };
+
+    leads.sort(sortLeads);
+
     const activeStages = pipeline.stages.filter(s => s.isActive);
     const statusToStages = new Map<string, IPipelineStage[]>();
     for (const stage of activeStages) {

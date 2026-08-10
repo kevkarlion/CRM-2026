@@ -4,6 +4,7 @@ import WhatsAppMessageModel from '@/crm/models/whatsapp-message';
 import { BotMessageHandler } from './bot-message-handler';
 import { WhatsAppBotAdapter } from './whatsapp-adapter';
 import type { BotAction } from '../application/types';
+import { calculateLeadScore } from '@/leads/services/lead-score.service';
 
 export interface WebhookMessageInput {
   tenantId: string;
@@ -125,11 +126,42 @@ export async function processWhatsAppWebhookMessage(
   );
   if (contactEvent && contactEvent.type === 'emit_domain_event') {
     try {
-      await LeadModel.findByIdAndUpdate(
-        new Types.ObjectId(leadId),
-        { $set: { status: 'contacted', updatedBy: 'whatsapp-bot' } },
-        { new: true }
-      );
+      // Get lead data for scoring
+      const lead = await LeadModel.findById(leadId);
+      console.log('[WebhookIntegration] Lead data for scoring:', {
+        leadId,
+        inquiryReason: lead?.inquiryReason,
+        priority: lead?.priority,
+        customerType: lead?.customerType,
+        isB2B: lead?.isB2B,
+        currentStatus: lead?.status
+      });
+      
+      if (lead) {
+        // Calculate score based on existing lead data
+        const { score, temperature, breakdown } = calculateLeadScore({
+          inquiryReason: lead.inquiryReason as any,
+          priority: lead.priority as any,
+          customerType: lead.customerType as any,
+          isB2B: lead.isB2B,
+        });
+
+        console.log('[WebhookIntegration] Updating lead with score:', { score, temperature });
+
+        await LeadModel.findByIdAndUpdate(
+          leadId,
+          { 
+            $set: { 
+              status: 'contacted', 
+              score,
+              temperature,
+              scoringBreakdown: breakdown,
+              updatedBy: 'whatsapp-bot' 
+            } 
+          },
+          { new: true }
+        );
+      }
     } catch (error) {
       console.error('[WebhookIntegration] Error updating lead to contacted:', error);
     }

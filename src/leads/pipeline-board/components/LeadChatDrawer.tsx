@@ -8,6 +8,8 @@ import { useWhatsAppSend } from '@/whatsapp/hooks/useWhatsAppSend';
 import { useChatPolling } from '@/whatsapp/hooks/useChatPolling';
 import type { ILead } from '../../types/lead';
 import type { ConversationStatus } from '../hooks/useConversationStatus';
+import { calculateLeadScore } from '../../services/lead-score.service';
+import type { InquiryReason, CustomerType, Temperature } from '../../types/lead';
 
 interface LeadChatDrawerProps {
   isOpen: boolean;
@@ -83,7 +85,7 @@ const STATE_LABELS: Record<string, string> = {
   fallback: 'Fallback',
 };
 
-type TabType = 'chat' | 'handoff' | 'timeline';
+type TabType = 'chat' | 'timeline';
 
 function LeadInfoTab({ lead }: { lead: ILead }) {
   const assignedTo = lead.assignedTo 
@@ -108,14 +110,14 @@ function LeadInfoTab({ lead }: { lead: ILead }) {
         <h4 className="text-xs font-semibold text-gray-500 uppercase mb-3">Clasificacion del Lead</h4>
         
         <div className="flex items-center gap-3 mb-4">
-          {lead.temperature && (
-            <span className={`px-3 py-1.5 rounded-full text-sm font-bold border ${TEMPERATURE_COLORS[lead.temperature]}`}>
-              {lead.temperature.toUpperCase()}
+          {(calculatedScore?.temperature || lead.temperature) && (
+            <span className={`px-3 py-1.5 rounded-full text-sm font-bold border ${TEMPERATURE_COLORS[calculatedScore?.temperature || lead.temperature]}`}>
+              {(calculatedScore?.temperature || lead.temperature).toUpperCase()}
             </span>
           )}
-          {lead.score !== undefined && (
+          {(calculatedScore?.score || lead.score) && (
             <span className="text-2xl font-bold text-gray-900">
-              {lead.score} <span className="text-sm font-normal text-gray-500">pts</span>
+              {calculatedScore?.score || lead.score} <span className="text-sm font-normal text-gray-500">pts</span>
             </span>
           )}
         </div>
@@ -382,6 +384,39 @@ export function LeadChatDrawer({ isOpen, onClose, lead, conversationStatus }: Le
 
   const phone = lead?.phone || '';
   
+  // Calcular score si no está guardado
+  const calculatedScore = useMemo(() => {
+    if (!lead) return null;
+    // Si ya tiene score guardado y es > 0, usarlo
+    if (lead.score && lead.score > 0) return { score: lead.score, temperature: lead.temperature as Temperature };
+    
+    // Si tiene inquiryReason o priority, calcular el score
+    const notesService = lead.notes?.match(/Servicio: (.*?)( \| |$)/)?.[1];
+    const notesPriority = lead.notes?.match(/Necesidad: (.*?)( \| |$)/)?.[1];
+    
+    if (lead.inquiryReason || lead.priority || notesService || notesPriority) {
+      const inquiryReasonMap: Record<string, InquiryReason> = {
+        'reparación': 'repair', 'repair': 'repair',
+        'instalación': 'installation', 'installation': 'installation',
+        'mantenimiento': 'maintenance', 'maintenance': 'maintenance',
+        'presupuesto': 'budget', 'budget': 'budget',
+      };
+      const reason = lead.inquiryReason || (notesService ? inquiryReasonMap[notesService.toLowerCase()] : undefined);
+      const priority = lead.priority || (notesPriority?.toLowerCase().includes('urgente') ? 'high' : notesPriority?.toLowerCase().includes('semana') ? 'medium' : 'low');
+      
+      if (reason || priority) {
+        const result = calculateLeadScore({
+          inquiryReason: reason,
+          priority: priority as 'high' | 'medium' | 'low',
+          customerType: lead.customerType as CustomerType || 'residential',
+          isB2B: lead.isB2B,
+        });
+        return result;
+      }
+    }
+    return null;
+  }, [lead]);
+  
   const {
     messages,
     loading,
@@ -489,6 +524,7 @@ export function LeadChatDrawer({ isOpen, onClose, lead, conversationStatus }: Le
               </div>
               <div className="min-w-0">
                 <h3 className="text-base font-bold text-gray-900 truncate">{leadName}</h3>
+                {console.log('🎯 LEAD DATA:', lead.score, lead.temperature, lead)}
                 {lead.profileName && lead.name && lead.name !== lead.profileName && (
                   <p className="text-sm text-gray-500 truncate">{lead.name}</p>
                 )}
@@ -497,21 +533,51 @@ export function LeadChatDrawer({ isOpen, onClose, lead, conversationStatus }: Le
                     {STATUS_LABELS[lead.status] || lead.status}
                   </span>
                   {lead.temperature && (
-                    <span className={`text-xs px-2 py-0.5 rounded-full border ${TEMPERATURE_COLORS[lead.temperature]}`}>
-                      {lead.temperature.toUpperCase()}
+                    <span className={`text-xs px-2 py-0.5 rounded-full border ${TEMPERATURE_COLORS[calculatedScore?.temperature || lead.temperature]}`}>
+                      {calculatedScore?.temperature === 'hot' ? '🔥' : calculatedScore?.temperature === 'warm' ? '🟡' : calculatedScore?.temperature === 'cold' ? '❄️' : lead.temperature === 'hot' ? '🔥' : lead.temperature === 'warm' ? '🟡' : '❄️'} {(calculatedScore?.temperature || lead.temperature)?.toUpperCase() || 'COLD'}
                     </span>
                   )}
-                  {conversationStatus?.isBotActive && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 border border-blue-200">
-                      Bot activo
-                    </span>
-                  )}
-                  {conversationStatus?.isHandoffPending && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200">
-                      Requiere humano
+                  {(calculatedScore?.score || lead.score) && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 border border-gray-200">
+                      {calculatedScore?.score || lead.score} pts
                     </span>
                   )}
                 </div>
+                {/* Segunda línea: servicio, necesidad y msgs */}
+                {/* Parse notes para fallback si no hay inquiryReason/priority */}
+                {(() => {
+                  const notesService = lead.notes?.match(/Servicio: (.*?)( \| |$)/)?.[1];
+                  const notesPriority = lead.notes?.match(/Necesidad: (.*?)( \| |$)/)?.[1];
+                  const hasInquiryReason = lead.inquiryReason || notesService;
+                  const hasPriority = lead.priority || notesPriority;
+                  return (
+                    <div className="flex items-center gap-2 mt-1 flex-wrap text-xs text-gray-500">
+                      {hasInquiryReason && (
+                        <span className="flex items-center gap-1">
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                          {INQUIRY_REASON_LABELS[lead.inquiryReason as keyof typeof INQUIRY_REASON_LABELS] || notesService || lead.inquiryReason}
+                        </span>
+                      )}
+                      {hasPriority && (
+                        <span className={`flex items-center gap-1 ${(lead.priority || notesPriority?.toLowerCase()) === 'high' || notesPriority?.toLowerCase().includes('urgente') ? 'text-red-600 font-medium' : ''}`}>
+                          {(lead.priority || notesPriority?.toLowerCase()) === 'high' || notesPriority?.toLowerCase().includes('urgente') ? '🔴' : (lead.priority || notesPriority?.toLowerCase()) === 'medium' || notesPriority?.toLowerCase().includes('semana') ? '🟡' : '🟢'}
+                          {lead.priority === 'high' || notesPriority?.toLowerCase().includes('urgente') ? 'Urgente' : lead.priority === 'medium' || notesPriority?.toLowerCase().includes('semana') ? 'Esta semana' : lead.priority === 'low' ? 'No urgente' : notesPriority || lead.priority}
+                        </span>
+                      )}
+                      {messages.length > 0 && (
+                        <span className="flex items-center gap-1">
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                          </svg>
+                          {messages.length} msgs
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
             <div className="flex items-center gap-1">
@@ -546,21 +612,6 @@ export function LeadChatDrawer({ isOpen, onClose, lead, conversationStatus }: Le
             >
               Chat
             </button>
-            {hasConversation && (
-              <button
-                onClick={() => setActiveTab('handoff')}
-                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'handoff'
-                    ? 'border-brand-500 text-brand-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                Requiere humano
-                {conversationStatus?.isHandoffPending && (
-                  <span className="ml-1.5 w-2 h-2 rounded-full bg-red-500 inline-block" />
-                )}
-              </button>
-            )}
             <button
               onClick={() => setActiveTab('timeline')}
               className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
@@ -569,7 +620,7 @@ export function LeadChatDrawer({ isOpen, onClose, lead, conversationStatus }: Le
                   : 'border-transparent text-gray-500 hover:text-gray-700'
               }`}
             >
-              Timeline
+              Actividad
             </button>
           </div>
         </div>
@@ -587,26 +638,6 @@ export function LeadChatDrawer({ isOpen, onClose, lead, conversationStatus }: Le
                 className="px-3 py-1 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 Tomar control
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Handoff Pending Banner */}
-        {conversationStatus?.isHandoffPending && (
-          <div className="px-4 py-3 bg-red-50 border-b border-red-100 shrink-0">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-red-800">Requiere humano</p>
-                <p className="text-xs text-red-600 mt-0.5">
-                  {conversationStatus.handoffReason || 'Requiere atencion humana'}
-                </p>
-              </div>
-              <button
-                onClick={handleTakeCase}
-                className="px-3 py-1.5 text-xs font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-              >
-                Tomar caso
               </button>
             </div>
           </div>

@@ -1,6 +1,7 @@
-import React from 'react';
-import type { ILead } from '../../types/lead';
+import React, { useMemo } from 'react';
+import type { ILead, InquiryReason, CustomerType, Temperature } from '../../types/lead';
 import type { ConversationStatus } from '../hooks/useConversationStatus';
+import { calculateLeadScore } from '../../services/lead-score.service';
 
 function relativeTime(date: Date): string {
   const now = Date.now();
@@ -78,6 +79,36 @@ export const LeadCard = React.memo(function LeadCard({
   onQuickReply,
   onOpenChat,
 }: LeadCardProps) {
+  // Calcular score si no está guardado
+  const calculatedScore = useMemo(() => {
+    if (!lead) return null;
+    if (lead.score && lead.score > 0) return { score: lead.score, temperature: lead.temperature as Temperature };
+    
+    const notesService = lead.notes?.match(/Servicio: (.*?)( \| |$)/)?.[1];
+    const notesPriority = lead.notes?.match(/Necesidad: (.*?)( \| |$)/)?.[1];
+    
+    if (lead.inquiryReason || lead.priority || notesService || notesPriority) {
+      const inquiryReasonMap: Record<string, InquiryReason> = {
+        'reparación': 'repair', 'repair': 'repair',
+        'instalación': 'installation', 'installation': 'installation',
+        'mantenimiento': 'maintenance', 'maintenance': 'maintenance',
+        'presupuesto': 'budget', 'budget': 'budget',
+      };
+      const reason = lead.inquiryReason || (notesService ? inquiryReasonMap[notesService.toLowerCase()] : undefined);
+      const priority = lead.priority || (notesPriority?.toLowerCase().includes('urgente') ? 'high' : notesPriority?.toLowerCase().includes('semana') ? 'medium' : 'low');
+      
+      if (reason || priority) {
+        return calculateLeadScore({
+          inquiryReason: reason,
+          priority: priority as 'high' | 'medium' | 'low',
+          customerType: lead.customerType as CustomerType || 'residential',
+          isB2B: lead.isB2B,
+        });
+      }
+    }
+    return null;
+  }, [lead]);
+
   const handleWhatsAppClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     onWhatsAppClick?.(lead);
@@ -107,9 +138,14 @@ export const LeadCard = React.memo(function LeadCard({
           <p className="text-[10px] md:text-[11px] text-gray-500 truncate mt-0.5">{lead.name}</p>
         )}
         <div className="flex items-center gap-1 mt-1">
-          {lead.temperature && TEMPERATURE_CONFIG[lead.temperature] && (
-            <span className={`inline-flex items-center px-1 py-px rounded text-[9px] font-medium border ${TEMPERATURE_CONFIG[lead.temperature].className}`}>
-              {TEMPERATURE_CONFIG[lead.temperature].icon}
+          {(calculatedScore?.temperature || lead.temperature) && TEMPERATURE_CONFIG[calculatedScore?.temperature || lead.temperature] && (
+            <span className={`inline-flex items-center px-1 py-px rounded text-[9px] font-medium border ${TEMPERATURE_CONFIG[calculatedScore?.temperature || lead.temperature].className}`}>
+              {TEMPERATURE_CONFIG[calculatedScore?.temperature || lead.temperature].icon} {calculatedScore?.score || lead.score || 0}
+            </span>
+          )}
+          {!calculatedScore?.temperature && !lead.temperature && (calculatedScore?.score || lead.score) && (calculatedScore?.score || lead.score) > 0 && (
+            <span className="inline-flex items-center px-1 py-px rounded text-[9px] font-medium bg-gray-100 text-gray-700 border border-gray-200">
+              {calculatedScore?.score || lead.score}
             </span>
           )}
           <span className={`inline-flex items-center px-1.5 py-px rounded text-[9px] font-medium ${STATUS_VARIANTS[lead.status] || 'bg-gray-100 text-gray-700'}`}>

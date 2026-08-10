@@ -12,7 +12,8 @@ import type {
   WhatsAppMessageDirection,
   WhatsAppMessageType 
 } from '../types/whatsapp-message';
-import type { ILead } from '../../leads/types/lead';
+import type { ILead, InquiryReason, CustomerType } from '../../leads/types/lead';
+import { calculateLeadScore } from '@/leads/services/lead-score.service';
 
 // Conversation Engine imports
 import {
@@ -551,6 +552,7 @@ export class WhatsAppService {
     console.log('[WhatsApp] Using Conversation Engine');
     
     try {
+      console.log('🎯 [SCORING] Llamando a processWithEngine...');
       const engineResult = await this.processWithEngine(tenantId, normalizedPhone, content, isNew, profileName);
       console.log('[WhatsApp] Engine result:', { 
         message: engineResult.message?.substring(0, 50), 
@@ -569,9 +571,10 @@ export class WhatsAppService {
       if (isFlowComplete) {
         console.log('[WhatsApp] Flow complete, lead will be updated with captured data below');
         // The resolver handles putting the conversation in WAITING state when it detects isComplete in engineData
-      }
-      
+}
+       
       // Update lead with captured data from conversation
+      console.log('🎯 [SCORING] engineResult.context existe?', !!engineResult.context);
       if (engineResult.context) {
           const contextData = engineResult.context.data;
           
@@ -590,9 +593,12 @@ export class WhatsAppService {
             'asap': 'high',
             'this_week': 'medium',
             'next_week': 'low',
+            'urgent': 'high', // urgent = high priority
           };
           const priorityForLead = priorityValue ? priorityEnumMap[priorityValue] : undefined;
           const priorityDisplayLabel = priorityLabel || (priorityValue === 'asap' ? 'HOY' : priorityValue === 'this_week' ? 'Esta semana' : priorityValue === 'next_week' ? 'No tengo apuro' : priorityValue);
+          
+          console.log('🎯 [SCORING] Buscando lead para actualizar...');
           
           try {
             const leadToUpdate = await LeadModel.findOne({
@@ -618,10 +624,61 @@ export class WhatsAppService {
               }
               
               // Update status ONLY if flow is complete
-              if (isFlowComplete && leadToUpdate.status === 'new') {
+              console.log('🎯 [SCORING] Verificando lead:', { 
+                isFlowComplete, 
+                currentStatus: leadToUpdate?.status,
+                needType,
+                priorityValue,
+                priorityForLead 
+              });
+              
+              if (isFlowComplete && leadToUpdate?.status === 'new') {
                 updateData.status = 'contacted';
                 updateData.updatedBy = 'whatsapp-bot';
-                console.log('[WhatsApp] Flow complete - Setting status to contacted');
+                
+                // Map service type label to inquiry reason enum
+                const inquiryReasonMap: Record<string, InquiryReason> = {
+                  'reparación': 'repair',
+                  'repair': 'repair',
+                  'instalación': 'installation',
+                  'installation': 'installation',
+                  'mantenimiento': 'maintenance',
+                  'maintenance': 'maintenance',
+                  'presupuesto': 'budget',
+                  'budget': 'budget',
+                };
+                const inquiryReasonValue = needType ? inquiryReasonMap[needType.toLowerCase()] : undefined;
+                
+                // Guardar inquiryReason y priority en el lead
+                if (inquiryReasonValue) {
+                  updateData.inquiryReason = inquiryReasonValue;
+                  console.log('🎯 [SCORING] inquiryReason guardada:', inquiryReasonValue);
+                } else {
+                  console.log('🎯 [SCORING] inquiryReason NO guardada - needType:', needType);
+                }
+                
+                if (priorityForLead) {
+                  updateData.priority = priorityForLead;
+                  console.log('🎯 [SCORING] priority guardada:', priorityForLead);
+                } else {
+                  console.log('🎯 [SCORING] priority NO guardada - priorityValue:', priorityValue);
+                }
+                
+                // Calculate score based on lead data (usando los mismos valores que guardamos)
+                const { score, temperature, breakdown } = calculateLeadScore({
+                  inquiryReason: inquiryReasonValue,
+                  priority: priorityForLead,
+                  customerType: customerTypeForLead as CustomerType,
+                  isB2B: leadToUpdate.isB2B,
+                });
+                
+                console.log('🎯 [SCORING] Score calculado:', { score, temperature, breakdown });
+                
+                updateData.score = score;
+                updateData.temperature = temperature;
+                updateData.scoringBreakdown = breakdown;
+                
+                console.log('🎯 [SCORING] Flow complete - Setting status to contacted with score:', score, temperature);
               }
               
               // Update priority
@@ -646,6 +703,7 @@ export class WhatsAppService {
               }
               
               if (Object.keys(updateData).length > 0) {
+                console.log('🎯 [SCORING] Guardando updateData:', JSON.stringify(updateData));
                 await LeadModel.findByIdAndUpdate(leadToUpdate._id, { $set: updateData });
                 console.log('[WhatsApp] ✅ Lead updated with all data');
               }
