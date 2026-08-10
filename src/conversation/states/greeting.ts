@@ -61,7 +61,7 @@ export class GreetingState implements IConversationState {
 
     return `${greeting} 👋
 
-Soy el asistente virtual de *Rolo Climatizaciones*.
+Soy el asistente virtual de *Rolo Climatización S.R.L*.
 
 Voy a hacerte unas preguntas para registrar tu solicitud y derivarla rápidamente al asesor correspondiente.
 

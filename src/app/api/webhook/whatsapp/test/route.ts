@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
     
     switch (state.step) {
       case 'initial':
-        responseMessage = '¡Hola! 👋 Bienvenido a Rolo Climatizaciones. ¿En qué puedo ayudarte hoy?\n\n🔧 Reparación\n🛡️ Mantenimiento\n🏗️ Proyecto nuevo';
+        responseMessage = '¡Hola! 👋 Bienvenido a Rolo Climatización S.R.L. ¿En qué puedo ayudarte hoy?\n\n🔧 Reparación\n🛡️ Mantenimiento\n🏗️ Proyecto nuevo';
         nextStep = 'inquiry_reason';
         break;
         

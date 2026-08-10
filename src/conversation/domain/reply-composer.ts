@@ -8,7 +8,7 @@ export interface BotReply {
 // Template de respuestas por estado
 const STATE_REPLIES: Record<string, (ctx: ConversationContext) => BotReply> = {
   greeting: () => ({
-    content: '¡Hola! Soy el asistente de Rolo Climatización. ¿En qué puedo ayudarte? 🌡️',
+    content: '¡Hola! Soy el asistente de Rolo Climatización S.R.L. ¿En qué puedo ayudarte? 🌡️',
   }),
 
   need_type_asked: () => ({

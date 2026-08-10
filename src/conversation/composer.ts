@@ -35,7 +35,7 @@ export class EngineReplyComposer implements ReplyComposer {
 
 Ya registramos tu solicitud correctamente.
 
-En los próximos minutos un asesor de *Rolo Climatizaciones* continuará la conversación para ayudarte.
+En los próximos minutos un asesor de *Rolo Climatización S.R.L* continuará la conversación para ayudarte.
 
 ¡Muchas gracias por contactarnos! 🤖`,
       };

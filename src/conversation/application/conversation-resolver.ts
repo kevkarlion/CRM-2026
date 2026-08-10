@@ -478,7 +478,7 @@ Un asesor continuará la conversación lo antes posible.`;
     const name = customerName || 'cliente';
     const baseMessage = `✨ Gracias por contactarnos, ${name}.
 
-Un asesor de Rolo Climatizaciones te atenderá personalmente.
+Un asesor de Rolo Climatización S.R.L te atenderá personalmente.
 
 ¡Te respondemos en breve! 😊`;
 
