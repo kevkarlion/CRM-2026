@@ -12,8 +12,73 @@ interface ChatInputProps {
 export function ChatInput({ onSend, onAttach, disabled, sending }: ChatInputProps) {
   const [value, setValue] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Validar archivo
+  const validateFile = useCallback((file: File): boolean => {
+    const allowedTypes = [
+      'image/jpeg',
+      'image/png',
+      'image/gif',
+      'image/webp',
+      'application/pdf',
+    ];
+    
+    if (!allowedTypes.includes(file.type)) {
+      alert('Tipo de archivo no permitido. Solo se permiten imágenes y PDFs.');
+      return false;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('El archivo excede el tamaño máximo de 10MB.');
+      return false;
+    }
+
+    return true;
+  }, []);
+
+  // Procesar archivo
+  const processFile = useCallback(async (file: File) => {
+    if (!validateFile(file) || !onAttach) return;
+    
+    setUploading(true);
+    try {
+      await onAttach(file);
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      alert('Error al subir archivo. Intenta de nuevo.');
+    } finally {
+      setUploading(false);
+    }
+  }, [onAttach, validateFile]);
+
+  // Drag and drop handlers
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onAttach) {
+      setIsDragging(true);
+    }
+  }, [onAttach]);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      processFile(files[0]);
+    }
+  }, [processFile]);
 
   const handleSend = useCallback(() => {
     const trimmed = value.trim();
@@ -53,26 +118,7 @@ export function ChatInput({ onSend, onAttach, disabled, sending }: ChatInputProp
     if (!files || files.length === 0 || !onAttach) return;
 
     const file = files[0];
-    
-    // Validar tipo
-    const allowedTypes = [
-      'image/jpeg',
-      'image/png',
-      'image/gif',
-      'image/webp',
-      'application/pdf',
-    ];
-    
-    if (!allowedTypes.includes(file.type)) {
-      alert('Tipo de archivo no permitido. Solo se permiten imágenes y PDFs.');
-      return;
-    }
-
-    // Validar tamaño (10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      alert('El archivo excede el tamaño máximo de 10MB.');
-      return;
-    }
+    if (!validateFile(file)) return;
 
     setUploading(true);
     try {
@@ -87,13 +133,28 @@ export function ChatInput({ onSend, onAttach, disabled, sending }: ChatInputProp
         fileInputRef.current.value = '';
       }
     }
-  }, [onAttach]);
+  }, [onAttach, validateFile]);
 
   const isActionDisabled = disabled || sending || uploading;
 
   return (
-    <div className="border-t border-gray-200 bg-white px-4 py-3">
-      <div className="flex items-end gap-2">
+    <div 
+      className={`border-t border-gray-200 bg-white px-4 py-3 transition-colors ${isDragging ? 'bg-brand-50 border-brand-300' : ''}`}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {isDragging && (
+        <div className="absolute inset-0 flex items-center justify-center bg-brand-500/10 border-2 border-dashed border-brand-400 rounded-lg m-1">
+          <div className="text-center">
+            <svg className="w-10 h-10 mx-auto text-brand-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
+            <p className="text-sm font-medium text-brand-700">Soltá el archivo aquí</p>
+          </div>
+        </div>
+      )}
+      <div className="flex items-end gap-2 relative z-10">
         <input
           ref={fileInputRef}
           type="file"
