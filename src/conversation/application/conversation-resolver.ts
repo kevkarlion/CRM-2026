@@ -158,7 +158,7 @@ export class ConversationResolver {
       phoneNumber: normalizedPhone,
       owner: 'OPERATOR',
       conversationType, // Filter by type
-      lifecycleState: { $in: ['IN_PROGRESS', 'RESOLVED'] },
+      lifecycleState: 'IN_PROGRESS', // Solo IN_PROGRESS significa control activo
     }).sort({ lastActivityAt: -1 }).lean();
 
     if (operatorControl) {
@@ -842,7 +842,7 @@ Un asesor se contactará contigo pronto. 😊`;
     const now = new Date();
     await ConversationModel.findByIdAndUpdate(conversationId, {
       $set: {
-        owner: 'OPERATOR',
+        owner: 'BOT', // El bot retomarÃ¡ el control despuÃ©s de 72h
         lifecycleState: 'RESOLVED',
         resolvedAt: now,
         closedAt: now,

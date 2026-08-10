@@ -1,72 +1,74 @@
 import { NextRequest, NextResponse } from 'next/server';
-import mongoose from 'mongoose';
 import { connectDB } from '@/core/db';
-import { ClientService } from '@/crm/services/client.service';
-import type { UpdateClientInput } from '@/crm/types/client';
+import ClientModel from '@/crm/models/client';
+import { Types } from 'mongoose';
 
-const service = new ClientService();
-
+/**
+ * GET /api/crm/clients/[id]
+ * Obtiene un cliente por ID
+ */
 export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  try {
-    const { id } = await params;
-    const tenantId = _request.headers.get('x-tenant-id');
-    if (!tenantId) {
-      return NextResponse.json({ error: 'x-tenant-id header is required' }, { status: 401 });
-    }
-
-    if (!mongoose.isValidObjectId(id)) {
-      return NextResponse.json({ error: 'Invalid client id' }, { status: 400 });
-    }
-
-    await connectDB();
-
-    const client = await service.findById(id, tenantId);
-    if (!client) {
-      return NextResponse.json({ error: 'Client not found' }, { status: 404 });
-    }
-
-    return NextResponse.json(client);
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
-      { status: 500 },
-    );
-  }
-}
-
-export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
     const tenantId = request.headers.get('x-tenant-id');
-    const userId = request.headers.get('x-user-id');
-    if (!tenantId || !userId) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    if (!mongoose.isValidObjectId(id)) {
-      return NextResponse.json({ error: 'Invalid client id' }, { status: 400 });
+    
+    if (!tenantId) {
+      return NextResponse.json({ error: 'x-tenant-id required' }, { status: 401 });
     }
 
     await connectDB();
+    
+    const client = await ClientModel.findOne(
+      { _id: new Types.ObjectId(id), tenantId: new Types.ObjectId(tenantId) }
+    ).lean();
+    
+    if (!client) {
+      return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 });
+    }
+    
+    return NextResponse.json(client);
+  } catch (error: any) {
+    console.error('[clients] GET error:', error?.message || error);
+    return NextResponse.json({ error: error?.message || 'Error' }, { status: 500 });
+  }
+}
 
-    const body = await request.json() as UpdateClientInput;
-    const updated = await service.update(id, body, tenantId, userId);
-
-    if (!updated) {
-      return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+/**
+ * PATCH /api/crm/clients/[id]
+ * Actualiza un cliente
+ */
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const tenantId = request.headers.get('x-tenant-id');
+    
+    if (!tenantId) {
+      return NextResponse.json({ error: 'x-tenant-id required' }, { status: 401 });
     }
 
-    return NextResponse.json(updated);
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
-      { status: 500 },
+    await connectDB();
+    
+    const body = await request.json();
+    
+    const client = await ClientModel.findOneAndUpdate(
+      { _id: new Types.ObjectId(id), tenantId: new Types.ObjectId(tenantId) },
+      { $set: body },
+      { new: true }
     );
+    
+    if (!client) {
+      return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 });
+    }
+    
+    return NextResponse.json(client);
+  } catch (error: any) {
+    console.error('[clients] PATCH error:', error?.message || error);
+    return NextResponse.json({ error: error?.message || 'Error' }, { status: 500 });
   }
 }

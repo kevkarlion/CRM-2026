@@ -257,30 +257,43 @@ export default function LeadDetailPage() {
     }
   };
 
-  const handleMarkResolved = async () => {
-    if (!conversation?._id) return;
+const handleCedeControl = async () => {
+    console.log('[LeadDetail] handleCedeControl called');
+    if (!conversation?._id) {
+      console.log('[LeadDetail] No conversation id');
+      return;
+    }
 
+    console.log('[LeadDetail] Ceding control, conversation:', conversation._id);
     setActionLoading(true);
     try {
-      console.log('[LeadDetail] Resolving conversation:', conversation._id);
-      const res = await api.post<{ success: boolean }>(
-        `/api/crm/conversations/${conversation._id}/resolve`, 
-        {}
-      );
-      console.log('[LeadDetail] Resolve response:', res);
+      const res = await fetch(`/api/crm/conversations/${conversation._id}/cede-control`, {
+        method: 'POST',
+        headers: {
+          'x-tenant-id': localStorage.getItem('tenantId') || '',
+          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
+        },
+      });
       
-      setConversation((prev) =>
-        prev
-          ? {
-              ...prev,
-              owner: 'OPERATOR',
-              lifecycleState: 'RESOLVED',
-              resolvedAt: new Date().toISOString(),
-            }
-          : null,
-      );
+      console.log('[LeadDetail] Response status:', res.status);
+      const data = await res.json();
+      console.log('[LeadDetail] Response data:', data);
+      
+      if (res.ok) {
+        setConversation((prev) =>
+          prev
+            ? {
+                ...prev,
+                owner: 'BOT',
+                lifecycleState: 'ACTIVE_LEAD',
+                lastActivityAt: new Date().toISOString(),
+              }
+            : null
+        );
+        refetchChat();
+      }
     } catch (err) {
-      console.error('Error marking resolved:', err);
+      console.error('[LeadDetail] Error:', err);
     } finally {
       setActionLoading(false);
     }
@@ -428,7 +441,7 @@ export default function LeadDetailPage() {
                     loading={loadingConversation}
                     actionLoading={actionLoading}
                     onTakeControl={handleTakeControl}
-                    onMarkResolved={handleMarkResolved}
+                    onCedeControl={handleCedeControl}
                   />
                 </div>
               </div>

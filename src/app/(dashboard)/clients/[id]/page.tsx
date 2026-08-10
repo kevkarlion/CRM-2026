@@ -367,36 +367,23 @@ export default function ClientDetailPage() {
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                   <div className="space-y-6 lg:col-span-2">
                     <ClientInfoCard client={client} />
-                    <ClientNotesCard notes={client.notes} />
-                    <ClientBlockHistoryCard client={client} />
+                    
+                    {/* Notas + Historial en filas separadas */}
+                    <div className="w-full">
+                      <ClientNotesCard notes={client.notes} clientId={id} />
+                    </div>
+                    <div className="w-full">
+                      <ClientBlockHistoryCard 
+                        client={client} 
+                        isBlocked={client.status === 'blocked'}
+                        onBlock={() => setBlockModalOpen(true)}
+                        onUnblock={() => setUnblockModalOpen(true)}
+                        loading={submitting}
+                      />
+                    </div>
                   </div>
 
                   <aside className="space-y-4">
-                    <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
-                      <h3 className="text-sm font-semibold text-gray-900 mb-2">Acciones</h3>
-                      <Link
-                        href={`/clients/${id}/edit`}
-                        className="w-full inline-flex items-center justify-center rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 transition-colors"
-                      >
-                        Editar Cliente
-                      </Link>
-                      {client.status !== 'blocked' && (
-                        <button
-                          onClick={() => setBlockModalOpen(true)}
-                          className="w-full inline-flex items-center justify-center rounded-lg border border-danger-200 bg-danger-50 px-4 py-2.5 text-sm font-semibold text-danger-700 hover:bg-danger-100 transition-colors"
-                        >
-                          Bloquear Cliente
-                        </button>
-                      )}
-                      {client.status === 'blocked' && (
-                        <button
-                          onClick={() => setUnblockModalOpen(true)}
-                          className="w-full inline-flex items-center justify-center rounded-lg bg-success-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-success-700 transition-colors"
-                        >
-                          Desbloquear Cliente
-                        </button>
-                      )}
-                    </div>
                     <LeadCommercialActionsCard
                       onOpenQuoteDrawer={() => setShowQuoteDrawer(true)}
                       onOpenVisitDrawer={() => setShowVisitDrawer(true)}

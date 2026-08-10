@@ -1,119 +1,141 @@
 'use client';
 
+import { useState } from 'react';
 import type { ConversationDetail } from './lead-detail.types';
 
 interface LeadBotControlCardProps {
   conversation: ConversationDetail | null;
   loading: boolean;
-  actionLoading: boolean;
-  onTakeControl: () => void;
-  onMarkResolved: () => void;
+  actionLoading?: boolean;
+  onTakeControl?: () => void;
+  onCedeControl?: () => void;
 }
 
-/** Bot ↔ operator handoff control card (always visible). */
+/** Bot ↔ operator control card */
 export function LeadBotControlCard({
   conversation,
   loading,
-  actionLoading,
+  actionLoading: externalLoading,
   onTakeControl,
-  onMarkResolved,
+  onCedeControl,
 }: LeadBotControlCardProps) {
-  if (loading && !conversation) {
+  const [localLoading, setLocalLoading] = useState(false);
+  const [localOwner, setLocalOwner] = useState<string | null>(null);
+  
+  // Usar estado local si existe, sino usar conversation
+  const isOperatorControl = localOwner === 'OPERATOR' || 
+    (localOwner === null && conversation?.owner === 'OPERATOR' && conversation?.lifecycleState === 'IN_PROGRESS');
+  
+  const isLoading = externalLoading || localLoading;
+
+  // Función interna para ceder control
+  const handleCedeToBot = async () => {
+    if (!conversation?._id) return;
+    
+    setLocalLoading(true);
+    
+    try {
+      const tenantId = localStorage.getItem('tenantId');
+      const token = localStorage.getItem('token');
+      
+      const res = await fetch(`/api/crm/conversations/${conversation._id}/cede-control`, {
+        method: 'POST',
+        headers: {
+          'x-tenant-id': tenantId || '',
+          'Authorization': `Bearer ${token || ''}`,
+        },
+      });
+      
+      if (res.ok) {
+        // Actualizar estado local sin recargar página
+        setLocalOwner('BOT');
+        // También llamar al callback del padre si existe
+        onCedeControl?.();
+      }
+    } catch (err) {
+      console.error('[LeadBotControlCard] Error:', err);
+    } finally {
+      setLocalLoading(false);
+    }
+  };
+
+  const handleClick = () => {
+    if (isOperatorControl) {
+      handleCedeToBot();
+    } else if (onTakeControl) {
+      onTakeControl();
+    }
+  };
+
+  if (loading) {
     return (
-      <div className="bg-white border border-gray-200 rounded-xl p-5">
-        <div className="mb-2 h-4 w-28 rounded bg-gray-200 animate-pulse" />
-        <div className="h-3 w-40 rounded bg-gray-100 animate-pulse" />
+      <div className="bg-white border border-gray-200 rounded-xl p-4 animate-pulse">
+        <div className="h-4 w-16 bg-gray-200 rounded" />
       </div>
     );
   }
 
+  if (!conversation) {
+    return null;
+  }
+
   return (
-    <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-semibold text-gray-900">Control del Bot</h3>
-        {conversation ? (
-          <span
-            className={`px-2 py-1 text-xs font-medium rounded-full ${
-              conversation.owner === 'BOT' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
-            }`}
-          >
-            {conversation.owner === 'BOT' ? '🤖 Bot activo' : '👤 Operador'}
-          </span>
-        ) : (
-          <span className="px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-500">
-            Sin conversación
-          </span>
-        )}
+    <div className="bg-white border border-gray-200 rounded-xl p-4">
+      {/* Estado actual */}
+      <div className={`flex items-center justify-center gap-2 p-3 rounded-lg mb-3 ${
+        isOperatorControl 
+          ? 'bg-green-50 border border-green-200' 
+          : 'bg-blue-50 border border-blue-200'
+      }`}>
+        <span className="text-xl">
+          {isOperatorControl ? '👤' : '🤖'}
+        </span>
+        <span className={`font-semibold ${
+          isOperatorControl ? 'text-green-700' : 'text-blue-700'
+        }`}>
+          {isOperatorControl ? 'Operador' : 'Bot'}
+        </span>
       </div>
 
-      {conversation ? (
-        <>
-          <div className="text-sm text-gray-600 space-y-1">
-            <p>
-              Estado: <span className="font-medium">{conversation.lifecycleState}</span>
-            </p>
-            {conversation.waitingMessageCount > 0 && (
-              <p>
-                Mensajes sin atender:{' '}
-                <span className="font-medium">{conversation.waitingMessageCount}</span>
-              </p>
+      {/* Botón toggle */}
+      <button
+        type="button"
+        onClick={handleClick}
+        disabled={isLoading}
+        className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium transition-all ${
+          isOperatorControl
+            ? 'bg-blue-600 hover:bg-blue-700 text-white'
+            : 'bg-green-600 hover:bg-green-700 text-white'
+        } disabled:opacity-50 disabled:cursor-not-allowed`}
+      >
+        {isLoading ? (
+          <span className="flex items-center gap-2">
+            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+            </svg>
+            Procesando...
+          </span>
+        ) : (
+          <span className="flex items-center gap-2">
+            {isOperatorControl ? (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                Ceder al Bot
+              </>
+            ) : (
+              <>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+                Tomar Control
+              </>
             )}
-            {conversation.resolvedAt && (
-              <p>
-                Resuelto:{' '}
-                <span className="font-medium">
-                  {new Date(conversation.resolvedAt).toLocaleString()}
-                </span>
-              </p>
-            )}
-          </div>
-
-          <div className="space-y-2 pt-2">
-            <button
-              onClick={onTakeControl}
-              disabled={actionLoading}
-              className="w-full rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed bg-gray-800 text-white hover:bg-gray-900"
-            >
-              {actionLoading ? 'Tomando...' : '👤 Tomar control'}
-            </button>
-
-            <button
-              onClick={onMarkResolved}
-              disabled={actionLoading || conversation.lifecycleState === 'RESOLVED'}
-              className={`w-full rounded-lg px-4 py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                conversation.lifecycleState === 'RESOLVED'
-                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                  : 'bg-success-500 text-white hover:bg-success-600'
-              }`}
-            >
-              {actionLoading ? 'Marcando...' : '✅ Marcar como resuelto'}
-            </button>
-
-            {conversation.lifecycleState === 'RESOLVED' && (
-              <div className="p-3 bg-green-50 rounded-lg text-center">
-                <p className="text-sm text-success-700">
-                  ✅ Conversación resuelta
-                  {conversation.resolvedAt && (
-                    <span className="block text-xs mt-1">
-                      (hace{' '}
-                      {Math.round(
-                        (Date.now() - new Date(conversation.resolvedAt).getTime()) /
-                          (1000 * 60 * 60),
-                      )}{' '}
-                      horas)
-                    </span>
-                  )}
-                </p>
-              </div>
-            )}
-          </div>
-        </>
-      ) : (
-        <div className="text-sm text-gray-500 text-center py-4">
-          <p>No hay conversación activa con este lead.</p>
-          <p className="text-xs mt-1">El lead no ha escrito por WhatsApp.</p>
-        </div>
-      )}
+          </span>
+        )}
+      </button>
     </div>
   );
 }

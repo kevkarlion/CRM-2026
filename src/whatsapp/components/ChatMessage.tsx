@@ -189,7 +189,8 @@ function DocumentMessage({
           </a>
           <a
             href={url}
-            download={displayName}
+            target="_blank"
+            rel="noopener noreferrer"
             className={`p-1.5 rounded-lg transition-colors ${
               isOutbound 
                 ? 'text-brand-100 hover:bg-brand-500/30' 
