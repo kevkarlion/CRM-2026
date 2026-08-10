@@ -442,7 +442,10 @@ export class WhatsAppMediaService {
       },
     };
 
-    if (caption) {
+    // Para documentos, usar filename para el título; para imágenes, usar caption
+    if (!isImage && filename) {
+      messageBody.document.filename = filename;
+    } else if (caption) {
       if (isImage) {
         messageBody.image.caption = caption;
       } else {
