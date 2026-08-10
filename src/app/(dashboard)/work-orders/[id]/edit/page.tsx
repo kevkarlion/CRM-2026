@@ -257,24 +257,35 @@ export default function EditWorkOrderPage() {
       body.version = workOrder?.version ?? 0;
 
       if (approve) {
-        // El estado se determina según tenga técnico y fecha:
-        // - Si tiene técnico y fecha → scheduled
-        // - Si tiene técnico sin fecha → assigned
-        // - Si tiene fecha sin técnico → pending_assignment
+        // Estados canónicos: draft → scheduled → in_progress → completed/cancelled
+        // Solo se puede pasar a 'scheduled' si tiene técnico Y fecha programada
         const currentStatus = workOrder?.status;
+        const isCanonicalStatus = ['draft', 'scheduled', 'in_progress', 'completed', 'cancelled'].includes(currentStatus || '');
         
-        if (form.assignedTechnician && form.scheduledDate) {
-          // Tiene técnico Y fecha → Programada
-          body.status = 'scheduled';
-        } else if (form.assignedTechnician && !form.scheduledDate) {
-          // Tiene técnico sin fecha → Asignada
-          body.status = 'assigned';
-        } else if (!form.assignedTechnician && form.scheduledDate) {
-          // Tiene fecha sin técnico → Pendiente (fecha sin asignar)
-          body.status = 'pending_assignment';
+        if (isCanonicalStatus) {
+          // Estado canónico: lógica normal
+          if (currentStatus === 'draft') {
+            // Desde draft solo puede pasar a scheduled si tiene técnico Y fecha
+            if (form.assignedTechnician && form.scheduledDate) {
+              body.status = 'scheduled';
+            }
+            // Si no tiene ambos, permanece en draft (no enviar status)
+          } else if (currentStatus === 'scheduled') {
+            // Desde scheduled: mantener scheduled si tiene técnico Y fecha
+            // Si pierde técnico o fecha, mantener scheduled (no permite volver a draft)
+            if (form.assignedTechnician && form.scheduledDate) {
+              body.status = 'scheduled';
+            }
+            // No permitir volver a draft desde scheduled
+          }
+          // Para in_progress, completed, cancelled no se cambia el estado aquí
         } else {
-          // Ni técnico ni fecha → Pendiente de asignación
-          body.status = 'pending_assignment';
+          // Estado legacy (pending_assignment, assigned, etc.): 
+          // Solo cambiar a scheduled si tiene técnico Y fecha, sino mantener el actual
+          if (form.assignedTechnician && form.scheduledDate) {
+            body.status = 'scheduled';
+          }
+          // Si no tiene ambos, no enviar status para mantener el actual
         }
       }
 

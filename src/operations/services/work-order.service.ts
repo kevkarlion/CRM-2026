@@ -244,9 +244,16 @@ export class WorkOrderService {
         return null;
       }
 
-      const currentStatus = current.status as WorkOrderStatus;
+      const currentStatus = current.status as string;
 
-      validateTransition(currentStatus, targetStatus, context);
+      // Skip validation for legacy statuses - just allow the transition
+      const CANONICAL_STATUSES = ['draft', 'scheduled', 'in_progress', 'completed', 'cancelled'];
+      if (!CANONICAL_STATUSES.includes(currentStatus)) {
+        // Legacy status - allow transition to scheduled if has schedule
+        console.log(`[changeStatus] Legacy status detected: ${currentStatus} → ${targetStatus}, allowing transition`);
+      } else {
+        validateTransition(currentStatus, targetStatus, context);
+      }
 
       const updated = await WorkOrderModel.findOneAndUpdate(
         { _id: id, tenantId, status: currentStatus, version },

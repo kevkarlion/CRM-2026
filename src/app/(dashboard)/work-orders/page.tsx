@@ -524,7 +524,7 @@ const fetchOrders = useCallback(async () => {
                           Ver
                         </button>
                         {isTechnician && !isAdmin && !isOwn && activeTab === 'all' && 
-                         (wo.status === 'scheduled' || wo.status === 'assigned') && (
+                         (wo.status === 'scheduled' || wo.status === 'draft') && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -616,9 +616,9 @@ const fetchOrders = useCallback(async () => {
                       </svg>
                       Ver
                     </button>
-                    {/* Botón "Solicitar" para técnicos - en OTs Programadas (sin técnico) o Asignadas (a otro técnico) */}
+                    {/* Botón "Solicitar" para técnicos - en OTs Programadas (sin técnico) o Borrador */}
                     {isTechnician && !isAdmin && !isOwn && activeTab === 'all' && 
-                     (wo.status === 'scheduled' || wo.status === 'assigned') && (
+                     (wo.status === 'scheduled' || wo.status === 'draft') && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();

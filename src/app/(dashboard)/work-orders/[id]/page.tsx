@@ -74,31 +74,19 @@ interface VisitReport {
 }
 
 const STATUS_OPTIONS: Record<string, string> = {
-  pending_assignment: 'Pendiente',
-  assigned: 'Asignada',
+  draft: 'Borrador',
   scheduled: 'Programada',
   in_progress: 'En Ejecución',
-  completed: 'Cerrada',
-  closed: 'Cerrada',
+  completed: 'Completada',
   cancelled: 'Cancelada',
-  // Estados viejos
-  draft: 'Borrador',
-  confirmed: 'Confirmada',
-  paused: 'Pausada',
 };
 
 const STATUS_VARIANT: Record<string, string> = {
-  pending_assignment: 'bg-gray-100 text-gray-700',
-  assigned: 'bg-indigo-50 text-indigo-700',
+  draft: 'bg-gray-100 text-gray-700',
   scheduled: 'bg-blue-50 text-blue-700',
   in_progress: 'bg-amber-50 text-amber-700',
   completed: 'bg-green-50 text-green-700',
   cancelled: 'bg-red-50 text-red-700',
-  closed: 'bg-slate-50 text-slate-700',
-  // Estados viejos
-  draft: 'bg-gray-100 text-gray-700',
-  confirmed: 'bg-teal-50 text-teal-700',
-  paused: 'bg-yellow-50 text-yellow-700',
 };
 
 const PRIORITY_VARIANT: Record<string, string> = {
@@ -112,12 +100,10 @@ const PRIORITY_LABELS: Record<string, string> = {
 };
 
 const NEXT_STATUSES: Record<string, { value: string; label: string }[]> = {
-  pending_assignment: [{ value: 'assigned', label: 'Asignar' }, { value: 'cancelled', label: 'Cancelar' }],
-  assigned: [{ value: 'scheduled', label: 'Programar' }, { value: 'cancelled', label: 'Cancelar' }],
+  draft: [{ value: 'scheduled', label: 'Programar' }, { value: 'cancelled', label: 'Cancelar' }],
   scheduled: [{ value: 'in_progress', label: 'Iniciar' }, { value: 'cancelled', label: 'Cancelar' }],
-  in_progress: [{ value: 'closed', label: 'Cerrar' }, { value: 'cancelled', label: 'Cancelar' }],
-  completed: [{ value: 'closed', label: 'Cerrar' }],
-  closed: [],
+  in_progress: [{ value: 'completed', label: 'Completar' }, { value: 'cancelled', label: 'Cancelar' }],
+  completed: [],
   cancelled: [],
 };
 
@@ -279,7 +265,7 @@ export default function WorkOrderDetailPage() {
     if (!workOrder) return;
     loadChecklist();
     loadTechnicians(); // Always pre-load for assign/reassign
-    if (workOrder.status === 'completed' || workOrder.status === 'closed') {
+    if (workOrder.status === 'completed') {
       loadReport();
     }
   }, [workOrder?._id]);
@@ -907,8 +893,8 @@ export default function WorkOrderDetailPage() {
             {/* Work Execution Buttons - Only for technicians */}
             {isCurrentUserTheAssignedTech() && !isTerminal && (
               <>
-                {/* Start Work button - show when status is 'assigned' or 'scheduled' */}
-                {(workOrder.status === 'assigned' || workOrder.status === 'scheduled') && (
+                {/* Start Work button - show when status is 'draft' or 'scheduled' */}
+                {(workOrder.status === 'draft' || workOrder.status === 'scheduled') && (
                   <>
                     {startingWorkError && (
                       <div className="rounded-lg bg-danger-50 px-3 py-2 text-xs text-danger-700">

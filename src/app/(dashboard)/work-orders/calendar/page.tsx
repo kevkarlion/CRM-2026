@@ -140,7 +140,7 @@ export default function TechnicianCalendarPage() {
         unassigned.push(
           ...listWO
             .filter((wo: UnassignedWorkOrder) => 
-              (wo.status === 'pending_assignment' || wo.status === 'assigned') &&
+              wo.status === 'draft' &&
               isNotOverdue(wo.scheduledDate)
             )
             .map((wo: UnassignedWorkOrder) => ({ ...wo, type: 'work_order' as const }))

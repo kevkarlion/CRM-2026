@@ -13,8 +13,13 @@ export interface TransitionContext {
  * Flujo: draft → scheduled → in_progress → completed
  *                                                    ↓
  *                                                  cancelled
+ * 
+ * Estados legacy (para compatibilidad con datos existentes):
+ * pending_assignment → scheduled (si hay técnico y fecha)
+ * assigned → scheduled (si hay fecha)
  */
 export const VALID_TRANSITIONS: Record<WorkOrderStatus, WorkOrderStatus[]> = {
+  // Estados canónicos
   // 1. Borrador → puede programarse o cancelarse
   draft: ['scheduled', 'cancelled'],
   
@@ -31,14 +36,40 @@ export const VALID_TRANSITIONS: Record<WorkOrderStatus, WorkOrderStatus[]> = {
   cancelled: [],
 };
 
+// Estados legacy para compatibilidad con datos existentes
+// Estos no están en el tipo WorkOrderStatus pero pueden existir en la DB
+export const LEGACY_TRANSITIONS: Record<string, string[]> = {
+  pending_assignment: ['scheduled', 'cancelled'],
+  assigned: ['scheduled', 'cancelled'],
+  confirmed: ['scheduled', 'cancelled'],
+  paused: ['in_progress', 'cancelled'],
+  closed: [], // terminal
+};
+
 export const TERMINAL_STATUSES: WorkOrderStatus[] = ['cancelled', 'completed'];
 
 export const ACTIVE_STATUSES: WorkOrderStatus[] = [
   'draft', 'scheduled', 'in_progress',
+  // Legacy active statuses
+  'pending_assignment', 'assigned', 'confirmed', 'paused',
 ];
 
-export function canTransition(from: WorkOrderStatus, to: WorkOrderStatus): boolean {
-  return VALID_TRANSITIONS[from]?.includes(to) ?? false;
+const CANONICAL_STATUSES = ['draft', 'scheduled', 'in_progress', 'completed', 'cancelled'];
+
+export function canTransition(from: string, to: WorkOrderStatus): boolean {
+  // Si es un estado canónico, usar VALID_TRANSITIONS
+  if (CANONICAL_STATUSES.includes(from)) {
+    return VALID_TRANSITIONS[from as WorkOrderStatus]?.includes(to) ?? false;
+  }
+  
+  // Si es un estado legacy, usar LEGACY_TRANSITIONS
+  if (from in LEGACY_TRANSITIONS) {
+    return LEGACY_TRANSITIONS[from]?.includes(to) ?? false;
+  }
+  
+  // Estado desconocido
+  console.warn('[canTransition] Unknown status:', from);
+  return false;
 }
 
 export class TransitionError extends Error {
@@ -54,17 +85,21 @@ export class TransitionError extends Error {
 }
 
 export function validateTransition(
-  from: WorkOrderStatus,
+  from: string,
   to: WorkOrderStatus,
   context: TransitionContext = {},
 ): void {
   if (!canTransition(from, to)) {
     throw new TransitionError(
       `Invalid transition: ${from} → ${to}`,
-      from, to,
+      from as WorkOrderStatus, to,
       `Transition from '${from}' to '${to}' is not allowed by the state machine.`,
     );
   }
+
+  // Solo aplicar validaciones de contexto para estados canónicos
+  const isCanonicalFrom = ['draft', 'scheduled', 'in_progress', 'completed', 'cancelled'].includes(from);
+  if (!isCanonicalFrom) return;
 
   if (from === 'scheduled' && to === 'in_progress' && !context.hasChecklist) {
     throw new TransitionError(
