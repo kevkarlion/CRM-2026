@@ -45,6 +45,7 @@ const TERMINAL_STATES: QuoteStatus[] = ['approved', 'rejected', 'expired', 'canc
 export interface QuoteListFilters {
   status?: QuoteStatus | QuoteStatus[];
   clientId?: string;
+  leadId?: string;
   createdAtGte?: string;
   createdAtLte?: string;
   search?: string;
@@ -102,6 +103,7 @@ export class QuoteService {
         leadId: data.leadId ? new Types.ObjectId(data.leadId) : null,
         clientId: data.clientId ? new Types.ObjectId(data.clientId) : null,
         locationId: data.locationId ? new Types.ObjectId(data.locationId) : null,
+        sourceDocumentId: data.sourceDocumentId ? new Types.ObjectId(data.sourceDocumentId) : null,
         number,
         status: 'draft',
         currentVersion: 1,
@@ -239,6 +241,10 @@ export class QuoteService {
 
     if (filters.clientId) {
       filter.clientId = new Types.ObjectId(filters.clientId);
+    }
+
+    if (filters.leadId) {
+      filter.leadId = new Types.ObjectId(filters.leadId);
     }
 
     if (filters.createdAtGte || filters.createdAtLte) {
@@ -1015,6 +1021,84 @@ export class QuoteService {
     ).exec();
 
     return result.modifiedCount;
+  }
+
+  /**
+   * Mark a quote as direct sale (bypasses normal quote flow)
+   * Used when a quote is created from a document and immediately confirmed as a sale
+   */
+  async markAsDirectSale(
+    quoteId: string,
+    userId: string,
+    tenantId: string,
+  ): Promise<IQuote> {
+    const quote = await QuoteModel.findOne({
+      _id: new Types.ObjectId(quoteId),
+      tenantId: new Types.ObjectId(tenantId),
+      status: 'draft',
+      deletedAt: null,
+    }).exec();
+
+    if (!quote) {
+      throw new ValidationError('Cotización en borrador no encontrada');
+    }
+
+    const updated = await QuoteModel.findOneAndUpdate(
+      {
+        _id: new Types.ObjectId(quoteId),
+        tenantId: new Types.ObjectId(tenantId),
+        status: 'draft',
+        deletedAt: null,
+      },
+      {
+        $set: {
+          status: 'direct_sale',
+          approvedAt: new Date(),
+          convertedAt: new Date(),
+          updatedBy: new Types.ObjectId(userId),
+        },
+      },
+      { new: true },
+    ).exec();
+
+    if (!updated) {
+      throw new ConflictError('La cotización ya fue modificada por otro usuario');
+    }
+
+    // Create a version record for the direct sale
+    await QuoteVersionModel.create([{
+      tenantId: new Types.ObjectId(tenantId),
+      quoteId: updated._id,
+      version: 1,
+      title: quote.title,
+      description: quote.description,
+      items: quote.items || [],
+      subtotal: quote.subtotal || 0,
+      discountAmount: quote.discountAmount || 0,
+      taxAmount: quote.taxAmount || 0,
+      total: quote.total || 0,
+      notes: quote.notes,
+      createdBy: new Types.ObjectId(userId),
+    }]);
+
+    // Log activity
+    await logActivity({
+      tenantId,
+      entityType: 'quote',
+      entityId: quoteId,
+      action: 'direct_sale',
+      actorId: userId,
+      leadId: quote.leadId?.toString(),
+      clientId: quote.clientId?.toString(),
+      metadata: {
+        number: quote.number,
+        title: quote.title,
+        total: quote.total,
+        status: 'direct_sale',
+      },
+    });
+
+    return updated as unknown as IQuote;
   }
 
   private async getTenantQuotePrefix(tenantId: string): Promise<string> {

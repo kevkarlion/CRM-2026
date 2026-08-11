@@ -43,6 +43,7 @@ interface WorkOrder {
   priority: string;
   source: string;
   scheduledDate?: string;
+  createdAt?: string;
   clientSnapshot?: { name?: string };
   assignedTechnicians?: Array<{ _id: string; name: string; email?: string } | string>;
 }
@@ -500,6 +501,7 @@ const fetchOrders = useCallback(async () => {
                   <th className="min-w-[100px] px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Cliente</th>
                   <th className="w-20 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Estado</th>
                   <th className="w-20 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Prioridad</th>
+                  <th className="w-24 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-brand-600" onClick={() => handleSort('createdAt')}>Creación <SortIcon field="createdAt" /></th>
                   <th className="w-24 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-brand-600" onClick={() => handleSort('scheduledDate')}>Fecha <SortIcon field="scheduledDate" /></th>
                   <th className="px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Técnico</th>
                 </tr>
@@ -557,6 +559,7 @@ const fetchOrders = useCallback(async () => {
                           {label(PRIORITY_OPTIONS, wo.priority)}
                         </span>
                       </td>
+                      <td className="px-2 py-1.5 text-gray-500 whitespace-nowrap align-middle">{formatDate(wo.createdAt)}</td>
                       <td className="px-2 py-1.5 text-gray-500 whitespace-nowrap align-middle">{formatDate(wo.scheduledDate)}</td>
                       <td className="px-2 py-1.5 text-gray-500 truncate align-middle">{technicianName(wo)}</td>
                     </tr>

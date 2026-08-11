@@ -404,6 +404,7 @@ export class LeadService {
     newStatus: LeadStatus,
     userId: string,
     tenantId: string,
+    options?: { skipClientCheck?: boolean },
   ): Promise<ILead> {
     const lead = await LeadModel.findOne({
       _id: new Types.ObjectId(leadId),
@@ -438,6 +439,11 @@ export class LeadService {
         (lead.email?.trim() || lead.phone?.trim()) &&
         lead.companyName?.trim()
       );
+    }
+
+    // Skip client check if explicitly requested (e.g., for document-based direct sales)
+    if (options?.skipClientCheck) {
+      hasClient = true;
     }
 
     validateTransition(currentStatus, newStatus, { hasActivity, hasRequiredFields, hasClient });

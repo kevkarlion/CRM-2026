@@ -476,7 +476,7 @@ const handleCedeControl = async () => {
           </EntityTabPanel>
 
           <EntityTabPanel id="ordenes">
-            <LeadWorkOrdersTab workOrders={workOrders} loading={loadingSaleDetail} />
+            <LeadWorkOrdersTab leadId={id} />
           </EntityTabPanel>
 
           <EntityTabPanel id="visitas">
@@ -489,7 +489,7 @@ const handleCedeControl = async () => {
           </EntityTabPanel>
 
           <EntityTabPanel id="documentacion">
-            <LeadDocumentationTab leadId={id} />
+            <LeadDocumentationTab leadId={id} leadStatus={lead?.status} onStatusChange={refreshLeadAndTimeline} />
           </EntityTabPanel>
 
           <EntityTabPanel id="actividad">

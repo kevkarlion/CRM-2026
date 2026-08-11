@@ -20,6 +20,7 @@ export async function GET(request: NextRequest) {
     const statusParam = searchParams.get('status') || undefined;
     const status = statusParam ? statusParam.split(',').filter(Boolean) : undefined;
     const clientId = searchParams.get('clientId') || undefined;
+    const leadId = searchParams.get('leadId') || undefined;
     const search = searchParams.get('search') || undefined;
     const cursor = searchParams.get('cursor') || undefined;
     const limit = parseInt(searchParams.get('limit') || '20', 10);
@@ -29,6 +30,7 @@ export async function GET(request: NextRequest) {
     const result = await service.listQuotes({
       status: status as QuoteStatus | QuoteStatus[] | undefined,
       clientId,
+      leadId,
       search,
       cursor,
       limit,

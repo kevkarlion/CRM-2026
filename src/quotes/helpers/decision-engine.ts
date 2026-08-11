@@ -127,7 +127,7 @@ export function evaluateQuoteDecision(context: DecisionContext): DecisionOutput 
       if (hasWorkOrder) {
         if (workOrderStatus === 'draft') {
           actions.push(
-            { id: 'edit-work-order', label: 'Editar OT', variant: 'success', icon: 'edit' },
+            { id: 'edit-work-order', label: 'Programar la OT', variant: 'success', icon: 'edit' },
           )
         } else {
           actions.push(

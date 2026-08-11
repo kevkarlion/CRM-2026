@@ -163,6 +163,10 @@ export class WorkOrderService {
       query.clientId = new Types.ObjectId(filters.clientId);
     }
 
+    if (filters.leadId) {
+      query.leadId = new Types.ObjectId(filters.leadId);
+    }
+
     if (filters.scheduledDateGte || filters.scheduledDateLte) {
       const dateFilter: Record<string, unknown> = {};
       if (filters.scheduledDateGte) dateFilter.$gte = filters.scheduledDateGte;

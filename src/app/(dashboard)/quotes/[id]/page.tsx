@@ -167,6 +167,8 @@ export default function QuoteDetailPage() {
     )
   }
 
+  const isDocumentQuote = data?.quote?.sourceDocumentId || sourceDocument
+
   return (
     <div className="p-6 pb-24">
       <Breadcrumb
@@ -177,6 +179,85 @@ export default function QuoteDetailPage() {
         ]}
       />
 
+      {/* Vista simplificada para presupuestos PDF */}
+      {isDocumentQuote ? (
+        <div className="mt-6 space-y-6">
+          <ExecutiveSummaryHeader
+            quote={data.quote}
+            leadName={data.lead?.name}
+          />
+
+          {/* Documento PDF embedido */}
+          {sourceDocument?.secureUrl && (
+            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+              <div className="bg-gray-50 border-b border-gray-200 px-5 py-3 flex items-center justify-between">
+                <h2 className="font-semibold text-gray-900">Documento PDF</h2>
+                <div className="flex gap-2">
+                  <a
+                    href={sourceDocument.secureUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md bg-brand-600 text-white hover:bg-brand-700"
+                  >
+                    <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                    </svg>
+                    Abrir en nueva pestaña
+                  </a>
+                  <a
+                    href={sourceDocument.secureUrl}
+                    download
+                    className="inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-md bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                  >
+                    <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Descargar
+                  </a>
+                </div>
+              </div>
+              <div className="h-[600px] bg-gray-100">
+                <iframe
+                  src={sourceDocument.secureUrl}
+                  className="w-full h-full"
+                  title="Documento PDF"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Información relevante */}
+          <GeneralInfoCard quote={data.quote} sourceDocument={sourceDocument} />
+
+          <ActivityTimeline
+            entityId={quoteId}
+            entityType="quote"
+          />
+          
+          {/* Barra de acciones fija para quotes desde documento */}
+          <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-40">
+            <div className="max-w-7xl mx-auto flex justify-end gap-2">
+              {decision?.actions?.map((action) => (
+                <button
+                  key={action.id}
+                  onClick={() => handleAction(action.id)}
+                  disabled={action.disabled || loading}
+                  className={`
+                    px-4 py-2 rounded-lg text-sm font-medium transition-colors
+                    ${action.variant === 'primary' ? 'bg-brand-600 text-white hover:bg-brand-700' : ''}
+                    ${action.variant === 'success' ? 'bg-green-600 text-white hover:bg-green-700' : ''}
+                    ${action.variant === 'secondary' ? 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-50' : ''}
+                    ${action.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                  `}
+                >
+                  {action.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : (
+      /* Vista normal para cotizaciones */
       <div className="grid grid-cols-1 lg:grid-cols-[3fr_1fr] gap-6 mt-6">
         <div className="space-y-6">
           <ExecutiveSummaryHeader
@@ -238,6 +319,7 @@ export default function QuoteDetailPage() {
           />
         </div>
       </div>
+      )}
 
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 z-40">
         <div className="max-w-7xl mx-auto">

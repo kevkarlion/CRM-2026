@@ -28,6 +28,15 @@ export async function POST(
       return NextResponse.json({ error: 'x-tenant-id required' }, { status: 401 });
     }
 
+    // Optional body: quoteId if reusing existing quote (from document flow)
+    let quoteId: string | undefined;
+    try {
+      const body = await req.json();
+      quoteId = body.quoteId;
+    } catch {
+      // No body or empty body is fine
+    }
+
     await connectDB();
 
     // Estados válidos para confirmar venta
@@ -50,6 +59,20 @@ export async function POST(
 
     if (lead.convertedToClient) {
       return NextResponse.json({ error: 'Este lead ya fue convertido a cliente' }, { status: 400 });
+    }
+
+    // If quoteId provided, use existing quote; otherwise create new one
+    let quoteNumber: string;
+    if (quoteId) {
+      const QuoteModel = (await import('@/quotes/models/quote')).default;
+      const existingQuote = await QuoteModel.findOne({
+        _id: new Types.ObjectId(quoteId),
+        tenantId: new Types.ObjectId(tenantId),
+      });
+      if (!existingQuote) {
+        return NextResponse.json({ error: 'Quote no encontrado' }, { status: 404 });
+      }
+      quoteNumber = existingQuote.number;
     }
 
     // 1. Crear cliente desde el lead
@@ -96,6 +119,7 @@ export async function POST(
         tenantId: new Types.ObjectId(tenantId),
         clientId: client._id,
         leadId: lead._id,
+        quoteId: quoteId ? new Types.ObjectId(quoteId) : null,
         clientSnapshot: {
           name: clientName,
           email: lead.email,
@@ -121,6 +145,15 @@ export async function POST(
     ]);
 
     console.log('[confirm-sale-pdf] OT creada:', workOrder._id, 'estado: draft');
+
+    // Link the work order to the quote so decision engine knows it exists
+    if (quoteId) {
+      const QuoteModel = (await import('@/quotes/models/quote')).default;
+      await QuoteModel.updateOne(
+        { _id: new Types.ObjectId(quoteId) },
+        { $set: { convertedToWorkOrder: workOrder._id } }
+      );
+    }
 
     // Emitir evento para ActivityLog y Timeline
     try {

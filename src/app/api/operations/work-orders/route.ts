@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get('type') || undefined;
     const technicianId = searchParams.get('technicianId') || undefined;
     const clientId = searchParams.get('clientId') || undefined;
+    const leadId = searchParams.get('leadId') || undefined;
     const from = searchParams.get('from') || undefined;
     const to = searchParams.get('to') || undefined;
     const search = searchParams.get('search') || undefined;
@@ -32,6 +33,7 @@ export async function GET(request: NextRequest) {
     }
     if (technicianId) filters.technicianId = technicianId;
     if (clientId) filters.clientId = clientId;
+    if (leadId) filters.leadId = leadId;
     if (from || to) {
       filters.scheduledDateGte = from || undefined;
       filters.scheduledDateLte = to || undefined;

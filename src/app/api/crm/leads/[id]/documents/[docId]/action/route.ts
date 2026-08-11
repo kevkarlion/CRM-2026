@@ -55,27 +55,12 @@ export async function POST(
     // Determine new lead status based on action
     const newLeadStatus = action === 'quote_sent' ? 'quote_sent' : 'won';
     
-    // Get current lead status to check if transition is needed
+    // Get current lead status (just for logging purposes now)
     const LeadModel = (await import('@/leads/models/lead')).default;
     const currentLead = await LeadModel.findById(leadId).select('status').lean();
     const currentStatus = currentLead?.status;
     
-    // Validate transition - skip if already in target status
-    const terminalStatuses = ['won', 'lost', 'disqualified'];
-    const invalidTransitions: Record<string, string[]> = {
-      new: ['new'],
-      contacted: ['contacted'],
-      quote_sent: ['quote_sent'],
-      negotiation: ['negotiation'],
-      technical_visit: ['technical_visit'],
-      qualified: ['qualified'],
-      won: ['won'],
-      lost: ['lost'],
-      disqualified: ['disqualified'],
-    };
-    
-    // Allow if: status is different OR status is terminal (we can still create quotes)
-    const needsStatusUpdate = currentStatus !== newLeadStatus && !terminalStatuses.includes(currentStatus || '');
+    console.log('[document-action] Current status:', currentStatus, '-> new status will be:', newLeadStatus);
 
     // Create quote with sourceDocumentId reference
     // Use the document title as the quote title, add placeholder item for now
@@ -99,27 +84,126 @@ export async function POST(
     
     const quoteId = String(quoteResult.quote._id);
     
-    // Send or approve the quote based on action
-    // This bypasses the normal flow - documents come from external system so they go directly to sent/approved
+    // Handle quote status based on action
     if (action === 'quote_sent') {
-      // Just send the quote (draft -> sent)
+      // Send the quote (draft -> sent)
+      // sendQuote automatically updates lead status to 'quote_sent' when first quote is sent
       await quoteService.sendQuote(quoteId, userId, tenantId);
     } else if (action === 'won') {
-      // Send first, then approve (draft -> sent -> approved)
-      await quoteService.sendQuote(quoteId, userId, tenantId);
-      await quoteService.approveQuote(quoteId, userId, tenantId);
+      // Mark as direct sale (draft -> direct_sale)
+      await quoteService.markAsDirectSale(quoteId, userId, tenantId);
+      
+      // Now call the existing confirm-sale-pdf logic to create client + OT + update lead
+      // This ensures single source of truth for client/OT creation
+      const LeadModel = (await import('@/leads/models/lead')).default;
+      const ClientModel = (await import('@/crm/models/client')).default;
+      const WorkOrderModel = (await import('@/operations/models/work-order')).default;
+      const { getNextWorkOrderNumber } = await import('@/operations/helpers/counter');
+      
+      const leadData = await LeadModel.findOne({
+        _id: new mongoose.Types.ObjectId(leadId),
+        tenantId: new mongoose.Types.ObjectId(tenantId),
+      }).lean();
+      
+      if (!leadData) {
+        throw new Error('Lead no encontrado');
+      }
+      
+      // Check if already converted (avoid duplicate)
+      if ((leadData as any).convertedToClient) {
+        return NextResponse.json({
+          success: true,
+          quoteId,
+          leadId,
+          newStatus: 'won',
+          alreadyConverted: true,
+        });
+      }
+      
+      // Create client from lead
+      const [client] = await ClientModel.create([{
+        tenantId: new mongoose.Types.ObjectId(tenantId),
+        customerType: (leadData as any).customerType || 'residential',
+        fullName: (leadData as any).name,
+        companyName: (leadData as any).companyName,
+        email: (leadData as any).email,
+        phone: (leadData as any).phone,
+        status: 'active',
+        source: (leadData as any).source,
+        address: (leadData as any).address,
+        locality: (leadData as any).locality,
+        province: (leadData as any).province,
+        notes: 'Cliente creado desde documento PDF',
+        createdBy: userId ? new mongoose.Types.ObjectId(userId) : new mongoose.Types.ObjectId(),
+        updatedBy: userId ? new mongoose.Types.ObjectId(userId) : new mongoose.Types.ObjectId(),
+      }]);
+      
+      // Update lead: won + converted to client
+      await LeadModel.findByIdAndUpdate(leadId, {
+        $set: {
+          status: 'won',
+          convertedToClient: client._id,
+          convertedAt: new Date(),
+          updatedBy: userId || 'admin-action',
+        },
+      });
+      
+      // Create work order in draft status
+      const tenantPrefix = tenantId.slice(-6);
+      const workOrderNumber = await getNextWorkOrderNumber(tenantPrefix);
+      const clientName = (leadData as any).companyName || (leadData as any).name;
+      
+      const [workOrder] = await WorkOrderModel.create([{
+        tenantId: new mongoose.Types.ObjectId(tenantId),
+        clientId: client._id,
+        leadId: new mongoose.Types.ObjectId(leadId),
+        quoteId: new mongoose.Types.ObjectId(quoteId),
+        clientSnapshot: {
+          name: clientName,
+          email: (leadData as any).email,
+          phone: (leadData as any).phone,
+          companyName: (leadData as any).companyName || '',
+          customerType: (leadData as any).customerType || 'residential',
+          status: 'active',
+        },
+        locationSnapshot: {
+          name: clientName,
+          address: (leadData as any).address || '',
+        },
+        source: 'direct_sale',
+        category: 'installation',
+        workOrderNumber,
+        title: `Venta: ${clientName}`,
+        description: `Venta generada desde documento PDF`,
+        status: 'draft',
+        priority: 'normal',
+        createdBy: userId ? new mongoose.Types.ObjectId(userId) : new mongoose.Types.ObjectId(),
+        updatedBy: userId ? new mongoose.Types.ObjectId(userId) : new mongoose.Types.ObjectId(),
+      }]);
+      
+      // Link the work order to the quote so decision engine knows it exists
+      const QuoteModel = (await import('@/quotes/models/quote')).default;
+      await QuoteModel.updateOne(
+        { _id: new mongoose.Types.ObjectId(quoteId) },
+        { $set: { convertedToWorkOrder: workOrder._id } }
+      );
+      
+      return NextResponse.json({
+        success: true,
+        quoteId,
+        leadId,
+        newStatus: 'won',
+        client: { _id: String(client._id) },
+        workOrder: { _id: String(workOrder._id), workOrderNumber, status: 'draft' },
+      });
     }
-
-    // Only update lead status if needed and not already in terminal state
-    if (needsStatusUpdate) {
-      await leadService.changeStatus(leadId, newLeadStatus as any, userId, tenantId);
-    }
-
+    
+    // For quote_sent: status is updated automatically by sendQuote
     return NextResponse.json({
       success: true,
       quoteId,
       leadId,
-      newStatus: needsStatusUpdate ? newLeadStatus : currentStatus,
+      newStatus: 'quote_sent',
     });
   } catch (error) {
     if (error instanceof ValidationError) {
