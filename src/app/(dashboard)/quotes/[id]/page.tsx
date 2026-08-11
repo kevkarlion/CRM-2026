@@ -34,6 +34,7 @@ export default function QuoteDetailPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showConfirmSale, setShowConfirmSale] = useState(false)
+  const [sourceDocument, setSourceDocument] = useState<any>(null)
 
   useEffect(() => {
     fetchQuoteData()
@@ -44,6 +45,16 @@ export default function QuoteDetailPage() {
       setLoading(true)
       const result = await api.get<QuoteDetailData>(`/api/crm/quotes/${quoteId}`)
       setData(result)
+      
+      // Fetch source document if exists
+      if (result.quote?.sourceDocumentId) {
+        try {
+          const doc = await api.get<any>(`/api/crm/documents/${result.quote.sourceDocumentId}`)
+          setSourceDocument(doc)
+        } catch (e) {
+          console.error('Error fetching source document:', e)
+        }
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error desconocido')
     } finally {
@@ -181,7 +192,7 @@ export default function QuoteDetailPage() {
             </div>
           )}
 
-          <GeneralInfoCard quote={data.quote} />
+          <GeneralInfoCard quote={data.quote} sourceDocument={sourceDocument} />
 
           <ServicesCards items={data.quote.items || []} />
 

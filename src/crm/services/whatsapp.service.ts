@@ -665,20 +665,29 @@ export class WhatsAppService {
                 }
                 
                 // Calculate score based on lead data (usando los mismos valores que guardamos)
-                const { score, temperature, breakdown } = calculateLeadScore({
-                  inquiryReason: inquiryReasonValue,
-                  priority: priorityForLead,
-                  customerType: customerTypeForLead as CustomerType,
-                  isB2B: leadToUpdate.isB2B,
-                });
+                let calculatedScore = null;
+                try {
+                  calculatedScore = calculateLeadScore({
+                    inquiryReason: inquiryReasonValue,
+                    priority: priorityForLead as 'high' | 'medium' | 'low' | undefined,
+                    customerType: (leadToUpdate?.customerType as CustomerType) || 'residential',
+                    isB2B: leadToUpdate?.isB2B,
+                  });
+                  
+                  console.log('🎯 [SCORING] Score calculado:', { 
+                    score: calculatedScore.score, 
+                    temperature: calculatedScore.temperature 
+                  });
+                  
+                  updateData.score = calculatedScore.score;
+                  updateData.temperature = calculatedScore.temperature;
+                  updateData.scoringBreakdown = calculatedScore.breakdown;
+                } catch (scoreError) {
+                  console.error('🎯 [SCORING] Error calculating score:', scoreError);
+                  // Continue without score - don't fail the whole update
+                }
                 
-                console.log('🎯 [SCORING] Score calculado:', { score, temperature, breakdown });
-                
-                updateData.score = score;
-                updateData.temperature = temperature;
-                updateData.scoringBreakdown = breakdown;
-                
-                console.log('🎯 [SCORING] Flow complete - Setting status to contacted with score:', score, temperature);
+                console.log('🎯 [SCORING] Flow complete - Setting status to contacted');
               }
               
               // Update priority

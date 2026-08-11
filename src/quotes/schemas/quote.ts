@@ -7,6 +7,7 @@ export const quoteSchema = new Schema<IQuote>(
     leadId: { type: Schema.Types.ObjectId, ref: 'Lead', default: null },
     clientId: { type: Schema.Types.ObjectId, ref: 'Client', default: null },
     locationId: { type: Schema.Types.ObjectId, ref: 'Location', default: null },
+    sourceDocumentId: { type: Schema.Types.ObjectId, ref: 'Document', default: null },
     number: { type: String, required: true },
     status: {
       type: String,
@@ -43,6 +44,7 @@ quoteSchema.index({ tenantId: 1, clientId: 1 });
 quoteSchema.index({ tenantId: 1, status: 1 });
 quoteSchema.index({ tenantId: 1, deletedAt: 1 });
 quoteSchema.index({ tenantId: 1, convertedToWorkOrder: 1 }, { sparse: true });
+quoteSchema.index({ tenantId: 1, sourceDocumentId: 1 }, { sparse: true });
 quoteSchema.index({ tenantId: 1, createdAt: -1 });
 quoteSchema.index({ tenantId: 1, createdBy: 1, status: 1 });
 quoteSchema.index({ tenantId: 1, validUntil: 1, status: 1 });

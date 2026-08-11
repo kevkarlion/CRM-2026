@@ -384,6 +384,13 @@ export function LeadChatDrawer({ isOpen, onClose, lead, conversationStatus }: Le
 
   const phone = lead?.phone || '';
   
+  console.log('🎯 LeadChatDrawer - lead data:', { 
+    score: lead?.score, 
+    temperature: lead?.temperature,
+    inquiryReason: lead?.inquiryReason,
+    priority: lead?.priority
+  });
+  
   // Calcular score si no está guardado
   const calculatedScore = useMemo(() => {
     if (!lead) return null;

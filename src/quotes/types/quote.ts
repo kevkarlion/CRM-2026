@@ -9,6 +9,7 @@ export interface IQuote extends Document {
   leadId: Types.ObjectId | null;
   clientId: Types.ObjectId | null;
   locationId: Types.ObjectId | null;
+  sourceDocumentId: Types.ObjectId | null;
   number: string;
   status: QuoteStatus;
   currentVersion: number;
@@ -38,6 +39,7 @@ export interface CreateQuoteInput {
   leadId?: string;
   clientId?: string;
   locationId?: string;
+  sourceDocumentId?: string;
   validUntil?: string;
   title: string;
   description?: string;

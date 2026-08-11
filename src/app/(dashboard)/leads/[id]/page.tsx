@@ -489,7 +489,7 @@ const handleCedeControl = async () => {
           </EntityTabPanel>
 
           <EntityTabPanel id="documentacion">
-            <LeadDocumentationTab />
+            <LeadDocumentationTab leadId={id} />
           </EntityTabPanel>
 
           <EntityTabPanel id="actividad">
