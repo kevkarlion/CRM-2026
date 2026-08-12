@@ -14,8 +14,8 @@ export const WORK_ORDER_STATUS_VARIANT: Record<string, string> = {
 };
 
 export const WORK_ORDER_PRIORITY_VARIANT: Record<string, string> = {
-  normal: 'bg-blue-50 text-blue-700',
-  high: 'bg-orange-50 text-orange-700',
+  normal: 'bg-green-50 text-green-700',
+  high: 'bg-yellow-50 text-yellow-700',
   urgent: 'bg-red-50 text-red-700',
 };
 
@@ -31,9 +31,8 @@ export const TECHNICAL_VISIT_STATUS_VARIANT: Record<string, string> = {
 };
 
 export const TECHNICAL_VISIT_PRIORITY_VARIANT: Record<string, string> = {
-  low: 'bg-gray-100 text-gray-700',
-  normal: 'bg-blue-50 text-blue-700',
-  high: 'bg-orange-50 text-orange-700',
+  normal: 'bg-green-50 text-green-700',
+  high: 'bg-yellow-50 text-yellow-700',
   urgent: 'bg-red-50 text-red-700',
 };
 
@@ -63,11 +62,9 @@ export const CONTRACT_STATUS_VARIANT: Record<string, string> = {
 };
 
 export const CALENDAR_PRIORITY_COLORS: Record<string, { bg: string; border: string; text: string; dot: string }> = {
-  emergency: { bg: 'bg-red-100', border: 'border-red-400', text: 'text-red-900', dot: 'bg-red-500' },
-  urgent: { bg: 'bg-orange-50', border: 'border-orange-400', text: 'text-orange-800', dot: 'bg-orange-500' },
-  high: { bg: 'bg-amber-50', border: 'border-amber-400', text: 'text-amber-800', dot: 'bg-amber-500' },
-  normal: { bg: 'bg-blue-50', border: 'border-blue-400', text: 'text-blue-800', dot: 'bg-blue-500' },
-  low: { bg: 'bg-gray-50', border: 'border-gray-300', text: 'text-gray-600', dot: 'bg-gray-400' },
+  urgent: { bg: 'bg-red-100', border: 'border-red-400', text: 'text-red-900', dot: 'bg-red-500' },
+  high: { bg: 'bg-yellow-50', border: 'border-yellow-400', text: 'text-yellow-800', dot: 'bg-yellow-500' },
+  normal: { bg: 'bg-green-50', border: 'border-green-400', text: 'text-green-800', dot: 'bg-green-500' },
 };
 
 export const TECHNICIAN_UTILIZATION_COLOR: Record<string, string> = {

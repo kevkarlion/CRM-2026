@@ -11,17 +11,8 @@ import type { Types } from 'mongoose';
 
 // Paleta de colores para técnicos (orden canónico)
 const TECHNICIAN_PALETTE = [
-  { color: '#2563eb', name: 'Lautaro' },     // blue
-  { color: '#000000', name: 'Conrado' },     // black
-  { color: '#dc2626', name: 'Carlos Rodríguez' },  // red
-  { color: '#16a34a', name: 'Ana López' },          // green
-  { color: '#d97706', name: 'Martín García' },       // amber
-  { color: '#7c3aed', name: 'Sebastián Díaz' },     // violet
-  { color: '#0891b2', name: 'Luis Martínez' },      // cyan
-  { color: '#db2777', name: 'Pablo Sánchez' },      // pink
-  { color: '#4f46e5', name: 'Jorge Torres' },       // indigo
-  { color: '#059669', name: 'Miguel Fernández' },    // emerald
-  { color: '#ea580c', name: 'Diego López' },         // orange
+  { color: '#2563eb', name: 'Lautaro' },     // blue - azul
+  { color: '#000000', name: 'Conrado' },     // black - negro
 ] as const;
 
 export type TechnicianColor = typeof TECHNICIAN_PALETTE[number];

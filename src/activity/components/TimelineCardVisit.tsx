@@ -58,9 +58,8 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 const PRIORITY_COLORS: Record<string, string> = {
-  low: 'bg-gray-50 text-gray-500',
-  normal: 'bg-blue-50 text-blue-600',
-  high: 'bg-orange-50 text-orange-600',
+  normal: 'bg-green-50 text-green-600',
+  high: 'bg-yellow-50 text-yellow-600',
   urgent: 'bg-red-50 text-red-600',
 };
 

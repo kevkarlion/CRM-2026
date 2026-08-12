@@ -13,8 +13,8 @@ import type { TechnicianDashboardResponse, TechnicianWorkOrder } from '@/dashboa
 type TaskItem = TechnicianWorkOrder;
 
 const PRIORITY_COLORS: Record<string, string> = {
-  normal: 'bg-blue-50 text-blue-700',
-  high: 'bg-orange-50 text-orange-700',
+  normal: 'bg-green-50 text-green-700',
+  high: 'bg-yellow-50 text-yellow-700',
   urgent: 'bg-red-50 text-red-700',
 };
 
