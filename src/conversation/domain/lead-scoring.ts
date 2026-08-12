@@ -28,6 +28,7 @@ const NEED_CLARITY_SCORES: Record<string, number> = {
   repair: 20,
   installation: 20,
   maintenance: 20,
+  spare_parts: 20,
   budget: 20,
   other: 5,
   general: 0,

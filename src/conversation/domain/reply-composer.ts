@@ -12,8 +12,8 @@ const STATE_REPLIES: Record<string, (ctx: ConversationContext) => BotReply> = {
   }),
 
   need_type_asked: () => ({
-    content: '¿Qué tipo de servicio necesitas? Puedo ayudarte con:\n\n1️⃣ Reparación\n2️⃣ Instalación\n3️⃣ Mantenimiento\n4️⃣ Presupuesto',
-    options: ['Reparación', 'Instalación', 'Mantenimiento', 'Presupuesto'],
+    content: '¿Qué tipo de servicio necesitas?\n\n1️⃣ Mantenimiento\n2️⃣ Reparación\n3️⃣ Repuestos\n4️⃣ Instalación\n5️⃣ Cotización\n6️⃣ Otro\n\n¿Eres proveedor? Por favor comunícate directamente al 2994584104.',
+    options: ['Mantenimiento', 'Reparación', 'Repuestos', 'Instalación', 'Cotización', 'Otro'],
   }),
 
   detail_asked: (ctx) => {

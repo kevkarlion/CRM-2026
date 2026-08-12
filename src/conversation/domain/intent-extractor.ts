@@ -27,6 +27,11 @@ const NEED_TYPE_KEYWORDS: Record<InquiryReason, string[]> = {
     'mantenimiento', 'service', 'servicio', 'limpieza', 'revisión',
     'revision', 'chequeo', 'control', 'cambio de gas', 'carga de gas',
   ],
+  spare_parts: [
+    'repuesto', 'repuestos', 'repuestos', 'recambio', 'recambios',
+    'venta de repuesto', 'comprar repuesto', 'necesito repuesto',
+    'busco repuesto', 'donde comprar repuesto',
+  ],
   budget: [
     'presupuesto', 'cotización', 'cotizacion', 'cotizar', 'cuánto cuesta',
     'cuanto cuesta', 'precio', 'costo', 'presup', 'valuar', 'valor',
@@ -100,8 +105,43 @@ export class IntentExtractor {
    * Extrae el tipo de necesidad del mensaje
    */
   extractNeedType(text: string): InquiryReason | null {
-    const lower = text.toLowerCase();
+    const lower = text.toLowerCase().trim();
 
+    // Mapeo de opciones numéricas del menú
+    const OPTION_MAP: Record<string, InquiryReason> = {
+      '1': 'maintenance',
+      '2': 'repair',
+      '3': 'spare_parts',
+      '4': 'installation',
+      '5': 'budget',
+      '6': 'other',
+      // Texto de opciones
+      'mantenimiento': 'maintenance',
+      'reparación': 'repair',
+      'reparacion': 'repair',
+      'repuestos': 'spare_parts',
+      'repuesto': 'spare_parts',
+      'instalación': 'installation',
+      'instalacion': 'installation',
+      'cotización': 'budget',
+      'cotizacion': 'budget',
+      'presupuesto': 'budget',
+      'otro': 'other',
+    };
+
+    // Primero verificar si es una opción numérica o texto directo
+    if (OPTION_MAP[lower]) {
+      return OPTION_MAP[lower];
+    }
+
+    // También verificar si el texto empieza con el número
+    for (const [key, value] of Object.entries(OPTION_MAP)) {
+      if (lower.startsWith(key)) {
+        return value;
+      }
+    }
+
+    // Buscar keywords
     for (const [type, keywords] of Object.entries(NEED_TYPE_KEYWORDS)) {
       if (type === 'other' || type === 'general') continue;
       for (const keyword of keywords) {

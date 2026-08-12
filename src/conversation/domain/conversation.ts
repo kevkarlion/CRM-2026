@@ -53,7 +53,7 @@ export type ConversationType = 'lead' | 'customer';
  */
 export const CONVERSATION_REUSE_WINDOW_MS = 72 * 60 * 60 * 1000; // 72 hours
 
-export type InquiryReason = 'repair' | 'installation' | 'maintenance' | 'budget' | 'other' | 'general';
+export type InquiryReason = 'repair' | 'installation' | 'maintenance' | 'spare_parts' | 'budget' | 'other' | 'general';
 export type CustomerType = 'residential' | 'commercial';
 export type UrgencyLevel = 'high' | 'medium' | 'low';
 export type HandoffStatus = 'pending' | 'assigned' | 'completed' | 'cancelled';

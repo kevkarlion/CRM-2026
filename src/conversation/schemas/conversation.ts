@@ -6,7 +6,7 @@ const contextSchema = new Schema(
     userName: { type: String },
     needType: {
       type: String,
-      enum: ['repair', 'installation', 'maintenance', 'budget', 'other', 'general'],
+      enum: ['repair', 'installation', 'maintenance', 'spare_parts', 'budget', 'other', 'general'],
     },
     customerType: {
       type: String,
