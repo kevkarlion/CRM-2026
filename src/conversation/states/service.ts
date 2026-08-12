@@ -76,7 +76,7 @@ export class ServiceState implements IConversationState {
   }
 
   getMessage(context: ConversationContext): string {
-    return `¿Qué tipo de servicio necesitás?\n\n1️⃣ Mantenimiento\n2️⃣ Reparación\n3️⃣ Repuestos\n4️⃣ Instalación\n5️⃣ Cotización\n6️⃣ Otro\n\n¿Eres proveedor? Por favor comunícate directamente al 2994584104.`
+    return `¿Qué tipo de servicio necesitás?\n\n¿Eres proveedor? Por favor comunícate directamente al 2994584104.`
   }
 
   getOptions(context: ConversationContext): string[] {
