@@ -11,17 +11,19 @@ import type { IConversationState } from './interface'
 
 // Service type options mapping
 const SERVICE_OPTIONS: Record<string, string> = {
-  '1': 'installation',
+  '1': 'maintenance',
   '2': 'repair',
-  '3': 'maintenance',
-  '4': 'quote',
-  '5': 'other',
+  '3': 'spare_parts',
+  '4': 'installation',
+  '5': 'quote',
+  '6': 'other',
 }
 
 const SERVICE_LABELS: Record<string, string> = {
-  'installation': 'Instalación',
-  'repair': 'Reparación',
   'maintenance': 'Mantenimiento',
+  'repair': 'Reparación',
+  'spare_parts': 'Repuestos',
+  'installation': 'Instalación',
   'quote': 'Presupuesto',
   'other': 'Otro',
 }
@@ -32,12 +34,12 @@ export class ServiceState implements IConversationState {
   process(input: string, context: ConversationContext): ProcessResult {
     const trimmed = input.trim()
 
-    // Validate input is a number between 1-5
-    const optionNum = trimmed.replace(/[^0-9]/g, '')
+// Validate input is a number between 1-6
+    const optionNum = trimmed.replace(/[^0-9]/g, '');
 
-    if (!optionNum || optionNum < '1' || optionNum > '5') {
+    if (!optionNum || optionNum < '1' || optionNum > '6') {
       const intent: StateIntent = {
-        validationError: '⚠️ Por favor, elegí una opción del 1 al 5.',
+        validationError: '⚠️ Por favor, elegí una opción del 1 al 6.',
       }
 
       return {
@@ -50,7 +52,7 @@ export class ServiceState implements IConversationState {
 
     if (!serviceType) {
       const intent: StateIntent = {
-        validationError: '⚠️ Opción inválida. Por favor, elegí un número del 1 al 5.',
+        validationError: '⚠️ Opción inválida. Por favor, elegí un número del 1 al 6.',
       }
 
       return {
@@ -74,16 +76,17 @@ export class ServiceState implements IConversationState {
   }
 
   getMessage(context: ConversationContext): string {
-    return `🛠️ ¿Qué servicio necesitás?`
+    return `¿Qué tipo de servicio necesitás?\n\n1️⃣ Mantenimiento\n2️⃣ Reparación\n3️⃣ Repuestos\n4️⃣ Instalación\n5️⃣ Cotización\n6️⃣ Otro\n\n¿Eres proveedor? Por favor comunícate directamente al 2994584104.`
   }
 
   getOptions(context: ConversationContext): string[] {
     return [
-      '1️⃣ Instalación',
+      '1️⃣ Mantenimiento',
       '2️⃣ Reparación',
-      '3️⃣ Mantenimiento',
-      '4️⃣ Cotización',
-      '5️⃣ Otro'
+      '3️⃣ Repuestos',
+      '4️⃣ Instalación',
+      '5️⃣ Cotización',
+      '6️⃣ Otro'
     ]
   }
 }
