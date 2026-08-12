@@ -32,6 +32,11 @@ export class WorkOrderService {
     session.startTransaction();
 
     try {
+      // Validar required fields
+      if (!data.clientId) {
+        throw new ValidationError('Debe seleccionar un cliente');
+      }
+      
       const client = await ClientModel.findById(data.clientId).session(session).exec();
       if (!client) {
         throw new ValidationError(`Client ${data.clientId} not found`);

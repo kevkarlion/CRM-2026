@@ -38,6 +38,10 @@ export async function GET(request: NextRequest) {
     const data = await service.findByTenant(tenantId, filters);
     return NextResponse.json({ data, total: data.length });
   } catch (error) {
+    // CastError = mongoose error por ID inválido
+    if ((error as any).name === 'CastError') {
+      return NextResponse.json({ error: 'Datos inválidos' }, { status: 400 });
+    }
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }
@@ -62,6 +66,10 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     if (error instanceof ValidationError) {
       return NextResponse.json({ error: error.message }, { status: 422 });
+    }
+    // CastError = mongoose error por ID inválido
+    if ((error as any).name === 'CastError') {
+      return NextResponse.json({ error: 'Datos inválidos' }, { status: 400 });
     }
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Internal server error' },
