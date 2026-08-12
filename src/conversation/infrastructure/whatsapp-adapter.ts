@@ -1,9 +1,10 @@
 import { Types } from 'mongoose';
 import whatsappService from '@/crm/services/whatsapp.service';
 import LeadModel from '@/leads/models/lead';
+import ClientModel from '@/crm/models/client';
 import ConversationModel from '../models/conversation';
 import TimelineEventModel from '@/timeline/models/timeline-event';
-import type { BotAction, LeadUpdate, ConversationUpdate } from '../application/types';
+import type { BotAction, LeadUpdate, ClientUpdate, ConversationUpdate } from '../application/types';
 import type { ConversationState, LeadContactEstablished } from '../domain/conversation';
 
 export interface WhatsAppBotAdapterDeps {
@@ -34,6 +35,9 @@ export class WhatsAppBotAdapter {
           break;
         case 'update_lead':
           await this.updateLead(action.leadId, action.updates);
+          break;
+        case 'update_client':
+          await this.updateClient(action.clientId, action.updates);
           break;
         case 'update_conversation':
           await this.updateConversation(action.conversationId, action.updates);
@@ -115,6 +119,31 @@ export class WhatsAppBotAdapter {
       );
     } catch (error) {
       console.error('[WhatsAppBotAdapter] Error updating lead:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Updates a client with scoring and classification fields.
+   */
+  async updateClient(clientId: string, updates: Partial<ClientUpdate>): Promise<void> {
+    try {
+      const setFields: Record<string, unknown> = { updatedBy: 'whatsapp-bot' };
+
+      if (updates.score !== undefined) setFields.score = updates.score;
+      if (updates.temperature !== undefined) setFields.temperature = updates.temperature;
+      if (updates.operationStatus !== undefined) setFields.operationStatus = updates.operationStatus;
+      if (updates.priority !== undefined) setFields.priority = updates.priority;
+
+      await ClientModel.findByIdAndUpdate(
+        new Types.ObjectId(clientId),
+        { $set: setFields },
+        { new: true }
+      );
+      
+      console.log('[WhatsAppBotAdapter] Client updated:', clientId, setFields);
+    } catch (error) {
+      console.error('[WhatsAppBotAdapter] Error updating client:', error);
       throw error;
     }
   }
