@@ -17,6 +17,7 @@ import {
   ClientVisitsTab,
   ClientWorkOrdersTab,
   ClientActivityTab,
+  ClientResolvedConversationsTab,
   CLIENT_STATUS_DOT_COLOR,
   CLIENT_STATUS_OPTIONS,
   CLIENT_STATUS_VARIANT,
@@ -32,7 +33,7 @@ import { useChatPolling } from '@/whatsapp/hooks/useChatPolling';
 import { useWhatsAppSend } from '@/whatsapp/hooks/useWhatsAppSend';
 import type { ClientDetail, QuoteListItem } from '@/crm/components/detail';
 
-type DetailTabId = 'resumen' | 'presupuestos' | 'ordenes' | 'visitas' | 'documentacion' | 'actividad';
+type DetailTabId = 'resumen' | 'presupuestos' | 'ordenes' | 'visitas' | 'documentacion' | 'actividad' | 'resueltas';
 
 function isNotFoundError(message: string): boolean {
   return /not found/i.test(message);
@@ -361,6 +362,7 @@ export default function ClientDetailPage() {
             <EntityTab id="visitas" label="Visitas técnicas" />
             <EntityTab id="documentacion" label="Documentación" />
             <EntityTab id="actividad" label="Actividad" />
+            <EntityTab id="resueltas" label="Conversaciones resueltas" />
 
 <EntityTabPanel id="resumen">
               <div className="space-y-6">
@@ -461,6 +463,10 @@ export default function ClientDetailPage() {
 
             <EntityTabPanel id="actividad">
               <ClientActivityTab clientId={id} />
+            </EntityTabPanel>
+
+            <EntityTabPanel id="resueltas">
+              <ClientResolvedConversationsTab clientId={id} />
             </EntityTabPanel>
           </EntityTabs>
         </div>

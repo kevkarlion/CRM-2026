@@ -110,6 +110,14 @@ export const conversationSchema = new Schema<IConversation>(
       index: true,
     },
 
+    // Score y temperatura calculados por el bot
+    score: { type: Number, min: 0, max: 100, default: null },
+    temperature: {
+      type: String,
+      enum: ['hot', 'warm', 'cold'],
+      default: null,
+    },
+
     // Owner - determines who responds to messages (BOT or OPERATOR)
     owner: {
       type: String,

@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
 import ConversationModel from '@/conversation/models/conversation';
 import { conversationResolver } from '@/conversation/application/conversation-resolver';
+import TimelineEventModel from '@/timeline/models/timeline-event';
+import { EVENT_TYPES } from '@/crm/types/activity';
+import { Types } from 'mongoose';
 
 /**
  * POST /api/crm/conversations/[conversationId]/resolve
@@ -29,7 +32,7 @@ export async function POST(
       return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
     }
 
-    // Find conversation
+    // Find conversation to get clientId
     const conversation = await ConversationModel.findById(conversationId);
     
     if (!conversation) {
@@ -43,6 +46,24 @@ export async function POST(
 
     // Mark as resolved using the resolver
     await conversationResolver.markAsResolved(conversationId, userId);
+
+    // Create timeline event if client exists
+    const clientId = (conversation as any).clientId;
+    if (clientId) {
+      await TimelineEventModel.create({
+        tenantId: new Types.ObjectId(tenantId),
+        clientId: clientId,
+        eventType: EVENT_TYPES.CLIENT_CONVERSATION_RESOLVED,
+        title: 'Atención resuelta',
+        description: `La conversación de WhatsApp fue marcada como resuelta`,
+        metadata: {
+          conversationId: conversationId,
+          phoneNumber: conversation.phoneNumber,
+        },
+        performedBy: new Types.ObjectId(userId),
+        createdAt: new Date(),
+      });
+    }
 
     return NextResponse.json({ 
       success: true, 

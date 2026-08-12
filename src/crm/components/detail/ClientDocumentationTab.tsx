@@ -330,7 +330,7 @@ export function ClientDocumentationTab({ clientId }: ClientDocumentationTabProps
         </h2>
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors cursor-pointer"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -436,14 +436,14 @@ export function ClientDocumentationTab({ clientId }: ClientDocumentationTabProps
             <div className="flex gap-3 mt-6">
               <button
                 onClick={handleCancel}
-                className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
+                className="flex-1 px-4 py-2 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 onClick={handleUpload}
                 disabled={uploading || !uploadTitle}
-                className="flex-1 px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors"
+                className="flex-1 px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 disabled:opacity-50 transition-colors cursor-pointer"
               >
                 {uploading ? 'Subiendo...' : 'Subir'}
               </button>
@@ -486,7 +486,7 @@ export function ClientDocumentationTab({ clientId }: ClientDocumentationTabProps
               </div>
 
               {/* Action Buttons - same flow as Lead */}
-              <div className="flex items-center gap-1">
+              <div className="flex flex-col gap-1 items-stretch">
                 {(() => {
                   const quoteStatus = getQuoteStatus(doc._id);
                   
@@ -500,7 +500,7 @@ export function ClientDocumentationTab({ clientId }: ClientDocumentationTabProps
                         <button
                           onClick={() => handleDocumentActionClick(doc._id, 'approved')}
                           disabled={actionLoading !== null}
-                          className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors"
+                          className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors cursor-pointer"
                           title="Aprobar presupuesto"
                         >
                           {actionLoading === 'approved' && actionDocId === doc._id ? '...' : 'Aprobada'}
@@ -508,7 +508,7 @@ export function ClientDocumentationTab({ clientId }: ClientDocumentationTabProps
                         <button
                           onClick={() => handleDocumentActionClick(doc._id, 'won')}
                           disabled={actionLoading !== null}
-                          className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 rounded-lg hover:bg-green-100 disabled:opacity-50 transition-colors"
+                          className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 rounded-lg hover:bg-green-100 disabled:opacity-50 transition-colors cursor-pointer"
                           title="Confirmar venta y crear OT"
                         >
                           {actionLoading === 'won' && actionDocId === doc._id ? '...' : 'Confirmar Venta'}
@@ -527,7 +527,7 @@ export function ClientDocumentationTab({ clientId }: ClientDocumentationTabProps
                         <button
                           onClick={() => handleDocumentActionClick(doc._id, 'won')}
                           disabled={actionLoading !== null}
-                          className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 rounded-lg hover:bg-green-100 disabled:opacity-50 transition-colors"
+                          className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 rounded-lg hover:bg-green-100 disabled:opacity-50 transition-colors cursor-pointer"
                           title="Confirmar venta y crear OT"
                         >
                           {actionLoading === 'won' && actionDocId === doc._id ? '...' : 'Confirmar Venta'}
@@ -551,7 +551,7 @@ export function ClientDocumentationTab({ clientId }: ClientDocumentationTabProps
                       <button
                         onClick={() => handleDocumentActionClick(doc._id, 'quote_sent')}
                         disabled={actionLoading !== null}
-                        className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors"
+                        className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors cursor-pointer"
                         title="Enviar presupuesto al cliente"
                       >
                         {actionLoading === 'quote_sent' && actionDocId === doc._id ? '...' : 'Enviar Presupuesto'}
@@ -559,7 +559,7 @@ export function ClientDocumentationTab({ clientId }: ClientDocumentationTabProps
                       <button
                         onClick={() => handleDocumentActionClick(doc._id, 'won')}
                         disabled={actionLoading !== null}
-                        className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 rounded-lg hover:bg-green-100 disabled:opacity-50 transition-colors"
+                        className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 rounded-lg hover:bg-green-100 disabled:opacity-50 transition-colors cursor-pointer"
                         title="Confirmar venta y crear OT"
                       >
                         {actionLoading === 'won' && actionDocId === doc._id ? '...' : 'Confirmar Venta'}
@@ -569,7 +569,7 @@ export function ClientDocumentationTab({ clientId }: ClientDocumentationTabProps
                 })()}
               </div>
 
-              <div className="flex items-center gap-1">
+              <div className="flex flex-col gap-1 items-stretch">
                 <a
                   href={doc.secureUrl}
                   target="_blank"
@@ -628,14 +628,14 @@ export function ClientDocumentationTab({ clientId }: ClientDocumentationTabProps
                   setConfirmDocId(null);
                   setConfirmAction(null);
                 }}
-                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 onClick={confirmAction === 'delete' ? handleConfirmDelete : handleConfirmAction}
                 disabled={actionLoading !== null}
-                className={`px-4 py-2 text-white rounded-lg transition-colors ${
+                className={`px-4 py-2 text-white rounded-lg transition-colors cursor-pointer ${
                   confirmAction === 'won' 
                     ? 'bg-green-600 hover:bg-green-700' 
                     : confirmAction === 'delete'

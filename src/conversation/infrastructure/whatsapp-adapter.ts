@@ -3,7 +3,7 @@ import whatsappService from '@/crm/services/whatsapp.service';
 import LeadModel from '@/leads/models/lead';
 import ConversationModel from '../models/conversation';
 import TimelineEventModel from '@/timeline/models/timeline-event';
-import type { BotAction, LeadUpdate } from '../application/types';
+import type { BotAction, LeadUpdate, ConversationUpdate } from '../application/types';
 import type { ConversationState, LeadContactEstablished } from '../domain/conversation';
 
 export interface WhatsAppBotAdapterDeps {
@@ -34,6 +34,9 @@ export class WhatsAppBotAdapter {
           break;
         case 'update_lead':
           await this.updateLead(action.leadId, action.updates);
+          break;
+        case 'update_conversation':
+          await this.updateConversation(action.conversationId, action.updates);
           break;
         case 'trigger_handoff':
           await this.triggerHandoff(
@@ -112,6 +115,27 @@ export class WhatsAppBotAdapter {
       );
     } catch (error) {
       console.error('[WhatsAppBotAdapter] Error updating lead:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Updates a conversation (customer) with scoring and classification fields.
+   */
+  async updateConversation(conversationId: string, updates: Partial<ConversationUpdate>): Promise<void> {
+    try {
+      const setFields: Record<string, unknown> = { updatedAt: new Date() };
+
+      if (updates.score !== undefined) setFields.score = updates.score;
+      if (updates.temperature !== undefined) setFields.temperature = updates.temperature;
+
+      await ConversationModel.findByIdAndUpdate(
+        new Types.ObjectId(conversationId),
+        { $set: setFields },
+        { new: true }
+      );
+    } catch (error) {
+      console.error('[WhatsAppBotAdapter] Error updating conversation:', error);
       throw error;
     }
   }

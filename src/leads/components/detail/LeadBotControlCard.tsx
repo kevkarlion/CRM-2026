@@ -102,7 +102,7 @@ export function LeadBotControlCard({
         type="button"
         onClick={handleClick}
         disabled={isLoading}
-        className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium transition-all ${
+        className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-lg text-sm font-medium transition-all cursor-pointer ${
           isOperatorControl
             ? 'bg-blue-600 hover:bg-blue-700 text-white'
             : 'bg-green-600 hover:bg-green-700 text-white'

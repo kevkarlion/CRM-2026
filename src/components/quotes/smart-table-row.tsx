@@ -36,7 +36,7 @@ function getInitials(name: string): string {
 }
 
 const ENTITY_LABELS: Record<string, string> = {
-  quote: 'Cotización',
+  quote: 'Presupuesto',
   negotiation: 'Negociación',
   technical_visit: 'Visita Técnica',
 };

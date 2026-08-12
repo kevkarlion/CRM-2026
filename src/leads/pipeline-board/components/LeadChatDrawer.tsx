@@ -14,7 +14,8 @@ import type { InquiryReason, CustomerType, Temperature } from '../../types/lead'
 interface LeadChatDrawerProps {
   isOpen: boolean;
   onClose: () => void;
-  lead: ILead | null;
+  lead?: ILead | null;
+  client?: { id: string; name: string; phone: string } | null;
   conversationStatus?: ConversationStatus | null;
 }
 
@@ -378,17 +379,21 @@ function TimelineTab({ messages, conversationStatus }: TimelineTabProps) {
   );
 }
 
-export function LeadChatDrawer({ isOpen, onClose, lead, conversationStatus }: LeadChatDrawerProps) {
+export function LeadChatDrawer({ isOpen, onClose, lead, client, conversationStatus }: LeadChatDrawerProps) {
+  // Support both lead and client modes
+  const isLeadMode = !!lead;
+  const entity = lead || client;
+  
   const [activeTab, setActiveTab] = useState<TabType>('chat');
   const router = useRouter();
 
-  const phone = lead?.phone || '';
+  const phone = isLeadMode ? (lead?.phone || '') : (client?.phone || '');
   
-  console.log('🎯 LeadChatDrawer - lead data:', { 
-    score: lead?.score, 
-    temperature: lead?.temperature,
-    inquiryReason: lead?.inquiryReason,
-    priority: lead?.priority
+  console.log('🎯 LeadChatDrawer - entity data:', { 
+    isLeadMode,
+    leadName: lead?.fullName,
+    clientName: client?.name,
+    phone
   });
   
   // Calcular score si no está guardado
@@ -499,6 +504,26 @@ export function LeadChatDrawer({ isOpen, onClose, lead, conversationStatus }: Le
     }
   }, [conversationStatus, lead]);
 
+  const handleCedeControl = useCallback(async () => {
+    if (!conversationStatus?.conversationId) return;
+    try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const tenantId = typeof window !== 'undefined' ? localStorage.getItem('tenantId') : null;
+
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      if (tenantId) headers['x-tenant-id'] = tenantId;
+
+      await fetch(`/api/crm/conversations/${conversationStatus.conversationId}/cede-control`, {
+        method: 'POST',
+        headers,
+      });
+      // Polling will refresh data
+    } catch {
+      // Silent — polling retries
+    }
+  }, [conversationStatus]);
+
   const handleTakeCase = useCallback(async () => {
     await handleTakeControl();
   }, [handleTakeControl]);
@@ -509,10 +534,12 @@ export function LeadChatDrawer({ isOpen, onClose, lead, conversationStatus }: Le
     onPoll: refetch,
   });
 
-  if (!isOpen || !lead) return null;
+  if (!isOpen || (!lead && !client)) return null;
 
-  const displayName = lead.profileName || lead.companyName || lead.name;
-  const leadName = typeof displayName === 'string' ? displayName : 'Lead sin nombre';
+  const displayName = isLeadMode 
+    ? (lead!.profileName || lead!.companyName || lead!.name)
+    : client?.name || 'Cliente';
+  const entityName = typeof displayName === 'string' ? displayName : (isLeadMode ? 'Lead sin nombre' : 'Cliente sin nombre');
   const hasConversation = !!conversationStatus?.hasActiveConversation;
 
   return (
@@ -522,25 +549,27 @@ export function LeadChatDrawer({ isOpen, onClose, lead, conversationStatus }: Le
       
       {/* Drawer */}
       <div className="fixed right-0 top-0 h-full w-full max-w-md bg-white shadow-xl z-50 flex flex-col animate-in slide-in-from-right duration-200">
-        {/* Header - Lead Info */}
+        {/* Header - Entity Info */}
         <div className="border-b border-gray-200 bg-white shrink-0 mt-16">
           <div className="flex items-start justify-between p-4 pb-3">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-full bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center text-white font-semibold text-lg">
-                {leadName.charAt(0).toUpperCase()}
+                {entityName.charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0">
-                <h3 className="text-base font-bold text-gray-900 truncate">{leadName}</h3>
-                {console.log('🎯 LEAD DATA:', lead.score, lead.temperature, lead)}
-                {lead.profileName && lead.name && lead.name !== lead.profileName && (
-                  <p className="text-sm text-gray-500 truncate">{lead.name}</p>
+                <h3 className="text-base font-bold text-gray-900 truncate">{entityName}</h3>
+                {isLeadMode && console.log('🎯 LEAD DATA:', lead!.score, lead!.temperature, lead)}
+                {isLeadMode && lead!.profileName && lead!.name && lead!.name !== lead!.profileName && (
+                  <p className="text-sm text-gray-500 truncate">{lead!.name}</p>
                 )}
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANTS[lead.status] || 'bg-gray-100 text-gray-700'}`}>
-                    {STATUS_LABELS[lead.status] || lead.status}
-                  </span>
-                  {lead.temperature && (
-                    <span className={`text-xs px-2 py-0.5 rounded-full border ${TEMPERATURE_COLORS[calculatedScore?.temperature || lead.temperature]}`}>
+                  {isLeadMode && (
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANTS[lead!.status] || 'bg-gray-100 text-gray-700'}`}>
+                      {STATUS_LABELS[lead!.status] || lead!.status}
+                    </span>
+                  )}
+                  {isLeadMode && lead!.temperature && (
+                    <span className={`text-xs px-2 py-0.5 rounded-full border ${TEMPERATURE_COLORS[calculatedScore?.temperature || lead!.temperature]}`}>
                       {calculatedScore?.temperature === 'hot' ? '🔥' : calculatedScore?.temperature === 'warm' ? '🟡' : calculatedScore?.temperature === 'cold' ? '❄️' : lead.temperature === 'hot' ? '🔥' : lead.temperature === 'warm' ? '🟡' : '❄️'} {(calculatedScore?.temperature || lead.temperature)?.toUpperCase() || 'COLD'}
                     </span>
                   )}
@@ -632,19 +661,31 @@ export function LeadChatDrawer({ isOpen, onClose, lead, conversationStatus }: Le
           </div>
         </div>
 
-        {/* Bot Active Banner */}
-        {conversationStatus?.isBotActive && (
-          <div className="px-4 py-2 bg-blue-50 border-b border-blue-100 shrink-0">
+        {/* Bot Control Banner - always show when there's a conversation */}
+        {conversationStatus?.hasActiveConversation && conversationStatus?.conversationId && (
+          <div className={`px-4 py-2 border-b shrink-0 ${
+            conversationStatus?.isBotActive 
+              ? 'bg-blue-50 border-blue-100' 
+              : 'bg-green-50 border-green-100'
+          }`}>
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm text-blue-700">
-                <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-                <span>Bot respondiendo automaticamente</span>
+              <div className={`flex items-center gap-2 text-sm ${
+                conversationStatus?.isBotActive ? 'text-blue-700' : 'text-green-700'
+              }`}>
+                <span className={`w-2 h-2 rounded-full ${
+                  conversationStatus?.isBotActive 
+                    ? 'bg-blue-500 animate-pulse' 
+                    : 'bg-green-500'
+                }`} />
+                <span>{conversationStatus?.isBotActive ? 'Bot respondiendo automáticamente' : 'Control humano'}</span>
               </div>
               <button
-                onClick={handleTakeControl}
-                className="px-3 py-1 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                onClick={conversationStatus?.isBotActive ? handleTakeControl : handleCedeControl}
+                className={`px-3 py-1 text-xs font-medium text-white rounded-lg hover:opacity-90 transition-colors cursor-pointer ${
+                  conversationStatus?.isBotActive ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'
+                }`}
               >
-                Tomar control
+                {conversationStatus?.isBotActive ? 'Tomar control' : 'Ceder al bot'}
               </button>
             </div>
           </div>

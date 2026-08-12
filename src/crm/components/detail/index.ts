@@ -8,6 +8,7 @@ export { ClientWorkOrdersTab } from './ClientWorkOrdersTab';
 export { ClientVisitsTab } from './ClientVisitsTab';
 export { ClientDocumentationTab } from './ClientDocumentationTab';
 export { ClientActivityTab } from './ClientActivityTab';
+export { ClientResolvedConversationsTab } from './ClientResolvedConversationsTab';
 export type { ClientDetail, QuoteListItem } from './client-detail.types';
 export {
   CLIENT_STATUS_OPTIONS,

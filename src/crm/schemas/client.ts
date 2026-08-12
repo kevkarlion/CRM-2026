@@ -50,6 +50,12 @@ export const clientSchema = new Schema<IClient>(
       default: 'none',
     },
     operationStatusUpdatedAt: Date,
+    score: { type: Number, min: 0, max: 100, default: null },
+    temperature: {
+      type: String,
+      enum: ['hot', 'warm', 'cold'],
+      default: null,
+    },
     ...auditFields,
   },
   { timestamps: true }

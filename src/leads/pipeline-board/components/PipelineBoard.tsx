@@ -7,9 +7,12 @@ import { usePipelineBoard } from '../hooks/usePipelineBoard';
 import { useConversationStatus } from '../hooks/useConversationStatus';
 import { usePendingHandoffs } from '../hooks/usePendingHandoffs';
 import { useBotClients } from '../hooks/useBotClients';
+import { useCustomerConversations } from '../hooks/useCustomerConversations';
+import { calculateClientScore } from '@/clients/services/client-score.service';
 import { PipelineColumn } from './PipelineColumn';
 import { LeadFilters } from './LeadFilters';
 import { LeadChatDrawer } from './LeadChatDrawer';
+import { ClientCard } from './ClientCard';
 import type { ILead } from '../../types/lead';
 import type { IClient } from '@/crm/types/client';
 
@@ -103,7 +106,16 @@ export function PipelineBoard() {
   // WhatsApp chat drawer state
   const [chatDrawerOpen, setChatDrawerOpen] = useState(false);
   const [selectedLeadForChat, setSelectedLeadForChat] = useState<ILead | null>(null);
+  const [selectedClientForChat, setSelectedClientForChat] = useState<{ id: string; name: string; phone: string } | null>(null);
   const [showHandoffs, setShowHandoffs] = useState(false);
+  
+  // Confirmation modal for customer conversation resolve
+  const [resolveConfirmOpen, setResolveConfirmOpen] = useState(false);
+  const [resolveConversationId, setResolveConversationId] = useState<string | null>(null);
+  const [resolveConversationName, setResolveConversationName] = useState<string>('');
+  
+  // Notification state
+  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   // Collect all lead IDs across all columns for conversation status lookup
   const allLeadIds = useMemo(() => {
@@ -122,6 +134,7 @@ export function PipelineBoard() {
   const { statusMap: conversationStatusMap } = useConversationStatus(allLeadIds);
   const { count: pendingHandoffs, handoffs: handoffList } = usePendingHandoffs();
   const { clients: botClients, refetch: refetchBotClients } = useBotClients();
+  const { conversations: customerConversations, refetch: refetchCustomerConversations } = useCustomerConversations();
 
   // Open WhatsApp chat drawer for a lead
   const handleLeadWhatsAppClick = useCallback((lead: ILead) => {
@@ -140,6 +153,43 @@ export function PipelineBoard() {
     setSelectedLeadForChat(lead);
     setChatDrawerOpen(true);
   }, []);
+
+  // Open resolve confirmation modal
+  const handleOpenResolveConfirm = useCallback((conversationId: string, clientName: string) => {
+    setResolveConversationId(conversationId);
+    setResolveConversationName(clientName);
+    setResolveConfirmOpen(true);
+  }, []);
+
+  // Open chat for a client from the customers column
+  const handleClientChatClick = useCallback((clientId: string, clientName: string, phone: string) => {
+    setSelectedClientForChat({ id: clientId, name: clientName, phone });
+    setChatDrawerOpen(true);
+  }, []);
+
+  // Resolve conversation
+  const handleResolveConversation = useCallback(async () => {
+    if (!resolveConversationId) return;
+    try {
+      const res = await fetch(`/api/crm/conversations/${resolveConversationId}/resolve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (res.ok) {
+        setNotification({ type: 'success', message: 'Atención marcada como resuelta' });
+        refetchCustomerConversations();
+      } else {
+        setNotification({ type: 'error', message: 'Error al resolver' });
+      }
+    } catch (err) {
+      setNotification({ type: 'error', message: 'Error al resolver' });
+    } finally {
+      setResolveConfirmOpen(false);
+      setResolveConversationId(null);
+      setResolveConversationName('');
+      setTimeout(() => setNotification(null), 5000);
+    }
+  }, [resolveConversationId, refetchCustomerConversations]);
 
   // Take case — assign the current user to the conversation
   const handleTakeCase = useCallback(async (lead: ILead) => {
@@ -186,9 +236,10 @@ export function PipelineBoard() {
     const interval = setInterval(() => {
       refetch();
       refetchBotClients();
+      refetchCustomerConversations();
     }, 5000);
     return () => clearInterval(interval);
-  }, [refetch, refetchBotClients]);
+  }, [refetch, refetchBotClients, refetchCustomerConversations]);
 
   const hasData = Object.keys(groups).length > 0;
 
@@ -344,45 +395,67 @@ export function PipelineBoard() {
             );
           })}
 
-          {/* Columna de clientes con conversación activa */}
-          {botClients.length > 0 && (
-            <div className="bg-blue-50 rounded-lg border border-blue-200 min-w-[85vw] md:min-w-[280px] md:flex-1 snap-start">
-              <div className="flex items-center justify-between px-3 py-2 border-b border-blue-200 bg-blue-50 rounded-t-lg">
+          {/* Columna de clientes con atención activa */}
+          {customerConversations.length > 0 && (
+            <div className="bg-green-50 rounded-lg border border-green-200 min-w-[85vw] md:min-w-[280px] md:flex-1 snap-start">
+              <div className="flex items-center justify-between px-3 py-2 border-b border-green-200 bg-green-50 rounded-t-lg">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-semibold text-blue-700 truncate">
-                    Clientes - Bot Activo
+                  <h3 className="text-sm font-semibold text-green-700 truncate">
+                    Clientes
                   </h3>
-                  <span className="badge badge-primary text-xs shrink-0">
-                    {botClients.length}
+                  <span className="badge badge-success text-xs shrink-0">
+                    {customerConversations.length}
                   </span>
                 </div>
               </div>
               <div className="p-2 space-y-2">
-                {botClients.map((client) => (
-                  <div
-                    key={String(client._id)}
-                    className="bg-white rounded-lg border border-blue-100 p-2.5 cursor-pointer shadow-sm hover:shadow-md transition-shadow"
-                    onClick={() => {
-                      // Navigate to client detail
-                      window.location.href = `/clients/${client._id}`;
-                    }}
-                  >
-                    <p className="text-xs md:text-[13px] font-semibold text-gray-900 leading-tight">
-                      {client.companyName || client.fullName || 'Cliente'}
-                    </p>
-                    {client.phone && (
-                      <div className="flex items-center gap-2 mt-1">
-                        <a
-                          href={`tel:${client.phone}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="text-xs text-brand-600 hover:underline"
-                        >
-                          {client.phone}
-                        </a>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                {customerConversations.map((conv) => {
+                  // Crear objeto cliente a partir de datos de conversación
+                  const clientData = {
+                    _id: conv.clientId ? { toString: () => conv.clientId } : null,
+                    name: conv.clientName,
+                    companyName: conv.clientName,
+                    phone: conv.clientPhone || '',
+                    email: '',
+                    operationStatus: conv.lifecycleState === 'ACTIVE_CLIENT' ? 'active' : 
+                                     conv.lifecycleState === 'IN_PROGRESS' ? 'quote_pending' : 'none',
+                    score: conv.clientScore ?? 0,
+                    temperature: conv.clientTemperature as any,
+                    assignedTo: null,
+                    createdAt: conv.lastMessageAt ? { toString: () => conv.lastMessageAt } as any : undefined,
+                    estimatedValue: undefined,
+                    notes: '',
+                    priority: 'medium',
+                  } as any;
+
+                  const conversationStatus = {
+                    conversationId: conv.conversationId,
+                    leadId: conv.clientId || '',
+                    hasActiveConversation: true,
+                    conversationState: conv.lifecycleState as any,
+                    isBotActive: conv.lifecycleState?.startsWith('BOT_') || false,
+                    isHandoffPending: conv.lifecycleState === 'handoff_pending',
+                    isHumanAssigned: conv.lifecycleState === 'human_assigned' || conv.lifecycleState === 'IN_PROGRESS',
+                    lastMessageAt: conv.lastMessageAt ? new Date(conv.lastMessageAt) : null,
+                    lastMessagePreview: conv.lastMessagePreview,
+                    unreadCount: 0,
+                    score: conv.clientScore ?? undefined,
+                    temperature: conv.clientTemperature,
+                  } as any;
+
+                  return (
+                    <ClientCard
+                      key={conv.conversationId}
+                      client={clientData}
+                      onClick={(clientId) => window.location.href = `/clients/${clientId}`}
+                      onWhatsAppClick={(client) => handleClientChatClick(client._id?.toString() || '', client.name, client.phone)}
+                      conversationStatus={conversationStatus}
+                      onTakeCase={(client) => handleClientChatClick(client._id?.toString() || '', client.name, client.phone)}
+                      onQuickReply={(client) => handleClientChatClick(client._id?.toString() || '', client.name, client.phone)}
+                      onOpenChat={(client) => handleClientChatClick(client._id?.toString() || '', client.name, client.phone)}
+                    />
+                  );
+                })}
               </div>
             </div>
           )}
@@ -428,10 +501,74 @@ export function PipelineBoard() {
         onClose={() => {
           setChatDrawerOpen(false);
           setSelectedLeadForChat(null);
+          setSelectedClientForChat(null);
         }}
         lead={selectedLeadForChat}
+        client={selectedClientForChat}
         conversationStatus={selectedLeadForChat ? (conversationStatusMap.get(String(selectedLeadForChat._id)) ?? null) : null}
       />
+
+      {/* Confirmation Modal for Resolve */}
+      {resolveConfirmOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Confirmar acción</h3>
+                <p className="text-sm text-gray-500">
+                  ¿Marcar la atención de <strong>{resolveConversationName}</strong> como resuelta?
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setResolveConfirmOpen(false);
+                  setResolveConversationId(null);
+                  setResolveConversationName('');
+                }}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleResolveConversation}
+                className="px-4 py-2 text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success/Error Notification */}
+      {notification && (
+        <div className={`fixed bottom-4 right-4 px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 z-50 ${
+          notification.type === 'success' ? 'bg-green-600' : 'bg-red-600'
+        } text-white`}>
+          {notification.type === 'success' ? (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          ) : (
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          )}
+          <span>{notification.message}</span>
+          <button onClick={() => setNotification(null)} className="ml-2 hover:opacity-80">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

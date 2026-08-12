@@ -74,6 +74,7 @@ export interface UpdateConversationInput {
 export type BotAction =
   | { type: 'send_message'; content: string }
   | { type: 'update_lead'; leadId: string; updates: Partial<LeadUpdate> }
+  | { type: 'update_conversation'; conversationId: string; updates: Partial<ConversationUpdate> }
   | { type: 'trigger_handoff'; conversationId: string; reason: string; priority: string }
   | { type: 'close_conversation'; conversationId: string }
   | { type: 'emit_domain_event'; event: LeadContactEstablished };
@@ -88,4 +89,10 @@ export interface LeadUpdate {
   scoringBreakdown?: ScoringBreakdown;
   notes?: string;
   status?: 'new' | 'contacted';
+}
+
+// Campos de la Conversación (cliente) que el bot puede actualizar
+export interface ConversationUpdate {
+  temperature?: Temperature;
+  score?: number;
 }

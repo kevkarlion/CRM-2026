@@ -1,5 +1,6 @@
 import { Types } from 'mongoose';
 import LeadModel from '@/leads/models/lead';
+import ConversationModel from '../models/conversation';
 import WhatsAppMessageModel from '@/crm/models/whatsapp-message';
 import { BotMessageHandler } from './bot-message-handler';
 import { WhatsAppBotAdapter } from './whatsapp-adapter';

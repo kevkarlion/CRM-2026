@@ -22,7 +22,7 @@ export async function GET(
     await connectDB();
     
     const client = await ClientModel.findOne(
-      { _id: new Types.ObjectId(id), tenantId: new Types.ObjectId(tenantId) }
+      { _id: new Types.ObjectId(id), tenantId: new Types.ObjectId(tenantId), deletedAt: null }
     ).lean();
     
     if (!client) {

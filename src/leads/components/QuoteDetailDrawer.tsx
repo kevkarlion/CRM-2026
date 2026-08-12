@@ -42,6 +42,7 @@ interface Quote {
   notes?: string;
   sentAt: string | null;
   createdAt: string;
+  pdfUrl?: string; // URL del PDF generado
 }
 
 interface QuoteDetail {
@@ -234,10 +235,20 @@ export function QuoteDetailDrawer({ isOpen, onClose, quoteId }: QuoteDetailDrawe
             </div>
           )}
 
-          {/* Items */}
+          {/* PDF embebido o Items */}
           <div>
-            <p className="text-sm font-medium text-gray-700 mb-2">Ítems</p>
-            {currentVersion?.items && currentVersion.items.length > 0 ? (
+            <p className="text-sm font-medium text-gray-700 mb-2">
+              {quote.pdfUrl ? 'Vista previa' : 'Ítems'}
+            </p>
+            {quote.pdfUrl ? (
+              <div className="border border-gray-200 rounded-lg overflow-hidden h-[400px]">
+                <iframe
+                  src={quote.pdfUrl}
+                  className="w-full h-full"
+                  title={`Presupuesto #${quote.number}`}
+                />
+              </div>
+            ) : currentVersion?.items && currentVersion.items.length > 0 ? (
               <div className="border border-gray-200 rounded-lg overflow-hidden">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50">

@@ -2,7 +2,8 @@ import mongoose from 'mongoose';
 import { workReportSchema } from '../schemas/work-report';
 import { IWorkReport } from '../types/work-report';
 
-export const WorkReportModel = mongoose.model<IWorkReport>('WorkReport', workReportSchema);
+// Prevent OverwriteModelError in dev mode (HMR)
+export const WorkReportModel = mongoose.models.WorkReport || mongoose.model<IWorkReport>('WorkReport', workReportSchema);
 
 // Ensure indexes are created correctly (handles duplicate index issue from null workOrderId)
 export async function ensureWorkReportIndexes() {

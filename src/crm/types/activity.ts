@@ -7,6 +7,8 @@ export const EVENT_TYPES = {
   CLIENT_CREATED: 'client.created',
   CLIENT_STATUS_CHANGED: 'client.status_changed',
   CLIENT_SALE_CONFIRMED: 'client.sale_confirmed',
+  CLIENT_CONVERSATION_RESOLVED: 'client.conversation_resolved',
+  CLIENT_CONVERSATION_REOPENED: 'client.conversation_reopened',
   QUOTE_CREATED: 'quote.created',
   QUOTE_SENT: 'quote.sent',
   QUOTE_APPROVED: 'quote.approved',

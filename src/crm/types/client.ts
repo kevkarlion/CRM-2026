@@ -42,6 +42,8 @@ export interface IClient extends Document, IAuditFields {
   blockHistory?: BlockHistoryEntry[];
   operationStatus?: ClientOperationStatus;
   operationStatusUpdatedAt?: Date;
+  score?: number;
+  temperature?: 'hot' | 'warm' | 'cold';
   createdAt: Date;
   updatedAt: Date;
 }
