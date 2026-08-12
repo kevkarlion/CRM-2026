@@ -73,24 +73,53 @@ export function ClientDocumentationTab({ clientId }: ClientDocumentationTabProps
   const [uploadType, setUploadType] = useState<DocumentType>('otro');
   const [uploadDescription, setUploadDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
+
+  // Quotes del cliente - para saber el estado de cada documento
+  const [quotes, setQuotes] = useState<{ _id: string; sourceDocumentId: string; status: string }[]>([]);
+  
+  // Action states
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [actionDocId, setActionDocId] = useState<string | null>(null);
+  
+  // Confirmation modal state
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<'quote_sent' | 'approved' | 'won' | 'delete' | null>(null);
+  const [confirmDocId, setConfirmDocId] = useState<string | null>(null);
+  
+  // Success notification state
+  const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Load documents
+  // Load documents and quotes
   useEffect(() => {
-    async function loadDocuments() {
+    async function loadData() {
       try {
-        const res = await api.get<{ documents: Document[] }>('/api/crm/documents', {
+        // Load documents
+        const docsRes = await api.get<{ documents: Document[] }>('/api/crm/documents', {
           clientId,
         });
-        setDocuments(res.documents || []);
+        setDocuments(docsRes.documents || []);
+        
+        // Load quotes for this client to know their status
+        const quotesRes = await api.get<{ data: { _id: string; sourceDocumentId: string; status: string }[] }>('/api/crm/quotes', {
+          clientId,
+        });
+        setQuotes(quotesRes.data || []);
       } catch (err) {
-        console.error('Error loading documents:', err);
+        console.error('Error loading data:', err);
       } finally {
         setLoading(false);
       }
     }
-    loadDocuments();
+    loadData();
   }, [clientId]);
+
+  // Get quote status for a document
+  const getQuoteStatus = (docId: string): string | null => {
+    const quote = quotes.find(q => String(q.sourceDocumentId) === docId || q.sourceDocumentId === docId);
+    return quote?.status || null;
+  };
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -164,14 +193,108 @@ export function ClientDocumentationTab({ clientId }: ClientDocumentationTabProps
     }
   };
 
-  const handleDelete = async (docId: string) => {
-    if (!confirm('¿Estás seguro de eliminar este documento?')) return;
+  const handleDocumentActionClick = (docId: string, action: 'quote_sent' | 'approved' | 'won') => {
+    setConfirmDocId(docId);
+    setConfirmAction(action);
+    setShowConfirm(true);
+  };
+
+  const handleConfirmAction = async () => {
+    if (!confirmDocId || !confirmAction) return;
     
+    const docId = confirmDocId;
+    const action = confirmAction;
+    
+    setShowConfirm(false);
+    setConfirmDocId(null);
+    setConfirmAction(null);
+    
+    setActionLoading(action);
+    setActionDocId(docId);
+    setError(null);
+
+    // Handle approve action (separate API call)
+    if (action === 'approved') {
+      try {
+        const quote = quotes.find(q => String(q.sourceDocumentId) === docId || q.sourceDocumentId === docId);
+        if (!quote) {
+          throw new Error('Quote no encontrada para este documento');
+        }
+        await api.post(`/api/crm/quotes/${quote._id}/approve`, {});
+        
+        const quotesRes = await api.get<{ data: { _id: string; sourceDocumentId: string; status: string }[] }>('/api/crm/quotes', {
+          clientId,
+        });
+        setQuotes(quotesRes.data || []);
+        
+        setNotification({ type: 'success', message: 'Presupuesto aprobado correctamente' });
+        setTimeout(() => setNotification(null), 5000);
+      } catch (err: any) {
+        setError(err.message || 'Error al aprobar presupuesto');
+      } finally {
+        setActionLoading(null);
+        setActionDocId(null);
+      }
+      return;
+    }
+
+    // Handle quote_sent and won actions
+    try {
+      const res = await api.post<{
+        success: boolean;
+        quoteId: string;
+        clientId: string;
+        newStatus: string;
+        workOrder?: { _id: string; workOrderNumber: string; status: string };
+      }>(`/api/crm/clients/${clientId}/documents/${docId}/action`, { action });
+
+      if (res.success) {
+        const quotesRes = await api.get<{ data: { _id: string; sourceDocumentId: string; status: string }[] }>('/api/crm/quotes', {
+          clientId,
+        });
+        setQuotes(quotesRes.data || []);
+        
+        if (res.newStatus === 'won') {
+          setNotification({ 
+            type: 'success', 
+            message: `Venta confirmada. OT: ${res.workOrder?.workOrderNumber || '—'} (borrador)` 
+          });
+        } else {
+          setNotification({ type: 'success', message: 'Presupuesto enviado correctamente' });
+        }
+        setTimeout(() => setNotification(null), 5000);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Error al procesar acción');
+    } finally {
+      setActionLoading(null);
+      setActionDocId(null);
+    }
+  };
+
+  const handleDelete = async (docId: string) => {
+    setConfirmDocId(docId);
+    setConfirmAction('delete');
+    setShowConfirm(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!confirmDocId) return;
+    
+    const docId = confirmDocId;
+    
+    setShowConfirm(false);
+    setConfirmDocId(null);
+    setConfirmAction(null);
+
     try {
       await api.del(`/api/crm/documents/${docId}`);
       setDocuments(prev => prev.filter(d => d._id !== docId));
+      setNotification({ type: 'success', message: 'Documento eliminado correctamente' });
+      setTimeout(() => setNotification(null), 5000);
     } catch (err) {
       console.error('Error deleting document:', err);
+      setError('Error al eliminar documento');
     }
   };
 
@@ -362,7 +485,91 @@ export function ClientDocumentationTab({ clientId }: ClientDocumentationTabProps
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
+              {/* Action Buttons - same flow as Lead */}
+              <div className="flex items-center gap-1">
+                {(() => {
+                  const quoteStatus = getQuoteStatus(doc._id);
+                  
+                  // Quote sent (presupuesto enviado, esperando aprobación)
+                  if (quoteStatus === 'sent') {
+                    return (
+                      <>
+                        <span className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-100 rounded-lg">
+                          ✓ Presupuesto enviado
+                        </span>
+                        <button
+                          onClick={() => handleDocumentActionClick(doc._id, 'approved')}
+                          disabled={actionLoading !== null}
+                          className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors"
+                          title="Aprobar presupuesto"
+                        >
+                          {actionLoading === 'approved' && actionDocId === doc._id ? '...' : 'Aprobada'}
+                        </button>
+                        <button
+                          onClick={() => handleDocumentActionClick(doc._id, 'won')}
+                          disabled={actionLoading !== null}
+                          className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 rounded-lg hover:bg-green-100 disabled:opacity-50 transition-colors"
+                          title="Confirmar venta y crear OT"
+                        >
+                          {actionLoading === 'won' && actionDocId === doc._id ? '...' : 'Confirmar Venta'}
+                        </button>
+                      </>
+                    );
+                  }
+                  
+                  // Quote approved (presupuesto aprobado)
+                  if (quoteStatus === 'approved') {
+                    return (
+                      <>
+                        <span className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-100 rounded-lg">
+                          ✓ Presupuesto aprobado
+                        </span>
+                        <button
+                          onClick={() => handleDocumentActionClick(doc._id, 'won')}
+                          disabled={actionLoading !== null}
+                          className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 rounded-lg hover:bg-green-100 disabled:opacity-50 transition-colors"
+                          title="Confirmar venta y crear OT"
+                        >
+                          {actionLoading === 'won' && actionDocId === doc._id ? '...' : 'Confirmar Venta'}
+                        </button>
+                      </>
+                    );
+                  }
+                  
+                  // Direct sale or lead won (venta confirmada)
+                  if (quoteStatus === 'direct_sale') {
+                    return (
+                      <span className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-100 rounded-lg">
+                        ✓ Venta confirmada
+                      </span>
+                    );
+                  }
+                  
+                  // No quote yet - show action buttons
+                  return (
+                    <>
+                      <button
+                        onClick={() => handleDocumentActionClick(doc._id, 'quote_sent')}
+                        disabled={actionLoading !== null}
+                        className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors"
+                        title="Enviar presupuesto al cliente"
+                      >
+                        {actionLoading === 'quote_sent' && actionDocId === doc._id ? '...' : 'Enviar Presupuesto'}
+                      </button>
+                      <button
+                        onClick={() => handleDocumentActionClick(doc._id, 'won')}
+                        disabled={actionLoading !== null}
+                        className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 rounded-lg hover:bg-green-100 disabled:opacity-50 transition-colors"
+                        title="Confirmar venta y crear OT"
+                      >
+                        {actionLoading === 'won' && actionDocId === doc._id ? '...' : 'Confirmar Venta'}
+                      </button>
+                    </>
+                  );
+                })()}
+              </div>
+
+              <div className="flex items-center gap-1">
                 <a
                   href={doc.secureUrl}
                   target="_blank"
@@ -387,6 +594,95 @@ export function ClientDocumentationTab({ clientId }: ClientDocumentationTabProps
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {showConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Confirmar acción</h3>
+                <p className="text-sm text-gray-500">
+                  {confirmAction === 'quote_sent' 
+                    ? 'Esta acción confirma el envío de un presupuesto al cliente. ¿Estás seguro de continuar?'
+                    : confirmAction === 'approved'
+                    ? 'Esta acción aprobará el presupuesto. ¿Estás seguro de continuar?'
+                    : confirmAction === 'won'
+                    ? 'Esta acción confirmará la venta y creará una orden de trabajo en estado borrador. ¿Estás seguro de continuar?'
+                    : '¿Estás seguro de eliminar este documento? Esta acción no se puede deshacer.'
+                  }
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => {
+                  setShowConfirm(false);
+                  setConfirmDocId(null);
+                  setConfirmAction(null);
+                }}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmAction === 'delete' ? handleConfirmDelete : handleConfirmAction}
+                disabled={actionLoading !== null}
+                className={`px-4 py-2 text-white rounded-lg transition-colors ${
+                  confirmAction === 'won' 
+                    ? 'bg-green-600 hover:bg-green-700' 
+                    : confirmAction === 'delete'
+                    ? 'bg-red-600 hover:bg-red-700'
+                    : 'bg-blue-600 hover:bg-blue-700'
+                } disabled:opacity-50`}
+              >
+                {actionLoading ? 'Procesando...' : 'Confirmar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Notification */}
+      {notification && (
+        <div className="fixed bottom-4 right-4 bg-green-600 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-fade-in-up z-50">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+          </svg>
+          <span>{notification.message}</span>
+          <button 
+            onClick={() => setNotification(null)}
+            className="ml-2 hover:text-green-200"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {/* Error Notification */}
+      {error && (
+        <div className="fixed bottom-4 right-4 bg-red-600 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 z-50">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+          <span>{error}</span>
+          <button 
+            onClick={() => setError(null)}
+            className="ml-2 hover:text-red-200"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
       )}
     </div>
