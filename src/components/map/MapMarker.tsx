@@ -8,10 +8,9 @@ import { getTechnicianColorByName } from '@/operations/config/technician-colors'
 
 // Priority color mapping
 const PRIORITY_COLORS: Record<string, string> = {
-  urgent: '#dc2626',   // red-600
-  high: '#ea580c',     // orange-600
-  normal: '#2563eb',   // blue-600
-  low: '#6b7280',      // gray-500
+  urgent: '#dc2626',   // red-600 - rojo
+  high: '#eab308',     // yellow-500 - amarillo
+  normal: '#16a34a',   // green-600 - verde
 };
 
 // Entity type color mapping (fallback when no technician)

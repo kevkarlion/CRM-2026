@@ -272,16 +272,12 @@ export default function MapaOperativoPage() {
             <span className="text-xs text-gray-600">Urgente</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-orange-600" />
+            <div className="w-3 h-3 rounded-full bg-yellow-500" />
             <span className="text-xs text-gray-600">Alta</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-blue-600" />
+            <div className="w-3 h-3 rounded-full bg-green-600" />
             <span className="text-xs text-gray-600">Normal</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-gray-500" />
-            <span className="text-xs text-gray-600">Baja</span>
           </div>
         </div>
       </div>

@@ -11,16 +11,17 @@ import type { Types } from 'mongoose';
 
 // Paleta de colores para técnicos (orden canónico)
 const TECHNICIAN_PALETTE = [
-  { color: '#2563eb', name: 'Carlos Rodríguez' },  // blue
-  { color: '#dc2626', name: 'Ana López' },          // red
-  { color: '#16a34a', name: 'Martín García' },       // green
-  { color: '#d97706', name: 'Sebastián Díaz' },     // amber
-  { color: '#7c3aed', name: 'Luis Martínez' },      // violet
-  { color: '#0891b2', name: 'Pablo Sánchez' },      // cyan
-  { color: '#db2777', name: 'Jorge Torres' },       // pink
-  { color: '#4f46e5', name: 'Miguel Fernández' },  // indigo
-  { color: '#059669', name: 'Diego López' },        // emerald
-  { color: '#ea580c', name: 'Roberto Ramírez' },    // orange
+  { color: '#2563eb', name: 'Lautaro' },     // blue
+  { color: '#000000', name: 'Conrado' },     // black
+  { color: '#dc2626', name: 'Carlos Rodríguez' },  // red
+  { color: '#16a34a', name: 'Ana López' },          // green
+  { color: '#d97706', name: 'Martín García' },       // amber
+  { color: '#7c3aed', name: 'Sebastián Díaz' },     // violet
+  { color: '#0891b2', name: 'Luis Martínez' },      // cyan
+  { color: '#db2777', name: 'Pablo Sánchez' },      // pink
+  { color: '#4f46e5', name: 'Jorge Torres' },       // indigo
+  { color: '#059669', name: 'Miguel Fernández' },    // emerald
+  { color: '#ea580c', name: 'Diego López' },         // orange
 ] as const;
 
 export type TechnicianColor = typeof TECHNICIAN_PALETTE[number];
