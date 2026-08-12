@@ -44,10 +44,12 @@ En los próximos minutos un asesor de *Rolo Climatización S.R.L* continuará la
     // Use the state's own getMessage() and getOptions() methods
     const content = state.getMessage(context)
     const options = state.getOptions(context)
+    const footer = (state as any).getFooter?.(context) // Optional footer from state
 
     return {
       content,
       options,
+      footer,
     }
   }
 

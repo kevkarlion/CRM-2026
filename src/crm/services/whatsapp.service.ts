@@ -1034,17 +1034,28 @@ export class WhatsAppService {
     );
   }
 
-  /**
-   * Format engine message with options if present
-   */
+/**
+    * Format engine message with options if present
+    */
   private formatEngineMessage(message: string, options?: string[]): string {
     if (!options || options.length === 0) {
       return message;
     }
 
-    // Append options as numbered list
+    // Append options - don't add prefix if option already has any prefix
+    // This handles: "1️⃣ Opción", "1. Opción", "1) Opción"
     const optionsText = options
-      .map((opt, idx) => `${idx + 1}. ${opt}`)
+      .map((opt, idx) => {
+        const trimmed = opt.trim();
+        // Check if already has a prefix (number + emoji OR number + dot/parenthesis)
+        // Patterns: "1️⃣", "2️⃣" (keycap) OR "1.", "2.", "1)", "2)"
+        const hasPrefix = /^\d+[\s\S]/.test(trimmed);
+        
+        if (hasPrefix) {
+          return opt;
+        }
+        return `${idx + 1}. ${opt}`;
+      })
       .join('\n');
 
     return `${message}\n\n${optionsText}`;

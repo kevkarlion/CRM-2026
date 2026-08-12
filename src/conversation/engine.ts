@@ -40,6 +40,7 @@ export interface ReplyComposer {
   compose(state: IConversationState, context: ConversationContext): {
     content: string
     options?: string[]
+    footer?: string  // Optional footer message (e.g., supplier phone)
   }
 }
 

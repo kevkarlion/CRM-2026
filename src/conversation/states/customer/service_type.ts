@@ -3,30 +3,13 @@
  * 
  * Collects the type of service requested from numbered options.
  * Options tailored for existing customers.
+ * Uses unified mapping utility to ensure consistent scoring with lead flow.
  */
 
 import type { ConversationContext } from '../../context'
 import type { ProcessResult, StateIntent } from '../../types'
 import type { IConversationState } from '../interface'
-
-// Service type options mapping for customers
-const SERVICE_OPTIONS: Record<string, string> = {
-  '1': 'repair',
-  '2': 'maintenance',
-  '3': 'installation',
-  '4': 'quote',
-  '5': 'previous_work',
-  '6': 'other',
-}
-
-const SERVICE_LABELS: Record<string, string> = {
-  'repair': 'Reparación',
-  'maintenance': 'Mantenimiento',
-  'installation': 'Instalación',
-  'quote': 'Presupuesto',
-  'previous_work': 'Consulta trabajo anterior',
-  'other': 'Otro',
-}
+import { mapServiceOption, getServiceOptions, SERVICE_TYPE_LABELS } from '../../utils/service-type-mapping'
 
 export class ServiceTypeState implements IConversationState {
   readonly id = 'service_type'
@@ -48,9 +31,9 @@ export class ServiceTypeState implements IConversationState {
       }
     }
 
-    const serviceType = SERVICE_OPTIONS[optionNum]
+    const mapped = mapServiceOption(optionNum)
 
-    if (!serviceType) {
+    if (!mapped) {
       const intent: StateIntent = {
         validationError: '⚠️ Opción inválida. Por favor, elegí un número del 1 al 6.',
       }
@@ -61,10 +44,13 @@ export class ServiceTypeState implements IConversationState {
       }
     }
 
+    // Include needType for scoring - ensures customer flow uses same
+    // scoring logic as lead flow
     const intent: StateIntent = {
       data: {
-        serviceType,
-        serviceTypeLabel: SERVICE_LABELS[serviceType],
+        serviceType: mapped.serviceType,
+        serviceTypeLabel: mapped.serviceTypeLabel,
+        needType: mapped.needType, // Critical for scoring to work
       },
       nextState: 'address_confirm',
     }
@@ -76,18 +62,11 @@ export class ServiceTypeState implements IConversationState {
   }
 
   getMessage(context: ConversationContext): string {
-    return `🛠️ ¿Qué tipo de servicio necesitás?`
+    return `¿Qué tipo de servicio necesitás?`
   }
 
   getOptions(context: ConversationContext): string[] | undefined {
-    return [
-      '1️⃣ Reparación',
-      '2️⃣ Mantenimiento',
-      '3️⃣ Instalación',
-      '4️⃣ Presupuesto',
-      '5️⃣ Consulta trabajo anterior',
-      '6️⃣ Otro',
-    ]
+    return getServiceOptions()
   }
 }
 
@@ -95,7 +74,7 @@ export class ServiceTypeState implements IConversationState {
  * Get the label for a service type
  */
 export function getServiceTypeLabel(serviceType: string): string {
-  return SERVICE_LABELS[serviceType] || serviceType
+  return SERVICE_TYPE_LABELS[serviceType] || serviceType
 }
 
 export default ServiceTypeState
