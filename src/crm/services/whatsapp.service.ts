@@ -1042,8 +1042,12 @@ export class WhatsAppService {
       return message;
     }
 
-    // Append options - don't add prefix if option already has any prefix
-    // This handles: "1️⃣ Opción", "1. Opción", "1) Opción"
+    // Check if message contains a footer (like supplier phone message)
+    // Footer is typically at the end and contains "comunícate" or "proveedor"
+    const footerPattern = /¿Eres proveedor\?|comunícate|proveedor/i;
+    const hasFooter = footerPattern.test(message);
+
+    // Build options text
     const optionsText = options
       .map((opt, idx) => {
         const trimmed = opt.trim();
@@ -1058,6 +1062,16 @@ export class WhatsAppService {
       })
       .join('\n');
 
+    // If there's a footer, put options BEFORE the footer
+    if (hasFooter) {
+      const parts = message.split(footerPattern);
+      if (parts.length >= 2) {
+        // message before footer + options + footer
+        return `${parts[0].trim()}\n\n${optionsText}\n\n${parts.slice(1).join('').trim()}`;
+      }
+    }
+
+    // Default: message + options at the end
     return `${message}\n\n${optionsText}`;
   }
 

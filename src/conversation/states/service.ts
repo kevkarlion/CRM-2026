@@ -67,11 +67,15 @@ export class ServiceState implements IConversationState {
 
   getMessage(context: ConversationContext): string {
     // Message without options - they're added by formatEngineMessage
-    return `¿Qué tipo de servicio necesitás?\n\n${FOOTER_MESSAGE}`
+    return `¿Qué tipo de servicio necesitás?`
   }
 
   getOptions(context: ConversationContext): string[] {
     return getServiceOptions()
+  }
+
+  getFooter(context: ConversationContext): string {
+    return FOOTER_MESSAGE
   }
 }
 

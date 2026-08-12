@@ -46,10 +46,16 @@ En los próximos minutos un asesor de *Rolo Climatización S.R.L* continuará la
     const options = state.getOptions(context)
     const footer = (state as any).getFooter?.(context) // Optional footer from state
 
+    // If there's a footer, append it after the content (not after options)
+    // The options will be added later by formatEngineMessage in WhatsApp service
+    let finalContent = content
+    if (footer) {
+      finalContent = `${content}\n\n${footer}`
+    }
+
     return {
-      content,
+      content: finalContent,
       options,
-      footer,
     }
   }
 

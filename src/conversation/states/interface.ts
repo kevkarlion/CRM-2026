@@ -36,6 +36,14 @@ export interface IConversationState {
    * @returns Array of option strings or undefined if no options
    */
   getOptions?(context: ConversationContext): string[] | undefined
+
+  /**
+   * Get footer message to append after options (optional)
+   * Use for secondary info like supplier contact
+   * @param context - Current conversation context
+   * @returns Footer text or undefined if no footer
+   */
+  getFooter?(context: ConversationContext): string | undefined
 }
 
 /**
