@@ -6,11 +6,12 @@ import ContactModel from '@/crm/models/contact';
 import { LEAD_QUALIFICATION_FLOW, CUSTOMER_SERVICE_FLOW } from '@/conversation/config';
 import type { ConversationLifecycleState, ConversationOwner, ConversationLifecycleEvent } from '@/conversation/domain/conversation';
 import { CONVERSATION_REUSE_WINDOW_MS } from '@/conversation/domain/conversation';
+import { FAREWELL_MESSAGES } from '@/conversation/utils/business-hours';
 
 const CONVERSATION_TIMEOUT_MINUTES = 30;
 
-// Simple message for contacted leads
-const WAITING_FOR_OPERATOR_MESSAGE = '👋 Gracias por tu mensaje.\n\nTu solicitud ya fue registrada correctamente.\n\nUn asesor continuará la conversación lo antes posible.';
+// Simple message for contacted leads - with business hours
+const WAITING_FOR_OPERATOR_MESSAGE = FAREWELL_MESSAGES.leadWaiting;
 
 /**
  * Events that can occur during WAITING_OPERATOR state
@@ -456,48 +457,24 @@ export class ConversationResolver {
    * Get waiting message for leads
    */
   private getWaitingMessage(priority: WaitingPriority): string {
-    const baseMessage = `👋 Gracias por tu mensaje.
-
-Tu solicitud ya fue registrada correctamente.
-
-Un asesor continuará la conversación lo antes posible.`;
-
     if (priority === WaitingPriority.HIGH) {
-      return `⚠️ ${baseMessage}
-
-📩 Tu mensaje ha sido marcado como prioritario.`;
+      return FAREWELL_MESSAGES.leadWaitingPriority;
     }
-
-    return baseMessage;
+    return FAREWELL_MESSAGES.leadWaiting;
   }
 
   /**
    * Get waiting message for clients (more personalized)
-   */
+*/
   private getClientWaitingMessage(priority: WaitingPriority, customerName?: string): string {
-    const name = customerName || 'cliente';
-    const baseMessage = `✨ Gracias por contactarnos, ${name}.
-
-Un asesor de Rolo Climatización S.R.L te atenderá personalmente.
-
-¡Te respondemos en breve! 😊`;
-
     if (priority === WaitingPriority.HIGH) {
-      return `⚠️ ${baseMessage}
-
-📩 Tu mensaje ha sido marcado como prioritario.`;
+      return FAREWELL_MESSAGES.clientWaitingPriority;
     }
-
-    return baseMessage;
+    return FAREWELL_MESSAGES.clientWaiting;
   }
 
   /**
    * Continue an existing ACTIVE conversation
-   * 
-   * Key principles:
-   * - Return the existing conversation with its engineData
-   * - Set shouldContinue: true so engine processes the input
-   * - Preserve all captured data from previous messages
    */
   private continueConversation(
     conversation: any,
@@ -549,23 +526,6 @@ Un asesor de Rolo Climatización S.R.L te atenderá personalmente.
     }
     // For messageCount >= 2, could be more specific in future
     return 'CUSTOMER_SENT_REMINDER';
-  }
-
-  /**
-   * Get waiting message based on priority
-   */
-  private getWaitingMessage(priority: WaitingPriority): string {
-    const baseMessage = `Tu solicitud ha sido registrada.
-
-Un asesor se contactará contigo pronto. 😊`;
-
-    if (priority === WaitingPriority.HIGH) {
-      return `⚠️ ${baseMessage}
-
-📩 Tu mensaje ha sido marcado como prioritario.`;
-    }
-
-    return baseMessage;
   }
 
   /**

@@ -10,6 +10,7 @@ import type { FlowConfig, EngineResult } from './types'
 import { ConversationContext as ContextClass } from './context'
 import { TransitionPolicy } from './policy'
 import type { IConversationState } from './states/interface'
+import { FAREWELL_MESSAGES } from './utils/business-hours'
 
 /**
  * Conversation engine options
@@ -291,8 +292,14 @@ export class ConversationEngine {
       this.store.save(context.phoneNumber, context).catch(console.error)
     }
 
+    // Choose appropriate farewell message based on conversation type
+    const isCustomer = context.get('isCustomer') || context.get('clientId');
+    const farewellMessage = isCustomer
+      ? FAREWELL_MESSAGES.clientWaiting
+      : FAREWELL_MESSAGES.leadConfirmed;
+
     return {
-      message: '¡Gracias! Tu solicitud ha sido registrada. Te contactaremos pronto.',
+      message: farewellMessage,
       context,
       isComplete: true,
     }

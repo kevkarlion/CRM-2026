@@ -27,23 +27,24 @@ export class PriorityState implements IConversationState {
     }
 
     const priorityMap: Record<string, string> = {
-      '1': 'urgent',
-      '2': 'this_week',
-      '3': 'flexible',
+      '1': 'high',      // Lo antes posible
+      '2': 'medium',    // Esta semana
+      '3': 'low',       // Sin apuro
     }
 
     const priorityLabelMap: Record<string, string> = {
-      'urgent': 'Urgente',
-      'this_week': 'Esta semana',
-      'flexible': 'Sin apuro',
+      'high': 'Urgente',
+      'medium': 'Esta semana',
+      'low': 'Sin apuro',
     }
 
     const priority = priorityMap[optionNum]
 
     const intent: StateIntent = {
       data: {
-        priority,
-        priorityLabel: priorityLabelMap[priority],
+        priority,           // para UI
+        priorityLabel: priorityLabelMap[priority],  // para UI
+        urgency: priority,  // para scoring - debe coincidir con URGENCY_SCORES
       },
       nextState: 'description',  // Go to description first, then summary
     }
