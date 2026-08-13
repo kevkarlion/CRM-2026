@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChatPanel } from '@/whatsapp/components/ChatPanel';
 import { useChatMessages } from '@/whatsapp/hooks/useChatMessages';

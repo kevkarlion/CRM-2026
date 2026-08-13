@@ -282,7 +282,44 @@ export function PipelineBoard() {
       || f.isBotActive || f.isHandoff || f.scoreMin || f.scoreMax
       || f.dateFrom || f.dateTo || f.lastContact;
 
-    if (!hasActiveFilter) return columns;
+    if (!hasActiveFilter) {
+      // Sort leads within each stage: unread messages first, then by score
+      const result: Record<string, ILead[]> = {};
+      for (const [stageName, leads] of Object.entries(columns)) {
+        const sortedLeads = [...leads].sort((a, b) => {
+          const convA = conversationStatusMap.get(String(a._id));
+          const convB = conversationStatusMap.get(String(b._id));
+          
+          // Has unread? (human assigned + lastMessage > lastRead)
+          const hasUnreadA = convA?.isHumanAssigned && convA.lastMessageAt && 
+            (!convA.lastReadAt || new Date(convA.lastMessageAt) > new Date(convA.lastReadAt));
+          const hasUnreadB = convB?.isHumanAssigned && convB.lastMessageAt && 
+            (!convB.lastReadAt || new Date(convB.lastMessageAt) > new Date(convB.lastReadAt));
+          
+          if (hasUnreadA && !hasUnreadB) return -1;
+          if (!hasUnreadA && hasUnreadB) return 1;
+          
+          // Then by score (existing logic)
+          const getPriorityScore = (p?: string) => {
+            if (p === 'high') return 300;
+            if (p === 'medium') return 200;
+            if (p === 'low') return 100;
+            return 0;
+          };
+          const getTempScore = (t?: string) => {
+            if (t === 'hot') return 30;
+            if (t === 'warm') return 20;
+            if (t === 'cold') return 10;
+            return 0;
+          };
+          const aScore = getPriorityScore(a.priority) + getTempScore(a.temperature) + (a.score || 0);
+          const bScore = getPriorityScore(b.priority) + getTempScore(b.temperature) + (b.score || 0);
+          return bScore - aScore;
+        });
+        result[stageName] = sortedLeads;
+      }
+      return result;
+    }
 
     const result: Record<string, ILead[]> = {};
     for (const [stageName, leads] of Object.entries(columns)) {
