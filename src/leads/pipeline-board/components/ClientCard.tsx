@@ -200,12 +200,12 @@ export const ClientCard = React.memo(function ClientCard({
             </div>
           )}
 
-          {/* New message indicator - when client wrote within last 2 min (even if last msg is from bot) */}
-          {conversationStatus.lastMessageAt && conversationStatus.lastMessageDirection === 'inbound' && (
+          {/* New message indicator - when client wrote within last 2 min (using lastInboundMessageAt) */}
+          {conversationStatus.lastInboundMessageAt && (
             (() => {
-              const lastMsgTime = new Date(conversationStatus.lastMessageAt).getTime();
+              const lastInboundTime = new Date(conversationStatus.lastInboundMessageAt).getTime();
               const twoMinAgo = Date.now() - (2 * 60 * 1000);
-              const hasRecentInbound = lastMsgTime > twoMinAgo;
+              const hasRecentInbound = lastInboundTime > twoMinAgo;
               
               return hasRecentInbound ? (
                 <div className="flex items-center gap-2 mt-1.5 pt-1.5 border-t border-blue-200 bg-blue-50 rounded">

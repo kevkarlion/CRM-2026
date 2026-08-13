@@ -290,11 +290,11 @@ export function PipelineBoard() {
           const convA = conversationStatusMap.get(String(a._id));
           const convB = conversationStatusMap.get(String(b._id));
           
-          // Priority 1: Inbound recent (2 min) - same logic as blue indicator
-          const hasRecentInboundA = convA?.lastMessageDirection === 'inbound' && convA.lastMessageAt && 
-            new Date(convA.lastMessageAt).getTime() > (Date.now() - 2 * 60 * 1000);
-          const hasRecentInboundB = convB?.lastMessageDirection === 'inbound' && convB.lastMessageAt && 
-            new Date(convB.lastMessageAt).getTime() > (Date.now() - 2 * 60 * 1000);
+          // Priority 1: Inbound within 2 min (using lastInboundMessageAt)
+          const hasRecentInboundA = convA?.lastInboundMessageAt && 
+            new Date(convA.lastInboundMessageAt).getTime() > (Date.now() - 2 * 60 * 1000);
+          const hasRecentInboundB = convB?.lastInboundMessageAt && 
+            new Date(convB.lastInboundMessageAt).getTime() > (Date.now() - 2 * 60 * 1000);
           
           // Priority 2: Bot waiting (amber indicator - bot sent, no reply for 15min)
           const isBotWaitingA = convA?.lastMessageDirection === 'outbound' && convA.lastMessageAt && convA.isBotActive && 

@@ -15,6 +15,7 @@ export interface ConversationWithLead {
   assignedToUserId?: string;
   lastMessageAt: Date;
   lastReadAt?: Date;
+  lastInboundMessageAt?: Date;
   startedAt: Date;
   closedAt?: Date;
   createdAt: Date;
@@ -95,7 +96,7 @@ export class ConversationQueryService {
 
     const leadMap = new Map(leads.map(l => [String(l._id), l]));
 
-    // Batch fetch last messages per conversation
+    // Batch fetch last messages and last inbound message per conversation
     const conversationIds = conversations.map(c => c._id);
     const lastMessages = await WhatsAppMessageModel.aggregate([
       { $match: { tenantId: tid, leadId: { $in: leadIds.map(id => new Types.ObjectId(id)) } } },
@@ -110,13 +111,30 @@ export class ConversationQueryService {
       },
     ]);
 
+    // Also get the most recent inbound message timestamp
+    const lastInboundMessages = await WhatsAppMessageModel.aggregate([
+      { $match: { tenantId: tid, leadId: { $in: leadIds.map(id => new Types.ObjectId(id)) }, direction: 'inbound' } },
+      { $sort: { createdAt: -1 as const } },
+      {
+        $group: {
+          _id: '$leadId',
+          lastInboundAt: { $first: '$createdAt' },
+        },
+      },
+    ]);
+
     const lastMessageMap = new Map(
       lastMessages.map(m => [String(m._id), { content: m.content, direction: m.direction, createdAt: m.createdAt }])
+    );
+    
+    const lastInboundMap = new Map(
+      lastInboundMessages.map(m => [String(m._id), m.lastInboundAt])
     );
 
     return conversations.map(c => {
       const lead = leadMap.get(String(c.leadId));
       const lastMsg = lastMessageMap.get(String(c.leadId));
+      const lastInboundAt = lastInboundMap.get(String(c.leadId));
 
       return {
         _id: String(c._id),
@@ -129,6 +147,7 @@ export class ConversationQueryService {
         assignedToUserId: c.assignedToUserId ? String(c.assignedToUserId) : undefined,
         lastMessageAt: c.lastMessageAt,
         lastReadAt: c.lastReadAt ? new Date(c.lastReadAt) : undefined,
+        lastInboundMessageAt: lastInboundAt ? new Date(lastInboundAt) : undefined,
         startedAt: c.startedAt,
         closedAt: c.closedAt,
         createdAt: c.createdAt,
