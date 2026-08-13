@@ -98,7 +98,11 @@ export function useConversationStatus(leadIds: string[]) {
         if (!conv.leadId) continue;
 
         const state = conv.state as ConversationState;
-        const isBotActive = conv.owner === 'BOT' && BOT_ACTIVE_STATES.has(state);
+        const isBotActive = conv.owner === 'BOT' && (
+          BOT_ACTIVE_STATES.has(state) || 
+          conv.lifecycleState === 'WAITING_OPERATOR' || 
+          conv.lifecycleState === 'WAITING_CLIENT'
+        );
         const isHandoffPending = conv.handoffStatus === 'pending';
         const isHumanAssigned = conv.handoffStatus === 'assigned' || state === 'human_assigned' || state === 'IN_PROGRESS';
 

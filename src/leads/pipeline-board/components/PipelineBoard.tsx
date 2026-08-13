@@ -433,7 +433,7 @@ export function PipelineBoard() {
                     leadId: conv.clientId || '',
                     hasActiveConversation: true,
                     conversationState: conv.lifecycleState as any,
-                    isBotActive: conv.owner === 'BOT' && (conv.lifecycleState === 'ACTIVE_LEAD' || conv.lifecycleState === 'ACTIVE_CLIENT'),
+                    isBotActive: conv.owner === 'BOT' && ['ACTIVE_LEAD', 'ACTIVE_CLIENT', 'WAITING_OPERATOR', 'WAITING_CLIENT'].includes(conv.lifecycleState),
                     isHandoffPending: conv.lifecycleState === 'handoff_pending',
                     isHumanAssigned: conv.lifecycleState === 'human_assigned' || conv.lifecycleState === 'IN_PROGRESS',
                     lastMessageAt: conv.lastMessageAt ? new Date(conv.lastMessageAt) : null,
