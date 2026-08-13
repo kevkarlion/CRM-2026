@@ -314,11 +314,13 @@ export function LeadChatDrawer({ isOpen, onClose, lead, client, conversationStat
   useEffect(() => {
     if (isOpen && conversationStatus?.conversationId) {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const tenantId = typeof window !== 'undefined' ? localStorage.getItem('tenantId') : null;
       fetch(`/api/crm/conversations/${conversationStatus.conversationId}/read`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(tenantId ? { 'x-tenant-id': tenantId } : {}),
         },
       }).catch(() => {
         // Silent fail - not critical
