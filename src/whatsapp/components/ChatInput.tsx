@@ -191,7 +191,7 @@ export function ChatInput({ onSend, onAttach, disabled, sending }: ChatInputProp
           placeholder="Escribí un mensaje..."
           disabled={disabled}
           rows={1}
-          className="flex-1 resize-none rounded-xl border border-gray-200 px-4 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none disabled:bg-gray-50 disabled:text-gray-400"
+          className="flex-1 resize-none rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none disabled:bg-gray-50 disabled:text-gray-400"
         />
         <button
           onClick={handleSend}
