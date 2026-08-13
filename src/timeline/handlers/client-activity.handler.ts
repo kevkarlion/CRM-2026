@@ -14,9 +14,28 @@ import {
 } from '@/infrastructure/events/event.types';
 import { timelineService } from '../services/timeline.service';
 import { label } from './timeline.handler';
+import TimelineEventModel from '../models/timeline-event';
 
 function quoteSummary(number: string, total: number): string {
   return `${number} — $${total.toLocaleString('es-AR')}`;
+}
+
+/**
+ * Verifica si ya existe un evento similar para evitar duplicados
+ */
+async function eventExists(
+  tenantId: string,
+  leadId: string,
+  eventType: string,
+  entityType: string
+): Promise<boolean> {
+  const existing = await TimelineEventModel.findOne({
+    tenantId: new (require('mongoose').Types.ObjectId)(tenantId),
+    leadId: new (require('mongoose').Types.ObjectId)(leadId),
+    eventType,
+    entityType,
+  }).lean();
+  return !!existing;
 }
 
 function visitSummary(p: { category?: string; priority?: string }): string | undefined {
@@ -127,6 +146,12 @@ export const clientActivityOrchestrator = {
   async onQuoteCreated(event: DomainEvent<QuoteCreatedPayload>): Promise<void> {
     const p = event.payload;
     if (!p.clientId) return;
+    
+    // Skip if lead already has this event (timeline handler creates it)
+    if (p.leadId && await eventExists(event.tenantId, p.leadId, 'quote.created', 'quote')) {
+      return;
+    }
+    
     await timelineService.create({
       tenantId: event.tenantId,
       clientId: p.clientId,
@@ -154,6 +179,12 @@ export const clientActivityOrchestrator = {
   async onQuoteSent(event: DomainEvent<QuoteSentPayload>): Promise<void> {
     const p = event.payload;
     if (!p.clientId) return;
+    
+    // Skip if lead already has this event (timeline handler creates it)
+    if (p.leadId && await eventExists(event.tenantId, p.leadId, 'quote.sent', 'quote')) {
+      return;
+    }
+    
     await timelineService.create({
       tenantId: event.tenantId,
       clientId: p.clientId,
