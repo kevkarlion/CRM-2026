@@ -176,11 +176,15 @@ export class ConversationStateMachine {
 
     // Si estamos en un estado de captura, ir al siguiente pregunta
     // Flujo normal desde un estado de captura → siguiente pregunta
+    // Nota: Para repuestos (spare_parts) y otros (other), se salta urgency y location
+    // y se va directo a evaluate después de detail_captured
+    const isQuickNeedType = context.needType === 'spare_parts' || context.needType === 'other';
+    
     const captureToNext: Partial<Record<ConversationState, ConversationState>> = {
       need_type_captured: 'detail_asked',
-      detail_captured: 'urgency_asked',
+      detail_captured: isQuickNeedType ? 'evaluate' : 'urgency_asked',
       customer_type_captured: 'urgency_asked',
-      urgency_captured: 'location_asked',
+      urgency_captured: isQuickNeedType ? 'evaluate' : 'location_asked',
       location_captured: 'equipment_asked',
       equipment_captured: 'evaluate',
     };

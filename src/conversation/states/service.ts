@@ -50,13 +50,18 @@ export class ServiceState implements IConversationState {
 
     // Include needType for scoring - this is the key change that makes
     // scoring work with numbered selections (not just keywords)
+    // For repuestos (spare_parts) and otros (other), go directly to detail_asked
+    // to skip urgency/location flow
+    const isQuickNeedType = mapped.needType === 'spare_parts' || mapped.needType === 'other';
+    const nextState = isQuickNeedType ? 'detail_asked' : 'address';
+    
     const intent: StateIntent = {
       data: {
         serviceType: mapped.serviceType,
         serviceTypeLabel: mapped.serviceTypeLabel,
         needType: mapped.needType, // Critical for scoring to work
       },
-      nextState: 'address',
+      nextState,
     }
 
     return {

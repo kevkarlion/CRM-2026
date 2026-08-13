@@ -17,6 +17,18 @@ const STATE_REPLIES: Record<string, (ctx: ConversationContext) => BotReply> = {
   }),
 
   detail_asked: (ctx) => {
+    // Custom messages for spare_parts and other - skip urgency/location flow
+    if (ctx.needType === 'spare_parts') {
+      return {
+        content: 'Describí brevemente qué tipo de repuesto estás buscando.',
+      };
+    }
+    if (ctx.needType === 'other') {
+      return {
+        content: 'Describí brevemente cuál es tu consulta.',
+      };
+    }
+    // Default message for other service types (maintenance, repair, installation, quote)
     const needLabel = getNeedLabel(ctx.needType);
     return {
       content: `Perfecto, ${needLabel}. ¿Podrías darme más detalles sobre tu caso? Por ejemplo, qué equipo es, qué problema tenés, etc.`,
