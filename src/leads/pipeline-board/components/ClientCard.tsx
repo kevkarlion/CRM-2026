@@ -200,12 +200,12 @@ export const ClientCard = React.memo(function ClientCard({
             </div>
           )}
 
-          {/* New message indicator - when client wrote and chat hasn't been opened (no lastReadAt or lastReadAt before last inbound) */}
-          {conversationStatus.lastInboundMessageAt && (
+          {/* New message indicator - when client wrote and chat hasn't been opened */}
+          {conversationStatus.lastInboundMessageAt && conversationStatus.lastReadAt && (
             (() => {
               const lastInboundTime = new Date(conversationStatus.lastInboundMessageAt).getTime();
-              const lastReadTime = conversationStatus.lastReadAt ? new Date(conversationStatus.lastReadAt).getTime() : 0;
-              const hasUnreadInbound = lastInboundTime > lastReadTime;
+              const lastReadTime = new Date(conversationStatus.lastReadAt).getTime();
+              const hasUnreadInbound = !isNaN(lastInboundTime) && lastInboundTime > lastReadTime;
               
               return hasUnreadInbound ? (
                 <div className="flex items-center gap-2 mt-1.5 pt-1.5 border-t border-blue-200 bg-blue-50 rounded">
