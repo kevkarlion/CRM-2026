@@ -290,23 +290,19 @@ export function PipelineBoard() {
           const convA = conversationStatusMap.get(String(a._id));
           const convB = conversationStatusMap.get(String(b._id));
           
-          // Priority 1: Has recent inbound (within 30 min) using lastInboundMessageAt
-          const hasRecentUnreadInboundA = convA?.lastInboundMessageAt && 
-            new Date(convA.lastInboundMessageAt).getTime() > (Date.now() - 30 * 60 * 1000);
-          const hasRecentUnreadInboundB = convB?.lastInboundMessageAt && 
-            new Date(convB.lastInboundMessageAt).getTime() > (Date.now() - 30 * 60 * 1000);
+          // Priority 1: Has inbound (lead wrote)
+          const hasInboundA = !!convA?.lastInboundMessageAt;
+          const hasInboundB = !!convB?.lastInboundMessageAt;
           
-          // Priority 2: Bot waiting (amber indicator - bot sent, no reply for 15min)
-          const isBotWaitingA = convA?.lastMessageDirection === 'outbound' && convA.lastMessageAt && convA.isBotActive && 
-            new Date(convA.lastMessageAt).getTime() < (Date.now() - 15 * 60 * 1000);
-          const isBotWaitingB = convB?.lastMessageDirection === 'outbound' && convB.lastMessageAt && convB.isBotActive && 
-            new Date(convB.lastMessageAt).getTime() < (Date.now() - 15 * 60 * 1000);
+          // Priority 2: Bot sent message but no reply yet
+          const botSentA = convA?.lastMessageDirection === 'outbound' && convA.isBotActive && !hasInboundA;
+          const botSentB = convB?.lastMessageDirection === 'outbound' && convB.isBotActive && !hasInboundB;
           
-          // Sort: recent unread inbound (30min) > bot waiting > others
-          if (hasRecentUnreadInboundA && !hasRecentUnreadInboundB && !isBotWaitingB) return -1;
-          if (!hasRecentUnreadInboundA && hasRecentUnreadInboundB && !isBotWaitingA) return 1;
-          if (isBotWaitingA && !isBotWaitingB && !hasRecentUnreadB) return -1;
-          if (!isBotWaitingA && isBotWaitingB && !hasRecentUnreadA) return 1;
+          // Sort: has inbound > bot sent > others
+          if (hasInboundA && !hasInboundB) return -1;
+          if (!hasInboundA && hasInboundB) return 1;
+          if (botSentA && !botSentB) return -1;
+          if (!botSentA && botSentB) return 1;
           
           // Then by score
           const getPriorityScore = (p?: string) => {
