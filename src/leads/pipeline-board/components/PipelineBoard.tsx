@@ -290,11 +290,9 @@ export function PipelineBoard() {
           const convA = conversationStatusMap.get(String(a._id));
           const convB = conversationStatusMap.get(String(b._id));
           
-          // Priority 1: Has unread inbound message (lastInboundMessageAt > lastReadAt, or no lastReadAt)
-          const hasUnreadInboundA = convA?.lastInboundMessageAt && 
-            (!convA.lastReadAt || new Date(convA.lastInboundMessageAt).getTime() > new Date(convA.lastReadAt).getTime());
-          const hasUnreadInboundB = convB?.lastInboundMessageAt && 
-            (!convB.lastReadAt || new Date(convB.lastInboundMessageAt).getTime() > new Date(convB.lastReadAt).getTime());
+          // Priority 1: Has inbound message and hasn't been read (same logic as blue indicator)
+          const hasUnreadInboundA = convA?.lastInboundMessageAt && !convA.lastReadAt;
+          const hasUnreadInboundB = convB?.lastInboundMessageAt && !convB.lastReadAt;
           
           // Priority 2: Bot waiting (amber indicator - bot sent, no reply for 15min)
           const isBotWaitingA = convA?.lastMessageDirection === 'outbound' && convA.lastMessageAt && convA.isBotActive && 
