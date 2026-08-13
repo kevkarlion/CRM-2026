@@ -133,29 +133,19 @@ export class WorkAssignmentService {
         },
       });
 
-      // Promote status: draft → scheduled (if has date) → assigned (if has technician)
-      // First check if we can promote from draft to scheduled
+      // Promote status: draft → scheduled (if has date or technician)
+      // Check current status and promote appropriately
       const workOrderForPromotion = await WorkOrderModel.findById(workOrderId).select('status scheduledDate').lean();
       if (workOrderForPromotion) {
-        // If in draft and has scheduledDate → promote to scheduled
-        if (workOrderForPromotion.status === 'draft' && workOrderForPromotion.scheduledDate) {
+        // If in draft → promote to scheduled (any scheduling action triggers this)
+        if (workOrderForPromotion.status === 'draft') {
           await WorkOrderModel.updateOne(
             { _id: new Types.ObjectId(workOrderId), tenantId: new Types.ObjectId(tenantId), status: 'draft' },
             { $set: { status: 'scheduled' } },
           );
           console.log('[createAssignment] Promoted work order from draft to scheduled');
         }
-        
-        // Now promote from scheduled/confirmed to assigned (only if has scheduledDate)
-        await WorkOrderModel.updateOne(
-          {
-            _id: new Types.ObjectId(workOrderId),
-            tenantId: new Types.ObjectId(tenantId),
-            status: { $in: PROMOTABLE_STATUSES },
-            scheduledDate: { $exists: true, $ne: null },
-          },
-          { $set: { status: 'assigned' } },
-        );
+        // Note: No more 'assigned' state - the canonical flow is draft → scheduled → in_progress
       }
 
       if (PUBLISHABLE_ASSIGNMENT_TYPES.includes(options.assignmentType)) {
@@ -233,29 +223,19 @@ export class WorkAssignmentService {
       },
     });
 
-    // Promote status: draft → scheduled (if has date) → assigned (if has technician)
-    // First check if we can promote from draft to scheduled
+    // Promote status: draft → scheduled (if has date or technician)
+    // Check current status and promote appropriately
     const workOrderForPromotion = await WorkOrderModel.findById(workOrderId).select('status scheduledDate').lean();
     if (workOrderForPromotion) {
-      // If in draft and has scheduledDate → promote to scheduled
-      if (workOrderForPromotion.status === 'draft' && workOrderForPromotion.scheduledDate) {
+      // If in draft → promote to scheduled
+      if (workOrderForPromotion.status === 'draft') {
         await WorkOrderModel.updateOne(
           { _id: new Types.ObjectId(workOrderId), tenantId: new Types.ObjectId(tenantId), status: 'draft' },
           { $set: { status: 'scheduled' } },
         );
         console.log('[SelfAssign] Promoted work order from draft to scheduled');
       }
-      
-      // Now promote from scheduled/confirmed to assigned (only if has scheduledDate)
-      await WorkOrderModel.updateOne(
-        {
-          _id: new Types.ObjectId(workOrderId),
-          tenantId: new Types.ObjectId(tenantId),
-          status: { $in: PROMOTABLE_STATUSES },
-          scheduledDate: { $exists: true, $ne: null },
-        },
-        { $set: { status: 'assigned' } },
-      );
+      // Note: No more 'assigned' state - canonical flow is draft → scheduled → in_progress
     }
 
     console.log('[SelfAssign] WorkOrder updated successfully!');
