@@ -290,11 +290,11 @@ export function PipelineBoard() {
           const convA = conversationStatusMap.get(String(a._id));
           const convB = conversationStatusMap.get(String(b._id));
           
-          // Priority 1: Inbound within 2 min (using lastInboundMessageAt)
-          const hasRecentInboundA = convA?.lastInboundMessageAt && 
-            new Date(convA.lastInboundMessageAt).getTime() > (Date.now() - 2 * 60 * 1000);
-          const hasRecentInboundB = convB?.lastInboundMessageAt && 
-            new Date(convB.lastInboundMessageAt).getTime() > (Date.now() - 2 * 60 * 1000);
+          // Priority 1: Has unread inbound message (same logic as blue indicator)
+          const hasUnreadInboundA = convA?.lastInboundMessageAt && 
+            (!convA.lastReadAt || new Date(convA.lastInboundMessageAt).getTime() > new Date(convA.lastReadAt).getTime());
+          const hasUnreadInboundB = convB?.lastInboundMessageAt && 
+            (!convB.lastReadAt || new Date(convB.lastInboundMessageAt).getTime() > new Date(convB.lastReadAt).getTime());
           
           // Priority 2: Bot waiting (amber indicator - bot sent, no reply for 15min)
           const isBotWaitingA = convA?.lastMessageDirection === 'outbound' && convA.lastMessageAt && convA.isBotActive && 
@@ -302,9 +302,9 @@ export function PipelineBoard() {
           const isBotWaitingB = convB?.lastMessageDirection === 'outbound' && convB.lastMessageAt && convB.isBotActive && 
             new Date(convB.lastMessageAt).getTime() < (Date.now() - 15 * 60 * 1000);
           
-          // Sort: recent inbound (2min) > bot waiting > others
-          if (hasRecentInboundA && !hasRecentInboundB && !isBotWaitingB) return -1;
-          if (!hasRecentInboundA && hasRecentInboundB && !isBotWaitingA) return 1;
+          // Sort: has unread inbound > bot waiting > others
+          if (hasUnreadInboundA && !hasUnreadInboundB && !isBotWaitingB) return -1;
+          if (!hasUnreadInboundA && hasUnreadInboundB && !isBotWaitingA) return 1;
           if (isBotWaitingA && !isBotWaitingB && !hasRecentUnreadB) return -1;
           if (!isBotWaitingA && isBotWaitingB && !hasRecentUnreadA) return 1;
           
