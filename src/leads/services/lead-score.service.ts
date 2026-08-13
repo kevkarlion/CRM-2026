@@ -34,6 +34,10 @@ export function calculateLeadScore(lead: {
       breakdown.buttons = 20;
       score += 20;
       break;
+    case 'spare_parts':
+      breakdown.buttons = 20;
+      score += 20;
+      break;
     case 'budget':
       breakdown.buttons = 10;
       score += 10;
