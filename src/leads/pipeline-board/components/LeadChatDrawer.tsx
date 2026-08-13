@@ -677,7 +677,14 @@ export function LeadChatDrawer({ isOpen, onClose, lead, client, conversationStat
                     ? 'bg-blue-500 animate-pulse' 
                     : 'bg-green-500'
                 }`} />
-                <span>{conversationStatus?.isBotActive ? 'Bot respondiendo automáticamente' : 'Control humano'}</span>
+                <span>
+                  {/* DEBUG: show raw values */}
+                  {typeof conversationStatus?.isBotActive === 'undefined' 
+                    ? '⚠️ isBotActive undefined' 
+                    : conversationStatus?.isBotActive 
+                      ? 'Bot respondiendo automáticamente' 
+                      : 'Control humano'}
+                </span>
               </div>
               <button
                 onClick={conversationStatus?.isBotActive ? handleTakeControl : handleCedeControl}

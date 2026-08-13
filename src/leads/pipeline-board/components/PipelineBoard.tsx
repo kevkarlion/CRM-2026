@@ -505,7 +505,7 @@ export function PipelineBoard() {
         }}
         lead={selectedLeadForChat}
         client={selectedClientForChat}
-        conversationStatus={selectedLeadForChat ? (conversationStatusMap.get(String(selectedLeadForChat._id)) ?? null) : null}
+        conversationStatus={selectedLeadForChat ? (conversationStatusMap.get(String((selectedLeadForChat as any)._id)) ?? null) : null}
       />
 
       {/* Confirmation Modal for Resolve */}
