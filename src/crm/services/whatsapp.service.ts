@@ -588,12 +588,16 @@ export class WhatsAppService {
           const needType = contextData.serviceTypeLabel as string | undefined;
           const description = contextData.description as string | undefined;
           
-          // Map priority values
+          // Map priority values (both old format and new format)
           const priorityEnumMap: Record<string, string> = {
             'asap': 'high',
             'this_week': 'medium',
             'next_week': 'low',
-            'urgent': 'high', // urgent = high priority
+            'urgent': 'high',
+            // New format from conversation engine
+            'high': 'high',
+            'medium': 'medium',
+            'low': 'low',
           };
           const priorityForLead = priorityValue ? priorityEnumMap[priorityValue] : undefined;
           const priorityDisplayLabel = priorityLabel || (priorityValue === 'asap' ? 'HOY' : priorityValue === 'this_week' ? 'Esta semana' : priorityValue === 'next_week' ? 'No tengo apuro' : priorityValue);
