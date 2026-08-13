@@ -5,13 +5,13 @@ export const leadSchema = new Schema<ILead>(
   {
     tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true },
     name: { type: String, required: true, trim: true },
+    phone: { type: String, trim: true }, // Obligatorio a nivel de aplicación, no DB
     companyName: { type: String, trim: true },
     email: { type: String, lowercase: true, trim: true },
-    phone: { type: String, trim: true },
     source: {
       type: String,
       enum: ['whatsapp', 'call', 'form', 'referral', 'walk_in', 'other'] satisfies LeadSource[],
-      required: true,
+      default: 'whatsapp',
     },
     status: {
       type: String,
