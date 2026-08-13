@@ -164,9 +164,13 @@ export class WorkReportService {
       errors.push('Maximum 10 work items can be selected');
     }
 
-    // Validate observationsText length
-    if (data.observationsText && data.observationsText.length > 500) {
-      errors.push('observationsText must not exceed 500 characters');
+    // Validate text fields length
+    if (data.observationsText && data.observationsText.length > 1500) {
+      errors.push('Las observaciones no pueden exceder 1500 caracteres');
+    }
+
+    if (data.additionalIssuesText && data.additionalIssuesText.length > 1500) {
+      errors.push('La descripción del problema no puede exceder 1500 caracteres');
     }
 
     return {
