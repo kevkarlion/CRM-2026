@@ -200,20 +200,12 @@ export const ClientCard = React.memo(function ClientCard({
             </div>
           )}
 
-          {/* New message indicator - when client wrote and chat hasn't been opened (or opened before last inbound) */}
-          {conversationStatus.lastInboundMessageAt && (
-            (() => {
-              const lastInboundTime = new Date(conversationStatus.lastInboundMessageAt).getTime();
-              const lastReadTime = conversationStatus.lastReadAt ? new Date(conversationStatus.lastReadAt).getTime() : 0;
-              const hasUnreadInbound = !isNaN(lastInboundTime) && (lastReadTime === 0 || lastInboundTime > lastReadTime);
-              
-              return hasUnreadInbound ? (
-                <div className="flex items-center gap-2 mt-1.5 pt-1.5 border-t border-blue-200 bg-blue-50 rounded">
-                  <span className="w-3 h-3 rounded-full bg-blue-600 animate-pulse" />
-                  <span className="text-sm font-bold text-blue-700">Nueva actividad!</span>
-                </div>
-              ) : null;
-            })()
+          {/* New message indicator - only show if there was an inbound message and it's unread */}
+          {conversationStatus.lastInboundMessageAt && conversationStatus.lastReadAt === null && (
+            <div className="flex items-center gap-2 mt-1.5 pt-1.5 border-t border-blue-200 bg-blue-50 rounded">
+              <span className="w-3 h-3 rounded-full bg-blue-600 animate-pulse" />
+              <span className="text-sm font-bold text-blue-700">Nueva actividad!</span>
+            </div>
           )}
 
           {/* Waiting for client response - BOT sent message +15min no reply (not operator) */}
