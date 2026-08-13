@@ -222,7 +222,20 @@ export class HandleIncomingMessageUseCase {
 
     // 8. Si llegamos a evaluate, calcular score
     if (newState === 'evaluate' || newState === 'scored') {
-      const scoringResult = scoringService.calculateScore(updatedContext);
+      // Get additional data from engineData if available
+      const engineData = conversation.engineData as Record<string, unknown> || {};
+      
+      // Merge engineData into updatedContext for scoring
+      const scoringContext = {
+        ...updatedContext,
+        needType: updatedContext.needType ?? engineData.needType as string ?? undefined,
+        urgency: updatedContext.urgency ?? engineData.urgency as string ?? undefined,
+        location: updatedContext.location ?? engineData.location as string ?? undefined,
+        customerType: updatedContext.customerType ?? engineData.customerType as string ?? undefined,
+        equipmentType: updatedContext.equipmentType ?? engineData.equipmentType as string ?? undefined,
+      };
+      
+      const scoringResult = scoringService.calculateScore(scoringContext as ConversationContext);
 
       const handoffResult = handoffPolicy.shouldHandoff({
         score: scoringResult.score,
@@ -308,15 +321,20 @@ export class HandleIncomingMessageUseCase {
     messageContent: string,
     profileName?: string
   ): ConversationContext {
+    // The context.data contains all flow data (needType, urgency, etc.)
+    // that was collected during the conversation
+    const contextData = (existing as any).data || {};
+    
     return {
       ...existing,
       userName: existing.userName || profileName,
       profileName: existing.profileName || profileName,
-      needType: intent.needType ?? existing.needType,
-      urgency: intent.urgency ?? existing.urgency,
-      location: intent.location ?? existing.location,
-      customerType: intent.customerType ?? existing.customerType,
-      equipmentType: intent.equipmentType ?? existing.equipmentType,
+      // Priority to intent data, then context data, then existing
+      needType: intent.needType ?? contextData.needType ?? existing.needType,
+      urgency: intent.urgency ?? contextData.urgency ?? existing.urgency,
+      location: intent.location ?? contextData.location ?? existing.location,
+      customerType: intent.customerType ?? contextData.customerType ?? existing.customerType,
+      equipmentType: intent.equipmentType ?? contextData.equipmentType ?? existing.equipmentType,
       hasEmergencyKeywords: existing.hasEmergencyKeywords || intent.hasEmergencyKeywords,
       hasProjectKeywords: existing.hasProjectKeywords || intent.hasProjectKeywords,
       messageContainsData: intent.hasAnyData,
