@@ -224,6 +224,22 @@ export const LeadCard = React.memo(function LeadCard({
             </div>
           )}
 
+          {/* New message indicator - blinking blue dot */}
+          {conversationStatus.lastMessageDirection === 'inbound' && conversationStatus.lastMessageAt && (
+            (() => {
+              const lastMsgTime = new Date(conversationStatus.lastMessageAt).getTime();
+              const lastReadTime = conversationStatus.lastReadAt ? new Date(conversationStatus.lastReadAt).getTime() : 0;
+              const hasUnread = lastMsgTime > lastReadTime;
+              
+              return hasUnread ? (
+                <div className="flex items-center gap-1.5 text-[10px] md:text-[10px] text-blue-600">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                  <span>Nuevo mensaje</span>
+                </div>
+              ) : null;
+            })()
+          )}
+
           {conversationStatus.lastMessagePreview && (
             <div className="flex items-center gap-1.5 text-[10px] md:text-[10px] text-gray-400">
               <span className="truncate max-w-[200px]">{conversationStatus.lastMessagePreview}</span>

@@ -310,6 +310,20 @@ export function LeadChatDrawer({ isOpen, onClose, lead, client, conversationStat
   const [activeTab, setActiveTab] = useState<TabType>('chat');
   const router = useRouter();
 
+  // Mark conversation as read when drawer opens
+  useEffect(() => {
+    if (isOpen && conversationStatus?.conversationId) {
+      fetch(`/api/crm/conversations/${conversationStatus.conversationId}/read`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }).catch(() => {
+        // Silent fail - not critical
+      });
+    }
+  }, [isOpen, conversationStatus?.conversationId]);
+
   const phone = isLeadMode ? (lead?.phone || '') : (client?.phone || '');
   
   console.log('🎯 LeadChatDrawer - entity data:', { 

@@ -14,6 +14,7 @@ export interface ConversationWithLead {
   handoffReason?: string;
   assignedToUserId?: string;
   lastMessageAt: Date;
+  lastReadAt?: Date;
   startedAt: Date;
   closedAt?: Date;
   createdAt: Date;
@@ -127,6 +128,7 @@ export class ConversationQueryService {
         handoffReason: c.handoffReason,
         assignedToUserId: c.assignedToUserId ? String(c.assignedToUserId) : undefined,
         lastMessageAt: c.lastMessageAt,
+        lastReadAt: c.lastReadAt ? new Date(c.lastReadAt) : undefined,
         startedAt: c.startedAt,
         closedAt: c.closedAt,
         createdAt: c.createdAt,

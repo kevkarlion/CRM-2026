@@ -161,6 +161,9 @@ export const conversationSchema = new Schema<IConversation>(
 
     startedAt: { type: Date, required: true },
     closedAt: { type: Date },
+    
+    // For tracking unread messages - when operator last opened the chat
+    lastReadAt: { type: Date },
   },
   { timestamps: { createdAt: true, updatedAt: true } }
 );

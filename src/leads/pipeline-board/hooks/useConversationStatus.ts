@@ -14,6 +14,8 @@ export interface ConversationStatus {
   isHumanAssigned: boolean;
   handoffReason?: string;
   lastMessageAt: Date | null;
+  lastReadAt: Date | null;
+  lastMessageDirection: 'inbound' | 'outbound' | null;
   lastMessagePreview: string | null;
   unreadCount: number;
   score?: number;
@@ -126,6 +128,8 @@ export function useConversationStatus(leadIds: string[]) {
           isHumanAssigned,
           handoffReason: conv.handoffReason,
           lastMessageAt: lastMsg ? new Date(lastMsg.createdAt) : (conv.lastMessageAt ? new Date(conv.lastMessageAt) : null),
+          lastReadAt: conv.lastReadAt ? new Date(conv.lastReadAt) : null,
+          lastMessageDirection: lastMsg?.direction === 'inbound' ? 'inbound' : (lastMsg?.direction === 'outbound' ? 'outbound' : null),
           lastMessagePreview: preview,
           unreadCount: 0,
           score: conv.lead?.score,
