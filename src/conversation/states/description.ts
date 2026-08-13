@@ -33,7 +33,7 @@ export class DescriptionState implements IConversationState {
       data: {
         description: trimmed,
       },
-      nextState: 'confirmation',
+      nextState: 'evaluate', // Go through evaluate for scoring before confirmation
     }
 
     return {
@@ -43,6 +43,15 @@ export class DescriptionState implements IConversationState {
   }
 
   getMessage(context: ConversationContext): string {
+    // Custom messages for spare_parts and other - lead flow
+    const needType = context.get<string>('needType');
+    if (needType === 'spare_parts') {
+      return 'Describí brevemente qué tipo de repuesto estás buscando.';
+    }
+    if (needType === 'other') {
+      return 'Describí brevemente cuál es tu consulta.';
+    }
+    // Default message for other service types
     return `📝 Describí brevemente el problema o servicio que necesitás:`
   }
 
