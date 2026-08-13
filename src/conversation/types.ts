@@ -83,6 +83,8 @@ export interface EngineResult {
   message: string
   /** Quick reply options to display */
   options?: string[]
+  /** Optional footer message to display after options */
+  footer?: string
   /** Updated context after processing */
   context: import('./context').ConversationContext
   /** Whether conversation is complete */

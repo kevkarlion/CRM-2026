@@ -256,6 +256,7 @@ export class ConversationEngine {
     return {
       message: reply.content,
       options: reply.options,
+      footer: reply.footer,
       context,
       isComplete: false,
     }

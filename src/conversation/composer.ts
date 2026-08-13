@@ -25,7 +25,7 @@ export class EngineReplyComposer implements ReplyComposer {
   compose(
     state: IConversationState,
     context: ConversationContext
-  ): { content: string; options?: string[] } {
+  ): { content: string; options?: string[]; footer?: string } {
     // Check if this is a terminal state (confirmation was just completed)
     const isComplete = context.get('complete') === true || context.get('confirmed') === true;
     
@@ -46,16 +46,12 @@ En los próximos minutos un asesor de *Rolo Climatización S.R.L* continuará la
     const options = state.getOptions(context)
     const footer = (state as any).getFooter?.(context) // Optional footer from state
 
-    // If there's a footer, append it after the content (not after options)
-    // The options will be added later by formatEngineMessage in WhatsApp service
-    let finalContent = content
-    if (footer) {
-      finalContent = `${content}\n\n${footer}`
-    }
-
+    // Return footer separately - formatEngineMessage will put it at the end after options
+    // This allows: message + options + footer (instead of message + footer + options)
     return {
-      content: finalContent,
+      content,
       options,
+      footer,
     }
   }
 

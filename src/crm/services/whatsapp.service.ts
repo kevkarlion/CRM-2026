@@ -764,7 +764,7 @@ export class WhatsAppService {
     input: string,
     isNewLead: boolean,
     profileName?: string
-  ): Promise<{ message: string; isComplete: boolean; handoff?: boolean; context?: ConversationContext; flowId?: string }> {
+  ): Promise<{ message: string; isComplete: boolean; handoff?: boolean; context?: ConversationContext; flowId?: string; footer?: string }> {
     console.log('[Engine] === START === phone:', phoneNumber, '| input:', input);
     
     // Ensure DB is connected
@@ -1014,11 +1014,12 @@ export class WhatsAppService {
     }
 
     return {
-      message: this.formatEngineMessage(result.message, result.options),
+      message: this.formatEngineMessage(result.message, result.options, result.footer),
       isComplete: result.isComplete,
       handoff: result.handoff,
       context: result.context,
       flowId, // Add flowId to determine client vs lead
+      footer: result.footer,
     };
   }
 
@@ -1041,22 +1042,16 @@ export class WhatsAppService {
 /**
     * Format engine message with options if present
     */
-  private formatEngineMessage(message: string, options?: string[]): string {
+  private formatEngineMessage(message: string, options?: string[], footer?: string): string {
     if (!options || options.length === 0) {
       return message;
     }
-
-    // Check if message contains a footer (like supplier phone message)
-    // Footer contains "299" (supplier phone prefix) or "proveedor"
-    const footerPattern = /299\d+|proveedor/i;
-    const hasFooter = footerPattern.test(message);
 
     // Build options text
     const optionsText = options
       .map((opt, idx) => {
         const trimmed = opt.trim();
         // Check if already has a prefix (number + emoji OR number + dot/parenthesis)
-        // Patterns: "1️⃣", "2️⃣" (keycap) OR "1.", "2.", "1)", "2)"
         const hasPrefix = /^\d+[\s\S]/.test(trimmed);
         
         if (hasPrefix) {
@@ -1066,19 +1061,14 @@ export class WhatsAppService {
       })
       .join('\n');
 
-    // If there's a footer, put options BEFORE the footer
-    if (hasFooter) {
-      const parts = message.split(footerPattern);
-      if (parts.length >= 2) {
-        // message before footer + options + "comunícate al " + phone + rest
-        const beforeFooter = parts[0].trim();
-        const afterFooter = parts.slice(1).join('').trim();
-        return `${beforeFooter}\n\n${optionsText}\n\n${afterFooter}`;
-      }
+    // Build final message: message + options + footer (footer at the end)
+    let final = `${message}\n\n${optionsText}`;
+    
+    if (footer) {
+      final += `\n\n${footer}`;
     }
-
-    // Default: message + options at the end
-    return `${message}\n\n${optionsText}`;
+    
+    return final;
   }
 
   /**

@@ -66,10 +66,8 @@ export class ServiceState implements IConversationState {
   }
 
   getMessage(context: ConversationContext): string {
-    // Message with footer embedded - options come after the question, then supplier message at the end
-    return `¿Qué tipo de servicio necesitás?
-
-${FOOTER_MESSAGE}`
+    // Question first, footer will be added after options by formatEngineMessage
+    return `¿Qué tipo de servicio necesitás?`
   }
 
   getOptions(context: ConversationContext): string[] {
