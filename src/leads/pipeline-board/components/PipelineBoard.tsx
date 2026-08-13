@@ -12,6 +12,7 @@ import { calculateClientScore } from '@/clients/services/client-score.service';
 import { PipelineColumn } from './PipelineColumn';
 import { LeadFilters } from './LeadFilters';
 import { LeadChatDrawer } from './LeadChatDrawer';
+import { ClientChatDrawer } from './ClientChatDrawer';
 import { ClientCard } from './ClientCard';
 import type { ILead } from '../../types/lead';
 import type { IClient } from '@/crm/types/client';
@@ -107,6 +108,7 @@ export function PipelineBoard() {
   const [chatDrawerOpen, setChatDrawerOpen] = useState(false);
   const [selectedLeadForChat, setSelectedLeadForChat] = useState<ILead | null>(null);
   const [selectedClientForChat, setSelectedClientForChat] = useState<{ id: string; name: string; phone: string } | null>(null);
+  const [selectedClientConversationStatus, setSelectedClientConversationStatus] = useState<any>(null);
   const [showHandoffs, setShowHandoffs] = useState(false);
   
   // Confirmation modal for customer conversation resolve
@@ -162,8 +164,9 @@ export function PipelineBoard() {
   }, []);
 
   // Open chat for a client from the customers column
-  const handleClientChatClick = useCallback((clientId: string, clientName: string, phone: string) => {
+  const handleClientChatClick = useCallback((clientId: string, clientName: string, phone: string, conversationStatus?: any) => {
     setSelectedClientForChat({ id: clientId, name: clientName, phone });
+    setSelectedClientConversationStatus(conversationStatus || null);
     setChatDrawerOpen(true);
   }, []);
 
@@ -467,11 +470,11 @@ export function PipelineBoard() {
                       key={conv.conversationId}
                       client={clientData}
                       onClick={(clientId) => window.location.href = `/clients/${clientId}`}
-                      onWhatsAppClick={(client) => handleClientChatClick(client._id?.toString() || '', client.name, client.phone)}
+                      onWhatsAppClick={(client) => handleClientChatClick(client._id?.toString() || '', client.name, client.phone, conversationStatus)}
                       conversationStatus={conversationStatus}
-                      onTakeCase={(client) => handleClientChatClick(client._id?.toString() || '', client.name, client.phone)}
-                      onQuickReply={(client) => handleClientChatClick(client._id?.toString() || '', client.name, client.phone)}
-                      onOpenChat={(client) => handleClientChatClick(client._id?.toString() || '', client.name, client.phone)}
+                      onTakeCase={(client) => handleClientChatClick(client._id?.toString() || '', client.name, client.phone, conversationStatus)}
+                      onQuickReply={(client) => handleClientChatClick(client._id?.toString() || '', client.name, client.phone, conversationStatus)}
+                      onOpenChat={(client) => handleClientChatClick(client._id?.toString() || '', client.name, client.phone, conversationStatus)}
                       onResolve={() => handleResolveConversationWithId(conv.conversationId)}
                     />
                   );
@@ -515,18 +518,36 @@ export function PipelineBoard() {
         </div>
       )}
 
-      {/* WhatsApp Chat Drawer */}
-      <LeadChatDrawer
-        isOpen={chatDrawerOpen}
-        onClose={() => {
-          setChatDrawerOpen(false);
-          setSelectedLeadForChat(null);
-          setSelectedClientForChat(null);
-        }}
-        lead={selectedLeadForChat}
-        client={selectedClientForChat}
-        conversationStatus={selectedLeadForChat ? (conversationStatusMap.get(String((selectedLeadForChat as any)._id)) ?? null) : null}
-      />
+      {/* WhatsApp Chat Drawer for Leads */}
+      {selectedLeadForChat && (
+        <LeadChatDrawer
+          isOpen={chatDrawerOpen}
+          onClose={() => {
+            setChatDrawerOpen(false);
+            setSelectedLeadForChat(null);
+            setSelectedClientForChat(null);
+            setSelectedClientConversationStatus(null);
+          }}
+          lead={selectedLeadForChat}
+          client={null}
+          conversationStatus={conversationStatusMap.get(String((selectedLeadForChat as any)._id)) ?? null}
+        />
+      )}
+
+      {/* WhatsApp Chat Drawer for Clients */}
+      {selectedClientForChat && (
+        <ClientChatDrawer
+          isOpen={chatDrawerOpen}
+          onClose={() => {
+            setChatDrawerOpen(false);
+            setSelectedLeadForChat(null);
+            setSelectedClientForChat(null);
+            setSelectedClientConversationStatus(null);
+          }}
+          client={selectedClientForChat}
+          conversationStatus={selectedClientConversationStatus}
+        />
+      )}
 
       {/* Confirmation Modal for Resolve */}
       {resolveConfirmOpen && (
