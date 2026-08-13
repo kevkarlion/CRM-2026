@@ -92,11 +92,35 @@ export default function EditWorkOrderPage() {
   const [notFound, setNotFound] = useState(false);
   const [workOrder, setWorkOrder] = useState<WorkOrderData | null>(null);
   const [technicians, setTechnicians] = useState<Array<{ _id: string; name: string; email?: string }>>([]);
-  const [form, setForm] = useState({
+  const STATUS_OPTIONS: { value: string; label: string }[] = [
+  { value: 'draft', label: 'Borrador' },
+  { value: 'scheduled', label: 'Programada' },
+  { value: 'in_progress', label: 'En ejecución' },
+  { value: 'completed', label: 'Completada' },
+  { value: 'cancelled', label: 'Cancelada' },
+];
+
+function getAvailableTransitions(currentStatus: string): string[] {
+  const transitions: Record<string, string[]> = {
+    draft: ['scheduled', 'cancelled'],
+    scheduled: ['in_progress', 'cancelled'],
+    in_progress: ['completed', 'cancelled'],
+    completed: [],
+    cancelled: [],
+    // Legacy
+    pending_assignment: ['scheduled', 'cancelled'],
+    assigned: ['scheduled', 'cancelled'],
+    confirmed: ['scheduled', 'cancelled'],
+  };
+  return transitions[currentStatus] || [];
+}
+
+const [form, setForm] = useState({
     title: '',
     priority: 'normal',
     category: 'maintenance',
     description: '',
+    status: 'draft',
     scheduledDate: '',
     startTime: '',
     endTime: '',
@@ -157,6 +181,7 @@ export default function EditWorkOrderPage() {
           priority: wo.priority || 'normal',
           category: wo.category || 'maintenance',
           description: wo.description || '',
+          status: wo.status || 'draft',
           scheduledDate: datePart(wo.scheduledDate),
           startTime: wo.scheduledStart ? extractLocalTime(wo.scheduledStart) : '',
           endTime: wo.scheduledEnd ? extractLocalTime(wo.scheduledEnd) : '',
@@ -256,36 +281,25 @@ export default function EditWorkOrderPage() {
 
       body.version = workOrder?.version ?? 0;
 
-      if (approve) {
-        // Estados canónicos: draft → scheduled → in_progress → completed/cancelled
-        // Solo se puede pasar a 'scheduled' si tiene técnico Y fecha programada
-        const currentStatus = workOrder?.status;
-        const isCanonicalStatus = ['draft', 'scheduled', 'in_progress', 'completed', 'cancelled'].includes(currentStatus || '');
-        
-        if (isCanonicalStatus) {
-          // Estado canónico: lógica normal
-          if (currentStatus === 'draft') {
-            // Desde draft solo puede pasar a scheduled si tiene técnico Y fecha
-            if (form.assignedTechnician && form.scheduledDate) {
-              body.status = 'scheduled';
-            }
-            // Si no tiene ambos, permanece en draft (no enviar status)
-          } else if (currentStatus === 'scheduled') {
-            // Desde scheduled: mantener scheduled si tiene técnico Y fecha
-            // Si pierde técnico o fecha, mantener scheduled (no permite volver a draft)
-            if (form.assignedTechnician && form.scheduledDate) {
-              body.status = 'scheduled';
-            }
-            // No permitir volver a draft desde scheduled
+      // Si el usuario cambió el status explícitamente, usarlo
+      const targetStatus = form.status;
+      const currentStatus = workOrder?.status;
+      
+      if (approve && targetStatus && targetStatus !== currentStatus) {
+        // Cambiar status vía endpoint dedicado
+        try {
+          await api.post(`/api/operations/work-orders/${id}/status`, {
+            status: targetStatus,
+            version: workOrder?.version ?? 0,
+          });
+        } catch (statusErr: any) {
+          // Si falla el cambio de status, mostrar error pero continuar con el resto
+          if (statusErr?.response?.data?.error) {
+            setError(statusErr.response.data.error);
+            setSaving(false);
+            return;
           }
-          // Para in_progress, completed, cancelled no se cambia el estado aquí
-        } else {
-          // Estado legacy (pending_assignment, assigned, etc.): 
-          // Solo cambiar a scheduled si tiene técnico Y fecha, sino mantener el actual
-          if (form.assignedTechnician && form.scheduledDate) {
-            body.status = 'scheduled';
-          }
-          // Si no tiene ambos, no enviar status para mantener el actual
+          throw statusErr;
         }
       }
 
@@ -350,6 +364,19 @@ export default function EditWorkOrderPage() {
                 onChange={(e) => setForm((p) => ({ ...p, priority: e.target.value }))}
                 className={inputClass}>
                 {PRIORITY_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+              <select 
+                name="status" 
+                value={form.status}
+                onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}
+                className={inputClass}
+              >
+                {STATUS_OPTIONS.filter(opt => getAvailableTransitions(workOrder?.status || form.status).includes(opt.value) || opt.value === form.status).map((opt) => (
                   <option key={opt.value} value={opt.value}>{opt.label}</option>
                 ))}
               </select>
