@@ -650,6 +650,11 @@ export class WhatsAppService {
                   'maintenance': 'maintenance',
                   'presupuesto': 'budget',
                   'budget': 'budget',
+                  // Missing mappings
+                  'repuestos': 'spare_parts',
+                  'spare_parts': 'spare_parts',
+                  'cotización': 'budget',
+                  'quote': 'budget',
                 };
                 const inquiryReasonValue = needType ? inquiryReasonMap[needType.toLowerCase()] : undefined;
                 
