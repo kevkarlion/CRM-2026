@@ -21,6 +21,7 @@ import { ServiceState as LeadServiceState } from './lead/service'
 import { AddressState as LeadAddressState } from './lead/address'
 import { PriorityState as LeadPriorityState } from './lead/priority'
 import { DescriptionState as LeadDescriptionState } from './lead/description'
+import { EvaluateState as LeadEvaluateState } from './lead/evaluate'
 import { ConfirmationState as LeadConfirmationState } from './lead/confirmation'
 
 // Import customer states
@@ -34,6 +35,7 @@ const LEAD_STATES: Record<string, IConversationState> = {
   address: new LeadAddressState(),
   priority: new LeadPriorityState(),
   description: new LeadDescriptionState(),
+  evaluate: new LeadEvaluateState(),
   confirmation: new LeadConfirmationState(),
 }
 
@@ -73,6 +75,7 @@ export function getAllStateIds(): string[] {
     'address_confirm',
     'priority',
     'description',
+    'evaluate',
     'summary',
     'waiting_operator',
   ]

@@ -59,13 +59,13 @@ export class GreetingState implements IConversationState {
       greeting = '☀️ Buenas tardes'
     }
 
-    return `${greeting} 👋
+    return `${greeting} ¡Bienvenido! 👋
 
-Soy el asistente virtual de *Rolo Climatización S.R.L*.
+Soy Rolito, el asistente virtual de *Rolo Climatización S.R.L*. 🤖
 
-Voy a hacerte unas preguntas para registrar tu solicitud y derivarla rápidamente al asesor correspondiente.
+Estoy acá para ayudarte y tomar los datos de tu solicitud para que nuestro equipo pueda atenderte rápidamente.
 
-¿cómo te llamás?`
+Para empezar, ¿cómo te llamás? 😊`
   }
 
   getOptions(context: ConversationContext): string[] {

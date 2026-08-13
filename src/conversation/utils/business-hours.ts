@@ -28,34 +28,21 @@ ${BUSINESS_HOURS}`;
 }
 
 // Common farewell message templates
+// All confirmation messages use the same unified message
+const UNIFIED_FAREWELL = `¡Listo! 😊 Ya registré tu solicitud. Un integrante de nuestro equipo se contactará contigo lo antes posible para continuar con la atención. ¡Gracias por comunicarte con Rolo Climatización! 👋`;
+
 export const FAREWELL_MESSAGES = {
-  leadConfirmed: composeFarewellMessage(`✅ ¡Perfecto!
+  leadConfirmed: composeFarewellMessage(UNIFIED_FAREWELL),
 
-Ya registramos tu solicitud correctamente.
+  leadWaiting: composeFarewellMessage(UNIFIED_FAREWELL),
 
-En los próximos minutos un asesor de *Rolo Climatización S.R.L* continuará la conversación para ayudarte.`),
+  leadWaitingPriority: composeFarewellMessage(`⚠️¡Listo! 😊 Ya registré tu solicitud.
 
-  leadWaiting: composeFarewellMessage(`👋 Gracias por tu mensaje.
+📩 Tu mensaje ha sido marcado como prioritario. Un integrante de nuestro equipo se contactará contigo lo antes posible.`),
 
-Tu solicitud ya fue registrada correctamente.
+  clientWaiting: composeFarewellMessage(UNIFIED_FAREWELL),
 
-Un asesor continuará la conversación lo antes posible.`),
+  clientWaitingPriority: composeFarewellMessage(`⚠️¡Listo! 😊 Ya registré tu solicitud.
 
-  leadWaitingPriority: composeFarewellMessage(`⚠️👋 Gracias por tu mensaje.
-
-Tu solicitud ya fue registrada correctamente.
-
-📩 Tu mensaje ha sido marcado como prioritario.`),
-
-  clientWaiting: composeFarewellMessage(`✨ Gracias por contactarnos.
-
-Un asesor de Rolo Climatización S.R.L te atenderá personalmente.
-
-¡Te respondemos en breve! 😊`),
-
-  clientWaitingPriority: composeFarewellMessage(`⚠️✨ Gracias por contactarnos.
-
-Un asesor de Rolo Climatización S.R.L te atenderá personalmente.
-
-📩 Tu mensaje ha sido marcado como prioritario.`),
+📩 Tu mensaje ha sido marcado como prioritario. Un integrante de nuestro equipo se contactará contigo lo antes posible.`),
 };

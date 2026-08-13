@@ -40,8 +40,11 @@ export const LEAD_QUALIFICATION_FLOW: FlowConfig = {
       onError: 'priority',
     },
     description: {
-      next: 'confirmation',
+      next: 'evaluate',
       onError: 'description',
+    },
+    evaluate: {
+      next: 'confirmation',
     },
     confirmation: {
       terminal: true,

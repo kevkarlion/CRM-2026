@@ -34,8 +34,11 @@ export const CUSTOMER_SERVICE_FLOW: FlowConfig = {
       onError: 'priority',
     },
     description: {
-      next: 'summary',
+      next: 'evaluate',
       onError: 'description',
+    },
+    evaluate: {
+      next: 'summary',
     },
     summary: {
       terminal: true, // Summary is terminal - no waiting_operator state

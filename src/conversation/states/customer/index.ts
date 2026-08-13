@@ -13,6 +13,7 @@ import { ServiceTypeState, getServiceTypeLabel } from './service_type'
 import { AddressConfirmState } from './address_confirm'
 import { DescriptionState } from './description'
 import { PriorityState } from './priority'
+import { EvaluateState } from './evaluate'
 import { SummaryState } from './summary'
 import { WaitingOperatorState } from './waiting_operator'
 
@@ -23,6 +24,7 @@ const CUSTOMER_STATES: Record<string, IConversationState> = {
   address_confirm: new AddressConfirmState(),
   description: new DescriptionState(),
   priority: new PriorityState(),
+  evaluate: new EvaluateState(),
   summary: new SummaryState(),
   waiting_operator: new WaitingOperatorState(),
 }
