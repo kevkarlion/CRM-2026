@@ -290,10 +290,10 @@ export function PipelineBoard() {
           const convA = conversationStatusMap.get(String(a._id));
           const convB = conversationStatusMap.get(String(b._id));
           
-          // Priority 1: Has recent inbound (within 30 min) and hasn't been read
-          const hasRecentUnreadInboundA = convA?.lastInboundMessageAt && !convA.lastReadAt && 
+          // Priority 1: Has recent inbound (within 30 min) using lastInboundMessageAt
+          const hasRecentUnreadInboundA = convA?.lastInboundMessageAt && 
             new Date(convA.lastInboundMessageAt).getTime() > (Date.now() - 30 * 60 * 1000);
-          const hasRecentUnreadInboundB = convB?.lastInboundMessageAt && !convB.lastReadAt && 
+          const hasRecentUnreadInboundB = convB?.lastInboundMessageAt && 
             new Date(convB.lastInboundMessageAt).getTime() > (Date.now() - 30 * 60 * 1000);
           
           // Priority 2: Bot waiting (amber indicator - bot sent, no reply for 15min)

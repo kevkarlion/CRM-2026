@@ -200,12 +200,12 @@ export const ClientCard = React.memo(function ClientCard({
             </div>
           )}
 
-          {/* New message indicator - show when last message is from client within 30 min */}
-          {conversationStatus.lastMessageDirection === 'inbound' && conversationStatus.lastMessageAt && (
+          {/* New message indicator - show when client wrote within 30 min (using lastInboundMessageAt) */}
+          {conversationStatus.lastInboundMessageAt && (
             (() => {
-              const lastMsgTime = new Date(conversationStatus.lastMessageAt).getTime();
+              const lastInboundTime = new Date(conversationStatus.lastInboundMessageAt).getTime();
               const thirtyMinAgo = Date.now() - (30 * 60 * 1000);
-              const isRecent = lastMsgTime > thirtyMinAgo;
+              const isRecent = lastInboundTime > thirtyMinAgo;
               
               return isRecent ? (
                 <div className="flex items-center gap-2 mt-1.5 pt-1.5 border-t border-blue-200 bg-blue-50 rounded">
