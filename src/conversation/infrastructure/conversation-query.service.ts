@@ -70,6 +70,7 @@ export class ConversationQueryService {
     const matchFilter: Record<string, unknown> = {
       tenantId: tid,
       state: { $nin: ['closed'] },
+      lifecycleState: { $in: ['ACTIVE_LEAD', 'ACTIVE_CLIENT', 'WAITING_OPERATOR', 'WAITING_CLIENT', 'IN_PROGRESS'] },
     };
 
     if (status) {
