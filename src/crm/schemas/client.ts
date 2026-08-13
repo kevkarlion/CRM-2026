@@ -14,7 +14,7 @@ export const clientSchema = new Schema<IClient>(
     customerType: {
       type: String,
       enum: ['residential', 'commercial', 'industrial'],
-      required: true,
+      default: 'residential',
     },
     status: {
       type: String,
