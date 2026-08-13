@@ -200,8 +200,8 @@ export const ClientCard = React.memo(function ClientCard({
             </div>
           )}
 
-          {/* New message indicator - same logic as LeadCard */}
-          {conversationStatus.lastMessageAt && (
+          {/* New message indicator - only when client wrote last message (inbound) */}
+          {conversationStatus.lastMessageDirection === 'inbound' && conversationStatus.lastMessageAt && (
             (() => {
               const lastMsgTime = new Date(conversationStatus.lastMessageAt).getTime();
               const lastReadTime = conversationStatus.lastReadAt ? new Date(conversationStatus.lastReadAt).getTime() : 0;

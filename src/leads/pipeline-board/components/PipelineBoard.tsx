@@ -283,21 +283,23 @@ export function PipelineBoard() {
       || f.dateFrom || f.dateTo || f.lastContact;
 
     if (!hasActiveFilter) {
-      // Sort leads within each stage: recent activity first, then by score
+      // Sort leads within each stage: lead's inbound messages first, then by score
       const result: Record<string, ILead[]> = {};
       for (const [stageName, leads] of Object.entries(columns)) {
         const sortedLeads = [...leads].sort((a, b) => {
           const convA = conversationStatusMap.get(String(a._id));
           const convB = conversationStatusMap.get(String(b._id));
           
-          // Has recent activity (within 15 min) - same logic as indicator
-          const hasRecentA = convA?.lastMessageAt && 
-            new Date(convA.lastMessageAt).getTime() > (Date.now() - 15 * 60 * 1000);
-          const hasRecentB = convB?.lastMessageAt && 
-            new Date(convB.lastMessageAt).getTime() > (Date.now() - 15 * 60 * 1000);
+          // Has unread inbound message from lead (same logic as indicator)
+          const hasRecentUnreadA = convA?.lastMessageDirection === 'inbound' && convA.lastMessageAt && 
+            new Date(convA.lastMessageAt).getTime() > (Date.now() - 15 * 60 * 1000) &&
+            (!convA.lastReadAt || new Date(convA.lastMessageAt).getTime() > new Date(convA.lastReadAt).getTime());
+          const hasRecentUnreadB = convB?.lastMessageDirection === 'inbound' && convB.lastMessageAt && 
+            new Date(convB.lastMessageAt).getTime() > (Date.now() - 15 * 60 * 1000) &&
+            (!convB.lastReadAt || new Date(convB.lastMessageAt).getTime() > new Date(convB.lastReadAt).getTime());
           
-          if (hasRecentA && !hasRecentB) return -1;
-          if (!hasRecentA && hasRecentB) return 1;
+          if (hasRecentUnreadA && !hasRecentUnreadB) return -1;
+          if (!hasRecentUnreadA && hasRecentUnreadB) return 1;
           
           // Then by score (existing logic)
           const getPriorityScore = (p?: string) => {
