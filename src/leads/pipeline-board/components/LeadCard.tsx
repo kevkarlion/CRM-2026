@@ -224,15 +224,15 @@ export const LeadCard = React.memo(function LeadCard({
             </div>
           )}
 
-          {/* New message indicator - blinking blue dot when client recently wrote (any conversation state) */}
+          {/* New message indicator - blinking blue dot when there's unread activity */}
           {conversationStatus.lastMessageAt && (
             (() => {
               const lastMsgTime = new Date(conversationStatus.lastMessageAt).getTime();
-              const now = Date.now();
-              const fifteenMinutesAgo = now - (15 * 60 * 1000);
-              const isRecent = lastMsgTime > fifteenMinutesAgo;
+              const lastReadTime = conversationStatus.lastReadAt ? new Date(conversationStatus.lastReadAt).getTime() : 0;
+              const isRecent = lastMsgTime > (Date.now() - 15 * 60 * 1000);
+              const hasUnread = lastReadTime === 0 || lastMsgTime > lastReadTime;
               
-              return isRecent ? (
+              return hasUnread && isRecent ? (
                 <div className="flex items-center gap-2 mt-1.5 pt-1.5 border-t border-blue-200 bg-blue-50 rounded">
                   <span className="w-3 h-3 rounded-full bg-blue-600 animate-pulse" />
                   <span className="text-sm font-bold text-blue-700">Nueva actividad!</span>

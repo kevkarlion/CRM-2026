@@ -313,10 +313,12 @@ export function LeadChatDrawer({ isOpen, onClose, lead, client, conversationStat
   // Mark conversation as read when drawer opens
   useEffect(() => {
     if (isOpen && conversationStatus?.conversationId) {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       fetch(`/api/crm/conversations/${conversationStatus.conversationId}/read`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
       }).catch(() => {
         // Silent fail - not critical
