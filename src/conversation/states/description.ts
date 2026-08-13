@@ -33,7 +33,7 @@ export class DescriptionState implements IConversationState {
       data: {
         description: trimmed,
       },
-      nextState: 'evaluate', // Go through evaluate for scoring before confirmation
+      nextState: 'confirmation', // Go directly to confirmation
     }
 
     return {
