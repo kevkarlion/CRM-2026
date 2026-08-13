@@ -167,7 +167,7 @@ export function PipelineBoard() {
     setChatDrawerOpen(true);
   }, []);
 
-  // Resolve conversation
+  // Resolve conversation (for modal)
   const handleResolveConversation = useCallback(async () => {
     if (!resolveConversationId) return;
     try {
@@ -190,6 +190,25 @@ export function PipelineBoard() {
       setTimeout(() => setNotification(null), 5000);
     }
   }, [resolveConversationId, refetchCustomerConversations]);
+
+  // Resolve conversation directly by ID (for ClientCard button)
+  const handleResolveConversationWithId = useCallback(async (conversationId: string) => {
+    try {
+      const res = await fetch(`/api/crm/conversations/${conversationId}/resolve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (res.ok) {
+        setNotification({ type: 'success', message: 'Atención resuelta ✅' });
+        refetchCustomerConversations();
+      } else {
+        setNotification({ type: 'error', message: 'Error al resolver' });
+      }
+    } catch (err) {
+      setNotification({ type: 'error', message: 'Error al resolver' });
+    }
+    setTimeout(() => setNotification(null), 5000);
+  }, [refetchCustomerConversations]);
 
   // Take case — assign the current user to the conversation
   const handleTakeCase = useCallback(async (lead: ILead) => {
@@ -453,6 +472,7 @@ export function PipelineBoard() {
                       onTakeCase={(client) => handleClientChatClick(client._id?.toString() || '', client.name, client.phone)}
                       onQuickReply={(client) => handleClientChatClick(client._id?.toString() || '', client.name, client.phone)}
                       onOpenChat={(client) => handleClientChatClick(client._id?.toString() || '', client.name, client.phone)}
+                      onResolve={() => handleResolveConversationWithId(conv.conversationId)}
                     />
                   );
                 })}

@@ -54,6 +54,7 @@ interface ClientCardProps {
   onTakeCase?: (client: IClient) => void;
   onQuickReply?: (client: IClient) => void;
   onOpenChat?: (client: IClient) => void;
+  onResolve?: () => void;
 }
 
 export const ClientCard = React.memo(function ClientCard({
@@ -64,22 +65,21 @@ export const ClientCard = React.memo(function ClientCard({
   onTakeCase,
   onQuickReply,
   onOpenChat,
+  onResolve,
 }: ClientCardProps) {
   const calculatedScore = useMemo(() => {
     if (!client) return null;
+    // Use stored score if available
     if (client.score && client.score > 0) return { score: client.score, temperature: client.temperature };
     
-    if (client.operationStatus || client.priority) {
-      const priority = client.priority || (client.notes?.toLowerCase().includes('urgente') ? 'high' : client.notes?.toLowerCase().includes('semana') ? 'medium' : 'low');
-      
-      if (priority) {
-        return calculateClientScore({
-          priority: priority as 'high' | 'medium' | 'low',
-          operationStatus: client.operationStatus,
-        });
-      }
-    }
-    return null;
+    // Calculate from client data
+    return calculateClientScore({
+      customerType: client.customerType,
+      status: client.status,
+      operationStatus: client.operationStatus,
+      source: client.source,
+      notes: client.notes,
+    });
   }, [client]);
 
   const handleWhatsAppClick = (e: React.MouseEvent) => {
@@ -227,16 +227,10 @@ export const ClientCard = React.memo(function ClientCard({
       {conversationStatus?.isBotActive && !conversationStatus?.isHandoffPending && (
         <div className="mt-1.5 flex gap-1">
           <button
-            onClick={(e) => { e.stopPropagation(); onQuickReply?.(client); }}
-            className="flex-1 px-2 py-0.5 text-[10px] font-medium bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition-colors"
+            onClick={(e) => { e.stopPropagation(); onResolve?.(); }}
+            className="flex-1 px-2 py-0.5 text-[10px] font-medium bg-green-50 text-green-700 rounded hover:bg-green-100 transition-colors"
           >
-            Responder
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); onOpenChat?.(client); }}
-            className="px-2 py-0.5 text-[10px] text-gray-600 rounded hover:bg-gray-100 transition-colors"
-          >
-            Ver
+            Resuelto
           </button>
         </div>
       )}

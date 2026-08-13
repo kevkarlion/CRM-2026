@@ -119,11 +119,12 @@ Soy Rolito, el asistente virtual de *Rolo Climatización S.R.L*. 🤖
 
   getOptions(context: ConversationContext): string[] | undefined {
     return [
-      '1️⃣ Reparación',
-      '2️⃣ Mantenimiento',
-      '3️⃣ Instalación',
-      '4️⃣ Consulta trabajo anterior',
-      '5️⃣ Otro',
+      '1️⃣ Mantenimiento',
+      '2️⃣ Reparación',
+      '3️⃣ Repuestos',
+      '4️⃣ Instalación',
+      '5️⃣ Cotización',
+      '6️⃣ Otro',
     ]
   }
 }
