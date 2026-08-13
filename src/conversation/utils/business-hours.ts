@@ -31,10 +31,13 @@ ${BUSINESS_HOURS}`;
 // All confirmation messages use the same unified message
 const UNIFIED_FAREWELL = `¡Listo! 😊 Ya registré tu solicitud. Un integrante de nuestro equipo se contactará contigo lo antes posible para continuar con la atención. ¡Gracias por comunicarte con Rolo Climatización! 👋`;
 
+// Short waiting message for when user sends a message after completing the flow
+const SHORT_WAITING = `Tu solicitud ya está registrada 😊. Un asesor te contactará pronto!`;
+
 export const FAREWELL_MESSAGES = {
   leadConfirmed: composeFarewellMessage(UNIFIED_FAREWELL),
 
-  leadWaiting: composeFarewellMessage(UNIFIED_FAREWELL),
+  leadWaiting: SHORT_WAITING,
 
   leadWaitingPriority: composeFarewellMessage(`⚠️¡Listo! 😊 Ya registré tu solicitud.
 

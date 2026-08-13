@@ -40,7 +40,7 @@ export const leadSchema = new Schema<ILead>(
     notes: { type: String },
     inquiryReason: {
       type: String,
-      enum: ['repair', 'maintenance', 'installation', 'budget', 'other'] satisfies InquiryReason[],
+      enum: ['repair', 'maintenance', 'installation', 'budget', 'other', 'spare_parts'] satisfies InquiryReason[],
     },
     customerType: {
       type: String,

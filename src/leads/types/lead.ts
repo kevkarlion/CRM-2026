@@ -4,7 +4,7 @@ export type LeadStatus = 'new' | 'contacted' | 'quote_sent' | 'technical_visit' 
 export type LeadSource = 'whatsapp' | 'call' | 'form' | 'referral' | 'walk_in' | 'other';
 export type QualificationStatus = 'qualified' | 'not_qualified' | 'pending';
 export type LostReason = 'price' | 'competitor' | 'budget' | 'not_interested' | 'timing' | 'no_response' | 'other';
-export type InquiryReason = 'repair' | 'maintenance' | 'installation' | 'budget' | 'other';
+export type InquiryReason = 'repair' | 'maintenance' | 'installation' | 'budget' | 'other' | 'spare_parts';
 export type CustomerType = 'residential' | 'commercial';
 export type Temperature = 'hot' | 'warm' | 'cold';
 
