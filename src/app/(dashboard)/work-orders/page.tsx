@@ -58,6 +58,16 @@ const STATUS_OPTIONS = [
   ...Object.entries(WORK_ORDER_STATUS_LABELS).map(([value, label]) => ({ value, label })),
 ];
 
+// Canonical statuses only for filtering
+const CANONICAL_STATUS_OPTIONS = [
+  { value: '', label: 'Todos' },
+  { value: 'draft', label: 'Borrador' },
+  { value: 'scheduled', label: 'Programada' },
+  { value: 'in_progress', label: 'En Ejecución' },
+  { value: 'completed', label: 'Completada' },
+  { value: 'cancelled', label: 'Cancelada' },
+];
+
 // Status label helper - groups multiple internal statuses into simplified view
 function getStatusLabel(status: string): string {
   switch (status) {
@@ -314,7 +324,7 @@ const fetchOrders = useCallback(async () => {
               onChange={(e) => setStatusFilter((e.target as any).value)}
               className="w-full relative z-10 rounded-lg border border-gray-200 px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
             >
-              {STATUS_OPTIONS.map((opt) => (
+              {CANONICAL_STATUS_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
@@ -362,7 +372,7 @@ const fetchOrders = useCallback(async () => {
               onChange={(e) => setStatusFilter((e.target as any).value)}
               className="w-full relative z-10 rounded-lg border border-gray-200 px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
             >
-              {STATUS_OPTIONS.map((opt) => (
+              {CANONICAL_STATUS_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
