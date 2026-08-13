@@ -241,8 +241,8 @@ export const LeadCard = React.memo(function LeadCard({
             })()
           )}
 
-          {/* Waiting for client response - bot sent message +15min no reply */}
-          {conversationStatus.lastMessageDirection === 'outbound' && conversationStatus.lastMessageAt && (
+          {/* Waiting for client response - BOT sent message +15min no reply (not operator) */}
+          {conversationStatus.lastMessageDirection === 'outbound' && conversationStatus.lastMessageAt && conversationStatus.isBotActive && (
             (() => {
               const lastMsgTime = new Date(conversationStatus.lastMessageAt).getTime();
               const fifteenMinAgo = Date.now() - (15 * 60 * 1000);

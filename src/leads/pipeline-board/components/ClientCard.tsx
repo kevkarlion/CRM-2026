@@ -217,8 +217,8 @@ export const ClientCard = React.memo(function ClientCard({
             })()
           )}
 
-          {/* Waiting for client response - sent message +15min no reply */}
-          {conversationStatus.lastMessageDirection === 'outbound' && conversationStatus.lastMessageAt && (
+          {/* Waiting for client response - BOT sent message +15min no reply (not operator) */}
+          {conversationStatus.lastMessageDirection === 'outbound' && conversationStatus.lastMessageAt && conversationStatus.isBotActive && (
             (() => {
               const lastMsgTime = new Date(conversationStatus.lastMessageAt).getTime();
               const fifteenMinAgo = Date.now() - (15 * 60 * 1000);

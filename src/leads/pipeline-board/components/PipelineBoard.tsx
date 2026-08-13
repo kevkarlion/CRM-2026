@@ -298,17 +298,17 @@ export function PipelineBoard() {
             new Date(convB.lastMessageAt).getTime() > (Date.now() - 15 * 60 * 1000) &&
             (!convB.lastReadAt || new Date(convB.lastMessageAt).getTime() > new Date(convB.lastReadAt).getTime());
           
-          // Priority 2: Outbound waiting (amber indicator - bot sent, no reply)
-          const isWaitingA = convA?.lastMessageDirection === 'outbound' && convA.lastMessageAt && 
+          // Priority 2: Bot waiting (amber indicator - bot sent, no reply for 15min)
+          const isBotWaitingA = convA?.lastMessageDirection === 'outbound' && convA.lastMessageAt && convA.isBotActive && 
             new Date(convA.lastMessageAt).getTime() < (Date.now() - 15 * 60 * 1000);
-          const isWaitingB = convB?.lastMessageDirection === 'outbound' && convB.lastMessageAt && 
+          const isBotWaitingB = convB?.lastMessageDirection === 'outbound' && convB.lastMessageAt && convB.isBotActive && 
             new Date(convB.lastMessageAt).getTime() < (Date.now() - 15 * 60 * 1000);
           
-          // Sort: recent inbound > waiting outbound > others
-          if (hasRecentUnreadA && !hasRecentUnreadB && !isWaitingB) return -1;
-          if (!hasRecentUnreadA && hasRecentUnreadB && !isWaitingA) return 1;
-          if (isWaitingA && !isWaitingB && !hasRecentUnreadB) return -1;
-          if (!isWaitingA && isWaitingB && !hasRecentUnreadA) return 1;
+          // Sort: recent inbound > bot waiting > others
+          if (hasRecentUnreadA && !hasRecentUnreadB && !isBotWaitingB) return -1;
+          if (!hasRecentUnreadA && hasRecentUnreadB && !isBotWaitingA) return 1;
+          if (isBotWaitingA && !isBotWaitingB && !hasRecentUnreadB) return -1;
+          if (!isBotWaitingA && isBotWaitingB && !hasRecentUnreadA) return 1;
           
           // Then by score
           const getPriorityScore = (p?: string) => {
