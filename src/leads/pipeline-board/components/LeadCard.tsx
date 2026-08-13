@@ -233,9 +233,9 @@ export const LeadCard = React.memo(function LeadCard({
               const isRecent = lastMsgTime > fifteenMinutesAgo;
               
               return isRecent ? (
-                <div className="flex items-center gap-2 mt-1.5 pt-1.5 border-t border-blue-100">
-                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
-                  <span className="text-[11px] font-semibold text-blue-600">Nueva actividad</span>
+                <div className="flex items-center gap-2 mt-1.5 pt-1.5 border-t border-blue-200 bg-blue-50 rounded">
+                  <span className="w-3 h-3 rounded-full bg-blue-600 animate-pulse" />
+                  <span className="text-sm font-bold text-blue-700">Nueva actividad!</span>
                 </div>
               ) : null;
             })()
