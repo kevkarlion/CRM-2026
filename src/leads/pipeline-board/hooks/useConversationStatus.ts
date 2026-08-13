@@ -113,7 +113,10 @@ export function useConversationStatus(leadIds: string[]) {
             : lastMsg.content
           : null;
 
-        map.set(conv.leadId, {
+        // Use stringified leadId as key to match PipelineBoard's lookup
+        const leadIdKey = String(conv.leadId);
+        
+        map.set(leadIdKey, {
           conversationId: conv._id,
           leadId: conv.leadId,
           hasActiveConversation: true,
