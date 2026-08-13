@@ -37,6 +37,12 @@ const BOT_ACTIVE_STATES = new Set<string>([
   'equipment_captured',
   'evaluate',
   'scored',
+  'idle', // Bot está esperandoinput
+  'address',
+  'priority',
+  'description',
+  'service',
+  'confirmation',
 ]);
 
 interface ConversationWithLead {
@@ -92,9 +98,9 @@ export function useConversationStatus(leadIds: string[]) {
         if (!conv.leadId) continue;
 
         const state = conv.state as ConversationState;
-        const isBotActive = BOT_ACTIVE_STATES.has(state);
+        const isBotActive = conv.owner === 'BOT' && BOT_ACTIVE_STATES.has(state);
         const isHandoffPending = conv.handoffStatus === 'pending';
-        const isHumanAssigned = conv.handoffStatus === 'assigned' || state === 'human_assigned';
+        const isHumanAssigned = conv.handoffStatus === 'assigned' || state === 'human_assigned' || state === 'IN_PROGRESS';
 
         const lastMsg = conv.lastMessage;
         const preview = lastMsg
