@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ChatPanel } from '@/whatsapp/components/ChatPanel';
 import { useChatMessages } from '@/whatsapp/hooks/useChatMessages';
@@ -29,6 +29,22 @@ type TabType = 'chat' | 'timeline';
 export function ClientChatDrawer({ isOpen, onClose, client, conversationStatus }: ClientChatDrawerProps) {
   const [activeTab, setActiveTab] = useState<TabType>('chat');
   const router = useRouter();
+
+  // Mark conversation as read when drawer opens
+  useEffect(() => {
+    if (isOpen && conversationStatus?.conversationId) {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      fetch(`/api/crm/conversations/${conversationStatus.conversationId}/read`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      }).catch(() => {
+        // Silent fail - not critical
+      });
+    }
+  }, [isOpen, conversationStatus?.conversationId]);
 
   const phone = client?.phone || '';
 
