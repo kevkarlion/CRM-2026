@@ -151,13 +151,13 @@ export function useConversationStatus(leadIds: string[]) {
     fetchStatuses();
   }, [fetchStatuses]);
 
-  // Poll every 10 seconds
+  // Poll every 5 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible') {
         fetchStatuses();
       }
-    }, 10000);
+    }, 5000);
     return () => clearInterval(interval);
   }, [fetchStatuses]);
 
