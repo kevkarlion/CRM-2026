@@ -2,10 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
 import TimelineEventModel from '@/timeline/models/timeline-event';
 import '@/core/models/user'; // Register User model for ref resolution
-import { LeadService } from '@/leads/services/lead.service';
+import LeadModel from '@/leads/models/lead';
 import { Types } from 'mongoose';
-
-const leadService = new LeadService();
 
 interface TimelineEvent {
   _id: Types.ObjectId;

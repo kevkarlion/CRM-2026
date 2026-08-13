@@ -431,7 +431,7 @@ export function PipelineBoard() {
                 {customerConversations.map((conv) => {
                   // Crear objeto cliente a partir de datos de conversación
                   const clientData = {
-                    _id: conv.clientId ? { toString: () => conv.clientId } : null,
+                    _id: conv.clientId,
                     name: conv.clientName,
                     companyName: conv.clientName,
                     phone: conv.clientPhone || '',

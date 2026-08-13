@@ -441,11 +441,14 @@ export function LeadChatDrawer({ isOpen, onClose, lead, client, conversationStat
   const { sendMessage, sendMedia, downloadMedia, sending } = useWhatsAppSend();
 
   const handleSend = async (content: string) => {
-    if (!lead) return;
+    if (!phone) return;
+    const entityId = isLeadMode 
+      ? (lead?._id ? String(lead._id) : undefined)
+      : (client?.id || undefined);
     const result = await sendMessage({
       phone,
       content,
-      leadId: lead._id ? String(lead._id) : undefined,
+      leadId: entityId,
     });
     if (result) {
       refetch();
@@ -453,11 +456,14 @@ export function LeadChatDrawer({ isOpen, onClose, lead, client, conversationStat
   };
 
   const handleAttach = async (file: File) => {
-    if (!lead) return;
+    if (!phone) return;
+    const entityId = isLeadMode 
+      ? (lead?._id ? String(lead._id) : undefined)
+      : (client?.id || undefined);
     const result = await sendMedia({
       file,
       to: phone,
-      leadId: lead._id ? String(lead._id) : undefined,
+      leadId: entityId,
     });
     if (result) {
       // Delay refetch to ensure DB write completes
@@ -466,11 +472,14 @@ export function LeadChatDrawer({ isOpen, onClose, lead, client, conversationStat
   };
 
   const handleDownload = async (messageId: string, filename: string) => {
-    if (!lead) return;
+    if (!phone) return;
+    const entityId = isLeadMode 
+      ? (lead?._id ? String(lead._id) : undefined)
+      : (client?.id || undefined);
     const result = await downloadMedia({
       messageId,
       filename,
-      leadId: lead._id ? String(lead._id) : undefined,
+      leadId: entityId,
     });
     if (result.success) {
       // Refrescar mensajes para ver el archivo descargado
@@ -579,9 +588,9 @@ export function LeadChatDrawer({ isOpen, onClose, lead, client, conversationStat
                     </span>
                   )}
                 </div>
-                {/* Segunda línea: servicio, necesidad y msgs */}
+                {/* Segunda línea: servicio, necesidad y msgs - solo para leads */}
                 {/* Parse notes para fallback si no hay inquiryReason/priority */}
-                {(() => {
+                {isLeadMode && (() => {
                   const notesService = lead.notes?.match(/Servicio: (.*?)( \| |$)/)?.[1];
                   const notesPriority = lead.notes?.match(/Necesidad: (.*?)( \| |$)/)?.[1];
                   const hasInquiryReason = lead.inquiryReason || notesService;
@@ -617,7 +626,7 @@ export function LeadChatDrawer({ isOpen, onClose, lead, client, conversationStat
               </div>
             </div>
             <div className="flex items-center gap-1">
-              {lead._id && (
+              {isLeadMode && lead._id && (
                 <button
                   onClick={() => router.push(`/leads/${String(lead._id)}`)}
                   className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-brand-600 transition-colors"
@@ -714,7 +723,7 @@ export function LeadChatDrawer({ isOpen, onClose, lead, client, conversationStat
               selectedPhone={phone}
               leadId={lead?._id ? String(lead._id) : undefined}
             />
-          ) : activeTab === 'handoff' && conversationStatus ? (
+          ) : activeTab === 'handoff' && conversationStatus && isLeadMode ? (
             <HandoffTab
               conversationId={conversationStatus.conversationId}
               lead={lead}
@@ -742,8 +751,12 @@ export function LeadChatDrawer({ isOpen, onClose, lead, client, conversationStat
                 unreadCount: 0,
               }}
             />
-          ) : (
+          ) : isLeadMode ? (
             <LeadInfoTab lead={lead} />
+          ) : (
+            <div className="p-4 text-center text-gray-500">
+              <p>Información del cliente no disponible en esta vista</p>
+            </div>
           )}
         </div>
       </div>
