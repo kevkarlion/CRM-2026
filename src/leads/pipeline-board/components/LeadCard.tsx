@@ -241,6 +241,22 @@ export const LeadCard = React.memo(function LeadCard({
             })()
           )}
 
+          {/* Waiting for client response - bot sent message +15min no reply */}
+          {conversationStatus.lastMessageDirection === 'outbound' && conversationStatus.lastMessageAt && (
+            (() => {
+              const lastMsgTime = new Date(conversationStatus.lastMessageAt).getTime();
+              const fifteenMinAgo = Date.now() - (15 * 60 * 1000);
+              const waitingForReply = lastMsgTime < fifteenMinAgo;
+              
+              return waitingForReply ? (
+                <div className="flex items-center gap-2 mt-1.5 pt-1.5 border-t border-amber-200 bg-amber-50 rounded">
+                  <span className="w-3 h-3 rounded-full bg-amber-500 animate-pulse" />
+                  <span className="text-sm font-bold text-amber-700">Sin respuesta</span>
+                </div>
+              ) : null;
+            })()
+          )}
+
           {conversationStatus.lastMessagePreview && (
             <div className="flex items-center gap-1.5 text-[10px] md:text-[10px] text-gray-400">
               <span className="truncate max-w-[200px]">{conversationStatus.lastMessagePreview}</span>

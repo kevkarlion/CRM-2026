@@ -283,14 +283,14 @@ export function PipelineBoard() {
       || f.dateFrom || f.dateTo || f.lastContact;
 
     if (!hasActiveFilter) {
-      // Sort leads within each stage: lead's inbound messages first, then by score
+      // Sort leads: inbound recent first, then outbound waiting, then by score
       const result: Record<string, ILead[]> = {};
       for (const [stageName, leads] of Object.entries(columns)) {
         const sortedLeads = [...leads].sort((a, b) => {
           const convA = conversationStatusMap.get(String(a._id));
           const convB = conversationStatusMap.get(String(b._id));
           
-          // Has unread inbound message from lead (same logic as indicator)
+          // Priority 1: Inbound recent unread (same as blue indicator)
           const hasRecentUnreadA = convA?.lastMessageDirection === 'inbound' && convA.lastMessageAt && 
             new Date(convA.lastMessageAt).getTime() > (Date.now() - 15 * 60 * 1000) &&
             (!convA.lastReadAt || new Date(convA.lastMessageAt).getTime() > new Date(convA.lastReadAt).getTime());
@@ -298,10 +298,19 @@ export function PipelineBoard() {
             new Date(convB.lastMessageAt).getTime() > (Date.now() - 15 * 60 * 1000) &&
             (!convB.lastReadAt || new Date(convB.lastMessageAt).getTime() > new Date(convB.lastReadAt).getTime());
           
-          if (hasRecentUnreadA && !hasRecentUnreadB) return -1;
-          if (!hasRecentUnreadA && hasRecentUnreadB) return 1;
+          // Priority 2: Outbound waiting (amber indicator - bot sent, no reply)
+          const isWaitingA = convA?.lastMessageDirection === 'outbound' && convA.lastMessageAt && 
+            new Date(convA.lastMessageAt).getTime() < (Date.now() - 15 * 60 * 1000);
+          const isWaitingB = convB?.lastMessageDirection === 'outbound' && convB.lastMessageAt && 
+            new Date(convB.lastMessageAt).getTime() < (Date.now() - 15 * 60 * 1000);
           
-          // Then by score (existing logic)
+          // Sort: recent inbound > waiting outbound > others
+          if (hasRecentUnreadA && !hasRecentUnreadB && !isWaitingB) return -1;
+          if (!hasRecentUnreadA && hasRecentUnreadB && !isWaitingA) return 1;
+          if (isWaitingA && !isWaitingB && !hasRecentUnreadB) return -1;
+          if (!isWaitingA && isWaitingB && !hasRecentUnreadA) return 1;
+          
+          // Then by score
           const getPriorityScore = (p?: string) => {
             if (p === 'high') return 300;
             if (p === 'medium') return 200;
