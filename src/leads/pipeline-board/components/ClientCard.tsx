@@ -87,8 +87,13 @@ export const ClientCard = React.memo(function ClientCard({
     onWhatsAppClick?.(client);
   };
 
-  const displayScore = conversationStatus?.score ?? calculatedScore?.score ?? client.score;
-  const displayTemperature = conversationStatus?.temperature ?? calculatedScore?.temperature ?? client.temperature;
+  // Defensive: ensure client exists before accessing properties
+  const displayScore = client 
+    ? (conversationStatus?.score ?? calculatedScore?.score ?? client.score)
+    : 0;
+  const displayTemperature = client 
+    ? (conversationStatus?.temperature ?? calculatedScore?.temperature ?? client.temperature)
+    : 'cold';
 
   return (
     <div
@@ -236,7 +241,7 @@ export const ClientCard = React.memo(function ClientCard({
       )}
 
       {/* Placeholder fields (when no conversation) */}
-      {!conversationStatus && (
+      {!conversationStatus && client && (
         <div className="mt-1.5 pt-1.5 border-t border-gray-100 space-y-0.5">
           {client.score !== undefined && client.score > 0 && (
             <div className="flex items-center gap-1.5 text-[10px] text-gray-600">

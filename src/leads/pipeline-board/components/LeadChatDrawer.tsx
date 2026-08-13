@@ -670,43 +670,6 @@ export function LeadChatDrawer({ isOpen, onClose, lead, client, conversationStat
           </div>
         </div>
 
-        {/* Bot Control Banner - always show when there's a conversation */}
-        {conversationStatus?.hasActiveConversation && conversationStatus?.conversationId && (
-          <div className={`px-4 py-2 border-b shrink-0 ${
-            conversationStatus?.isBotActive 
-              ? 'bg-blue-50 border-blue-100' 
-              : 'bg-green-50 border-green-100'
-          }`}>
-            <div className="flex items-center justify-between">
-              <div className={`flex items-center gap-2 text-sm ${
-                conversationStatus?.isBotActive ? 'text-blue-700' : 'text-green-700'
-              }`}>
-                <span className={`w-2 h-2 rounded-full ${
-                  conversationStatus?.isBotActive 
-                    ? 'bg-blue-500 animate-pulse' 
-                    : 'bg-green-500'
-                }`} />
-                <span>
-                  {/* DEBUG: show raw values */}
-                  {typeof conversationStatus?.isBotActive === 'undefined' 
-                    ? '⚠️ isBotActive undefined' 
-                    : conversationStatus?.isBotActive 
-                      ? 'Bot respondiendo automáticamente' 
-                      : 'Control humano'}
-                </span>
-              </div>
-              <button
-                onClick={conversationStatus?.isBotActive ? handleTakeControl : handleCedeControl}
-                className={`px-3 py-1 text-xs font-medium text-white rounded-lg hover:opacity-90 transition-colors cursor-pointer ${
-                  conversationStatus?.isBotActive ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'
-                }`}
-              >
-                {conversationStatus?.isBotActive ? 'Tomar control' : 'Ceder al bot'}
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Content */}
         <div className="flex-1 overflow-hidden bg-gray-50">
           {activeTab === 'chat' ? (
@@ -740,7 +703,7 @@ export function LeadChatDrawer({ isOpen, onClose, lead, client, conversationStat
               }))}
               conversationStatus={conversationStatus || {
                 conversationId: '',
-                leadId: String(lead._id),
+                leadId: isLeadMode ? String(lead._id) : (client?.id || ''),
                 hasActiveConversation: false,
                 conversationState: null,
                 isBotActive: false,

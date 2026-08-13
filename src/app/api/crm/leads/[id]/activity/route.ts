@@ -36,7 +36,7 @@ export async function GET(
     const { id: leadId } = await params;
 
     // Verify lead exists
-    const lead = await leadService.findById(leadId, tenantId);
+    const lead = await LeadModel.findOne({ _id: leadId, tenantId: new Types.ObjectId(tenantId) });
     if (!lead) {
       return NextResponse.json({ error: 'Lead not found' }, { status: 404 });
     }
