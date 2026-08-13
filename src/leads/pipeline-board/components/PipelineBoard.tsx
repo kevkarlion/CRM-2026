@@ -290,9 +290,11 @@ export function PipelineBoard() {
           const convA = conversationStatusMap.get(String(a._id));
           const convB = conversationStatusMap.get(String(b._id));
           
-          // Priority 1: Has inbound message and hasn't been read (same logic as blue indicator)
-          const hasUnreadInboundA = convA?.lastInboundMessageAt && !convA.lastReadAt;
-          const hasUnreadInboundB = convB?.lastInboundMessageAt && !convB.lastReadAt;
+          // Priority 1: Has recent inbound (within 30 min) and hasn't been read
+          const hasRecentUnreadInboundA = convA?.lastInboundMessageAt && !convA.lastReadAt && 
+            new Date(convA.lastInboundMessageAt).getTime() > (Date.now() - 30 * 60 * 1000);
+          const hasRecentUnreadInboundB = convB?.lastInboundMessageAt && !convB.lastReadAt && 
+            new Date(convB.lastInboundMessageAt).getTime() > (Date.now() - 30 * 60 * 1000);
           
           // Priority 2: Bot waiting (amber indicator - bot sent, no reply for 15min)
           const isBotWaitingA = convA?.lastMessageDirection === 'outbound' && convA.lastMessageAt && convA.isBotActive && 
@@ -300,9 +302,9 @@ export function PipelineBoard() {
           const isBotWaitingB = convB?.lastMessageDirection === 'outbound' && convB.lastMessageAt && convB.isBotActive && 
             new Date(convB.lastMessageAt).getTime() < (Date.now() - 15 * 60 * 1000);
           
-          // Sort: has unread inbound > bot waiting > others
-          if (hasUnreadInboundA && !hasUnreadInboundB && !isBotWaitingB) return -1;
-          if (!hasUnreadInboundA && hasUnreadInboundB && !isBotWaitingA) return 1;
+          // Sort: recent unread inbound (30min) > bot waiting > others
+          if (hasRecentUnreadInboundA && !hasRecentUnreadInboundB && !isBotWaitingB) return -1;
+          if (!hasRecentUnreadInboundA && hasRecentUnreadInboundB && !isBotWaitingA) return 1;
           if (isBotWaitingA && !isBotWaitingB && !hasRecentUnreadB) return -1;
           if (!isBotWaitingA && isBotWaitingB && !hasRecentUnreadA) return 1;
           
