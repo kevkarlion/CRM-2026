@@ -1047,8 +1047,8 @@ export class WhatsAppService {
     }
 
     // Check if message contains a footer (like supplier phone message)
-    // Footer is typically at the end and contains "comunícate" or "proveedor"
-    const footerPattern = /¿Eres proveedor\?|comunícate|proveedor/i;
+    // Footer contains "299" (supplier phone prefix) or "proveedor"
+    const footerPattern = /299\d+|proveedor/i;
     const hasFooter = footerPattern.test(message);
 
     // Build options text
@@ -1070,8 +1070,10 @@ export class WhatsAppService {
     if (hasFooter) {
       const parts = message.split(footerPattern);
       if (parts.length >= 2) {
-        // message before footer + options + footer
-        return `${parts[0].trim()}\n\n${optionsText}\n\n${parts.slice(1).join('').trim()}`;
+        // message before footer + options + "comunícate al " + phone + rest
+        const beforeFooter = parts[0].trim();
+        const afterFooter = parts.slice(1).join('').trim();
+        return `${beforeFooter}\n\n${optionsText}\n\n${afterFooter}`;
       }
     }
 
