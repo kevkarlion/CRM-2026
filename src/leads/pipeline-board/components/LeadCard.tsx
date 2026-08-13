@@ -224,17 +224,17 @@ export const LeadCard = React.memo(function LeadCard({
             </div>
           )}
 
-          {/* New message indicator - blinking blue dot */}
-          {conversationStatus.lastMessageDirection === 'inbound' && conversationStatus.lastMessageAt && (
+          {/* New message indicator - blinking blue dot when there's unread activity */}
+          {conversationStatus.lastMessageAt && conversationStatus.isHumanAssigned && (
             (() => {
               const lastMsgTime = new Date(conversationStatus.lastMessageAt).getTime();
               const lastReadTime = conversationStatus.lastReadAt ? new Date(conversationStatus.lastReadAt).getTime() : 0;
-              const hasUnread = lastMsgTime > lastReadTime;
+              const hasUnread = lastReadTime === 0 || lastMsgTime > lastReadTime;
               
               return hasUnread ? (
                 <div className="flex items-center gap-1.5 text-[10px] md:text-[10px] text-blue-600">
                   <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                  <span>Nuevo mensaje</span>
+                  <span>Nueva actividad</span>
                 </div>
               ) : null;
             })()
