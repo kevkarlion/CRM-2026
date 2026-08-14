@@ -30,9 +30,7 @@ interface ListResponse {
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Todos' },
-  ...Object.entries(LEAD_STATUS_LABELS)
-    .filter(([value]) => value !== 'disqualified')
-    .map(([value, label]) => ({ value, label })),
+  ...Object.entries(LEAD_STATUS_LABELS).map(([value, label]) => ({ value, label })),
 ];
 
 const STATUS_VARIANT: Record<string, string> = {

@@ -115,6 +115,7 @@ export function PipelineBoard() {
   const [resolveConfirmOpen, setResolveConfirmOpen] = useState(false);
   const [resolveConversationId, setResolveConversationId] = useState<string | null>(null);
   const [resolveConversationName, setResolveConversationName] = useState<string>('');
+  const [resolveLeadId, setResolveLeadId] = useState<string | null>(null); // For leads without conversation
   
   // Notification state
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -170,18 +171,41 @@ export function PipelineBoard() {
     setChatDrawerOpen(true);
   }, []);
 
-  // Resolve conversation (for modal)
+  // Resolve lead (handles both conversation-based and direct lead resolve)
   const handleResolveConversation = useCallback(async () => {
-    if (!resolveConversationId) return;
+    if (!resolveConversationId && !resolveLeadId) return;
+    
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      const res = await fetch(`/api/crm/conversations/${resolveConversationId}/resolve`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-        },
-      });
+      const tenantId = typeof window !== 'undefined' ? localStorage.getItem('tenantId') : null;
+      
+      let res: Response;
+      
+      if (resolveConversationId) {
+        // Resolve via conversation (existing behavior)
+        res = await fetch(`/api/crm/conversations/${resolveConversationId}/resolve`, {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+            ...(tenantId ? { 'x-tenant-id': tenantId } : {}),
+          },
+        });
+      } else if (resolveLeadId) {
+        // Direct lead status change (no conversation)
+        res = await fetch(`/api/crm/leads/${resolveLeadId}/status`, {
+          method: 'PATCH',
+          headers: { 
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+            ...(tenantId ? { 'x-tenant-id': tenantId } : {}),
+          },
+          body: JSON.stringify({ status: 'disqualified' }),
+        });
+      } else {
+        return;
+      }
+      
       console.log('[Resolve] Response status:', res.status);
       if (res.ok) {
         setNotification({ type: 'success', message: 'Lead descalificado' });
@@ -189,7 +213,8 @@ export function PipelineBoard() {
         refetchCustomerConversations();
         refetch();
       } else {
-        setNotification({ type: 'error', message: 'Error al resolver' });
+        const errorData = await res.json().catch(() => ({}));
+        setNotification({ type: 'error', message: errorData.error || 'Error al descalificar' });
       }
     } catch (err) {
       setNotification({ type: 'error', message: 'Error al resolver' });
@@ -197,9 +222,10 @@ export function PipelineBoard() {
       setResolveConfirmOpen(false);
       setResolveConversationId(null);
       setResolveConversationName('');
+      setResolveLeadId(null);
       setTimeout(() => setNotification(null), 5000);
     }
-  }, [resolveConversationId, refetchCustomerConversations]);
+  }, [resolveConversationId, resolveLeadId, refetchCustomerConversations]);
 
   // Resolve conversation directly by ID (for ClientCard button)
   const handleResolveConversationWithId = useCallback(async (conversationId: string) => {
@@ -226,17 +252,13 @@ export function PipelineBoard() {
     setTimeout(() => setNotification(null), 5000);
   }, [refetchCustomerConversations]);
 
-  // Resolve lead conversation (for LeadCard button)
+  // Resolve lead - works with or without conversation
   const handleLeadResolve = useCallback(async (lead: ILead) => {
     const status = conversationStatusMap.get(String(lead._id));
-    if (!status?.conversationId) {
-      setNotification({ type: 'error', message: 'No hay conversación activa para resolver' });
-      setTimeout(() => setNotification(null), 5000);
-      return;
-    }
     
-    // Abrir modal de confirmación (usar variables existentes)
-    setResolveConversationId(status.conversationId);
+    // Open modal regardless - with or without conversation
+    setResolveConversationId(status?.conversationId ?? null);
+    setResolveLeadId(String(lead._id));
     setResolveConversationName(lead.profileName || lead.name || lead.companyName || 'este lead');
     setResolveConfirmOpen(true);
   }, [conversationStatusMap]);
