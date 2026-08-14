@@ -69,11 +69,26 @@ export class WorkOrderService {
       const tenantPrefix = tenantId.toString().slice(-6);
       const workOrderNumber = await getNextWorkOrderNumber(tenantPrefix);
 
+      // Sync scheduledDate from scheduledStart (single source of truth)
+      const scheduledStart = (data as any).scheduledStart;
+      const scheduledDateFromStart = scheduledStart
+        ? (typeof scheduledStart === 'string' ? scheduledStart.slice(0, 10) : scheduledStart.toISOString().slice(0, 10))
+        : data.scheduledDate;
+
+      // Auto-transition: si tiene fecha Y técnico, crear directamente como "scheduled"
+      const hasSchedule = !!(scheduledDateFromStart || (data as any).scheduledStart || (data as any).scheduledEnd);
+      const hasTechnicians = !!((data as any).assignedTechnicians && (data as any).assignedTechnicians.length > 0);
+      const initialStatus: WorkOrderStatus = (hasSchedule && hasTechnicians) ? 'scheduled' : 'draft';
+
       const [workOrder] = await WorkOrderModel.create([{
         ...data,
+        scheduledDate: scheduledDateFromStart,
         tenantId,
         workOrderNumber,
-        status: 'draft' as WorkOrderStatus,
+        status: initialStatus,
+        tenantId,
+        workOrderNumber,
+        status: initialStatus,
         clientSnapshot: {
           name: client.fullName || client.companyName,
           email: client.email,
@@ -93,9 +108,28 @@ export class WorkOrderService {
             }
           : data.locationSnapshot,
         equipmentSnapshot,
-        assignedTechnicians: data.assignedTechnicians || [],
+        assignedTechnicians: (data as any).assignedTechnicians || [],
         createdBy: userId,
         updatedBy: userId,
+      }], { session });
+
+      // Guardar evento de creación en el historial
+      await WorkOrderEventModel.create([{
+        tenantId: new Types.ObjectId(tenantId),
+        workOrderId: workOrder._id,
+        eventType: 'created',
+        description: `Orden de trabajo creada por el usuario`,
+        performedBy: new Types.ObjectId(userId),
+        metadata: {
+          workOrderNumber: workOrder.workOrderNumber,
+          title: workOrder.title,
+          category: workOrder.category,
+          priority: workOrder.priority,
+          scheduledDate: workOrder.scheduledDate,
+          scheduledStart: workOrder.scheduledStart,
+          scheduledEnd: workOrder.scheduledEnd,
+          initialStatus: initialStatus,
+        },
       }], { session });
 
       await session.commitTransaction();
@@ -210,6 +244,18 @@ export class WorkOrderService {
       if (current && current.status === 'draft') {
         autoStatus = 'scheduled';
       }
+    }
+
+    // Sync scheduledDate from scheduledStart (single source of truth)
+    const dataAny = data as any;
+    const scheduledStart = dataAny.scheduledStart;
+    const scheduledDateFromStart = scheduledStart !== undefined
+      ? (typeof scheduledStart === 'string' ? scheduledStart.slice(0, 10) : scheduledStart.toISOString().slice(0, 10))
+      : data.scheduledDate;
+
+    // Si viene scheduledStart pero no scheduledDate, derivar scheduledDate
+    if (scheduledStart !== undefined && !data.scheduledDate) {
+      (data as any).scheduledDate = scheduledDateFromStart;
     }
 
     const updated = await WorkOrderModel.findOneAndUpdate(
@@ -382,11 +428,16 @@ export class WorkOrderService {
         hasVisitReport: false,
       });
 
+      // Sync scheduledDate from scheduledStart (single source of truth)
+      const syncedScheduledDate = typeof scheduleData.scheduledStart === 'string'
+        ? scheduleData.scheduledStart.slice(0, 10)
+        : scheduleData.scheduledStart.toISOString().slice(0, 10);
+
       const updated = await WorkOrderModel.findOneAndUpdate(
         { _id: id, tenantId, status: currentStatus, version },
         {
           $set: {
-            scheduledDate: scheduleData.scheduledDate,
+            scheduledDate: syncedScheduledDate,
             scheduledStart: scheduleData.scheduledStart,
             scheduledEnd: scheduleData.scheduledEnd,
             status: 'scheduled',

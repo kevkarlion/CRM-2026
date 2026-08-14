@@ -176,7 +176,11 @@ export class GetOperationalMapUseCase {
       priority: wo.priority,
       technician: technicianNames,
       technicianId: technicianIds[0] || undefined,
-      scheduledAt: wo.scheduledDate || '',
+      // Use scheduledStart if available (has date+time), otherwise scheduledDate (date only)
+      // This fixes the timezone issue where scheduledDate alone was interpreted as UTC midnight
+      scheduledAt: wo.scheduledStart 
+        ? (typeof wo.scheduledStart === 'string' ? wo.scheduledStart : wo.scheduledStart.toISOString())
+        : wo.scheduledDate || '',
       serviceType: wo.category,
       clientName: wo.clientSnapshot?.name || '',
       locationName: wo.locationSnapshot?.name || wo.locationSnapshot?.address || '',
@@ -210,7 +214,10 @@ export class GetOperationalMapUseCase {
       priority: tv.priority,
       technician: technicianName,
       technicianId: technicianId,
-      scheduledAt: tv.scheduledDate ? new Date(tv.scheduledDate).toISOString().slice(0, 10) : '',
+      // Use scheduledStart if available (has date+time), otherwise scheduledDate (date only)
+      scheduledAt: tv.scheduledStart 
+        ? (typeof tv.scheduledStart === 'string' ? tv.scheduledStart : tv.scheduledStart.toISOString())
+        : (tv.scheduledDate ? (typeof tv.scheduledDate === 'string' ? tv.scheduledDate : tv.scheduledDate.toISOString()) : ''),
       serviceType: tv.category,
       clientName: tv.clientSnapshot?.name || '',
       locationName: tv.locationSnapshot?.name || tv.locationSnapshot?.address || '',
