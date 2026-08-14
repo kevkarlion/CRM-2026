@@ -6,6 +6,8 @@ import ContactModel from '../models/contact';
 import TenantModel from '../../core/models/tenant';
 import { ClientServiceHistoryModel } from '@/clients';
 import connectDB from '@/core/db';
+import { EVENT_TYPES } from '@/crm/types/activity';
+import TimelineEventModel from '@/timeline/models/timeline-event';
 import type { 
   IWhatsAppMessage, 
   CreateWhatsAppMessageInput,
@@ -434,6 +436,7 @@ export class WhatsAppService {
         console.log('[WhatsApp] Comparando:', currentStatus, '=== disqualified?', currentStatus === 'disqualified');
         if (currentStatus === 'disqualified') {
           console.log('[WhatsApp] REACTIVANDO lead disqualificado -> contacted');
+          const previousStatus = currentStatus;
           await LeadModel.findByIdAndUpdate(existingLead._id, {
             $set: {
               status: 'contacted',
@@ -441,6 +444,33 @@ export class WhatsAppService {
               updatedBy: 'whatsapp-bot',
             },
           });
+          
+          // Crear timeline event para la reactivación
+          console.log('[WhatsApp] Creando timeline event para reactivación...');
+          try {
+            await TimelineEventModel.create({
+              tenantId: new Types.ObjectId(tenantId),
+              leadId: existingLead._id,
+              entityType: 'lead',
+              entityId: existingLead._id,
+              eventType: EVENT_TYPES.LEAD_STATUS_CHANGED,
+              title: 'Lead reactivado',
+              description: `El lead volvió a escribir y fue reactivado automáticamente`,
+              metadata: {
+                from: previousStatus,
+                to: 'contacted',
+                fromLabel: 'descalificado',
+                toLabel: 'contactado',
+                reactivatedBy: 'whatsapp-bot',
+              },
+              performedBy: new Types.ObjectId('000000000000000000000000'),
+              createdAt: new Date(),
+            });
+            console.log('[WhatsApp] Timeline event creado exitosamente');
+          } catch (timelineError) {
+            console.error('[WhatsApp] Error creando timeline event:', timelineError);
+          }
+          
           // Refrescar para obtener el valor actualizado
           existingLead = await LeadModel.findById(existingLead._id);
         }

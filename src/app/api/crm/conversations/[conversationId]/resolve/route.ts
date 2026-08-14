@@ -81,8 +81,10 @@ export async function POST(
             description: `El lead fue marcado como resuelto/descalificado desde el Pipeline`,
             metadata: {
               conversationId: conversationId,
-              previousStatus: lead.status,
-              newStatus: 'disqualified',
+              from: lead.status,
+              to: 'disqualified',
+              fromLabel: lead.status,
+              toLabel: 'descalificado',
             },
             performedBy: new Types.ObjectId(userId),
             createdAt: new Date(),

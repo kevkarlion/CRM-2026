@@ -144,22 +144,12 @@ export function TimelineCardLead({ event }: TimelineCardProps) {
     }
   };
 
-  const route = `/leads/${event.entityId}`;
-
   return (
     <>
       {renderContent()}
       <p className="text-xs text-gray-400 mt-1">
         {formatFullDate(event.createdAt)} · {getUserName(event.createdBy)}
       </p>
-      <div className="mt-2 pt-2 border-t border-gray-100">
-        <Link
-          href={route}
-          className="text-xs font-medium text-blue-600 hover:text-blue-700"
-        >
-          Ver lead →
-        </Link>
-      </div>
     </>
   );
 }
