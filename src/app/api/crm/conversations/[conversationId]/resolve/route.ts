@@ -74,6 +74,8 @@ export async function POST(
           await TimelineEventModel.create({
             tenantId: new Types.ObjectId(tenantId),
             leadId: leadId,
+            entityType: 'lead',
+            entityId: leadId,
             eventType: EVENT_TYPES.LEAD_STATUS_CHANGED,
             title: 'Lead resuelto',
             description: `El lead fue marcado como resuelto/descalificado desde el Pipeline`,
@@ -95,6 +97,8 @@ export async function POST(
       await TimelineEventModel.create({
         tenantId: new Types.ObjectId(tenantId),
         clientId: clientId,
+        entityType: 'client',
+        entityId: clientId,
         eventType: EVENT_TYPES.CLIENT_CONVERSATION_RESOLVED,
         title: 'Atención resuelta',
         description: `La conversación de WhatsApp fue marcada como resuelta`,

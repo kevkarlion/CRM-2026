@@ -174,12 +174,17 @@ export function PipelineBoard() {
   const handleResolveConversation = useCallback(async () => {
     if (!resolveConversationId) return;
     try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const res = await fetch(`/api/crm/conversations/${resolveConversationId}/resolve`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
       });
+      console.log('[Resolve] Response status:', res.status);
       if (res.ok) {
-        setNotification({ type: 'success', message: 'Atención marcada como resuelta' });
+        setNotification({ type: 'success', message: 'Lead descalificado' });
         // Refresh both customers and leads
         refetchCustomerConversations();
         refetch();
@@ -198,13 +203,19 @@ export function PipelineBoard() {
 
   // Resolve conversation directly by ID (for ClientCard button)
   const handleResolveConversationWithId = useCallback(async (conversationId: string) => {
+    console.log('[Resolve] handleResolveConversationWithId called with:', conversationId);
     try {
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const res = await fetch(`/api/crm/conversations/${conversationId}/resolve`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
       });
+      console.log('[Resolve] handleResolveConversationWithId response:', res.status);
       if (res.ok) {
-        setNotification({ type: 'success', message: 'Atención resuelta ✅' });
+        setNotification({ type: 'success', message: 'Lead descalificado ✅' });
         refetchCustomerConversations();
       } else {
         setNotification({ type: 'error', message: 'Error al resolver' });
@@ -545,38 +556,7 @@ export function PipelineBoard() {
             </div>
           )}
 
-          {unmatched.length > 0 && (
-            <div className="bg-gray-100 rounded-lg border border-dashed border-gray-300 min-w-[85vw] md:min-w-[260px] snap-start">
-              <div className="px-3 py-2 border-b border-gray-200 bg-gray-100 rounded-t-lg">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-semibold text-gray-500 truncate">
-                    Sin etapa
-                  </h3>
-                  <span className="badge badge-neutral text-xs shrink-0">
-                    {unmatched.length}
-                  </span>
-                </div>
-                <p className="text-[10px] text-gray-400 mt-0.5">
-                  Leads con estado sin etapa asignada
-                </p>
-              </div>
-              <div className="p-2 space-y-2">
-                {unmatched.map((lead) => (
-                  <div
-                    key={String(lead._id)}
-                    className="bg-white rounded-lg border border-gray-200 p-3 opacity-60 cursor-default"
-                  >
-                    <p className="text-sm font-semibold text-gray-900 truncate">
-                      {lead.name}
-                    </p>
-                    {lead.companyName && (
-                      <p className="text-xs text-gray-500 truncate">{lead.companyName}</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Note: "Sin etapa" column removed - shows leads with status not mapped to any pipeline stage */}
         </div>
       )}
 
@@ -622,9 +602,9 @@ export function PipelineBoard() {
                 </svg>
               </div>
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Confirmar acción</h3>
+                <h3 className="text-lg font-semibold text-gray-900">Confirmar descalificación</h3>
                 <p className="text-sm text-gray-500">
-                  ¿Marcar la atención de <strong>{resolveConversationName}</strong> como resuelta?
+                  ¿Marcar al lead <strong>{resolveConversationName}</strong> como descalificado?
                 </p>
               </div>
             </div>

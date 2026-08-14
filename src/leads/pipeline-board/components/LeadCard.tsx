@@ -285,7 +285,7 @@ export const LeadCard = React.memo(function LeadCard({
             onClick={(e) => { e.stopPropagation(); onResolve?.(lead); }}
             className="px-2 py-0.5 text-[10px] font-medium bg-green-50 text-green-700 rounded hover:bg-green-100 transition-colors"
           >
-            Resolver
+            Descalificar
           </button>
         </div>
       )}
@@ -303,7 +303,7 @@ export const LeadCard = React.memo(function LeadCard({
             onClick={(e) => { e.stopPropagation(); onResolve?.(lead); }}
             className="px-2 py-0.5 text-[10px] font-medium bg-green-50 text-green-700 rounded hover:bg-green-100 transition-colors"
           >
-            Resolver
+            Descalificar
           </button>
         </div>
       )}
