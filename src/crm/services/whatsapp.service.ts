@@ -418,55 +418,57 @@ export class WhatsAppService {
       const normalizedPhone = this.normalizePhone(phone);
       console.log('🔍 findOrCreateLeadByPhone: normalizedPhone:', normalizedPhone);
     
-    // Buscar lead existente por teléfono
-    const existingLead = await LeadModel.findOne({
-      tenantId: new Types.ObjectId(tenantId),
-      phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
-      deletedAt: null,
-    });
+      // Buscar lead existente por teléfono
+      const existingLead = await LeadModel.findOne({
+        tenantId: new Types.ObjectId(tenantId),
+        phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+        deletedAt: null,
+      });
 
-    console.log('🔍 findOrCreateLeadByPhone: existingLead:', existingLead ? existingLead.status : 'NULL');
+      console.log('🔍 findOrCreateLeadByPhone: existingLead:', existingLead ? existingLead.status : 'NULL');
 
-    if (existingLead) {
-      console.log('[WhatsApp] Lead encontrado en DB, status:', existingLead.status, '| typeof:', typeof existingLead.status);
-      // Si el lead estaba resuelto/descalificado, reactivarlo
-      const currentStatus = String(existingLead.status);
-      console.log('[WhatsApp] Comparando:', currentStatus, '=== disqualified?', currentStatus === 'disqualified');
-      if (currentStatus === 'disqualified') {
-        console.log('[WhatsApp] REACTIVANDO lead disqualificado -> contacted');
-        await LeadModel.findByIdAndUpdate(existingLead._id, {
-          $set: {
-            status: 'contacted',
-            qualificationStatus: 'pending',
-            updatedBy: 'whatsapp-bot',
-          },
-        });
-        // Refrescar para obtener el valor actualizado
-        existingLead = await LeadModel.findById(existingLead._id);
+      if (existingLead) {
+        console.log('[WhatsApp] Lead encontrado en DB, status:', existingLead.status, '| typeof:', typeof existingLead.status);
+        // Si el lead estaba resuelto/descalificado, reactivarlo
+        const currentStatus = String(existingLead.status);
+        console.log('[WhatsApp] Comparando:', currentStatus, '=== disqualified?', currentStatus === 'disqualified');
+        if (currentStatus === 'disqualified') {
+          console.log('[WhatsApp] REACTIVANDO lead disqualificado -> contacted');
+          await LeadModel.findByIdAndUpdate(existingLead._id, {
+            $set: {
+              status: 'contacted',
+              qualificationStatus: 'pending',
+              updatedBy: 'whatsapp-bot',
+            },
+          });
+          // Refrescar para obtener el valor actualizado
+          existingLead = await LeadModel.findById(existingLead._id);
+        }
+        return { lead: existingLead, isNew: false };
       }
-      return { lead: existingLead, isNew: false };
+
+      // Crear nuevo lead - usar profileName si está disponible, sino fallback a "Lead WhatsApp XXXX"
+      const leadName = profileName || `Lead WhatsApp ${normalizedPhone.slice(-4)}`;
+      const newLead = new LeadModel({
+        tenantId: new Types.ObjectId(tenantId),
+        name: leadName,
+        companyName: profileName || undefined,
+        phone: normalizedPhone,
+        source: 'whatsapp',
+        status: 'new',
+        notes: messageContent ? `Mensaje inicial: ${messageContent}` : 'Creado desde WhatsApp',
+        createdBy: 'whatsapp-bot',
+        updatedBy: 'whatsapp-bot',
+        profileName: profileName || undefined,
+      });
+
+      await newLead.save();
+      return { lead: newLead, isNew: true };
     } catch (error) {
       console.error('[WhatsApp] findOrCreateLeadByPhone ERROR:', error);
       throw error;
     }
-
-    // Crear nuevo lead - usar profileName si está disponible, sino fallback a "Lead WhatsApp XXXX"
-    const leadName = profileName || `Lead WhatsApp ${normalizedPhone.slice(-4)}`;
-    const newLead = new LeadModel({
-      tenantId: new Types.ObjectId(tenantId),
-      name: leadName,
-      companyName: profileName || undefined, // Guardar profileName como empresa si existe
-      phone: normalizedPhone,
-      source: 'whatsapp',
-      status: 'new',
-      notes: messageContent ? `Mensaje inicial: ${messageContent}` : 'Creado desde WhatsApp',
-      createdBy: 'whatsapp-bot',
-      updatedBy: 'whatsapp-bot',
-      profileName: profileName || undefined, // Guardar profileName explícitamente
-    });
-
-    await newLead.save();
-    return { lead: newLead, isNew: true };
+  }
   }
 
   /**
