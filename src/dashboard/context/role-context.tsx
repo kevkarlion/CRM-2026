@@ -26,19 +26,25 @@ interface RoleContextValue {
   loading: boolean;
 }
 
-function decodeToken(token: string): { userId?: string; tenantId?: string; roles?: string[]; name?: string; email?: string } {
+function decodeToken(token: string): { userId?: string; tenantId?: string; roles?: string[]; name?: string; email?: string } | null {
   try {
     const payload = token.split('.')[1];
     const decoded = JSON.parse(atob(payload));
+    
+    // Check expiration
+    if (decoded.exp && Date.now() >= decoded.exp * 1000) {
+      return null; // Token expired
+    }
+    
     return {
       userId: decoded.userId ?? decoded.sub,
       tenantId: decoded.tenantId,
       roles: decoded.roles ?? [],
-      name: decoded.name ?? decoded.given_name ?? 'Admin',
+      name: decoded.name ?? 'Usuario',
       email: decoded.email ?? '',
     };
   } catch {
-    return {};
+    return null;
   }
 }
 
@@ -107,6 +113,13 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       }
 
       const data = decodeToken(token);
+      
+      if (!data) {
+        // Token expired or invalid - redirect to login
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+        return;
+      }
       
       // Normalize role: convert 'admin' -> 'Administrator', etc.
       const rawRole = data.roles?.[0] ?? 'Administrator';
