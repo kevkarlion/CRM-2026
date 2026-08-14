@@ -419,7 +419,7 @@ export class WhatsAppService {
       console.log('🔍 findOrCreateLeadByPhone: normalizedPhone:', normalizedPhone);
     
       // Buscar lead existente por teléfono
-      const existingLead = await LeadModel.findOne({
+      let existingLead = await LeadModel.findOne({
         tenantId: new Types.ObjectId(tenantId),
         phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
         deletedAt: null,
