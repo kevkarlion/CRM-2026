@@ -1,14 +1,15 @@
 import { LeadStatus } from '../types/lead';
 
 export const VALID_TRANSITIONS: Record<LeadStatus, LeadStatus[]> = {
-  new: ['contacted', 'technical_visit', 'lost'],
-  contacted: ['quote_sent', 'technical_visit', 'won', 'lost'],
-  technical_visit: ['quote_sent', 'negotiation', 'won', 'lost'],
-  quote_sent: ['negotiation', 'won', 'lost'],
-  negotiation: ['won', 'lost'],
+  new: ['contacted', 'technical_visit', 'lost', 'disqualified'],
+  contacted: ['quote_sent', 'technical_visit', 'won', 'lost', 'disqualified'],
+  technical_visit: ['quote_sent', 'negotiation', 'won', 'lost', 'disqualified'],
+  quote_sent: ['negotiation', 'won', 'lost', 'disqualified'],
+  negotiation: ['won', 'lost', 'disqualified'],
   won: [],
   lost: [],
-  disqualified: [],
+  // Permite reactivar: si el lead vuelve a escribir, puede volver a contacted
+  disqualified: ['contacted'],
 };
 
 export const TERMINAL_STATUSES: LeadStatus[] = ['won', 'lost', 'disqualified'];

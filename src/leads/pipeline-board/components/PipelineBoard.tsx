@@ -180,7 +180,9 @@ export function PipelineBoard() {
       });
       if (res.ok) {
         setNotification({ type: 'success', message: 'Atención marcada como resuelta' });
+        // Refresh both customers and leads
         refetchCustomerConversations();
+        refetch();
       } else {
         setNotification({ type: 'error', message: 'Error al resolver' });
       }
@@ -212,6 +214,21 @@ export function PipelineBoard() {
     }
     setTimeout(() => setNotification(null), 5000);
   }, [refetchCustomerConversations]);
+
+  // Resolve lead conversation (for LeadCard button)
+  const handleLeadResolve = useCallback(async (lead: ILead) => {
+    const status = conversationStatusMap.get(String(lead._id));
+    if (!status?.conversationId) {
+      setNotification({ type: 'error', message: 'No hay conversación activa para resolver' });
+      setTimeout(() => setNotification(null), 5000);
+      return;
+    }
+    
+    // Abrir modal de confirmación (usar variables existentes)
+    setResolveConversationId(status.conversationId);
+    setResolveConversationName(lead.profileName || lead.name || lead.companyName || 'este lead');
+    setResolveConfirmOpen(true);
+  }, [conversationStatusMap]);
 
   // Take case — assign the current user to the conversation
   const handleTakeCase = useCallback(async (lead: ILead) => {
@@ -457,6 +474,7 @@ export function PipelineBoard() {
                 onTakeCase={handleTakeCase}
                 onQuickReply={handleQuickReply}
                 onOpenChat={handleOpenChat}
+                onResolve={handleLeadResolve}
               />
             );
           })}

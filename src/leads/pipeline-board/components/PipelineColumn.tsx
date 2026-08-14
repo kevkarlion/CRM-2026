@@ -15,6 +15,7 @@ interface PipelineColumnProps {
   onTakeCase?: (lead: ILead) => void;
   onQuickReply?: (lead: ILead) => void;
   onOpenChat?: (lead: ILead) => void;
+  onResolve?: (lead: ILead) => void;
 }
 
 function SkeletonCard() {
@@ -39,6 +40,7 @@ export const PipelineColumn = memo(function PipelineColumn({
   onTakeCase,
   onQuickReply,
   onOpenChat,
+  onResolve,
 }: PipelineColumnProps) {
   return (
     <div
@@ -68,6 +70,7 @@ export const PipelineColumn = memo(function PipelineColumn({
               onTakeCase={onTakeCase}
               onQuickReply={onQuickReply}
               onOpenChat={onOpenChat}
+              onResolve={onResolve}
             />
           ))
         )}

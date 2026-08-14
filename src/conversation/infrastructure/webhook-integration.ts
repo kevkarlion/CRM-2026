@@ -41,6 +41,16 @@ async function findOrCreateLead(
   });
 
   if (existing) {
+    // Si el lead estaba resuelto/descalificado, reactivarlo
+    if (existing.status === 'disqualified') {
+      await LeadModel.findByIdAndUpdate(existing._id, {
+        $set: {
+          status: 'contacted',
+          qualificationStatus: 'pending',
+          updatedBy: 'whatsapp-bot',
+        },
+      });
+    }
     return { leadId: String(existing._id), isNew: false };
   }
 

@@ -68,6 +68,7 @@ interface LeadCardProps {
   onTakeCase?: (lead: ILead) => void;
   onQuickReply?: (lead: ILead) => void;
   onOpenChat?: (lead: ILead) => void;
+  onResolve?: (lead: ILead) => void;
 }
 
 export const LeadCard = React.memo(function LeadCard({
@@ -78,6 +79,7 @@ export const LeadCard = React.memo(function LeadCard({
   onTakeCase,
   onQuickReply,
   onOpenChat,
+  onResolve,
 }: LeadCardProps) {
   // Calcular score si no está guardado
   const calculatedScore = useMemo(() => {
@@ -260,37 +262,48 @@ export const LeadCard = React.memo(function LeadCard({
         </div>
       )}
 
-      {/* Quick Actions */}
-      {conversationStatus?.isHandoffPending && (
+      {/* Quick Actions - siempre mostrar si hay conversación activa */}
+      {conversationStatus?.hasActiveConversation && (
         <div className="mt-1.5 flex gap-1">
+          {conversationStatus?.isHandoffPending && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onTakeCase?.(lead); }}
+              className="flex-1 px-2 py-0.5 text-[10px] font-medium bg-red-50 text-red-700 rounded hover:bg-red-100 transition-colors"
+            >
+              Tomar caso
+            </button>
+          )}
+          {conversationStatus?.isBotActive && !conversationStatus?.isHandoffPending && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onQuickReply?.(lead); }}
+              className="flex-1 px-2 py-0.5 text-[10px] font-medium bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition-colors"
+            >
+              Responder
+            </button>
+          )}
           <button
-            onClick={(e) => { e.stopPropagation(); onTakeCase?.(lead); }}
-            className="flex-1 px-2 py-0.5 text-[10px] font-medium bg-red-50 text-red-700 rounded hover:bg-red-100 transition-colors"
+            onClick={(e) => { e.stopPropagation(); onResolve?.(lead); }}
+            className="px-2 py-0.5 text-[10px] font-medium bg-green-50 text-green-700 rounded hover:bg-green-100 transition-colors"
           >
-            Tomar caso
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); onOpenChat?.(lead); }}
-            className="px-2 py-0.5 text-[10px] text-gray-600 rounded hover:bg-gray-100 transition-colors"
-          >
-            Ver
+            Resolver
           </button>
         </div>
       )}
 
-      {conversationStatus?.isBotActive && !conversationStatus?.isHandoffPending && (
+      {/* Sin conversación */}
+      {!conversationStatus && (
         <div className="mt-1.5 flex gap-1">
           <button
-            onClick={(e) => { e.stopPropagation(); onQuickReply?.(lead); }}
-            className="flex-1 px-2 py-0.5 text-[10px] font-medium bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition-colors"
-          >
-            Responder
-          </button>
-          <button
             onClick={(e) => { e.stopPropagation(); onOpenChat?.(lead); }}
-            className="px-2 py-0.5 text-[10px] text-gray-600 rounded hover:bg-gray-100 transition-colors"
+            className="flex-1 px-2 py-0.5 text-[10px] text-gray-600 rounded hover:bg-gray-100 transition-colors"
           >
             Ver
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onResolve?.(lead); }}
+            className="px-2 py-0.5 text-[10px] font-medium bg-green-50 text-green-700 rounded hover:bg-green-100 transition-colors"
+          >
+            Resolver
           </button>
         </div>
       )}

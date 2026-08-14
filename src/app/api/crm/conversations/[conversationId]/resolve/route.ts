@@ -4,12 +4,15 @@ import ConversationModel from '@/conversation/models/conversation';
 import { conversationResolver } from '@/conversation/application/conversation-resolver';
 import TimelineEventModel from '@/timeline/models/timeline-event';
 import { EVENT_TYPES } from '@/crm/types/activity';
+import LeadModel from '@/leads/models/lead';
 import { Types } from 'mongoose';
+import { canTransition } from '@/leads/helpers/lead-state-machine';
 
 /**
  * POST /api/crm/conversations/[conversationId]/resolve
  * 
  * Operator marks the conversation as resolved.
+ * If the conversation belongs to a Lead, also marks the Lead as disqualified.
  * Starts the 72-hour reuse window.
  */
 export async function POST(
@@ -32,7 +35,7 @@ export async function POST(
       return NextResponse.json({ error: 'User not authenticated' }, { status: 401 });
     }
 
-    // Find conversation to get clientId
+    // Find conversation to get clientId and leadId
     const conversation = await ConversationModel.findById(conversationId);
     
     if (!conversation) {
@@ -44,8 +47,47 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
-    // Mark as resolved using the resolver
+    // Mark conversation as resolved
     await conversationResolver.markAsResolved(conversationId, userId);
+
+    // If conversation has a Lead, mark Lead as disqualified
+    const leadId = (conversation as any).leadId;
+    console.log('[Resolve] LeadId:', leadId, '| ConversationId:', conversationId);
+    
+    if (leadId) {
+      const lead = await LeadModel.findById(leadId);
+      console.log('[Resolve] Lead found:', lead ? lead.status : 'not found');
+      
+      if (lead && lead.status !== 'disqualified') {
+        // Check if transition is allowed
+        if (canTransition(lead.status as any, 'disqualified')) {
+          await LeadModel.findByIdAndUpdate(leadId, {
+            $set: { 
+              status: 'disqualified',
+              updatedBy: userId,
+              // Clear qualification status since it's no longer active
+              qualificationStatus: 'not_qualified',
+            },
+          });
+
+          // Create timeline event for Lead disqualification
+          await TimelineEventModel.create({
+            tenantId: new Types.ObjectId(tenantId),
+            leadId: leadId,
+            eventType: EVENT_TYPES.LEAD_STATUS_CHANGED,
+            title: 'Lead resuelto',
+            description: `El lead fue marcado como resuelto/descalificado desde el Pipeline`,
+            metadata: {
+              conversationId: conversationId,
+              previousStatus: lead.status,
+              newStatus: 'disqualified',
+            },
+            performedBy: new Types.ObjectId(userId),
+            createdAt: new Date(),
+          });
+        }
+      }
+    }
 
     // Create timeline event if client exists
     const clientId = (conversation as any).clientId;
@@ -67,7 +109,7 @@ export async function POST(
 
     return NextResponse.json({ 
       success: true, 
-      message: 'Conversation marked as resolved successfully' 
+      message: 'Conversation and Lead marked as resolved' 
     });
   } catch (error) {
     console.error('[Resolve] Error:', error);

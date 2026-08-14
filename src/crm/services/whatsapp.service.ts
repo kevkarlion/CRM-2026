@@ -407,33 +407,16 @@ export class WhatsAppService {
     messageContent?: string,
     profileName?: string
   ): Promise<{ lead: ILead | null; isNew: boolean }> {
-    // Ensure DB connection
-    await connectDB();
-
-    if (SKIP_DB_OPERATIONS) {
-      console.log('[WhatsApp] Skip DB - Would find/create lead for:', phone);
-      // Return mock lead for development with fake save method
-      const mockLead = {
-        _id: new Types.ObjectId(),
-        tenantId: new Types.ObjectId(tenantId),
-        name: `Lead WhatsApp ${phone.slice(-4)}`,
-        phone,
-        source: 'whatsapp',
-        status: 'new',
-        notes: messageContent || 'Desarrollo sin DB',
-        createdBy: 'whatsapp-bot',
-        updatedBy: 'whatsapp-bot',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        save: async () => mockLead,
-      } as ILead & { save: () => Promise<any> };
-      return {
-        lead: mockLead,
-        isNew: true,
-      };
-    }
-    
-    const normalizedPhone = this.normalizePhone(phone);
+    try {
+      // DEBUG: Log más temprano posible
+      console.log('🔍 findOrCreateLeadByPhone ENTRÓ con phone:', phone);
+      
+      // Ensure DB connection
+      await connectDB();
+      console.log('🔍 findOrCreateLeadByPhone: DB conectada');
+      
+      const normalizedPhone = this.normalizePhone(phone);
+      console.log('🔍 findOrCreateLeadByPhone: normalizedPhone:', normalizedPhone);
     
     // Buscar lead existente por teléfono
     const existingLead = await LeadModel.findOne({
@@ -442,7 +425,25 @@ export class WhatsAppService {
       deletedAt: null,
     });
 
+    console.log('🔍 findOrCreateLeadByPhone: existingLead:', existingLead ? existingLead.status : 'NULL');
+
     if (existingLead) {
+      console.log('[WhatsApp] Lead encontrado en DB, status:', existingLead.status, '| typeof:', typeof existingLead.status);
+      // Si el lead estaba resuelto/descalificado, reactivarlo
+      const currentStatus = String(existingLead.status);
+      console.log('[WhatsApp] Comparando:', currentStatus, '=== disqualified?', currentStatus === 'disqualified');
+      if (currentStatus === 'disqualified') {
+        console.log('[WhatsApp] REACTIVANDO lead disqualificado -> contacted');
+        await LeadModel.findByIdAndUpdate(existingLead._id, {
+          $set: {
+            status: 'contacted',
+            qualificationStatus: 'pending',
+            updatedBy: 'whatsapp-bot',
+          },
+        });
+        // Refrescar para obtener el valor actualizado
+        existingLead = await LeadModel.findById(existingLead._id);
+      }
       return { lead: existingLead, isNew: false };
     }
 
@@ -507,7 +508,9 @@ export class WhatsAppService {
     });
 
     // 2. Buscar o crear lead
+    console.log('[WhatsApp] LLAMANDO a findOrCreateLeadByPhone...');
     const { lead, isNew } = await this.findOrCreateLeadByPhone(tenantId, phone, content, profileName);
+    console.log('[WhatsApp] findOrCreateLeadByPhone retornó');
     
     // DEBUG: Log lead status
     console.log('[WhatsApp] Lead status:', lead?.status, '| isNew:', isNew, '| phone:', normalizedPhone);
