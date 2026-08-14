@@ -445,6 +445,9 @@ export class WhatsAppService {
         existingLead = await LeadModel.findById(existingLead._id);
       }
       return { lead: existingLead, isNew: false };
+    } catch (error) {
+      console.error('[WhatsApp] findOrCreateLeadByPhone ERROR:', error);
+      throw error;
     }
 
     // Crear nuevo lead - usar profileName si está disponible, sino fallback a "Lead WhatsApp XXXX"
