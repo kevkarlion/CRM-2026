@@ -91,6 +91,9 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
   // Success notification state
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
+  // Filter state
+  const [filter, setFilter] = useState<'all' | 'quotes'>('all');
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load documents and quotes
@@ -334,6 +337,11 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
     );
   }
 
+  // Filter documents
+  const filteredDocs = filter === 'quotes' 
+    ? documents.filter(d => d.documentType === 'presupuesto' || d.documentType === 'cotizacion')
+    : documents;
+
   return (
     <div className="space-y-4">
       {/* Header with Add button */}
@@ -341,8 +349,24 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
         <h2 className="text-lg font-semibold text-gray-900">
           Documentación
           <span className="ml-2 text-sm font-normal text-gray-500">
-            ({documents.length})
+            ({filter === 'quotes' 
+              ? documents.filter(d => d.documentType === 'presupuesto' || d.documentType === 'cotizacion').length 
+              : documents.length})
           </span>
+          <div className="flex gap-1 ml-4 inline-flex">
+            <button
+              onClick={() => setFilter('all')}
+              className={`px-3 py-1 text-xs rounded-lg ${filter === 'all' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+            >
+              Todos
+            </button>
+            <button
+              onClick={() => setFilter('quotes')}
+              className={`px-3 py-1 text-xs rounded-lg ${filter === 'quotes' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+            >
+              Presupuestos
+            </button>
+          </div>
         </h2>
         <button
           onClick={() => fileInputRef.current?.click()}
@@ -476,9 +500,9 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
       )}
 
       {/* Document List */}
-      {documents.length > 0 && (
+      {filteredDocs.length > 0 && (
         <div className="space-y-2">
-          {documents.map((doc) => (
+          {filteredDocs.map((doc) => (
             <div
               key={doc._id}
               className="flex items-center gap-4 p-4 bg-white border border-gray-200 rounded-xl hover:border-gray-300 transition-colors"
@@ -510,27 +534,82 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
 
               {/* Action Buttons - based on quote status from API */}
               <div className="flex flex-col gap-1 items-stretch">
-                {/* Get the actual quote status for this document */}
-                {(() => {
-                  const quoteStatus = getQuoteStatus(doc._id);
-                  
-                  // Quote sent (presupuesto enviado, esperando aprobación)
-                  if (quoteStatus === 'sent') {
+                {/* Only show action buttons for quote documents */}
+                {(doc.documentType === 'presupuesto' || doc.documentType === 'cotizacion') && (() => {
+                    const quoteStatus = getQuoteStatus(doc._id);
+                    
+                    // Quote sent (presupuesto enviado, esperando aprobación)
+                    if (quoteStatus === 'sent') {
+                      return (
+                        <>
+                          <span className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-100 rounded-lg">
+                            ✓ Presupuesto enviado
+                          </span>
+                          {/* Botón para aprobar el presupuesto */}
+                          <button
+                            onClick={() => handleDocumentActionClick(doc._id, 'approved')}
+                            disabled={actionLoading !== null}
+                            className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors cursor-pointer"
+                            title="Aprobar presupuesto"
+                          >
+                            {actionLoading === 'approved' && actionDocId === doc._id ? '...' : 'Aprobada'}
+                          </button>
+                          {/* Allow confirm sale even after sending */}
+                          {leadStatus !== 'won' && (
+                            <button
+                              onClick={() => handleDocumentActionClick(doc._id, 'won')}
+                              disabled={actionLoading !== null}
+                              className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 rounded-lg hover:bg-green-100 disabled:opacity-50 transition-colors cursor-pointer"
+                              title="Confirmar venta y crear OT"
+                            >
+                              {actionLoading === 'won' && actionDocId === doc._id ? '...' : 'Confirmar Venta'}
+                            </button>
+                          )}
+                        </>
+                      );
+                    }
+                    
+                    // Quote approved (presupuesto aprobado)
+                    if (quoteStatus === 'approved') {
+                      return (
+                        <>
+                          <span className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-100 rounded-lg">
+                            ✓ Presupuesto aprobado
+                          </span>
+                          {leadStatus !== 'won' && (
+                            <button
+                              onClick={() => handleDocumentActionClick(doc._id, 'won')}
+                              disabled={actionLoading !== null}
+                              className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 rounded-lg hover:bg-green-100 disabled:opacity-50 transition-colors cursor-pointer"
+                              title="Confirmar venta y crear OT"
+                            >
+                              {actionLoading === 'won' && actionDocId === doc._id ? '...' : 'Confirmar Venta'}
+                            </button>
+                          )}
+                        </>
+                      );
+                    }
+                    
+                    // Direct sale or lead won (venta confirmada)
+                    if (quoteStatus === 'direct_sale' || leadStatus === 'won') {
+                      return (
+                        <span className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-100 rounded-lg">
+                          ✓ Venta confirmada
+                        </span>
+                      );
+                    }
+                    
+                    // No quote yet - show action buttons
                     return (
                       <>
-                        <span className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-100 rounded-lg">
-                          ✓ Presupuesto enviado
-                        </span>
-                        {/* Botón para aprobar el presupuesto */}
                         <button
-                          onClick={() => handleDocumentActionClick(doc._id, 'approved')}
+                          onClick={() => handleDocumentActionClick(doc._id, 'quote_sent')}
                           disabled={actionLoading !== null}
                           className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors cursor-pointer"
-                          title="Aprobar presupuesto"
+                          title="Enviar presupuesto al cliente"
                         >
-                          {actionLoading === 'approved' && actionDocId === doc._id ? '...' : 'Aprobada'}
+                          {actionLoading === 'quote_sent' && actionDocId === doc._id ? '...' : 'Enviar Presupuesto'}
                         </button>
-                        {/* Allow confirm sale even after sending */}
                         {leadStatus !== 'won' && (
                           <button
                             onClick={() => handleDocumentActionClick(doc._id, 'won')}
@@ -543,62 +622,7 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
                         )}
                       </>
                     );
-                  }
-                  
-                  // Quote approved (presupuesto aprobado)
-                  if (quoteStatus === 'approved') {
-                    return (
-                      <>
-                        <span className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-100 rounded-lg">
-                          ✓ Presupuesto aprobado
-                        </span>
-                        {leadStatus !== 'won' && (
-                          <button
-                            onClick={() => handleDocumentActionClick(doc._id, 'won')}
-                            disabled={actionLoading !== null}
-                            className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 rounded-lg hover:bg-green-100 disabled:opacity-50 transition-colors cursor-pointer"
-                            title="Confirmar venta y crear OT"
-                          >
-                            {actionLoading === 'won' && actionDocId === doc._id ? '...' : 'Confirmar Venta'}
-                          </button>
-                        )}
-                      </>
-                    );
-                  }
-                  
-                  // Direct sale or lead won (venta confirmada)
-                  if (quoteStatus === 'direct_sale' || leadStatus === 'won') {
-                    return (
-                      <span className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-100 rounded-lg">
-                        ✓ Venta confirmada
-                      </span>
-                    );
-                  }
-                  
-                  // No quote yet - show action buttons
-                  return (
-                    <>
-                      <button
-                        onClick={() => handleDocumentActionClick(doc._id, 'quote_sent')}
-                        disabled={actionLoading !== null}
-                        className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors cursor-pointer"
-                        title="Enviar presupuesto al cliente"
-                      >
-                        {actionLoading === 'quote_sent' && actionDocId === doc._id ? '...' : 'Enviar Presupuesto'}
-                      </button>
-                      {leadStatus !== 'won' && (
-                        <button
-                          onClick={() => handleDocumentActionClick(doc._id, 'won')}
-                          disabled={actionLoading !== null}
-                          className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 rounded-lg hover:bg-green-100 disabled:opacity-50 transition-colors cursor-pointer"
-                          title="Confirmar venta y crear OT"
-                        >
-                          {actionLoading === 'won' && actionDocId === doc._id ? '...' : 'Confirmar Venta'}
-                        </button>
-                      )}
-                    </>
-                  );
-                })()}
+                  })()}
               </div>
 
               <div className="flex flex-col gap-1 items-stretch">

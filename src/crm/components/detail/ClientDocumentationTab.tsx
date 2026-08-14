@@ -89,6 +89,9 @@ export function ClientDocumentationTab({ clientId }: ClientDocumentationTabProps
   // Success notification state
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
+  // Filter state
+  const [filter, setFilter] = useState<'all' | 'quotes'>('all');
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Load documents and quotes
@@ -318,6 +321,11 @@ export function ClientDocumentationTab({ clientId }: ClientDocumentationTabProps
     );
   }
 
+  // Filter documents
+  const filteredDocs = filter === 'quotes' 
+    ? documents.filter(d => d.documentType === 'presupuesto' || d.documentType === 'cotizacion')
+    : documents;
+
   return (
     <div className="space-y-4">
       {/* Header with Add button */}
@@ -325,8 +333,24 @@ export function ClientDocumentationTab({ clientId }: ClientDocumentationTabProps
         <h2 className="text-lg font-semibold text-gray-900">
           Documentación
           <span className="ml-2 text-sm font-normal text-gray-500">
-            ({documents.length})
+            ({filter === 'quotes' 
+              ? documents.filter(d => d.documentType === 'presupuesto' || d.documentType === 'cotizacion').length 
+              : documents.length})
           </span>
+          <div className="flex gap-1 ml-4">
+            <button
+              onClick={() => setFilter('all')}
+              className={`px-3 py-1 text-xs rounded-lg ${filter === 'all' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+            >
+              Todos
+            </button>
+            <button
+              onClick={() => setFilter('quotes')}
+              className={`px-3 py-1 text-xs rounded-lg ${filter === 'quotes' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+            >
+              Presupuestos
+            </button>
+          </div>
         </h2>
         <button
           onClick={() => fileInputRef.current?.click()}
@@ -453,9 +477,9 @@ export function ClientDocumentationTab({ clientId }: ClientDocumentationTabProps
       )}
 
       {/* Document List */}
-      {documents.length > 0 && (
+      {filteredDocs.length > 0 && (
         <div className="space-y-2">
-          {documents.map((doc) => (
+          {filteredDocs.map((doc) => (
             <div
               key={doc._id}
               className="flex items-center gap-4 p-4 bg-white border border-gray-200 rounded-xl hover:border-gray-300 transition-colors"
@@ -485,9 +509,10 @@ export function ClientDocumentationTab({ clientId }: ClientDocumentationTabProps
                 </div>
               </div>
 
-              {/* Action Buttons - same flow as Lead */}
+              {/* Action Buttons - based on quote status from API */}
               <div className="flex flex-col gap-1 items-stretch">
-                {(() => {
+                {/* Only show action buttons for quote documents */}
+                {(doc.documentType === 'presupuesto' || doc.documentType === 'cotizacion') && (() => {
                   const quoteStatus = getQuoteStatus(doc._id);
                   
                   // Quote sent (presupuesto enviado, esperando aprobación)
