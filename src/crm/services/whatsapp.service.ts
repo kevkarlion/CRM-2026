@@ -469,7 +469,6 @@ export class WhatsAppService {
       throw error;
     }
   }
-  }
 
   /**
    * Procesa un mensaje entrante de WhatsApp
