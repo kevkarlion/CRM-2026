@@ -474,7 +474,6 @@ export class WhatsAppService {
       await newLead.save();
       return { lead: newLead, isNew: true };
     }
-  }
 
   /**
    * Procesa un mensaje entrante de WhatsApp
