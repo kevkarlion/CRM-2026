@@ -290,17 +290,19 @@ export function PipelineBoard() {
           const convA = conversationStatusMap.get(String(a._id));
           const convB = conversationStatusMap.get(String(b._id));
           
-          // Priority 1: Has inbound (lead wrote)
-          const hasInboundA = !!convA?.lastInboundMessageAt;
-          const hasInboundB = !!convB?.lastInboundMessageAt;
+          // Priority 1: Has unread inbound (lead wrote after last read)
+          const hasUnreadA = convA?.lastInboundMessageAt && 
+            (!convA.lastReadAt || new Date(convA.lastInboundMessageAt) > new Date(convA.lastReadAt));
+          const hasUnreadB = convB?.lastInboundMessageAt && 
+            (!convB.lastReadAt || new Date(convB.lastInboundMessageAt) > new Date(convB.lastReadAt));
           
           // Priority 2: Bot sent message but no reply yet
-          const botSentA = convA?.lastMessageDirection === 'outbound' && convA.isBotActive && !hasInboundA;
-          const botSentB = convB?.lastMessageDirection === 'outbound' && convB.isBotActive && !hasInboundB;
+          const botSentA = convA?.lastMessageDirection === 'outbound' && convA.isBotActive && !hasUnreadA;
+          const botSentB = convB?.lastMessageDirection === 'outbound' && convB.isBotActive && !hasUnreadB;
           
-          // Sort: has inbound > bot sent > others
-          if (hasInboundA && !hasInboundB) return -1;
-          if (!hasInboundA && hasInboundB) return 1;
+          // Sort: has unread inbound > bot sent > others
+          if (hasUnreadA && !hasUnreadB) return -1;
+          if (!hasUnreadA && hasUnreadB) return 1;
           if (botSentA && !botSentB) return -1;
           if (!botSentA && botSentB) return 1;
           

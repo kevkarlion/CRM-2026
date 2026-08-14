@@ -224,8 +224,9 @@ export const LeadCard = React.memo(function LeadCard({
             </div>
           )}
 
-          {/* New message indicator - lead wrote (inbound message exists) */}
-          {conversationStatus.lastInboundMessageAt && (
+          {/* New message indicator - lead wrote after last read */}
+          {conversationStatus.lastInboundMessageAt && 
+           (!conversationStatus.lastReadAt || new Date(conversationStatus.lastInboundMessageAt) > new Date(conversationStatus.lastReadAt)) && (
             <div className="flex items-center gap-2 mt-1.5 pt-1.5 border-t border-blue-200 bg-blue-50 rounded">
               <span className="w-3 h-3 rounded-full bg-blue-600 animate-pulse" />
               <span className="text-sm font-bold text-blue-700">Nueva actividad!</span>
