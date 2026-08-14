@@ -47,9 +47,11 @@ function LoginForm() {
       // Cache user profile from login response (JWT may lack name/email)
       if (data.user) {
         const userToCache = {
-          name: (data.user as any).name ?? (data.user as any).email ?? 'Admin',
+          name: (data.user as any).firstName
+            ? `${(data.user as any).firstName} ${(data.user as any).lastName || ''}`.trim()
+            : (data.user as any).email ?? 'Admin',
           email: (data.user as any).email ?? '',
-          role: ((data.user as any).roles?.[0] as string) || 'Admin',
+          role: ((data.user as any).roles?.[0] as string) || 'Administrator',
         };
         sessionStorage.setItem('crm_user_info', JSON.stringify(userToCache));
       }
