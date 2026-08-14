@@ -410,12 +410,15 @@ export class WhatsAppService {
     profileName?: string
   ): Promise<{ lead: ILead | null; isNew: boolean }> {
     
-      // Buscar lead existente por teléfono
-      let existingLead = await LeadModel.findOne({
-        tenantId: new Types.ObjectId(tenantId),
-        phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
-        deletedAt: null,
-      });
+    // Normalizar teléfono dentro de la función
+    const normalizedPhone = phone.replace(/[\s\-\(\)\+]/g, '').replace(/^0/, '');
+    
+    // Buscar lead existente por teléfono
+    let existingLead = await LeadModel.findOne({
+      tenantId: new Types.ObjectId(tenantId),
+      phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+      deletedAt: null,
+    });
 
       if (existingLead) {
         // Si el lead estaba resuelto/descalificado, reactivarlo
