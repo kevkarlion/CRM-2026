@@ -47,8 +47,10 @@ export default function EditLeadPage() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [qualifying, setQualifying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notFound, setNotFound] = useState(false);
+  const [leadStatus, setLeadStatus] = useState('');
   const [form, setForm] = useState({
     name: '',
     phone: '',
@@ -61,13 +63,14 @@ export default function EditLeadPage() {
     priority: '',
     customerType: 'residential',
     notes: '',
+    status: '',
   });
 
   useEffect(() => {
     async function load() {
       try {
         setLoading(true);
-        const lead = await api.get<LeadData>(`/api/crm/leads/${id}`);
+        const lead = await api.get<LeadData & { status: string }>(`/api/crm/leads/${id}`);
         setForm({
           name: lead.name || '',
           phone: lead.phone || '',
@@ -80,7 +83,9 @@ export default function EditLeadPage() {
           priority: lead.priority || '',
           customerType: lead.customerType || 'residential',
           notes: lead.notes || '',
+          status: lead.status || '',
         });
+        setLeadStatus(lead.status || '');
       } catch {
         setNotFound(true);
       } finally {
@@ -92,6 +97,19 @@ export default function EditLeadPage() {
 
   function handleChange(field: string, e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) {
     setForm((prev) => ({ ...prev, [field]: (e.target as any).value }));
+  }
+
+  async function handleQualify() {
+    setQualifying(true);
+    try {
+      await api.patch(`/api/crm/leads/${id}/status`, { status: 'contacted', qualificationStatus: 'pending' });
+      setLeadStatus('contacted');
+      setForm(prev => ({ ...prev, status: 'contacted' }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al calificar');
+    } finally {
+      setQualifying(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -156,8 +174,22 @@ export default function EditLeadPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-6">
       <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Editar Lead</h1>
-        <p className="text-sm text-gray-500 mt-1">Actualiza los datos del prospecto</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Editar Lead</h1>
+            <p className="text-sm text-gray-500 mt-1">Actualiza los datos del prospecto</p>
+          </div>
+          {leadStatus === 'disqualified' && (
+            <button
+              type="button"
+              onClick={handleQualify}
+              disabled={qualifying}
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+            >
+              {qualifying ? 'Calificando...' : 'Volver a Calificar'}
+            </button>
+          )}
+        </div>
       </div>
 
       {error && (

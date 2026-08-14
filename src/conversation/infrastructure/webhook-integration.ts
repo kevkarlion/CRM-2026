@@ -6,8 +6,6 @@ import { BotMessageHandler } from './bot-message-handler';
 import { WhatsAppBotAdapter } from './whatsapp-adapter';
 import type { BotAction } from '../application/types';
 import { calculateLeadScore } from '@/leads/services/lead-score.service';
-import { EVENT_TYPES } from '@/crm/types/activity';
-import TimelineEventModel from '@/timeline/models/timeline-event';
 
 export interface WebhookMessageInput {
   tenantId: string;
@@ -45,7 +43,6 @@ async function findOrCreateLead(
   if (existing) {
     // Si el lead estaba resuelto/descalificado, reactivarlo
     if (existing.status === 'disqualified') {
-      const previousStatus = existing.status;
       await LeadModel.findByIdAndUpdate(existing._id, {
         $set: {
           status: 'contacted',
@@ -53,32 +50,6 @@ async function findOrCreateLead(
           updatedBy: 'whatsapp-bot',
         },
       });
-      
-      // Crear timeline event para la reactivación
-      console.log('[WebhookIntegration] Creando timeline event para reactivación...');
-      try {
-        await TimelineEventModel.create({
-          tenantId: new Types.ObjectId(tenantId),
-          leadId: existing._id,
-          entityType: 'lead',
-          entityId: existing._id,
-          eventType: EVENT_TYPES.LEAD_STATUS_CHANGED,
-          title: 'Lead reactivado',
-          description: `El lead volvió a escribir y fue reactivado automáticamente`,
-          metadata: {
-            from: previousStatus,
-            to: 'contacted',
-            fromLabel: 'descalificado',
-            toLabel: 'contactado',
-            reactivatedBy: 'whatsapp-bot',
-          },
-          performedBy: new Types.ObjectId('000000000000000000000000'),
-          createdAt: new Date(),
-        });
-        console.log('[WebhookIntegration] Timeline event creado exitosamente');
-      } catch (timelineError) {
-        console.error('[WebhookIntegration] Error creando timeline event:', timelineError);
-      }
     }
     return { leadId: String(existing._id), isNew: false };
   }

@@ -409,16 +409,6 @@ export class WhatsAppService {
     messageContent?: string,
     profileName?: string
   ): Promise<{ lead: ILead | null; isNew: boolean }> {
-    try {
-      // DEBUG: Log más temprano posible
-      console.log('🔍 findOrCreateLeadByPhone ENTRÓ con phone:', phone);
-      
-      // Ensure DB connection
-      await connectDB();
-      console.log('🔍 findOrCreateLeadByPhone: DB conectada');
-      
-      const normalizedPhone = this.normalizePhone(phone);
-      console.log('🔍 findOrCreateLeadByPhone: normalizedPhone:', normalizedPhone);
     
       // Buscar lead existente por teléfono
       let existingLead = await LeadModel.findOne({
@@ -427,15 +417,10 @@ export class WhatsAppService {
         deletedAt: null,
       });
 
-      console.log('🔍 findOrCreateLeadByPhone: existingLead:', existingLead ? existingLead.status : 'NULL');
-
       if (existingLead) {
-        console.log('[WhatsApp] Lead encontrado en DB, status:', existingLead.status, '| typeof:', typeof existingLead.status);
         // Si el lead estaba resuelto/descalificado, reactivarlo
         const currentStatus = String(existingLead.status);
-        console.log('[WhatsApp] Comparando:', currentStatus, '=== disqualified?', currentStatus === 'disqualified');
         if (currentStatus === 'disqualified') {
-          console.log('[WhatsApp] REACTIVANDO lead disqualificado -> contacted');
           const previousStatus = currentStatus;
           await LeadModel.findByIdAndUpdate(existingLead._id, {
             $set: {
@@ -446,30 +431,24 @@ export class WhatsAppService {
           });
           
           // Crear timeline event para la reactivación
-          console.log('[WhatsApp] Creando timeline event para reactivación...');
-          try {
-            await TimelineEventModel.create({
-              tenantId: new Types.ObjectId(tenantId),
-              leadId: existingLead._id,
-              entityType: 'lead',
-              entityId: existingLead._id,
-              eventType: EVENT_TYPES.LEAD_STATUS_CHANGED,
-              title: 'Lead reactivado',
-              description: `El lead volvió a escribir y fue reactivado automáticamente`,
-              metadata: {
-                from: previousStatus,
-                to: 'contacted',
-                fromLabel: 'descalificado',
-                toLabel: 'contactado',
-                reactivatedBy: 'whatsapp-bot',
-              },
-              performedBy: new Types.ObjectId('000000000000000000000000'),
-              createdAt: new Date(),
-            });
-            console.log('[WhatsApp] Timeline event creado exitosamente');
-          } catch (timelineError) {
-            console.error('[WhatsApp] Error creando timeline event:', timelineError);
-          }
+          await TimelineEventModel.create({
+            tenantId: new Types.ObjectId(tenantId),
+            leadId: existingLead._id,
+            entityType: 'lead',
+            entityId: existingLead._id,
+            eventType: EVENT_TYPES.LEAD_STATUS_CHANGED,
+            title: 'Lead reactivado',
+            description: `El lead volvió a escribir y fue reactivado automáticamente`,
+            metadata: {
+              from: previousStatus,
+              to: 'contacted',
+              fromLabel: 'descalificado',
+              toLabel: 'contactado',
+              reactivatedBy: 'whatsapp-bot',
+            },
+            performedBy: new Types.ObjectId('000000000000000000000000'),
+            createdAt: new Date(),
+          });
           
           // Refrescar para obtener el valor actualizado
           existingLead = await LeadModel.findById(existingLead._id);
@@ -494,9 +473,6 @@ export class WhatsAppService {
 
       await newLead.save();
       return { lead: newLead, isNew: true };
-    } catch (error) {
-      console.error('[WhatsApp] findOrCreateLeadByPhone ERROR:', error);
-      throw error;
     }
   }
 
@@ -542,12 +518,7 @@ export class WhatsAppService {
     });
 
     // 2. Buscar o crear lead
-    console.log('[WhatsApp] LLAMANDO a findOrCreateLeadByPhone...');
     const { lead, isNew } = await this.findOrCreateLeadByPhone(tenantId, phone, content, profileName);
-    console.log('[WhatsApp] findOrCreateLeadByPhone retornó');
-    
-    // DEBUG: Log lead status
-    console.log('[WhatsApp] Lead status:', lead?.status, '| isNew:', isNew, '| phone:', normalizedPhone);
 
     // 3. Actualizar lead si es nuevo o si hay información relevante
     if (lead) {
