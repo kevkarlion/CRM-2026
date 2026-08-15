@@ -45,21 +45,11 @@ describe('Duplicate Detection', () => {
       expect(result[0]).toEqual(existingLead);
     });
 
-    it('finds duplicate by phone', async () => {
-      const existingLead = { _id: 'lead1', phone: '5491112345678' };
-      mockQueryChain.exec.mockResolvedValue([existingLead]);
-
-      const result = await findDuplicates('tenant1', undefined, '5491112345678');
-
-      expect(result).toHaveLength(1);
-      expect(result[0]).toEqual(existingLead);
-    });
-
     it('finds duplicate by companyName', async () => {
       const existingLead = { _id: 'lead1', companyName: 'ACME Inc' };
       mockQueryChain.exec.mockResolvedValue([existingLead]);
 
-      const result = await findDuplicates('tenant1', undefined, undefined, 'ACME Inc');
+      const result = await findDuplicates('tenant1', undefined, 'ACME Inc');
 
       expect(result).toHaveLength(1);
       expect(result[0]).toEqual(existingLead);
@@ -85,9 +75,19 @@ describe('Duplicate Detection', () => {
       const dup2 = { _id: 'lead2', companyName: 'Same Corp' };
       mockQueryChain.exec.mockResolvedValue([dup1, dup2]);
 
-      const result = await findDuplicates('tenant1', 'same@example.com', undefined, 'Same Corp');
+      const result = await findDuplicates('tenant1', 'same@example.com', 'Same Corp');
 
       expect(result).toHaveLength(2);
+    });
+
+    it('no longer queries by phone', async () => {
+      mockQueryChain.exec.mockResolvedValue([]);
+
+      await findDuplicates('tenant1', undefined, 'ACME Inc');
+
+      const call = (LeadModel.find as any).mock.calls[0][0];
+      expect(call.$or[0].companyName).toBeDefined();
+      expect(call.$or.some((c: any) => c.phone)).toBe(false);
     });
 
     it('is case insensitive for email', async () => {
@@ -104,7 +104,7 @@ describe('Duplicate Detection', () => {
     it('is case insensitive for companyName', async () => {
       mockQueryChain.exec.mockResolvedValue([{ _id: 'lead1', companyName: 'ACME CORP' }]);
 
-      const result = await findDuplicates('tenant1', undefined, undefined, 'acme corp');
+      const result = await findDuplicates('tenant1', undefined, 'acme corp');
 
       expect(result).toHaveLength(1);
       const call = (LeadModel.find as any).mock.calls[0][0];
@@ -120,6 +120,13 @@ describe('Duplicate Detection', () => {
       const query = (LeadModel.find as any).mock.calls[0][0];
       expect(query.tenantId).toBe('tenant-abc');
       expect(query.deletedAt).toBeNull();
+    });
+  });
+
+  describe('module exports', () => {
+    it('no longer exports the dead normalizePhone', async () => {
+      const mod: any = await import('../../src/leads/helpers/duplicate-detection');
+      expect(mod.normalizePhone).toBeUndefined();
     });
   });
 });

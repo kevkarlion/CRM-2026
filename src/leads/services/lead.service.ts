@@ -84,7 +84,7 @@ export class LeadService {
     const warnings: DuplicateWarning[] = [];
 
     if (data.email || data.phone || data.companyName) {
-      const duplicates = await findDuplicates(tenantId, data.email, data.phone, data.companyName);
+      const duplicates = await findDuplicates(tenantId, data.email, data.companyName);
       for (const dup of duplicates) {
         const d = dup as Record<string, unknown>;
         if (data.email && String(d.email).toLowerCase() === data.email.toLowerCase()) {
