@@ -1,4 +1,5 @@
 import { Schema } from 'mongoose';
+import { normalizePhone } from '@/lib/phone';
 import { IClient, ClientStatus, ClientOperationStatus } from '../types/client';
 
 const auditFields = {
@@ -74,3 +75,28 @@ clientSchema.index(
   }
 );
 clientSchema.index({ tenantId: 1, tags: 1 });
+
+clientSchema.pre('save', function (next) {
+  if (this.phone) {
+    this.phone = normalizePhone(this.phone);
+  }
+  next();
+});
+
+clientSchema.pre('findOneAndUpdate', function (next) {
+  const update = this.getUpdate() as {
+    phone?: unknown;
+    $set?: { phone?: unknown };
+    $setOnInsert?: { phone?: unknown };
+  } | null;
+  if (update && update.phone) {
+    update.phone = normalizePhone(String(update.phone));
+  }
+  if (update && update.$set && update.$set.phone) {
+    update.$set.phone = normalizePhone(String(update.$set.phone));
+  }
+  if (update && update.$setOnInsert && update.$setOnInsert.phone) {
+    update.$setOnInsert.phone = normalizePhone(String(update.$setOnInsert.phone));
+  }
+  next();
+});
