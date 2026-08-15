@@ -408,7 +408,7 @@ function AlertCard({ item }: { item: TaskItem }) {
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xs font-bold uppercase tracking-wide">
-              {isEmergency ? 'EMERGENCIA' : 'URGENTE'}
+              {isUrgent ? 'EMERGENCIA' : 'URGENTE'}
             </span>
             <span className="text-xs font-mono opacity-75">
               {typeLabel} · {shortNumber}
