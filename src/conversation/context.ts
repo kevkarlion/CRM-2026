@@ -2,6 +2,7 @@ import type { IClient } from '@/crm/types/client';
 import ClientModel from '@/crm/models/client';
 import { Types } from 'mongoose';
 import connectDB from '@/core/db';
+import { normalizePhone, phoneMatchQuery } from '@/lib/phone';
 
 /**
  * Conversation Context - Data container for conversation state
@@ -108,10 +109,10 @@ export class ConversationContext implements ConversationContextData {
   async getFreshClientData(phone: string, tenantId: string): Promise<IClient | null> {
     await connectDB();
     
-    const normalizedPhone = phone.replace(/[\s\-\(\)\+]/g, '').replace(/^0/, '');
+    const normalizedPhone = normalizePhone(phone);
     const client = await ClientModel.findOne({
       tenantId: new Types.ObjectId(tenantId),
-      phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+      phone: phoneMatchQuery(normalizedPhone),
       deletedAt: null,
     }).lean();
     

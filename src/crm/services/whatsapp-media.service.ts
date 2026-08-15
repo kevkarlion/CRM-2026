@@ -7,6 +7,7 @@ import ClientModel from '@/crm/models/client';
 import ContactModel from '@/crm/models/contact';
 import ConversationModel from '@/conversation/models/conversation';
 import connectDB from '@/core/db';
+import { normalizePhone, phoneMatchQuery } from '@/lib/phone';
 
 const WHATSAPP_ACCESS_TOKEN = process.env.WHATSAPP_ACCESS_TOKEN;
 
@@ -121,11 +122,11 @@ export class WhatsAppMediaService {
   async findClientByPhone(phone: string): Promise<{ clientId: string; tenantId: string } | null> {
     await connectDB();
     
-    const normalizedPhone = phone.replace(/[\s\-\(\)\+]/g, '').replace(/^0/, '');
+    const normalizedPhone = normalizePhone(phone);
     
     // 1. Buscar directamente en Client por teléfono
     const clientByPhone = await ClientModel.findOne({
-      phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+      phone: phoneMatchQuery(normalizedPhone),
       deletedAt: null,
     }).lean();
 
@@ -138,7 +139,7 @@ export class WhatsAppMediaService {
 
     // 2. Buscar en Contactos
     const contact = await ContactModel.findOne({
-      phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+      phone: phoneMatchQuery(normalizedPhone),
       deletedAt: null,
     }).lean();
 
@@ -154,7 +155,7 @@ export class WhatsAppMediaService {
 
     // 3. Buscar en Leads (cualquier status, no solo won)
     const lead = await LeadModel.findOne({
-      phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+      phone: phoneMatchQuery(normalizedPhone),
       deletedAt: null,
     }).lean();
 
@@ -171,7 +172,7 @@ export class WhatsAppMediaService {
 
     // 4. Buscar en Leads ganados (por si acaso no tiene clientId)
     const wonLead = await LeadModel.findOne({
-      phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+      phone: phoneMatchQuery(normalizedPhone),
       status: { $in: ['won', 'qualified'] },
       deletedAt: null,
     }).lean();
@@ -202,10 +203,10 @@ export class WhatsAppMediaService {
   async findLeadByPhone(phone: string): Promise<{ leadId: string; tenantId: string } | null> {
     await connectDB();
     
-    const normalizedPhone = phone.replace(/[\s\-\(\)\+]/g, '').replace(/^0/, '');
+    const normalizedPhone = normalizePhone(phone);
     
     const lead = await LeadModel.findOne({
-      phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+      phone: phoneMatchQuery(normalizedPhone),
       deletedAt: null,
     }).lean();
 
@@ -225,10 +226,10 @@ export class WhatsAppMediaService {
   async findConversationByPhone(phone: string): Promise<string | null> {
     await connectDB();
     
-    const normalizedPhone = phone.replace(/[\s\-\(\)\+]/g, '').replace(/^0/, '');
+    const normalizedPhone = normalizePhone(phone);
     
     const conversation = await ConversationModel.findOne({
-      phoneNumber: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+      phoneNumber: phoneMatchQuery(normalizedPhone),
       lifecycleState: { $in: ['ACTIVE_LEAD', 'ACTIVE_CLIENT', 'IN_PROGRESS', 'WAITING_OPERATOR'] },
     }).lean();
 
@@ -329,7 +330,7 @@ export class WhatsAppMediaService {
     // 8. Guardar mensaje en MongoDB
     const messageData: any = {
       tenantId: new Types.ObjectId(tenantId),
-      phone: phone.replace(/[\s\-\(\)\+]/g, '').replace(/^0/, ''),
+      phone: normalizePhone(phone),
       messageId,
       direction: 'inbound',
       type: messageType,
@@ -426,7 +427,7 @@ export class WhatsAppMediaService {
       throw new Error('WHATSAPP_PHONE_NUMBER_ID no configurado');
     }
 
-    const normalizedTo = to.replace(/[\s\-\(\)\+]/g, '').replace(/^0/, '');
+    const normalizedTo = normalizePhone(to);
     const isImage = mimeType.startsWith('image/');
     const mediaType = isImage ? 'image' : 'document';
 

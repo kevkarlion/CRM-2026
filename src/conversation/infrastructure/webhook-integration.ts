@@ -6,6 +6,7 @@ import { BotMessageHandler } from './bot-message-handler';
 import { WhatsAppBotAdapter } from './whatsapp-adapter';
 import type { BotAction } from '../application/types';
 import { calculateLeadScore } from '@/leads/services/lead-score.service';
+import { normalizePhone, phoneMatchQuery } from '@/lib/phone';
 
 export interface WebhookMessageInput {
   tenantId: string;
@@ -32,11 +33,11 @@ async function findOrCreateLead(
   pushName?: string,
   messageContent?: string
 ): Promise<{ leadId: string; isNew: boolean }> {
-  const normalizedPhone = phone.replace(/[\s\-\(\)\+]/g, '').replace(/^0/, '');
+  const normalizedPhone = normalizePhone(phone);
 
   const existing = await LeadModel.findOne({
     tenantId: new Types.ObjectId(tenantId),
-    phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+    phone: phoneMatchQuery(normalizedPhone),
     deletedAt: null,
   });
 

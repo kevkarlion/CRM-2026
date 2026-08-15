@@ -16,6 +16,7 @@ import type {
 } from '../types/whatsapp-message';
 import type { ILead, InquiryReason, CustomerType } from '../../leads/types/lead';
 import { calculateLeadScore } from '@/leads/services/lead-score.service';
+import { normalizePhone, phoneMatchQuery } from '@/lib/phone';
 
 // Conversation Engine imports
 import {
@@ -360,8 +361,7 @@ export class WhatsAppService {
    * Normaliza un número de teléfono (quita espacios, guiones, código de país)
    */
   normalizePhone(phone: string): string {
-    // Elimina espacios, guiones, paréntesis y el +
-    return phone.replace(/[\s\-\(\)\+]/g, '').replace(/^0/, '');
+    return normalizePhone(phone);
   }
 
   /**
@@ -411,12 +411,12 @@ export class WhatsAppService {
   ): Promise<{ lead: ILead | null; isNew: boolean }> {
     
     // Normalizar teléfono dentro de la función
-    const normalizedPhone = phone.replace(/[\s\-\(\)\+]/g, '').replace(/^0/, '');
+    const normalizedPhone = normalizePhone(phone);
     
     // Buscar lead existente por teléfono
     let existingLead = await LeadModel.findOne({
       tenantId: new Types.ObjectId(tenantId),
-      phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+      phone: phoneMatchQuery(normalizedPhone),
       deletedAt: null,
     });
 
@@ -786,12 +786,12 @@ export class WhatsAppService {
     await connectDB();
     
     const normalizedInput = input.trim();
-    const normalizedPhone = phoneNumber.replace(/[\s\-\(\)\+]/g, '').replace(/^0/, '');
+    const normalizedPhone = normalizePhone(phoneNumber);
     
     // Get or create lead ID for this phone
     const lead = await LeadModel.findOne({
       tenantId: new Types.ObjectId(tenantId),
-      phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+      phone: phoneMatchQuery(normalizedPhone),
       deletedAt: null,
     });
     

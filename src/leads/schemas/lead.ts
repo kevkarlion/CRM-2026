@@ -1,4 +1,5 @@
 import { Schema } from 'mongoose';
+import { normalizePhone } from '@/lib/phone';
 import { ILead, LeadStatus, LeadSource, QualificationStatus, LostReason, InquiryReason, CustomerType, Temperature } from '../types/lead';
 
 export const leadSchema = new Schema<ILead>(
@@ -89,3 +90,28 @@ leadSchema.index({ tenantId: 1, status: 1, createdAt: -1 });
 leadSchema.index({ tenantId: 1, assignedTo: 1, status: 1 });
 leadSchema.index({ tenantId: 1, email: 1 });
 leadSchema.index({ tenantId: 1, phone: 1 });
+
+leadSchema.pre('save', function (next) {
+  if (this.phone) {
+    this.phone = normalizePhone(this.phone);
+  }
+  next();
+});
+
+leadSchema.pre('findOneAndUpdate', function (next) {
+  const update = this.getUpdate() as {
+    phone?: unknown;
+    $set?: { phone?: unknown };
+    $setOnInsert?: { phone?: unknown };
+  } | null;
+  if (update && update.phone) {
+    update.phone = normalizePhone(String(update.phone));
+  }
+  if (update && update.$set && update.$set.phone) {
+    update.$set.phone = normalizePhone(String(update.$set.phone));
+  }
+  if (update && update.$setOnInsert && update.$setOnInsert.phone) {
+    update.$setOnInsert.phone = normalizePhone(String(update.$setOnInsert.phone));
+  }
+  next();
+});

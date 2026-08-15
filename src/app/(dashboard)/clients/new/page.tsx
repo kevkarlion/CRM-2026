@@ -1,8 +1,15 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api-client';
+
+type PhoneCollisionWarning = {
+  type: 'lead' | 'client';
+  id: string;
+  name: string;
+  status: string;
+};
 
 const CUSTOMER_TYPE_OPTIONS = [
   { value: 'residential', label: 'Residencial' },
@@ -23,6 +30,28 @@ export default function NewClientPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [phoneWarnings, setPhoneWarnings] = useState<PhoneCollisionWarning[]>([]);
+  const [checkingPhone, setCheckingPhone] = useState(false);
+
+  // Verificar teléfono para detectar duplicados (datos canónicos en backend)
+  const checkPhoneForDuplicates = useCallback(async (phone: string) => {
+    if (!phone || phone.length < 8) {
+      setPhoneWarnings([]);
+      return;
+    }
+
+    setCheckingPhone(true);
+    try {
+      const result = await api.get<{ collisions: PhoneCollisionWarning[] }>(
+        `/api/crm/phone/check?phone=${encodeURIComponent(phone)}`
+      );
+      setPhoneWarnings(result.collisions || []);
+    } catch {
+      setPhoneWarnings([]);
+    } finally {
+      setCheckingPhone(false);
+    }
+  }, []);
   const [form, setForm] = useState({
     fullName: '',
     phone: '',
@@ -107,8 +136,32 @@ export default function NewClientPage() {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Teléfono <span className="text-danger-500">*</span>
               </label>
-              <input type="tel" value={form.phone} onChange={(e) => handleChange('phone', e)}
-                className={inputClass} placeholder="+54 9 299 1234567" required />
+              <input 
+                type="tel" 
+                value={form.phone} 
+                onChange={(e) => {
+                  handleChange('phone', e);
+                  const phone = e.target.value;
+                  if (phone.length >= 8) {
+                    checkPhoneForDuplicates(phone);
+                  }
+                }}
+                onBlur={() => checkPhoneForDuplicates(form.phone)}
+                className={inputClass} 
+                placeholder="+54 9 299 1234567" 
+                required 
+              />
+              {checkingPhone && <p className="text-xs text-gray-400 mt-1">Verificando...</p>}
+              {phoneWarnings.length > 0 && (
+                <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <p className="text-xs font-medium text-yellow-800">⚠️ Teléfono ya existe</p>
+                  {phoneWarnings.map((w, i) => (
+                    <p key={i} className="text-xs text-yellow-700 mt-1">
+                      • {w.type === 'lead' ? 'Lead' : 'Cliente'}: <strong>{w.name}</strong> ({w.status})
+                    </p>
+                  ))}
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>

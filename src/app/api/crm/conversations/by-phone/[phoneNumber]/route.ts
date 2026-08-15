@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
 import ConversationModel from '@/conversation/models/conversation';
 import { Types } from 'mongoose';
+import { normalizePhone, phoneMatchQuery } from '@/lib/phone';
 
 /**
  * GET /api/crm/conversations/by-phone/[phoneNumber]
@@ -21,12 +22,12 @@ export async function GET(
     }
 
     const { phoneNumber } = await params;
-    const normalizedPhone = phoneNumber.replace(/%2B/g, '+').replace(/^\+/, '');
+    const normalizedPhone = normalizePhone(phoneNumber);
 
     // Find the latest conversation for this phone number
     const conversation = await ConversationModel.findOne({
       tenantId: new Types.ObjectId(tenantId),
-      phoneNumber: { $regex: new RegExp(normalizedPhone, 'i') },
+      phoneNumber: phoneMatchQuery(normalizedPhone),
     })
       .sort({ lastMessageAt: -1 })
       .lean();
