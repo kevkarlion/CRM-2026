@@ -151,6 +151,10 @@ export default function TechnicalVisitDetailPage() {
   const [startingWork, setStartingWork] = useState(false);
   const [startingWorkError, setStartingWorkError] = useState<string | null>(null);
   const [showCompletionForm, setShowCompletionForm] = useState(false);
+  
+  // Confirmation modal state
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<'start' | 'complete' | null>(null);
 
   // Timeline events for Registro tab
   const [timelineEvents, setTimelineEvents] = useState<Array<{
@@ -165,7 +169,18 @@ export default function TechnicalVisitDetailPage() {
   
   const { isAdmin, isTechnician, user } = useRole();
 
-  // Start work handler
+  // Start work handler - show confirmation first
+  function handleStartWorkClick() {
+    setConfirmAction('start');
+    setShowConfirmModal(true);
+  }
+  
+  // Complete work handler - show confirmation first
+  function handleCompleteWorkClick() {
+    setConfirmAction('complete');
+    setShowConfirmModal(true);
+  }
+  
   async function handleStartWork() {
     try {
       await api.post<{ data: { status: string; startedAt: string } }>(
@@ -181,6 +196,18 @@ export default function TechnicalVisitDetailPage() {
     } finally {
       setStartingWork(false);
     }
+  }
+  
+  // Execute the confirmed action (start or complete)
+  async function executeConfirmedAction() {
+    setShowConfirmModal(false);
+    
+    if (confirmAction === 'start') {
+      await handleStartWork();
+    } else if (confirmAction === 'complete') {
+      setShowCompletionForm(true);
+    }
+    setConfirmAction(null);
   }
 
   // Check if current user is the assigned technician
@@ -783,7 +810,7 @@ export default function TechnicalVisitDetailPage() {
                       </div>
                     )}
                     <button
-                      onClick={handleStartWork}
+                      onClick={handleStartWorkClick}
                       disabled={startingWork}
                       className="w-full rounded-lg bg-green-600 px-4 py-3 text-sm font-medium text-white hover:bg-green-700 disabled:opacity-50 transition-colors min-h-[48px]"
                     >
@@ -795,7 +822,7 @@ export default function TechnicalVisitDetailPage() {
                 {/* Complete Work button - show when status is 'in_progress' */}
                 {visit.status === 'in_progress' && (
                   <button
-                    onClick={() => setShowCompletionForm(true)}
+                    onClick={handleCompleteWorkClick}
                     className="w-full rounded-lg bg-amber-600 px-4 py-3 text-sm font-medium text-white hover:bg-amber-700 transition-colors min-h-[48px]"
                   >
                     ✓ Finalizar Servicio
@@ -922,6 +949,48 @@ export default function TechnicalVisitDetailPage() {
           onCancel={() => setShowCompletionForm(false)}
         />
       </Drawer>
+      
+      {/* Confirmation Modal for Start/Complete */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
+            <div className="text-center">
+              <div className="mx-auto w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mb-4">
+                <svg className="w-6 h-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                {confirmAction === 'start' 
+                  ? '¿Iniciar Visita Técnica?' 
+                  : '¿Finalizar Visita Técnica?'}
+              </h3>
+              <p className="text-gray-600 mb-6">
+                {confirmAction === 'start'
+                  ? '¿Estás seguro de que deseas iniciar la Visita Técnica? Una vez iniciada, el temporizador comenzará a correr.'
+                  : '¿Estás seguro de que deseas finalizar la Visita Técnica? Se abrirá el formulario de reporte.'}
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowConfirmModal(false);
+                    setConfirmAction(null);
+                  }}
+                  className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={executeConfirmedAction}
+                  className="flex-1 px-4 py-2 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors"
+                >
+                  {confirmAction === 'start' ? 'Iniciar' : 'Continuar'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

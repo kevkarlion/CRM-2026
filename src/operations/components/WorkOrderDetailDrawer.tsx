@@ -132,6 +132,10 @@ export function WorkOrderDetailDrawer({ isOpen, onClose, workOrderId }: WorkOrde
   const [rescheduleStart, setRescheduleStart] = useState('');
   const [rescheduleEnd, setRescheduleEnd] = useState('');
   const [rescheduling, setRescheduling] = useState(false);
+  
+  // Confirmation modal state
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [pendingStatus, setPendingStatus] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isOpen || !workOrderId) return;
@@ -154,6 +158,17 @@ export function WorkOrderDetailDrawer({ isOpen, onClose, workOrderId }: WorkOrde
   }
 
   async function handleStatusChange(newStatus: string) {
+    // Show confirmation modal for start (in_progress) and close (closed) actions
+    if (newStatus === 'in_progress' || newStatus === 'closed') {
+      setPendingStatus(newStatus);
+      setShowConfirmModal(true);
+      return;
+    }
+    
+    await executeStatusChange(newStatus);
+  }
+  
+  async function executeStatusChange(newStatus: string) {
     if (!data) return;
     setStatusLoading(newStatus);
     setStatusError(null);
@@ -168,6 +183,8 @@ export function WorkOrderDetailDrawer({ isOpen, onClose, workOrderId }: WorkOrde
       setStatusError(err instanceof Error ? err.message : 'Error al cambiar estado');
     } finally {
       setStatusLoading(null);
+      setShowConfirmModal(false);
+      setPendingStatus(null);
     }
   }
 
@@ -496,6 +513,53 @@ export function WorkOrderDetailDrawer({ isOpen, onClose, workOrderId }: WorkOrde
               Ver detalle completo →
             </button>
           </div>
+          
+          {/* Confirmation Modal for Start/Close */}
+          {showConfirmModal && (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+              <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 p-6">
+                <div className="text-center">
+                  <div className="mx-auto w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mb-4">
+                    <svg className="w-6 h-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    {pendingStatus === 'in_progress' 
+                      ? '¿Iniciar Orden de Trabajo?' 
+                      : '¿Finalizar Orden de Trabajo?'}
+                  </h3>
+                  <p className="text-gray-600 mb-6">
+                    {pendingStatus === 'in_progress'
+                      ? '¿Estás seguro de que deseas iniciar la Orden de Trabajo? Una vez iniciada, el temporizador comenzará a correr.'
+                      : '¿Estás seguro de que deseas finalizar la Orden de Trabajo? Esta acción no se puede deshacer.'}
+                  </p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => {
+                        setShowConfirmModal(false);
+                        setPendingStatus(null);
+                      }}
+                      className="flex-1 px-4 py-2 border border-gray-200 rounded-lg text-gray-700 font-medium hover:bg-gray-50 transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      onClick={() => pendingStatus && executeStatusChange(pendingStatus)}
+                      disabled={statusLoading !== null}
+                      className="flex-1 px-4 py-2 bg-brand-600 text-white rounded-lg font-medium hover:bg-brand-700 transition-colors disabled:opacity-50"
+                    >
+                      {statusLoading === pendingStatus 
+                        ? 'Procesando...' 
+                        : pendingStatus === 'in_progress' 
+                          ? 'Iniciar' 
+                          : 'Finalizar'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </Drawer>
