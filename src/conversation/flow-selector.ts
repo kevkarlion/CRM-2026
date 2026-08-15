@@ -12,6 +12,7 @@ import LeadModel from '@/leads/models/lead';
 import { Types } from 'mongoose';
 import { LEAD_QUALIFICATION_FLOW, CUSTOMER_SERVICE_FLOW } from './config';
 import type { FlowConfig } from './types';
+import { normalizePhone, phoneMatchQuery } from '@/lib/phone';
 
 /**
  * Select the appropriate flow configuration based on phone number
@@ -25,12 +26,12 @@ export async function selectFlow(phone: string, tenantId: string): Promise<FlowC
     await connectDB();
 
     // Normalize phone: remove common formatting chars and leading zeros
-    const normalizedPhone = phone.replace(/[\s\-\(\)\+]/g, '').replace(/^0/, '');
+    const normalizedPhone = normalizePhone(phone);
 
     // Check if phone belongs to a Client (look in ContactModel for phone)
     const contactWithPhone = await ContactModel.findOne({
       tenantId: new Types.ObjectId(tenantId),
-      phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+      phone: phoneMatchQuery(normalizedPhone),
       deletedAt: null,
     }).populate('clientId');
 
@@ -43,7 +44,7 @@ export async function selectFlow(phone: string, tenantId: string): Promise<FlowC
     // Check if lead has isClient flag (explicitly marked as client)
     const lead = await LeadModel.findOne({
       tenantId: new Types.ObjectId(tenantId),
-      phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+      phone: phoneMatchQuery(normalizedPhone),
       deletedAt: null,
     });
 

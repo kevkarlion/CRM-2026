@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
 import LeadModel from '@/leads/models/lead';
 import { Types } from 'mongoose';
+import { normalizePhone, phoneMatchQuery } from '@/lib/phone';
 
 /**
  * GET /api/crm/leads/by-phone/[phone]
@@ -21,12 +22,12 @@ export async function GET(
 
     await connectDB();
 
-    const normalizedPhone = phone.replace(/[\s\-\(\)\+]/g, '').replace(/^0/, '');
+    const normalizedPhone = normalizePhone(phone);
 
     // Buscar lead por teléfono (el más reciente, cualquier estado excepto lost/disqualified)
     const lead = await LeadModel.findOne({
       tenantId: new Types.ObjectId(tenantId),
-      phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+      phone: phoneMatchQuery(normalizedPhone),
       status: { $nin: ['lost', 'disqualified'] },
       deletedAt: null,
     }).sort({ createdAt: -1 }).lean();

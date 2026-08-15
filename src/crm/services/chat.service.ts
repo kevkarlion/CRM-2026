@@ -7,6 +7,7 @@ import type {
   WhatsAppConversation,
   WhatsAppMessageStatus,
 } from '../types/whatsapp-message';
+import { normalizePhone } from '@/lib/phone';
 
 export class ChatService {
   /**
@@ -101,7 +102,7 @@ export class ChatService {
    * Normaliza un número de teléfono (quita espacios, guiones, código de país)
    */
   private normalizePhone(phone: string): string {
-    return phone.replace(/[\s\-\(\)\+]/g, '').replace(/^0/, '');
+    return normalizePhone(phone);
   }
 
   /**

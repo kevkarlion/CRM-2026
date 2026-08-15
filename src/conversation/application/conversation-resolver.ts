@@ -7,6 +7,7 @@ import { LEAD_QUALIFICATION_FLOW, CUSTOMER_SERVICE_FLOW } from '@/conversation/c
 import type { ConversationLifecycleState, ConversationOwner, ConversationLifecycleEvent } from '@/conversation/domain/conversation';
 import { CONVERSATION_REUSE_WINDOW_MS } from '@/conversation/domain/conversation';
 import { FAREWELL_MESSAGES } from '@/conversation/utils/business-hours';
+import { normalizePhone, phoneMatchQuery } from '@/lib/phone';
 
 const CONVERSATION_TIMEOUT_MINUTES = 30;
 
@@ -93,14 +94,14 @@ export class ConversationResolver {
   ): Promise<ResolvedConversation> {
     await connectDB();
     
-    const normalizedPhone = phoneNumber.replace(/[\s\-\(\)\+]/g, '').replace(/^0/, '');
+    const normalizedPhone = normalizePhone(phoneNumber);
     
 // ===== STEP 1: DETECTAR TIPO (CLIENTE O LEAD) =====
     // Cliente = ContactModel (prioridad) O Lead con status "won"
     
     const contact = await ContactModel.findOne({
       tenantId: new Types.ObjectId(tenantId),
-      phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+      phone: phoneMatchQuery(normalizedPhone),
       deletedAt: null,
     }).populate('clientId');
     
@@ -111,7 +112,7 @@ export class ConversationResolver {
     if (!isClient) {
       const lead = await LeadModel.findOne({
         tenantId: new Types.ObjectId(tenantId),
-        phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+        phone: phoneMatchQuery(normalizedPhone),
         status: 'won',
         deletedAt: null,
       }).lean();
@@ -349,11 +350,11 @@ export class ConversationResolver {
    */
   private async findLeadByPhone(phoneNumber: string, tenantId: string): Promise<any | null> {
     // Normalize phone number the same way as in whatsapp.service
-    const normalizedForSearch = phoneNumber.replace(/[\s\-\(\)\+]/g, '').replace(/^0/, '');
+    const normalizedForSearch = normalizePhone(phoneNumber);
     
     const lead = await LeadModel.findOne({
       tenantId: new Types.ObjectId(tenantId),
-      phone: { $regex: new RegExp(normalizedForSearch.replace(/^\+/, ''), 'i') },
+      phone: phoneMatchQuery(normalizedForSearch),
       deletedAt: null,
     }).lean();
     return lead;
