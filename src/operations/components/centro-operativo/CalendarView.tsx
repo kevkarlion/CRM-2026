@@ -278,25 +278,26 @@ function WeekView({ events, date, onEventClick, currentTechnicianId }: { events:
 
   return (
     <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl overflow-hidden">
-      {/* Week header - scrollable on small screens */}
+      {/* Contenedor único con scroll horizontal para mantener header y body sincronizados */}
       <div className="overflow-x-auto">
-        <div className="min-w-[600px] grid grid-cols-7 border-b border-gray-200 dark:border-slate-700">
-          {weekDays.map((day, i) => {
-            const isToday = isSameDay(day, today);
-            return (
-              <div key={i} className={`text-center py-2 border-r border-gray-100 dark:border-slate-700 last:border-r-0 ${isToday ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
-                <p className="text-[10px] text-gray-500 dark:text-slate-400 font-medium">{DAY_NAMES_SHORT[i]}</p>
-                <p className={`text-lg font-bold ${isToday ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-slate-100'}`}>
-                  {day.getDate()}
-                </p>
-              </div>
-            );
-          })}
-        </div>
+        <div className="min-w-[600px]">
+          {/* Week header */}
+          <div className="grid grid-cols-7 border-b border-gray-200 dark:border-slate-700">
+            {weekDays.map((day, i) => {
+              const isToday = isSameDay(day, today);
+              return (
+                <div key={i} className={`text-center py-2 border-r border-gray-100 dark:border-slate-700 last:border-r-0 ${isToday ? 'bg-blue-50 dark:bg-blue-900/20' : ''}`}>
+                  <p className="text-[10px] text-gray-500 dark:text-slate-400 font-medium">{DAY_NAMES_SHORT[i]}</p>
+                  <p className={`text-lg font-bold ${isToday ? 'text-blue-600 dark:text-blue-400' : 'text-gray-900 dark:text-slate-100'}`}>
+                    {day.getDate()}
+                  </p>
+                </div>
+              );
+            })}
+          </div>
 
-        {/* Week body - scrollable */}
-        <div className="overflow-x-auto">
-          <div className="min-w-[600px] grid grid-cols-7 min-h-[300px] sm:min-h-[400px]">
+          {/* Week body */}
+          <div className="grid grid-cols-7 min-h-[300px] sm:min-h-[400px]">
             {weekDays.map((day, i) => {
               const dayEvts = eventsByDay[i];
               const isToday = isSameDay(day, today);
