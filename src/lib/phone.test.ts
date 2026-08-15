@@ -19,7 +19,9 @@ describe('normalizePhone', () => {
     expect(normalizePhone('54 (9) 299-123-4567')).toBe('5492991234567');
   });
 
-  it('strips a single leading zero', () => {
+  it('strips a single leading zero and adds 549 for cellphones', () => {
+    // Teléfono fijo: 02991234567 -> 2991234567 (sin prefijo, no detecta como celular)
+    // Celular con código área: 02981234567 -> 5492981234567 (agrega prefijo)
     expect(normalizePhone('0299 1234567')).toBe('2991234567');
   });
 
