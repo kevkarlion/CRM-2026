@@ -16,12 +16,12 @@ export async function middleware(request: NextRequest) {
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }
-
-  // Check maintenance mode
+// Check maintenance mode
   if (isMaintenanceMode()) {
     console.log(`[Middleware] ${pathname} - checking maintenance bypass...`);
     const config = getMaintenanceConfig();
     console.log(`[Middleware] Config:`, config);
+
     // Get token
     let token: string | undefined;
     const auth = request.headers.get('Authorization');
@@ -31,9 +31,11 @@ export async function middleware(request: NextRequest) {
     if (!token) {
       token = request.cookies.get('token')?.value;
     }
+    console.log(`[Middleware] ${pathname} - has token:`, !!token);
 
     // If no token and trying to access protected pages (not login), redirect to login
     if (!token && pathname !== '/login') {
+      console.log(`[Middleware] ${pathname} - no token, redirecting to /login`);
       const loginUrl = new URL('/login', request.url);
       return NextResponse.redirect(loginUrl);
     }
@@ -47,9 +49,12 @@ export async function middleware(request: NextRequest) {
           const { payload } = await jwtVerify(token, secretKey, { algorithms: ['HS256'] });
           
           const userEmail = payload.email as string | null;
+          console.log(`[Middleware] ${pathname} - userEmail:`, userEmail);
+          console.log(`[Middleware] ${pathname} - bypass check:`, isMaintenanceBypassEmail(userEmail));
           
           // Check if user has bypass
           if (isMaintenanceBypassEmail(userEmail)) {
+            console.log(`[Middleware] ${pathname} - USER HAS BYPASS, allowing`);
             // User has bypass - continue with normal flow
             const headers = new Headers(request.headers);
             headers.set('x-user-id', payload.userId as string);
@@ -58,10 +63,12 @@ export async function middleware(request: NextRequest) {
             return NextResponse.next({ request: { headers } });
           }
           
+          console.log(`[Middleware] ${pathname} - NO BYPASS, redirecting to maintenance`);
           // User doesn't have bypass - redirect to maintenance
           const maintenanceUrl = new URL('/mantenimiento', request.url);
           return NextResponse.redirect(maintenanceUrl);
-        } catch {
+        } catch (e) {
+          console.log(`[Middleware] ${pathname} - token invalid:`, e);
           // Invalid token
         }
       }
@@ -70,15 +77,18 @@ export async function middleware(request: NextRequest) {
     // No token or invalid token: /login is allowed during maintenance
     // (user needs to be able to log in if they have bypass)
     if (pathname === '/login') {
+      console.log(`[Middleware] ${pathname} - no token, allowing /login`);
       return NextResponse.next();
     }
 
     // API auth login allowed during maintenance (handled by route)
     if (pathname === '/api/auth/login') {
+      console.log(`[Middleware] ${pathname} - allowing API login`);
       return NextResponse.next();
     }
 
     // Any other path without valid token with bypass -> maintenance
+    console.log(`[Middleware] ${pathname} - fallback to maintenance`);
     const maintenanceUrl = new URL('/mantenimiento', request.url);
     return NextResponse.redirect(maintenanceUrl);
   }
