@@ -27,8 +27,8 @@ export async function POST(
       return NextResponse.json({ error: 'Lead no encontrado' }, { status: 404 });
     }
 
-    // Get clientId from the lead (it should have clientId if it's converted)
-    const clientId = (lead as any).clientId;
+    // Get clientId from the lead (it could be clientId or convertedToClient)
+    const clientId = (lead as any).clientId || (lead as any).convertedToClient;
     if (!clientId) {
       return NextResponse.json({ error: 'Lead no tiene cliente asociado' }, { status: 400 });
     }
