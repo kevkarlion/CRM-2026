@@ -1,9 +1,11 @@
 import type { QuoteStatus } from '@/quotes/types/quote';
 
-export interface AssignedUser {
+/** Active Gestion info for lead detail */
+export interface ActiveGestionInfo {
   _id: string;
+  status: string;
   name: string;
-  email?: string;
+  createdAt: string;
 }
 
 /** Lead as returned by GET /api/crm/leads/:id (populated assignedTo). */
@@ -30,6 +32,7 @@ export interface LeadDetail {
   updatedAt: string;
   createdBy?: string;
   updatedBy?: string;
+  activeGestion?: ActiveGestionInfo | null;
 }
 
 /** Quote item from GET /api/crm/leads/:id/quotes. */

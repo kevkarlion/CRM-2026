@@ -120,7 +120,7 @@ export function usePipelineBoard(
             }
           }
         }
-        const res = await fetch(`/api/crm/leads/${leadId}/status`, {
+const res = await fetch(`/api/crm/leads/${leadId}/status`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -147,7 +147,103 @@ export function usePipelineBoard(
         setActiveId(null);
       }
     },
-    [pipelineStages, onRefetch],
+    [pipelineStages, onRefetch]
+  );
+
+  // Update onMoveLead to handle Gestion status changes
+  const onMoveLead = useCallback(
+    async (leadId: string, targetStage: typeof pipelineStages[0]) => {
+      // Find the lead in columns
+      const lead = findLeadById(leadId, columns);
+      if (!lead) return;
+
+      // Check if it's a Gestion
+      const isGestion = (lead as any).isFromGestion === true || lead.source === 'gestion';
+
+      const previousColumns = structuredClone(columns);
+      let sourceStageName: string | null = null;
+      for (const [stageName, leads] of Object.entries(columns)) {
+        if (leads.some((l) => String(l._id) === leadId)) {
+          sourceStageName = stageName;
+          break;
+        }
+      }
+
+      if (!sourceStageName) return;
+
+      // Optimistic update
+      const newColumns = { ...columns };
+      newColumns[sourceStageName] = columns[sourceStageName].filter(
+        (l) => String(l._id) !== leadId,
+      );
+      newColumns[targetStage.name] = [
+        ...columns[targetStage.name],
+        lead,
+      ];
+      setColumns(newColumns);
+
+      try {
+        let auth: Record<string, string> = {};
+        if (typeof window !== 'undefined') {
+          const token = localStorage.getItem('token');
+          if (token) {
+            try {
+              const payload = JSON.parse(atob(token.split('.')[1]));
+              auth = {
+                Authorization: `Bearer ${token}`,
+                'x-tenant-id': payload.tenantId || 'default',
+                'x-user-id': payload.userId || '',
+              };
+              if (Array.isArray(payload.roles) && payload.roles.length > 0) {
+                auth['x-user-roles'] = payload.roles.join(',');
+              }
+            } catch {
+              auth = { Authorization: `Bearer ${token}` };
+            }
+          }
+        }
+
+        // If it's a Gestion, use the Gestion status API
+        if (isGestion) {
+          const res = await fetch(`/api/crm/gestiones/${leadId}/status`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              ...auth,
+            },
+            body: JSON.stringify({ status: targetStage.mapsToStatus }),
+          });
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body.error || `Error ${res.status}`);
+          }
+          console.log(`Gestion movida a ${targetStage.name}`);
+        } else {
+          // Regular lead - use existing API
+          const res = await fetch(`/api/crm/leads/${leadId}/status`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              ...auth,
+            },
+            body: JSON.stringify({ status: targetStage.mapsToStatus }),
+          });
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body.error || `Error ${res.status}`);
+          }
+          console.log(`Lead movido a ${targetStageName}`);
+        }
+      } catch (err) {
+        setColumns(previousColumns);
+        const msg = err instanceof Error ? err.message : 'Error al mover';
+        console.error(msg);
+        if (msg.includes('409') || msg.includes('Conflict')) {
+          onRefetch?.();
+        }
+      }
+    },
+    [columns, pipelineStages, onRefetch]
   );
 
   const handleDragCancel = useCallback(() => {

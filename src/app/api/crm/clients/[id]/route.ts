@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
 import ClientModel from '@/crm/models/client';
+import GestionModel from '@/gestion/models/gestion';
 import { Types } from 'mongoose';
 
 /**
@@ -28,8 +29,24 @@ export async function GET(
     if (!client) {
       return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 });
     }
-    
-    return NextResponse.json(client);
+
+    // Get active Gestion for this client
+    const activeGestion = await GestionModel.findOne({
+      clientId: new Types.ObjectId(id),
+      tenantId: new Types.ObjectId(tenantId),
+      status: { $nin: ['won', 'lost'] },
+    }).lean();
+
+    // Return client with active Gestion info
+    return NextResponse.json({
+      ...client,
+      activeGestion: activeGestion ? {
+        _id: String(activeGestion._id),
+        status: activeGestion.status,
+        name: activeGestion.name,
+        createdAt: activeGestion.createdAt,
+      } : null,
+    });
   } catch (error: any) {
     console.error('[clients] GET error:', error?.message || error);
     return NextResponse.json({ error: error?.message || 'Error' }, { status: 500 });

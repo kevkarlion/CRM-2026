@@ -2,6 +2,7 @@ import { eventBus } from './event-bus';
 import { timelineHandler } from '@/timeline/handlers/timeline.handler';
 import { clientActivityOrchestrator } from '@/timeline/handlers/client-activity.handler';
 import { auditHandler } from '@/audit/handlers/audit.handler';
+import { gestionSyncHandler } from '@/gestion/handlers/gestion-sync.handler';
 
 /**
  * Setup all event handlers.
@@ -22,6 +23,9 @@ export function setupEventHandlers(): void {
 
   // Audit handlers (Phase 6)
   auditHandler.register();
+
+  // Gestion sync handlers - keep Gestion status in sync with Lead pipeline
+  gestionSyncHandler.register();
 
   // Dashboard handlers (future)
   // Notification handlers (future)

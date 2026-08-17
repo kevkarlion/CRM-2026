@@ -16,6 +16,13 @@ export const DOMAIN_EVENTS = {
   LEAD_STATUS_CHANGED: 'LEAD_STATUS_CHANGED',
   LEAD_CONVERTED: 'LEAD_CONVERTED',
   
+  // Gestion
+  GESTION_CREATED: 'GESTION_CREATED',
+  GESTION_STATUS_CHANGED: 'GESTION_STATUS_CHANGED',
+  
+  // Conversation / Customer Flow
+  CUSTOMER_FLOW_COMPLETED: 'CUSTOMER_FLOW_COMPLETED',
+  
   // Quote
   QUOTE_CREATED: 'QUOTE_CREATED',
   QUOTE_SENT: 'QUOTE_SENT',
@@ -74,6 +81,31 @@ export interface LeadConvertedPayload {
   clientId: string;
   leadName?: string;
   clientName?: string;
+}
+
+export interface GestionCreatedPayload {
+  gestionId: string;
+  clientId: string;
+  name: string;
+  source: string;
+  email?: string;
+  phone?: string;
+  companyName?: string;
+}
+
+export interface GestionStatusChangedPayload {
+  gestionId: string;
+  clientId: string;
+  from: string;
+  to: string;
+  gestionName?: string;
+}
+
+export interface CustomerFlowCompletedPayload {
+  clientId: string;
+  serviceType?: string;
+  description?: string;
+  address?: string;
 }
 
 export interface QuoteCreatedPayload {

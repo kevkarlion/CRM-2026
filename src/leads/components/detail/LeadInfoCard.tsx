@@ -9,6 +9,7 @@ import {
   formatCurrency,
   formatLongDate,
 } from './lead-detail.constants';
+import { GESTION_STATUS_LABELS, GESTION_STATUS_VARIANT, GESTION_STATUS_DOT_COLOR } from '@/crm/components/detail';
 
 interface LeadInfoCardProps {
   lead: LeadDetail;

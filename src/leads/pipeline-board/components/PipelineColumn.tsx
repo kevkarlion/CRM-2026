@@ -12,6 +12,7 @@ interface PipelineColumnProps {
   onLeadClick?: (leadId: string) => void;
   onWhatsAppClick?: (lead: ILead) => void;
   conversationStatusMap?: Map<string, ConversationStatus>;
+  getConversationStatus?: (lead: ILead) => ConversationStatus | undefined;
   onTakeCase?: (lead: ILead) => void;
   onQuickReply?: (lead: ILead) => void;
   onOpenChat?: (lead: ILead) => void;
@@ -37,6 +38,7 @@ export const PipelineColumn = memo(function PipelineColumn({
   onLeadClick,
   onWhatsAppClick,
   conversationStatusMap,
+  getConversationStatus,
   onTakeCase,
   onQuickReply,
   onOpenChat,
@@ -60,19 +62,28 @@ export const PipelineColumn = memo(function PipelineColumn({
             No hay leads en esta etapa
           </p>
         ) : (
-          leads.map((lead) => (
+          leads.map((lead) => {
+            // Check if this is a Gestion by looking at the source field or custom property
+            const isGestion = (lead as any).source === 'gestion' || (lead as any).isFromGestion === true;
+            // Get conversation status - use getConversationStatus if available (supports originalLeadId)
+            const conversationStatus = getConversationStatus 
+              ? getConversationStatus(lead)
+              : conversationStatusMap?.get(String(lead._id));
+            return (
             <LeadCard
               key={String(lead._id)}
               lead={lead}
+              entityType={isGestion ? 'gestion' : 'lead'}
               onClick={onLeadClick}
               onWhatsAppClick={onWhatsAppClick}
-              conversationStatus={conversationStatusMap?.get(String(lead._id)) ?? undefined}
+              conversationStatus={conversationStatus}
               onTakeCase={onTakeCase}
               onQuickReply={onQuickReply}
               onOpenChat={onOpenChat}
               onResolve={onResolve}
             />
-          ))
+            );
+          })
         )}
       </div>
     </div>

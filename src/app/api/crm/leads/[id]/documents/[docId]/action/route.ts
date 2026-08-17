@@ -148,10 +148,31 @@ export async function POST(
         },
       });
       
+      // Create Gestion for the new client
+      const GestionService = (await import('@/gestion/services/gestion.service')).GestionService;
+      const gestionService = new GestionService();
+      const clientName = (leadData as any).companyName || (leadData as any).name;
+      try {
+        const newGestion = await gestionService.createGestion({
+          clientId: String(client._id),
+          originalLeadId: leadId, // Link to original lead for conversation tracking
+          name: clientName || 'Gestión inicial',
+          source: (leadData as any).source || 'whatsapp',
+          phone: (leadData as any).phone,
+          inquiryReason: `Venta directa desde lead: ${clientName}`,
+        }, userId || 'system', tenantId);
+        console.log('[direct-sale] Created Gestion:', String(newGestion._id));
+        
+        // Verify it was saved
+        const verifyGestion = await gestionService.getGestionById(String(newGestion._id), tenantId);
+        console.log('[direct-sale] Verified Gestion exists:', !!verifyGestion);
+      } catch (gestionError) {
+        console.error('[direct-sale] Error creating Gestion:', gestionError);
+      }
+      
       // Create work order in draft status
       const tenantPrefix = tenantId.slice(-6);
       const workOrderNumber = await getNextWorkOrderNumber(tenantPrefix);
-      const clientName = (leadData as any).companyName || (leadData as any).name;
       
       const [workOrder] = await WorkOrderModel.create([{
         tenantId: new mongoose.Types.ObjectId(tenantId),

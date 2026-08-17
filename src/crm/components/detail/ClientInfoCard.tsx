@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import type { ClientDetail } from './client-detail.types';
-import { CUSTOMER_TYPE_LABEL, formatLongDate } from './client-detail.constants';
+import { CUSTOMER_TYPE_LABEL, formatLongDate, GESTION_STATUS_LABELS, GESTION_STATUS_VARIANT, GESTION_STATUS_DOT_COLOR } from './client-detail.constants';
 
 interface ClientInfoCardProps {
   client: ClientDetail;
@@ -73,6 +73,21 @@ export function ClientInfoCard({ client }: ClientInfoCardProps) {
         <SectionBlock title="Ubicación">
           <InfoField label="Dirección" value={fullAddress} />
         </SectionBlock>
+
+        {client.activeGestion && (
+          <SectionBlock title="Gestión">
+            <div className="col-span-full flex items-center gap-2">
+              <span className={`w-2 h-2 rounded-full ${GESTION_STATUS_DOT_COLOR[client.activeGestion.status] || 'bg-gray-400'}`} />
+              <span
+                className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
+                  GESTION_STATUS_VARIANT[client.activeGestion.status] || 'bg-gray-50 border-gray-200 text-gray-700'
+                }`}
+              >
+                {GESTION_STATUS_LABELS[client.activeGestion.status] || client.activeGestion.status}
+              </span>
+            </div>
+          </SectionBlock>
+        )}
 
         <SectionBlock title="Registro">
           <InfoField label="Creado" value={formatLongDate(client.createdAt)} />

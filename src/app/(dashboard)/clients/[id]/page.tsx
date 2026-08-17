@@ -22,6 +22,9 @@ import {
   CLIENT_STATUS_OPTIONS,
   CLIENT_STATUS_VARIANT,
   CUSTOMER_TYPE_LABEL,
+  GESTION_STATUS_LABELS,
+  GESTION_STATUS_VARIANT,
+  GESTION_STATUS_DOT_COLOR,
   clientName,
 } from '@/crm/components/detail';
 import { LeadCommercialActionsCard, LeadBotControlCard } from '@/leads/components/detail';
@@ -347,6 +350,16 @@ export default function ClientDetailPage() {
             <span className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium border bg-gray-50 border-gray-200 text-gray-600">
               {CUSTOMER_TYPE_LABEL[client.customerType] || client.customerType}
             </span>
+            {client.activeGestion && (
+              <span
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-sm font-medium border ${
+                  GESTION_STATUS_VARIANT[client.activeGestion.status] || 'bg-gray-50 border-gray-200 text-gray-500'
+                }`}
+              >
+                <span className={`w-2 h-2 rounded-full ${GESTION_STATUS_DOT_COLOR[client.activeGestion.status] || 'bg-gray-400'}`} />
+                {GESTION_STATUS_LABELS[client.activeGestion.status] || client.activeGestion.status}
+              </span>
+            )}
           </>
         }
         actions={

@@ -53,6 +53,7 @@ export async function POST(request: NextRequest) {
         tenantId: user.tenantId.toString(),
         roles: roleNames,
         name: `${user.firstName} ${user.lastName}`.trim(),
+        email: user.email,
       },
       secret,
     );

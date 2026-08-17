@@ -17,6 +17,8 @@ import type {
 import type { ILead, InquiryReason, CustomerType } from '../../leads/types/lead';
 import { calculateLeadScore } from '@/leads/services/lead-score.service';
 import { normalizePhone, phoneMatchQuery } from '@/lib/phone';
+import { eventBus } from '@/infrastructure/events/event-bus';
+import { DOMAIN_EVENTS } from '@/infrastructure/events/event.types';
 
 // Conversation Engine imports
 import {
@@ -938,6 +940,30 @@ export class WhatsAppService {
           } else {
             console.log('[Engine] ❌ No customer/lead data found for phone:', normalizedPhoneSearch);
           }
+          
+          // THIRD: Even if we found a lead, find the actual Client to get real clientId
+          // This ensures we use the correct client ID for Gestion events
+          const actualClient = await ClientModel.findOne({
+            tenantId: new Types.ObjectId(tenantId),
+            phone: { $regex: new RegExp(normalizedPhoneSearch, 'i') },
+            deletedAt: null,
+          }).lean();
+
+          if (actualClient) {
+            console.log('[Engine] ✅ Actual client found for event sync:', actualClient.fullName);
+            // Override clientId with real client ID (not lead ID)
+            customerData = {
+              ...customerData,
+              clientId: String(actualClient._id),
+              address: actualClient.address || customerData.address,
+              locality: actualClient.locality || customerData.locality,
+              province: actualClient.province || customerData.province,
+              originalAddress: actualClient.address || customerData.originalAddress,
+              originalLocality: actualClient.locality || customerData.originalLocality,
+              originalProvince: actualClient.province || customerData.originalProvince,
+            };
+            console.log('[Engine] Updated customerData with real clientId:', customerData.clientId);
+          }
         }
       } catch (error) {
         console.error('[Engine] Error loading customer:', error);
@@ -1002,10 +1028,48 @@ export class WhatsAppService {
       const isCustomer = result.context.get<boolean>('isCustomer');
       const isComplete = result.context.get<boolean>('complete');
       
-      if (result.handoff && isCustomer && isComplete && clientId && tenantId) {
+      console.log('[Engine] ═══════════════════════════════════════════');
+      console.log('[Engine] Checking customer flow completion:');
+      console.log('[Engine]   isCustomer:', isCustomer);
+      console.log('[Engine]   isComplete:', isComplete);
+      console.log('[Engine]   clientId:', clientId);
+      console.log('[Engine]   tenantId:', tenantId);
+      console.log('[Engine]   result.isComplete (engine):', result.isComplete);
+      console.log('[Engine]   result.handoff:', result.handoff);
+      console.log('[Engine] ═══════════════════════════════════════════');
+      
+      console.log('[Engine] >>> Checking if should publish CUSTOMER_FLOW_COMPLETED');
+      console.log('[Engine] >>> isCustomer:', isCustomer, '| isComplete:', isComplete, '| clientId:', clientId, '| tenantId:', tenantId);
+      
+      // Publish CUSTOMER_FLOW_COMPLETED when customer completes the flow
+      if (isCustomer && isComplete && clientId && tenantId) {
+        console.log('[Engine] >>> CONDITION MET - Will publish event');
         const serviceType = result.context.get<string>('serviceType');
         const description = result.context.get<string>('description');
         
+        // Publish event to sync Gestion status to "contacted"
+        try {
+          console.log('[Engine] >>> Publishing CUSTOMER_FLOW_COMPLETED event...');
+          await eventBus.publish({
+            type: DOMAIN_EVENTS.CUSTOMER_FLOW_COMPLETED,
+            aggregateId: clientId,
+            aggregateType: 'Client',
+            tenantId,
+            userId: 'whatsapp-bot',
+            timestamp: new Date(),
+            payload: {
+              clientId,
+              serviceType,
+              description,
+              address: currentAddress,
+            },
+          });
+          console.log('[Engine] >>> Published CUSTOMER_FLOW_COMPLETED event');
+        } catch (eventError) {
+          console.error('[Engine] Error publishing CUSTOMER_FLOW_COMPLETED:', eventError);
+        }
+        
+        // Also create service history record if serviceType exists
         if (serviceType) {
           console.log('[Engine] Creating service history record:', { clientId, serviceType, address: currentAddress });
           try {
