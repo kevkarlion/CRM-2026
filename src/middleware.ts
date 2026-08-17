@@ -1,13 +1,16 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
-import { isMaintenanceMode, isMaintenanceBypassEmail } from '@/lib/maintenance';
+import { isMaintenanceMode, isMaintenanceBypassEmail, getMaintenanceConfig } from '@/lib/maintenance';
 
 // Paths que NUNCA requieren autenticación
 const PUBLIC_PATHS = ['/api/webhook', '/api/admin/seed', '/api/debug', '/_next/', '/favicon.ico', '/mantenimiento'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Debug: log maintenance state for all requests
+  console.log(`[Middleware] ${pathname} - maintenance mode: ${isMaintenanceMode()}`);
 
   // Allow truly public paths without any check
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
@@ -16,6 +19,9 @@ export async function middleware(request: NextRequest) {
 
   // Check maintenance mode
   if (isMaintenanceMode()) {
+    console.log(`[Middleware] ${pathname} - checking maintenance bypass...`);
+    const config = getMaintenanceConfig();
+    console.log(`[Middleware] Config:`, config);
     // Get token
     let token: string | undefined;
     const auth = request.headers.get('Authorization');
