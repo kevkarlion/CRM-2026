@@ -66,8 +66,11 @@ export function isMaintenanceBypassPhone(phone: string | null | undefined): bool
   console.log('[Maintenance] Phone bypass check:', { 
     inputPhone: phone, 
     normalizedPhone, 
-    testPhone: config.testPhone, 
-    match: normalizedPhone === config.testPhone 
+    testPhone: config.testPhone,
+    inputType: typeof phone,
+    testType: typeof config.testPhone,
+    match: normalizedPhone === config.testPhone,
+    matchTrimmed: normalizedPhone?.trim() === config.testPhone?.trim()
   });
   
   return normalizedPhone === config.testPhone;

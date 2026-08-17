@@ -129,6 +129,9 @@ console.log(`📩 Mensaje recibido de ${fromNumber}, tipo: ${messageType}, id: $
       const tenantId = await whatsappService.getActiveTenantId();
       console.log('[Webhook] Tenant ID:', tenantId);
 
+      // Debug: log the fromNumber details
+      console.log(`[Webhook] 🔧 DEBUG fromNumber: "${fromNumber}", length: ${fromNumber?.length}, charCodes: ${fromNumber?.split('').map(c => c.charCodeAt(0)).join(',')}`);
+
       console.log(`[Webhook] 🔧 DEBUG: Entering maintenance section`);
       console.log(`[Webhook] 🔧 DEBUG: isMaintenanceMode()=${isMaintenanceMode()}`);
       console.log(`[Webhook] 🔧 DEBUG: fromNumber=${fromNumber}`);
