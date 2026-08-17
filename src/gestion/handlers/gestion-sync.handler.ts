@@ -5,6 +5,7 @@ import {
   VisitCreatedPayload,
   SaleConfirmedPayload,
   CustomerFlowCompletedPayload,
+  GestionStatusChangedPayload,
 } from '@/infrastructure/events/event.types';
 import GestionModel from '../models/gestion';
 import LeadModel from '@/leads/models/lead';
@@ -26,8 +27,11 @@ export const gestionSyncHandler = {
     
     // Customer completed bot flow → contacted
     on('CUSTOMER_FLOW_COMPLETED', gestionSyncHandler.onCustomerFlowCompleted as EventHandler);
+    
+    // Gestion status changed manually → sync
+    on('GESTION_STATUS_CHANGED', gestionSyncHandler.onGestionStatusChanged as EventHandler);
 
-    console.log('[GestionSync] Handlers registered');
+    console.log('[GestionSync] ✅ Handlers registered for: QUOTE_SENT, VISIT_CREATED, SALE_CONFIRMED, CUSTOMER_FLOW_COMPLETED, GESTION_STATUS_CHANGED');
   },
 
   /**
@@ -232,5 +236,14 @@ export const gestionSyncHandler = {
     } catch (error) {
       console.error('[GestionSync] Error in onCustomerFlowCompleted:', error);
     }
+  },
+
+  /**
+   * Handle GESTION_STATUS_CHANGED
+   * When Gestion status is manually changed - just log for now
+   */
+  async onGestionStatusChanged(event: DomainEvent<GestionStatusChangedPayload>): Promise<void> {
+    const { gestionId, clientId, from, to, gestionName } = event.payload;
+    console.log(`[GestionSync] 🔄 GESTION_STATUS_CHANGED: ${gestionId} | ${from} → ${to} | client: ${clientId} | name: ${gestionName}`);
   },
 };

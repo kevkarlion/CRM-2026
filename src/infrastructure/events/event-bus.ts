@@ -76,7 +76,7 @@ export class EventBus {
     const wildcardHandlers = this.handlers.get('*') || [];
     const allHandlers = [...eventHandlers, ...wildcardHandlers];
 
-    console.log(`[EventBus] Publishing ${event.type} - handlers found: ${allHandlers.length} (specific: ${eventHandlers.length}, wildcard: ${wildcardHandlers.length})`);
+    console.log(`[EventBus] 📡 Publishing ${event.type} - handlers found: ${allHandlers.length} (specific: ${eventHandlers.length}, wildcard: ${wildcardHandlers.length})`);
 
     for (const handler of allHandlers) {
       try {

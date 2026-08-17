@@ -296,6 +296,7 @@ export class GestionService {
     }
 
     try {
+      console.log(`[GestionService] 📡 Publishing GESTION_STATUS_CHANGED: ${gestionId} | ${currentStatus} → ${newStatus}`);
       await eventBus.publish({
         type: DOMAIN_EVENTS.GESTION_STATUS_CHANGED,
         aggregateId: gestionId,
