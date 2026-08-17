@@ -79,13 +79,14 @@ export function PipelineBoard() {
     return pipeline.stages.filter((s) => s.isActive).sort((a, b) => a.position - b.position);
   }, [pipeline]);
 
-  // Filter out leads that are closed or have been converted - they shouldn't appear in pipeline
+  // Filter out leads that are closed - they shouldn't appear in pipeline
+  // Note: leads with status 'won' and convertedAt should still show in "Ganado"
   const filteredGroups = useMemo(() => {
     const result: typeof groups = {};
     for (const [stageName, stageData] of Object.entries(groups)) {
       result[stageName] = {
         ...stageData,
-        leads: stageData.leads.filter((lead: ILead) => lead.status !== 'closed' && !lead.convertedAt),
+        leads: stageData.leads.filter((lead: ILead) => lead.status !== 'closed'),
       };
     }
     return result;
