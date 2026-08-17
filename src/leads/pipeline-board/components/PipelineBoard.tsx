@@ -235,8 +235,18 @@ export function PipelineBoard() {
     // Any client with an active Gestion should hide their lead from pipeline
     const activeGestionPhones = new Set(
       gestions
-        .filter(g => g.status !== 'won' && g.status !== 'lost')
+        .filter(g => g.status !== 'won' && g.status !== 'lost' && g.status !== 'closed')
         .map(g => g.phone?.replace(/\D/g, ''))
+        .filter(Boolean)
+    );
+    
+    // Create set of phones from leads that are NOT closed (active leads)
+    // Don't show Gestion for these phones until lead is resolved
+    const activeLeadPhones = new Set(
+      Object.values(columns)
+        .flatMap(stageLeads => stageLeads)
+        .filter(lead => lead.status !== 'closed')
+        .map(lead => lead.phone?.replace(/\D/g, ''))
         .filter(Boolean)
     );
     
@@ -250,11 +260,15 @@ export function PipelineBoard() {
       });
     }
     
-    // Add gestions as separate cards in their columns (only active ones)
+    // Add gestions as separate cards in their columns
+    // BUT: only show if there's NO active lead for this phone (lead has been resolved)
     for (const gestion of gestionsAsLeads) {
       // Only add if it's NOT 'lost', 'new', or 'closed'
-      // 'new' is hidden until customer writes, 'closed' is resolved (no longer in pipeline)
-      if (gestion.status !== 'lost' && gestion.status !== 'new' && gestion.status !== 'closed') {
+      // Also skip if there's an active lead for this phone (gestion waiting for resolve)
+      const gestionPhone = gestion.phone?.replace(/\D/g, '');
+      const hasActiveLead = gestionPhone && activeLeadPhones.has(gestionPhone);
+      
+      if (!hasActiveLead && gestion.status !== 'lost' && gestion.status !== 'new' && gestion.status !== 'closed') {
         const stageName = mapGestionStatusToStage(gestion.status);
         if (!result[stageName]) {
           result[stageName] = [];

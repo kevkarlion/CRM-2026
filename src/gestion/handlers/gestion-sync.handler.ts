@@ -208,27 +208,10 @@ export const gestionSyncHandler = {
       return;
     }
 
-    console.log('[GestionSync] >>> Looking for active Gestion for clientId:', clientId);
-    
-    try {
-      const gestion = await gestionSyncHandler.findActiveGestion(clientId, tenantId);
-      if (!gestion) {
-        console.log(`[GestionSync] CUSTOMER_FLOW_COMPLETED: no active Gestion for client ${clientId}`);
-        return;
-      }
-
-      // Only update if currently in 'new' status
-      if (gestion.status !== 'new') {
-        console.log(`[GestionSync] CUSTOMER_FLOW_COMPLETED: Gestion already in status '${gestion.status}', skipping`);
-        return;
-      }
-
-      console.log(`[GestionSync] CUSTOMER_FLOW_COMPLETED: Found Gestion ${gestion._id} with status 'new', updating to 'contacted'`);
-      await gestionSyncHandler.updateGestionStatus(String(gestion._id), tenantId, 'contacted');
-      console.log(`[GestionSync] CUSTOMER_FLOW_COMPLETED: Gestion updated to 'contacted' - should now appear in pipeline`);
-    } catch (error) {
-      console.error('[GestionSync] Error in onCustomerFlowCompleted:', error);
-    }
+    // NOTE: No se actualiza la Gestion cuando el cliente escribe.
+    // La Gestion se crea solo con "Resuelto" y queda en status "new" (oculta)
+    // El usuario debe resolver manualmente desde el pipeline
+    console.log(`[GestionSync] CUSTOMER_FLOW_COMPLETED: Customer wrote but Gestion stays as-is (created only on resolve)`);
   },
 
   /**
