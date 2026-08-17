@@ -155,11 +155,11 @@ export class ConversationResolver {
         if (client) {
           clientId = String(client._id);
         } else {
-          // Try to find LEAD with status won/qualified (cliente que viene de lead ganado)
+          // Try to find LEAD with status won/qualified O lead closed que fue convertido
           const wonLead = await LeadModel.findOne({
             tenantId: new Types.ObjectId(tenantId),
             phone: phoneMatchQuery(normalizedPhone),
-            status: { $in: ['won', 'qualified'] },
+            status: { $in: ['won', 'qualified', 'closed'] },
             deletedAt: null,
           }).lean();
           if (wonLead) {
