@@ -18,7 +18,7 @@ export const gestionSchema = new Schema<IGestion>(
     },
     status: {
       type: String,
-      enum: ['new', 'contacted', 'qualified', 'proposal', 'negotiation', 'won', 'lost'] satisfies GestionStatus[],
+      enum: ['new', 'contacted', 'qualified', 'proposal', 'negotiation', 'won', 'lost', 'closed'] satisfies GestionStatus[],
       required: true,
       default: 'new',
     },
@@ -82,7 +82,7 @@ export const gestionSchema = new Schema<IGestion>(
 
 // Allow multiple Gestions per client - the "active" one is determined by status
 // Only non-terminal Gestions (not won/lost) are considered active
-gestionSchema.index({ tenantId: 1, clientId: 1 });
+gestionSchema.index({ tenantId: 1, clientId: 1 }, { unique: false });
 gestionSchema.index({ tenantId: 1, status: 1, createdAt: -1 });
 gestionSchema.index({ tenantId: 1, assignedTo: 1, status: 1 });
 gestionSchema.index({ tenantId: 1, email: 1 });

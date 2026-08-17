@@ -1,6 +1,6 @@
 import { Document, Types } from 'mongoose';
 
-export type GestionStatus = 'new' | 'contacted' | 'qualified' | 'proposal' | 'negotiation' | 'won' | 'lost';
+export type GestionStatus = 'new' | 'contacted' | 'qualified' | 'proposal' | 'negotiation' | 'won' | 'lost' | 'closed';
 export type GestionSource = 'whatsapp' | 'call' | 'form' | 'referral' | 'walk_in' | 'other';
 export type QualificationStatus = 'qualified' | 'not_qualified' | 'pending';
 export type LostReason = 'price' | 'competitor' | 'budget' | 'not_interested' | 'timing' | 'no_response' | 'other';

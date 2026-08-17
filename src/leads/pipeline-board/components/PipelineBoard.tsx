@@ -165,6 +165,7 @@ export function PipelineBoard() {
       'negotiation': 'Negociación',
       'won': 'Ganado',
       'lost': 'Perdido',
+      'closed': 'Ganado', // Closed still shows in Ganado for reference
     };
     return statusToStage[status] || 'Nuevo contacto';
   };
@@ -174,6 +175,10 @@ export function PipelineBoard() {
     return gestions.map((g) => {
       // Get client data from populate
       const clientData = g.clientId as any;
+      // Handle both populated (object with _id) and non-populated (ObjectId) cases
+      const clientIdValue = clientData?._id || clientData || g.clientId;
+      const clientIdString = clientIdValue ? String(clientIdValue) : undefined;
+      
       const clientName = clientData?.fullName || clientData?.companyName || g.name || 'Cliente';
       const clientCompany = clientData?.companyName || clientName;
       const clientPhone = g.phone || clientData?.phone;
@@ -214,7 +219,7 @@ export function PipelineBoard() {
         updatedAt: g.updatedAt,
         // Mark as Gestion
         isFromGestion: true,
-        clientId: g.clientId,
+        clientId: clientIdString,
         // For conversation status lookup - use original lead ID
         originalLeadId: originalLeadId || undefined,
       };
@@ -246,9 +251,9 @@ export function PipelineBoard() {
     
     // Add gestions as separate cards in their columns (only active ones)
     for (const gestion of gestionsAsLeads) {
-      // Only add if it's an active Gestion (not won/lost/new)
-      // 'new' status is hidden until customer writes to the bot
-      if (gestion.status !== 'won' && gestion.status !== 'lost' && gestion.status !== 'new') {
+      // Only add if it's NOT 'lost', 'new', or 'closed'
+      // 'new' is hidden until customer writes, 'closed' is resolved (no longer in pipeline)
+      if (gestion.status !== 'lost' && gestion.status !== 'new' && gestion.status !== 'closed') {
         const stageName = mapGestionStatusToStage(gestion.status);
         if (!result[stageName]) {
           result[stageName] = [];
@@ -444,7 +449,15 @@ export function PipelineBoard() {
         // Determine if it's a Lead or Gestion
         const isGestion = (lead as any).isFromGestion === true || lead.source === 'gestion';
         
-        let endpoint = `/api/crm/leads/${lead._id}/resolve`;
+        let endpoint: string;
+        if (isGestion) {
+          // For Gestion, use client endpoint with clientId
+          const clientId = (lead as any).clientId;
+          endpoint = `/api/crm/clients/${clientId}/resolve`;
+        } else {
+          // For Lead, use lead endpoint
+          endpoint = `/api/crm/leads/${lead._id}/resolve`;
+        }
         
         const res = await fetch(endpoint, {
           method: 'POST',

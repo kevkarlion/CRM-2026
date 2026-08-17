@@ -275,7 +275,7 @@ export const gestionSyncHandler = {
         }
       }
 
-      // 2. Find the won Gestion and keep it as won (already done, but ensure it's won)
+      // 2. Close the won Gestion (mark as closed)
       const wonGestion = await GestionModel.findOne({
         clientId: new Types.ObjectId(clientId),
         tenantId: new Types.ObjectId(tenantId),
@@ -283,18 +283,23 @@ export const gestionSyncHandler = {
       });
 
       if (wonGestion) {
-        console.log(`[GestionSync] RESOLVE_CONVERTED_LEAD: Gestion ${wonGestion._id} already won`);
+        await GestionModel.updateOne(
+          { _id: wonGestion._id },
+          { $set: { status: 'closed', updatedBy: resolvedBy } }
+        );
+        console.log(`[GestionSync] RESOLVE_CONVERTED_LEAD: Gestion ${wonGestion._id} marked as closed`);
       }
 
       // 3. Create new Gestion with status "new" (hidden from pipeline until customer writes)
-      const existingNewGestion = await GestionModel.findOne({
+      // Check if there's already any Gestion for this client (won/lost/closed don't count as active)
+      const existingAnyGestion = await GestionModel.findOne({
         clientId: new Types.ObjectId(clientId),
         tenantId: new Types.ObjectId(tenantId),
-        status: 'new',
+        status: { $nin: ['won', 'lost', 'closed'] },
       });
 
-      if (existingNewGestion) {
-        console.log(`[GestionSync] RESOLVE_CONVERTED_LEAD: new Gestion already exists for client ${clientId}`);
+      if (existingAnyGestion) {
+        console.log(`[GestionSync] RESOLVE_CONVERTED_LEAD: active Gestion already exists for client ${clientId} (status: ${existingAnyGestion.status}), skipping creation`);
       } else {
         const newGestion = await GestionModel.create({
           clientId: new Types.ObjectId(clientId),

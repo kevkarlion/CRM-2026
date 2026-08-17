@@ -283,6 +283,18 @@ export default function ClientDetailPage() {
     loadClient();
   }, [loadClient]);
 
+  // Refresh client data when window gets focus (event-driven, not polling)
+  useEffect(() => {
+    if (!id) return;
+    
+    const handleFocus = () => {
+      loadClient();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [id, loadClient]);
+
   async function loadQuotes() {
     setLoadingQuotes(true);
     try {
