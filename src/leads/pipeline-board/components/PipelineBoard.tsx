@@ -79,7 +79,19 @@ export function PipelineBoard() {
     return pipeline.stages.filter((s) => s.isActive).sort((a, b) => a.position - b.position);
   }, [pipeline]);
 
-  const { columns } = usePipelineBoard(stages, groups, refetch);
+  // Filter out leads that are closed or have been converted - they shouldn't appear in pipeline
+  const filteredGroups = useMemo(() => {
+    const result: typeof groups = {};
+    for (const [stageName, stageData] of Object.entries(groups)) {
+      result[stageName] = {
+        ...stageData,
+        leads: stageData.leads.filter((lead: ILead) => lead.status !== 'closed' && !lead.convertedAt),
+      };
+    }
+    return result;
+  }, [groups]);
+
+  const { columns } = usePipelineBoard(stages, filteredGroups, refetch);
 
   // Read stage filter from URL params
   const visibleStageNames = useMemo(() => {
@@ -147,7 +159,9 @@ export function PipelineBoard() {
       'new': 'Nuevo contacto',
       'contacted': 'Contactado',
       'qualified': 'Calificado',
+      'quote_sent': 'Presupuesto enviado',
       'proposal': 'Presupuesto enviado',
+      'technical_visit': 'Visita técnica',
       'negotiation': 'Negociación',
       'won': 'Ganado',
       'lost': 'Perdido',
@@ -211,30 +225,30 @@ export function PipelineBoard() {
   const columnsWithGestions = useMemo(() => {
     const result: Record<string, ILead[]> = {};
     
-    // Create set of client phones from Gestiones created by customer write (not from sale)
-    // These are Gestiones that have an originalLeadId (created when customer wrote after lead was won)
-    const customerWriteGestionPhones = new Set(
+    // Create set of client phones from ALL active Gestiones (not won/lost)
+    // Any client with an active Gestion should hide their lead from pipeline
+    const activeGestionPhones = new Set(
       gestions
         .filter(g => g.status !== 'won' && g.status !== 'lost')
-        .filter(g => (g as any).originalLeadId) // Created from customer's first write
         .map(g => g.phone?.replace(/\D/g, ''))
         .filter(Boolean)
     );
     
-    // Initialize with existing columns - filter leads that have active customer-write Gestion
+    // Initialize with existing columns - filter leads that have active Gestion
     for (const [stageName, leads] of Object.entries(columns)) {
-      // Hide lead only if it has matching phone with customer-write Gestion (customer already wrote)
+      // Hide lead if there's any active Gestion for this phone (client is already in Gestion flow)
       result[stageName] = leads.filter(lead => {
         const leadPhone = lead.phone?.replace(/\D/g, '');
-        // Keep lead if there's NO customer-write Gestion for this phone
-        return !(leadPhone && customerWriteGestionPhones.has(leadPhone));
+        // Keep lead if there's NO active Gestion for this phone
+        return !(leadPhone && activeGestionPhones.has(leadPhone));
       });
     }
     
     // Add gestions as separate cards in their columns (only active ones)
     for (const gestion of gestionsAsLeads) {
-      // Only add if it's an active Gestion (client wrote), not won/lost
-      if (gestion.status !== 'won' && gestion.status !== 'lost') {
+      // Only add if it's an active Gestion (not won/lost/new)
+      // 'new' status is hidden until customer writes to the bot
+      if (gestion.status !== 'won' && gestion.status !== 'lost' && gestion.status !== 'new') {
         const stageName = mapGestionStatusToStage(gestion.status);
         if (!result[stageName]) {
           result[stageName] = [];
@@ -424,6 +438,44 @@ export function PipelineBoard() {
 
   // Resolve lead - works with or without conversation
   const handleLeadResolve = useCallback(async (lead: ILead) => {
+    // If lead is won, resolve it (close lead and create new Gestion)
+    if (lead.status === 'won') {
+      try {
+        // Determine if it's a Lead or Gestion
+        const isGestion = (lead as any).isFromGestion === true || lead.source === 'gestion';
+        
+        let endpoint = `/api/crm/leads/${lead._id}/resolve`;
+        
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(() => {
+              if (typeof window === 'undefined') return {};
+              const token = localStorage.getItem('token');
+              const tenantId = localStorage.getItem('tenantId');
+              const headers: Record<string, string> = {};
+              if (token) headers['Authorization'] = `Bearer ${token}`;
+              if (tenantId) headers['x-tenant-id'] = tenantId;
+              return headers;
+            })(),
+          },
+        });
+        
+        if (res.ok) {
+          // Refresh data
+          refetch();
+          refetchGestiones?.();
+        } else {
+          console.error('[Resolve] Failed:', res.status);
+        }
+      } catch (error) {
+        console.error('[Resolve] Error:', error);
+      }
+      return;
+    }
+    
+    // Otherwise, open modal to disqualify (existing behavior)
     const status = getConversationStatus(lead);
     
     // Open modal regardless - with or without conversation
@@ -431,7 +483,7 @@ export function PipelineBoard() {
     setResolveLeadId(String(lead._id));
     setResolveConversationName(lead.profileName || lead.name || lead.companyName || 'este lead');
     setResolveConfirmOpen(true);
-  }, [conversationStatusMap]);
+  }, [conversationStatusMap, refetch, refetchGestiones]);
 
   // Take case — assign the current user to the conversation
   const handleTakeCase = useCallback(async (lead: ILead) => {

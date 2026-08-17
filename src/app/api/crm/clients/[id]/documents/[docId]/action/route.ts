@@ -6,6 +6,8 @@ import DocumentModel from '@/documents/models/document';
 import ClientModel from '@/crm/models/client';
 import WorkOrderModel from '@/operations/models/work-order';
 import { getNextWorkOrderNumber } from '@/operations/helpers/counter';
+import { eventBus } from '@/infrastructure/events/event-bus';
+import { DOMAIN_EVENTS, SaleConfirmedPayload } from '@/infrastructure/events/event.types';
 
 const quoteService = new QuoteService();
 
@@ -103,8 +105,11 @@ export async function POST(
     
     if (action === 'won') {
       // Mark as direct sale (draft -> direct_sale)
-      await quoteService.markAsDirectSale(quoteId, userId, tenantId);
+      const updatedQuote = await quoteService.markAsDirectSale(quoteId, userId, tenantId);
       
+      // Get quote total for SALE_CONFIRMED event
+      const quoteTotal = updatedQuote?.total || 0;
+
       // Create work order in draft status
       const tenantPrefix = tenantId.slice(-6);
       const workOrderNumber = await getNextWorkOrderNumber(tenantPrefix);
@@ -142,6 +147,30 @@ export async function POST(
         { _id: new mongoose.Types.ObjectId(quoteId) },
         { $set: { convertedToWorkOrder: workOrder._id } }
       );
+
+      // Publish SALE_CONFIRMED event to sync Gestion status
+      try {
+        console.log('[client-document-action] Publishing SALE_CONFIRMED for direct sale');
+        await eventBus.publish({
+          type: DOMAIN_EVENTS.SALE_CONFIRMED,
+          aggregateId: clientId,
+          aggregateType: 'Client',
+          tenantId,
+          userId,
+          timestamp: new Date(),
+          payload: {
+            leadId: null,
+            clientId: clientId,
+            amount: quoteTotal,
+            saleMode: 'direct',
+            leadName: clientName,
+            quotesCount: 1,
+          } as SaleConfirmedPayload,
+        });
+        console.log('[client-document-action] SALE_CONFIRMED published successfully');
+      } catch (eventError) {
+        console.error('[client-document-action] Failed to publish SALE_CONFIRMED:', eventError);
+      }
 
       return NextResponse.json({
         success: true,

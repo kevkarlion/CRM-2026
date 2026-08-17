@@ -6,6 +6,7 @@ import {
   SaleConfirmedPayload,
   CustomerFlowCompletedPayload,
   GestionStatusChangedPayload,
+  ResolveConvertedLeadPayload,
 } from '@/infrastructure/events/event.types';
 import GestionModel from '../models/gestion';
 import LeadModel from '@/leads/models/lead';
@@ -30,8 +31,11 @@ export const gestionSyncHandler = {
     
     // Gestion status changed manually → sync
     on('GESTION_STATUS_CHANGED', gestionSyncHandler.onGestionStatusChanged as EventHandler);
+    
+    // User resolved a converted lead/client → close lead, create new Gestion
+    on('RESOLVE_CONVERTED_LEAD', gestionSyncHandler.onResolveConvertedLead as EventHandler);
 
-    console.log('[GestionSync] ✅ Handlers registered for: QUOTE_SENT, VISIT_CREATED, SALE_CONFIRMED, CUSTOMER_FLOW_COMPLETED, GESTION_STATUS_CHANGED');
+    console.log('[GestionSync] ✅ Handlers registered for: QUOTE_SENT, VISIT_CREATED, SALE_CONFIRMED, CUSTOMER_FLOW_COMPLETED, GESTION_STATUS_CHANGED, RESOLVE_CONVERTED_LEAD');
   },
 
   /**
@@ -159,7 +163,8 @@ export const gestionSyncHandler = {
 
   /**
    * Handle SALE_CONFIRMED
-   * Payload has clientId - update Gestion to won and create new Gestion for future cycles
+   * Payload has clientId - update Gestion to won
+   * NEW: La nueva Gestion se crea cuando el usuario hace click en "Resuelto"
    */
   async onSaleConfirmed(event: DomainEvent<SaleConfirmedPayload>): Promise<void> {
     const { clientId } = event.payload;
@@ -178,23 +183,9 @@ export const gestionSyncHandler = {
         return;
       }
 
-      // Update current gestion to won
+      // Update current gestion to won (card will stay visible in "Ganado" until resolved)
       await gestionSyncHandler.updateGestionStatus(String(gestion._id), tenantId, 'won');
-      
-      // Create new Gestion with status "new" for future cycles
-      console.log(`[GestionSync] SALE_CONFIRMED: creating new Gestion for client ${clientId}`);
-      const newGestion = await GestionModel.create({
-        clientId: new Types.ObjectId(clientId),
-        tenantId: new Types.ObjectId(tenantId),
-        name: 'Nueva gestión',
-        source: 'whatsapp',
-        status: 'new',
-        qualificationStatus: 'pending',
-        createdBy: userId,
-        updatedBy: userId,
-      });
-      
-      console.log(`[GestionSync] SALE_CONFIRMED: new Gestion created with status "new":`, String(newGestion._id));
+      console.log(`[GestionSync] SALE_CONFIRMED: Gestion ${gestion._id} marked as won`);
     } catch (error) {
       console.error('[GestionSync] Error in onSaleConfirmed:', error);
     }
@@ -232,7 +223,9 @@ export const gestionSyncHandler = {
         return;
       }
 
+      console.log(`[GestionSync] CUSTOMER_FLOW_COMPLETED: Found Gestion ${gestion._id} with status 'new', updating to 'contacted'`);
       await gestionSyncHandler.updateGestionStatus(String(gestion._id), tenantId, 'contacted');
+      console.log(`[GestionSync] CUSTOMER_FLOW_COMPLETED: Gestion updated to 'contacted' - should now appear in pipeline`);
     } catch (error) {
       console.error('[GestionSync] Error in onCustomerFlowCompleted:', error);
     }
@@ -245,5 +238,78 @@ export const gestionSyncHandler = {
   async onGestionStatusChanged(event: DomainEvent<GestionStatusChangedPayload>): Promise<void> {
     const { gestionId, clientId, from, to, gestionName } = event.payload;
     console.log(`[GestionSync] 🔄 GESTION_STATUS_CHANGED: ${gestionId} | ${from} → ${to} | client: ${clientId} | name: ${gestionName}`);
+  },
+
+  /**
+   * Handle RESOLVE_CONVERTED_LEAD
+   * When user clicks "Resuelto" on a converted Lead/Client:
+   * - Lead status -> closed (desaparece del pipeline)
+   * - Current Gestion -> won (ya estaba)
+   * - New Gestion -> created with status "new" (oculta hasta que cliente escriba)
+   */
+  async onResolveConvertedLead(event: DomainEvent<ResolveConvertedLeadPayload>): Promise<void> {
+    const { leadId, clientId, resolvedBy } = event.payload;
+    const tenantId = event.tenantId;
+
+    if (!clientId) {
+      console.log('[GestionSync] RESOLVE_CONVERTED_LEAD: no clientId in payload, skipping');
+      return;
+    }
+
+    try {
+      console.log(`[GestionSync] RESOLVE_CONVERTED_LEAD: resolving lead ${leadId} / client ${clientId}`);
+
+      // 1. Close the Lead if provided
+      if (leadId) {
+        const lead = await LeadModel.findOne({
+          _id: new Types.ObjectId(leadId),
+          tenantId: new Types.ObjectId(tenantId),
+        });
+
+        if (lead) {
+          await LeadModel.updateOne(
+            { _id: lead._id },
+            { $set: { status: 'closed', updatedBy: resolvedBy } }
+          );
+          console.log(`[GestionSync] RESOLVE_CONVERTED_LEAD: Lead ${leadId} marked as closed`);
+        }
+      }
+
+      // 2. Find the won Gestion and keep it as won (already done, but ensure it's won)
+      const wonGestion = await GestionModel.findOne({
+        clientId: new Types.ObjectId(clientId),
+        tenantId: new Types.ObjectId(tenantId),
+        status: 'won',
+      });
+
+      if (wonGestion) {
+        console.log(`[GestionSync] RESOLVE_CONVERTED_LEAD: Gestion ${wonGestion._id} already won`);
+      }
+
+      // 3. Create new Gestion with status "new" (hidden from pipeline until customer writes)
+      const existingNewGestion = await GestionModel.findOne({
+        clientId: new Types.ObjectId(clientId),
+        tenantId: new Types.ObjectId(tenantId),
+        status: 'new',
+      });
+
+      if (existingNewGestion) {
+        console.log(`[GestionSync] RESOLVE_CONVERTED_LEAD: new Gestion already exists for client ${clientId}`);
+      } else {
+        const newGestion = await GestionModel.create({
+          clientId: new Types.ObjectId(clientId),
+          tenantId: new Types.ObjectId(tenantId),
+          name: 'Nueva gestión',
+          source: 'whatsapp',
+          status: 'new',
+          qualificationStatus: 'pending',
+          createdBy: resolvedBy,
+          updatedBy: resolvedBy,
+        });
+        console.log(`[GestionSync] RESOLVE_CONVERTED_LEAD: new Gestion created with status "new": ${newGestion._id}`);
+      }
+    } catch (error) {
+      console.error('[GestionSync] Error in onResolveConvertedLead:', error);
+    }
   },
 };

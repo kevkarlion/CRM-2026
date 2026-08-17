@@ -231,6 +231,18 @@ export const GestionCard = React.memo(function GestionCard({
         </div>
       )}
 
+      {/* Botón Resuelto - solo para Gestiones ganadas (status won) */}
+      {gestion.status === 'won' && (
+        <div className="mt-1.5">
+          <button
+            onClick={(e) => { e.stopPropagation(); onResolve?.(gestion); }}
+            className="w-full px-2 py-1 text-[10px] font-medium bg-emerald-100 text-emerald-800 rounded hover:bg-emerald-200 transition-colors"
+          >
+            ✓ Resuelto
+          </button>
+        </div>
+      )}
+
       {/* Placeholder fields */}
       {!conversationStatus && (
         <div className="mt-1.5 pt-1.5 border-t border-gray-100 space-y-0.5">

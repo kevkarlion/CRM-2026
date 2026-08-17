@@ -32,6 +32,7 @@ const STATUS_LABELS: Record<string, string> = {
   won: 'Ganado',
   lost: 'Perdido',
   disqualified: 'Descalificado',
+  closed: 'Cerrado',
 };
 
 const STATUS_VARIANTS: Record<string, string> = {
@@ -298,6 +299,18 @@ export const LeadCard = React.memo(function LeadCard({
             className="px-2 py-0.5 text-[10px] font-medium bg-green-50 text-green-700 rounded hover:bg-green-100 transition-colors"
           >
             Descalificar
+          </button>
+        </div>
+      )}
+
+      {/* Botón Resuelto - solo para leads convertidos (status won) */}
+      {lead.status === 'won' && (
+        <div className="mt-1.5">
+          <button
+            onClick={(e) => { e.stopPropagation(); onResolve?.(lead); }}
+            className="w-full px-2 py-1 text-[10px] font-medium bg-emerald-100 text-emerald-800 rounded hover:bg-emerald-200 transition-colors"
+          >
+            ✓ Resuelto
           </button>
         </div>
       )}

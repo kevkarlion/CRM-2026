@@ -52,6 +52,9 @@ export const DOMAIN_EVENTS = {
   // Sale
   SALE_CONFIRMED: 'SALE_CONFIRMED',
 
+  // Resolution (when user resolves a converted lead/client)
+  RESOLVE_CONVERTED_LEAD: 'RESOLVE_CONVERTED_LEAD',
+
   // Client
   CLIENT_CREATED: 'CLIENT_CREATED',
   CLIENT_STATUS_CHANGED: 'CLIENT_STATUS_CHANGED',
@@ -280,6 +283,12 @@ export interface SaleConfirmedPayload {
   saleMode: 'quotes' | 'direct';
   leadName?: string;
   quotesCount?: number;
+}
+
+export interface ResolveConvertedLeadPayload {
+  leadId?: string;
+  clientId: string;
+  resolvedBy: string;
 }
 
 export interface ClientCreatedPayload {

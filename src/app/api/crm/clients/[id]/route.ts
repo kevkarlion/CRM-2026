@@ -30,21 +30,21 @@ export async function GET(
       return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 });
     }
 
-    // Get active Gestion for this client
-    const activeGestion = await GestionModel.findOne({
+    // Get latest Gestion for this client (active or closed)
+    // Show the most recent one so user always sees current status
+    const latestGestion = await GestionModel.findOne({
       clientId: new Types.ObjectId(id),
       tenantId: new Types.ObjectId(tenantId),
-      status: { $nin: ['won', 'lost'] },
-    }).lean();
+    }).sort({ createdAt: -1 }).lean();
 
-    // Return client with active Gestion info
+    // Return client with latest Gestion info
     return NextResponse.json({
       ...client,
-      activeGestion: activeGestion ? {
-        _id: String(activeGestion._id),
-        status: activeGestion.status,
-        name: activeGestion.name,
-        createdAt: activeGestion.createdAt,
+      activeGestion: latestGestion ? {
+        _id: String(latestGestion._id),
+        status: latestGestion.status,
+        name: latestGestion.name,
+        createdAt: latestGestion.createdAt,
       } : null,
     });
   } catch (error: any) {

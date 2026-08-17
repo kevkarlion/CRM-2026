@@ -66,6 +66,9 @@ export default function ClientDetailPage() {
   const [submitting, setSubmitting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
+  // Resolve client flow
+  const [resolvingClient, setResolvingClient] = useState(false);
+
   // Commercial actions drawers
   const [showQuoteDrawer, setShowQuoteDrawer] = useState(false);
   const [showVisitDrawer, setShowVisitDrawer] = useState(false);
@@ -195,6 +198,34 @@ export default function ClientDetailPage() {
       setLoading(false);
     }
   }, [id]);
+
+  // Handle resolve client (close converted lead, create new Gestion)
+  const handleResolveClient = useCallback(async () => {
+    if (!id) return;
+    
+    setResolvingClient(true);
+    try {
+      const res = await fetch(`/api/crm/clients/${id}/resolve`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (res.ok) {
+        // Refresh client data to show new state
+        loadClient();
+      } else {
+        const data = await res.json();
+        setActionError(data.error || 'Error al resolver');
+      }
+    } catch (error) {
+      console.error('[Resolve client] Error:', error);
+      setActionError('Error al resolver cliente');
+    } finally {
+      setResolvingClient(false);
+    }
+  }, [id, loadClient]);
 
   async function refreshClient() {
     try {
@@ -359,6 +390,16 @@ export default function ClientDetailPage() {
                 <span className={`w-2 h-2 rounded-full ${GESTION_STATUS_DOT_COLOR[client.activeGestion.status] || 'bg-gray-400'}`} />
                 {GESTION_STATUS_LABELS[client.activeGestion.status] || client.activeGestion.status}
               </span>
+            )}
+            {/* Botón Resuelto - solo para clientes con Gestion ganada */}
+            {client.activeGestion?.status === 'won' && (
+              <button
+                onClick={handleResolveClient}
+                disabled={resolvingClient}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-sm font-medium bg-emerald-100 text-emerald-800 hover:bg-emerald-200 transition-colors disabled:opacity-50"
+              >
+                {resolvingClient ? 'Resolviendo...' : '✓ Resuelto'}
+              </button>
             )}
           </>
         }

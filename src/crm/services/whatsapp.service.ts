@@ -1041,8 +1041,13 @@ export class WhatsAppService {
       console.log('[Engine] >>> Checking if should publish CUSTOMER_FLOW_COMPLETED');
       console.log('[Engine] >>> isCustomer:', isCustomer, '| isComplete:', isComplete, '| clientId:', clientId, '| tenantId:', tenantId);
       
-      // Publish CUSTOMER_FLOW_COMPLETED when customer completes the flow
-      if (isCustomer && isComplete && clientId && tenantId) {
+      // Publish CUSTOMER_FLOW_COMPLETED when:
+      // 1. Customer completes the full flow (isComplete: true), OR
+      // 2. Customer writes and there's a pending Gestion with status "new" (activates the Gestion)
+      const shouldPublish = (isCustomer && isComplete && clientId && tenantId) || 
+                            (isCustomer && clientId && tenantId); // Also publish when customer writes to activate Gestion
+      
+      if (shouldPublish) {
         console.log('[Engine] >>> CONDITION MET - Will publish event');
         const serviceType = result.context.get<string>('serviceType');
         const description = result.context.get<string>('description');
