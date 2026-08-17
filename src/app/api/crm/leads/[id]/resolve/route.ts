@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { eventBus } from '@/infrastructure/events/event-bus';
 import { DOMAIN_EVENTS } from '@/infrastructure/events/event.types';
 import LeadModel from '@/leads/models/lead';
@@ -11,14 +9,13 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-    }
-
     const { id: leadId } = await params;
-    const tenantId = session.user.tenantId || 'default';
-    const userId = session.user.id || session.user.email;
+    const tenantId = request.headers.get('x-tenant-id');
+    const userId = request.headers.get('x-user-id');
+    
+    if (!tenantId || !userId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
     // Get the lead to find associated client
     const lead = await LeadModel.findOne({
