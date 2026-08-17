@@ -5,6 +5,7 @@ import { connectDB } from '@/core/db';
 import UserModel from '@/core/models/user';
 import UserRoleModel from '@/core/models/user-role';
 import RoleModel from '@/core/models/role';
+import { isMaintenanceMode, isMaintenanceBypassEmail } from '@/lib/maintenance';
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,6 +31,15 @@ export async function POST(request: NextRequest) {
 
     if (user.status !== 'active') {
       return NextResponse.json({ error: 'Account is not active' }, { status: 403 });
+    }
+
+    // Check maintenance mode - only allow users with bypass during maintenance
+    if (isMaintenanceMode() && !isMaintenanceBypassEmail(email)) {
+      console.log(`[Login] Maintenance mode active - denying login for: ${email}`);
+      return NextResponse.json(
+        { error: 'Sistema en mantenimiento. Intente más tarde.' },
+        { status: 503 }
+      );
     }
 
     const secret = process.env.JWT_SECRET;

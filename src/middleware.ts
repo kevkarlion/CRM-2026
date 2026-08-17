@@ -3,32 +3,36 @@ import type { NextRequest } from 'next/server';
 import { jwtVerify } from 'jose';
 import { isMaintenanceMode, isMaintenanceBypassEmail } from '@/lib/maintenance';
 
-const PUBLIC_PATHS = ['/login', '/api/auth/login', '/api/webhook', '/api/admin/seed', '/api/debug', '/_next/', '/favicon.ico', '/mantenimiento'];
+// Paths que NUNCA requieren autenticación
+const PUBLIC_PATHS = ['/api/webhook', '/api/admin/seed', '/api/debug', '/_next/', '/favicon.ico', '/mantenimiento'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Allow public paths without maintenance check
+  // Allow truly public paths without any check
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }
 
   // Check maintenance mode
   if (isMaintenanceMode()) {
-    // Extract email from token for bypass check
+    // Get token
     let token: string | undefined;
-
     const auth = request.headers.get('Authorization');
     if (auth && auth.startsWith('Bearer ')) {
       token = auth.slice(7);
     }
-
     if (!token) {
       token = request.cookies.get('token')?.value;
     }
 
-    let userEmail: string | null = null;
+    // If no token and trying to access protected pages (not login), redirect to login
+    if (!token && pathname !== '/login') {
+      const loginUrl = new URL('/login', request.url);
+      return NextResponse.redirect(loginUrl);
+    }
 
+    // If has token, check if user has bypass
     if (token) {
       const secret = process.env.JWT_SECRET;
       if (secret) {
@@ -36,43 +40,55 @@ export async function middleware(request: NextRequest) {
           const secretKey = new TextEncoder().encode(secret);
           const { payload } = await jwtVerify(token, secretKey, { algorithms: ['HS256'] });
           
-          // Get email from JWT payload (stored during login)
-          userEmail = payload.email as string | null;
-        } catch {
-          // Invalid token - will be handled below
-        }
-      }
-    }
-
-    // Check if user has bypass
-    if (isMaintenanceBypassEmail(userEmail)) {
-      // User has bypass - continue with normal flow
-      const headers = new Headers(request.headers);
-      
-      if (token) {
-        const secret = process.env.JWT_SECRET;
-        if (secret) {
-          try {
-            const secretKey = new TextEncoder().encode(secret);
-            const { payload } = await jwtVerify(token, secretKey, { algorithms: ['HS256'] });
+          const userEmail = payload.email as string | null;
+          
+          // Check if user has bypass
+          if (isMaintenanceBypassEmail(userEmail)) {
+            // User has bypass - continue with normal flow
+            const headers = new Headers(request.headers);
             headers.set('x-user-id', payload.userId as string);
             headers.set('x-tenant-id', payload.tenantId as string);
             headers.set('x-user-roles', ((payload.roles as string[]) || []).join(','));
-          } catch {
-            // Continue without user headers
+            return NextResponse.next({ request: { headers } });
           }
+          
+          // User doesn't have bypass - redirect to maintenance
+          const maintenanceUrl = new URL('/mantenimiento', request.url);
+          return NextResponse.redirect(maintenanceUrl);
+        } catch {
+          // Invalid token
         }
       }
-      
-      return NextResponse.next({ request: { headers } });
     }
 
-    // User doesn't have bypass - redirect to maintenance page
+    // No token or invalid token: /login is allowed during maintenance
+    // (user needs to be able to log in if they have bypass)
+    if (pathname === '/login') {
+      return NextResponse.next();
+    }
+
+    // API auth login allowed during maintenance (handled by route)
+    if (pathname === '/api/auth/login') {
+      return NextResponse.next();
+    }
+
+    // Any other path without valid token with bypass -> maintenance
     const maintenanceUrl = new URL('/mantenimiento', request.url);
     return NextResponse.redirect(maintenanceUrl);
   }
 
   // Normal flow - no maintenance mode
+  // Allow /login without token (redirect handled by client)
+  if (pathname === '/login') {
+    return NextResponse.next();
+  }
+
+  // API auth login without token is allowed
+  if (pathname === '/api/auth/login') {
+    return NextResponse.next();
+  }
+
+  // All other routes require authentication
   let token: string | undefined;
 
   const auth = request.headers.get('Authorization');
@@ -87,6 +103,7 @@ export async function middleware(request: NextRequest) {
   if (!token) {
     return redirectToLogin(request);
   }
+  
   const secret = process.env.JWT_SECRET;
   if (!secret) {
     return redirectToLogin(request);
