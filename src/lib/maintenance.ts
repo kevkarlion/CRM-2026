@@ -22,13 +22,19 @@ interface MaintenanceConfig {
  * Obtiene la configuración de mantenimiento desde variables de entorno
  */
 export function getMaintenanceConfig(): MaintenanceConfig {
-  return {
+  const config = {
     mode: process.env.MAINTENANCE_MODE === 'true',
     adminEmail: process.env.MAINTENANCE_ADMIN_EMAIL || null,
     testPhone: process.env.MAINTENANCE_TEST_PHONE 
       ? normalizePhone(process.env.MAINTENANCE_TEST_PHONE) 
       : null,
   };
+  console.log('[Maintenance] Config loaded:', { 
+    mode: config.mode, 
+    adminEmail: config.adminEmail, 
+    testPhone: config.testPhone 
+  });
+  return config;
 }
 
 /**
@@ -57,6 +63,13 @@ export function isMaintenanceBypassPhone(phone: string | null | undefined): bool
   if (!config.mode) return true; // Si no hay mantenimiento, siempre permite
   
   const normalizedPhone = normalizePhone(phone);
+  console.log('[Maintenance] Phone bypass check:', { 
+    inputPhone: phone, 
+    normalizedPhone, 
+    testPhone: config.testPhone, 
+    match: normalizedPhone === config.testPhone 
+  });
+  
   return normalizedPhone === config.testPhone;
 }
 
