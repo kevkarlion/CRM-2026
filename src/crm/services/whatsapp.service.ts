@@ -982,37 +982,54 @@ export class WhatsAppService {
     if (resolved.flowConfig.id === 'customer-service') {
       console.log('[Engine] Loading customer data for personalized greeting...');
       try {
-        // FIRST: Try to find via ContactModel (phone is stored in contacts, not clients)
+        // FIRST: PRIORITIZE ClientModel - this is the canonical source for customer data
         const normalizedPhoneSearch = normalizedPhone.replace(/^\+/, '');
-        const contactWithPhone = await ContactModel.findOne({
+        const actualClient = await ClientModel.findOne({
           tenantId: new Types.ObjectId(tenantId),
           phone: { $regex: new RegExp(normalizedPhoneSearch, 'i') },
           deletedAt: null,
-        }).populate('clientId').lean();
-        
-        if (contactWithPhone && contactWithPhone.clientId) {
-          const client = contactWithPhone.clientId as any;
-          console.log('[Engine] ✅ Customer found via ContactModel:', client.fullName || client.name);
+        }).lean();
+
+        if (actualClient) {
+          console.log('[Engine] ✅ Client found (canonical source):', actualClient.fullName || actualClient.companyName);
           const tempContext = new ConversationContext(phoneNumber);
-          tempContext.initializeFromCustomer(client);
+          tempContext.initializeFromCustomer({
+            fullName: actualClient.fullName || actualClient.companyName,
+            address: actualClient.address,
+            locality: actualClient.locality,
+            province: actualClient.province,
+            _id: actualClient._id,
+            tenantId: actualClient.tenantId,
+          } as any);
           
+          // Get active Gestion for this client to include scoring data
+          const activeGestion = await GestionModel.findOne({
+            tenantId: new Types.ObjectId(tenantId),
+            clientId: actualClient._id,
+            status: { $nin: ['won', 'lost', 'closed'] },
+          }).lean();
+
           customerData = {
             customerName: tempContext.get('customerName'),
-            address: tempContext.get('address'),
-            locality: tempContext.get('locality'),
-            province: tempContext.get('province'),
+            address: actualClient.address || tempContext.get('address'),
+            locality: actualClient.locality || tempContext.get('locality'),
+            province: actualClient.province || tempContext.get('province'),
             isCustomer: true,
-            clientId: tempContext.get('clientId'),
+            clientId: String(actualClient._id),
             tenantId: tenantId,
-            originalAddress: tempContext.get('address'),
-            originalLocality: tempContext.get('locality'),
-            originalProvince: tempContext.get('province'),
+            originalAddress: actualClient.address || tempContext.get('address'),
+            originalLocality: actualClient.locality || tempContext.get('locality'),
+            originalProvince: actualClient.province || tempContext.get('province'),
+            // Include Gestion data if available
+            gestionScore: activeGestion?.score,
+            gestionTemperature: activeGestion?.temperature,
+            gestionPriority: activeGestion?.priority,
+            gestionStatus: activeGestion?.status,
           };
           
-          console.log('[Engine] Customer data ready:', customerData);
+          console.log('[Engine] Customer data from Client model:', customerData);
         } else {
-          // SECOND: Try to find via LeadModel (lead was won/qualified - use lead data)
-          // Also include 'closed' status because lead converts to client via 'Resuelto'
+          // FALLBACK: Try LeadModel (for legacy data where client may not exist yet)
           console.log('[Engine] Looking for lead with status won/qualified/closed, phone:', normalizedPhoneSearch);
           const lead = await LeadModel.findOne({
             tenantId: new Types.ObjectId(tenantId),
@@ -1022,9 +1039,8 @@ export class WhatsAppService {
           }).lean();
           
           if (lead) {
-            console.log('[Engine] ✅ Customer found via LeadModel (won/qualified):', lead.name);
+            console.log('[Engine] ✅ Customer found via LeadModel (fallback):', lead.name);
             const tempContext = new ConversationContext(phoneNumber);
-            // Initialize from lead data (has name, address, etc.)
             tempContext.initializeFromCustomer({
               fullName: lead.name,
               address: lead.address,
@@ -1047,35 +1063,9 @@ export class WhatsAppService {
               originalProvince: tempContext.get('province'),
             };
             
-            console.log('[Engine] Customer data ready from lead:', customerData);
+            console.log('[Engine] Customer data ready from lead (fallback):', customerData);
           } else {
             console.log('[Engine] ❌ No customer/lead data found for phone:', normalizedPhoneSearch);
-          }
-          
-          // THIRD: Even if we found a lead, find the actual Client to get real clientId
-          // This ensures we use the correct client ID for Gestion events
-          const actualClient = await ClientModel.findOne({
-            tenantId: new Types.ObjectId(tenantId),
-            phone: { $regex: new RegExp(normalizedPhoneSearch, 'i') },
-            deletedAt: null,
-          }).lean();
-
-          if (actualClient) {
-            console.log('[Engine] ✅ Actual client found for event sync:', actualClient.fullName);
-            // Override clientId with real client ID (not lead ID)
-            // Also copy customerName from actual client for personalized greeting
-            customerData = {
-              ...customerData,
-              clientId: String(actualClient._id),
-              customerName: actualClient.fullName || customerData.customerName,
-              address: actualClient.address || customerData.address,
-              locality: actualClient.locality || customerData.locality,
-              province: actualClient.province || customerData.province,
-              originalAddress: actualClient.address || customerData.originalAddress,
-              originalLocality: actualClient.locality || customerData.originalLocality,
-              originalProvince: actualClient.province || customerData.originalProvince,
-            };
-            console.log('[Engine] Updated customerData with real clientId:', customerData.clientId);
           }
         }
       } catch (error) {
