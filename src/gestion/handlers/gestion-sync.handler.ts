@@ -199,6 +199,7 @@ export const gestionSyncHandler = {
   /**
    * Handle CUSTOMER_FLOW_COMPLETED
    * When a customer (already converted) completes the bot flow, update Gestion to contacted
+   * This makes the Gestion visible in the pipeline
    */
   async onCustomerFlowCompleted(event: DomainEvent<CustomerFlowCompletedPayload>): Promise<void> {
     console.log('[GestionSync] >>> CUSTOMER_FLOW_COMPLETED handler called');
@@ -213,10 +214,27 @@ export const gestionSyncHandler = {
       return;
     }
 
-    // NOTE: No se actualiza la Gestion cuando el cliente escribe.
-    // La Gestion se crea solo con "Resuelto" y queda en status "new" (oculta)
-    // El usuario debe resolver manualmente desde el pipeline
-    console.log(`[GestionSync] CUSTOMER_FLOW_COMPLETED: Customer wrote but Gestion stays as-is (created only on resolve)`);
+    // Find the Gestion for this client (should exist after "Resuelto" was clicked)
+    // If it exists and is in "new" status, change to "contacted"
+    try {
+      const gestion = await GestionModel.findOne({
+        clientId: new Types.ObjectId(clientId),
+        tenantId: new Types.ObjectId(tenantId),
+        status: 'new',
+      }).lean();
+
+      if (gestion) {
+        await GestionModel.updateOne(
+          { _id: gestion._id },
+          { $set: { status: 'contacted' } }
+        );
+        console.log(`[GestionSync] CUSTOMER_FLOW_COMPLETED: Gestion ${gestion._id} updated from new → contacted`);
+      } else {
+        console.log(`[GestionSync] CUSTOMER_FLOW_COMPLETED: No Gestion found with status "new" for client ${clientId}`);
+      }
+    } catch (error) {
+      console.error('[GestionSync] Error in onCustomerFlowCompleted:', error);
+    }
   },
 
   /**
