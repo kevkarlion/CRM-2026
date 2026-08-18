@@ -317,10 +317,16 @@ export class ConversationResolver {
     // IMPORTANTE: Esto evita que se cree una nueva conversación cada vez
     
     // Buscar cualquier conversación activa (lead o cliente)
+    // IMPORTANTE: buscar tanto por lifecycleState como por state (ambos campos existen en el schema)
     let anyActive = await ConversationModel.findOne({
       phoneNumber: normalizedPhone,
-      lifecycleState: { $in: ['ACTIVE_LEAD', 'ACTIVE_CLIENT'] },
+      $or: [
+        { lifecycleState: { $in: ['ACTIVE_LEAD', 'ACTIVE_CLIENT'] } },
+        { state: { $in: ['ACTIVE_LEAD', 'ACTIVE_CLIENT'] } }
+      ],
     }).sort({ lastActivityAt: -1 }).lean();
+    
+    console.log('[Resolver] anyActive search result:', anyActive ? `found ${anyActive._id} state=${anyActive.lifecycleState}` : 'NONE');
     
     if (anyActive) {
       // Verificar si la conversación de lead existente debe convertirse a cliente
