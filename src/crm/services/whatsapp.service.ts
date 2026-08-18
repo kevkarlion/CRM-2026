@@ -415,10 +415,11 @@ export class WhatsAppService {
     // Normalizar teléfono dentro de la función
     const normalizedPhone = normalizePhone(phone);
     
-    // Buscar lead existente por teléfono
+    // Buscar lead existente por teléfono - EXCLUIR leads 'closed' y 'won' (ya son clientes)
     let existingLead = await LeadModel.findOne({
       tenantId: new Types.ObjectId(tenantId),
       phone: phoneMatchQuery(normalizedPhone),
+      status: { $nin: ['closed', 'won'] }, // No buscar leads ya convertidos a cliente
       deletedAt: null,
     });
 
@@ -902,11 +903,12 @@ export class WhatsAppService {
           console.log('[Engine] Customer data ready:', customerData);
         } else {
           // SECOND: Try to find via LeadModel (lead was won/qualified - use lead data)
-          console.log('[Engine] Looking for lead with status won/qualified, phone:', normalizedPhoneSearch);
+          // Also include 'closed' status because lead converts to client via 'Resuelto'
+          console.log('[Engine] Looking for lead with status won/qualified/closed, phone:', normalizedPhoneSearch);
           const lead = await LeadModel.findOne({
             tenantId: new Types.ObjectId(tenantId),
             phone: { $regex: new RegExp(normalizedPhoneSearch, 'i') },
-            status: { $in: ['won', 'qualified'] },
+            status: { $in: ['won', 'qualified', 'closed'] },
             deletedAt: null,
           }).lean();
           
@@ -952,9 +954,11 @@ export class WhatsAppService {
           if (actualClient) {
             console.log('[Engine] ✅ Actual client found for event sync:', actualClient.fullName);
             // Override clientId with real client ID (not lead ID)
+            // Also copy customerName from actual client for personalized greeting
             customerData = {
               ...customerData,
               clientId: String(actualClient._id),
+              customerName: actualClient.fullName || customerData.customerName,
               address: actualClient.address || customerData.address,
               locality: actualClient.locality || customerData.locality,
               province: actualClient.province || customerData.province,
