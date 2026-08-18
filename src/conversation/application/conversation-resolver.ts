@@ -119,12 +119,13 @@ export class ConversationResolver {
     // NO usar conversaciones previas como determinante (evita falsos positivos de migración)
     let isClient = !!(contact && contact.clientId);
     
-    // Si no está en ContactModel, buscar en Lead con status "won" (lead convertido a cliente)
+    // IMPORTANTE: Solo considerar cliente cuando el lead está 'closed' (ya se hizo click en "Resuelto")
+    // Un lead 'won' sigue siendo Lead hasta que se hace click en "Resuelto"
     if (!isClient) {
       const lead = await LeadModel.findOne({
         tenantId: new Types.ObjectId(tenantId),
         phone: phoneMatchQuery(normalizedPhone),
-        status: 'won',
+        status: 'closed', // Solo cuando está cerrado por "Resuelto" se convierte en cliente
         deletedAt: null,
       }).lean();
       
@@ -155,11 +156,12 @@ export class ConversationResolver {
         if (client) {
           clientId = String(client._id);
         } else {
-          // Try to find LEAD with status won/qualified O lead closed que fue convertido
+          // Solo buscar Lead con status 'closed' (ya se hizo click en "Resuelto")
+          // Un lead 'won' o 'qualified' sigue siendo Lead hasta que se resuelve
           const wonLead = await LeadModel.findOne({
             tenantId: new Types.ObjectId(tenantId),
             phone: phoneMatchQuery(normalizedPhone),
-            status: { $in: ['won', 'qualified', 'closed'] },
+            status: 'closed',
             deletedAt: null,
           }).lean();
           if (wonLead) {
