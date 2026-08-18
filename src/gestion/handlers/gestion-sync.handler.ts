@@ -217,20 +217,31 @@ export const gestionSyncHandler = {
     // Find the Gestion for this client (should exist after "Resuelto" was clicked)
     // If it exists and is in "new" status, change to "contacted"
     try {
-      const gestion = await GestionModel.findOne({
+      // First try to find with status 'new'
+      let gestion = await GestionModel.findOne({
         clientId: new Types.ObjectId(clientId),
         tenantId: new Types.ObjectId(tenantId),
         status: 'new',
       }).lean();
 
+      // If not found, try to find any active Gestion
+      if (!gestion) {
+        gestion = await GestionModel.findOne({
+          clientId: new Types.ObjectId(clientId),
+          tenantId: new Types.ObjectId(tenantId),
+          status: { $nin: ['won', 'lost', 'closed'] },
+        }).lean();
+      }
+
       if (gestion) {
+        const oldStatus = gestion.status;
         await GestionModel.updateOne(
           { _id: gestion._id },
           { $set: { status: 'contacted' } }
         );
-        console.log(`[GestionSync] CUSTOMER_FLOW_COMPLETED: Gestion ${gestion._id} updated from new → contacted`);
+        console.log(`[GestionSync] CUSTOMER_FLOW_COMPLETED: Gestion ${gestion._id} updated from ${oldStatus} → contacted`);
       } else {
-        console.log(`[GestionSync] CUSTOMER_FLOW_COMPLETED: No Gestion found with status "new" for client ${clientId}`);
+        console.log(`[GestionSync] CUSTOMER_FLOW_COMPLETED: No Gestion found for client ${clientId}`);
       }
     } catch (error) {
       console.error('[GestionSync] Error in onCustomerFlowCompleted:', error);
