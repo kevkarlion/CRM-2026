@@ -2,13 +2,14 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { api, unwrapData } from '@/lib/api-client';
 import { useRole } from '@/dashboard/context/role-context';
 import { SelfAssignmentVisitDrawer } from '@/operations/components/SelfAssignmentVisitDrawer';
 import { TECHNICAL_VISIT_STATUS_LABELS } from '@/operations/constants/status-labels';
 import { SearchInput } from '@/components/ui/SearchInput';
+import { Loader2 } from 'lucide-react';
 
 type Tab = 'all' | 'mine';
 
@@ -157,6 +158,19 @@ function isVisitAssignedToMe(visit: TechnicalVisit, currentUserEmail: string | n
 }
 
 export default function TechnicalVisitsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
+        <span className="ml-2 text-gray-500">Cargando...</span>
+      </div>
+    }>
+      <TechnicalVisitsContent />
+    </Suspense>
+  );
+}
+
+function TechnicalVisitsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isAdmin, isTechnician, user } = useRole();

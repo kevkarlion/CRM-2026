@@ -2,12 +2,13 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { api, unwrapData } from '@/lib/api-client';
 import { useRole } from '@/dashboard/context/role-context';
 import { SelfAssignmentDrawer } from '@/operations/components/SelfAssignmentDrawer';
 import { formatDateShort as formatDate } from '@/operations/helpers/date-utils';
+import { Loader2 } from 'lucide-react';
 import { WORK_ORDER_STATUS_LABELS } from '@/operations/constants/status-labels';
 import { SearchInput } from '@/components/ui/SearchInput';
 
@@ -152,6 +153,19 @@ function sourceBadge(_source: string): { label: string; variant: string } {
 }
 
 export default function WorkOrdersPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
+        <span className="ml-2 text-gray-500">Cargando...</span>
+      </div>
+    }>
+      <WorkOrdersContent />
+    </Suspense>
+  );
+}
+
+function WorkOrdersContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { isAdmin, isTechnician, user } = useRole();
