@@ -71,6 +71,26 @@ function getTenantId(): string | null {
   }
 }
 
+function getUserId(): string | null {
+  try {
+    const storage = (globalThis as Record<string, unknown>).localStorage as { getItem(k: string): string | null } | undefined;
+    const token = storage?.getItem('token') ?? null;
+    if (!token) return null;
+    
+    const parts = token.split('.');
+    if (parts.length !== 3) return null;
+    
+    try {
+      const payload = JSON.parse(atob(parts[1]));
+      return payload.userId ?? null;
+    } catch {
+      return null;
+    }
+  } catch {
+    return null;
+  }
+}
+
 async function request<T>(
   method: string,
   path: string,
@@ -80,9 +100,10 @@ async function request<T>(
 ): Promise<T> {
   const token = getToken();
   const tenantId = getTenantId();
+  const userId = getUserId();
   const headers: Record<string, string> = {};
 
-  console.log('[api-client] token:', !!token, 'tenantId:', tenantId);
+  console.log('[api-client] token:', !!token, 'tenantId:', tenantId, 'userId:', userId);
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
@@ -91,6 +112,11 @@ async function request<T>(
   if (tenantId) {
     headers['x-tenant-id'] = tenantId;
     console.log('[api-client] Setting x-tenant-id header:', tenantId);
+  }
+
+  if (userId) {
+    headers['x-user-id'] = userId;
+    console.log('[api-client] Setting x-user-id header:', userId);
   }
 
   let url = path;

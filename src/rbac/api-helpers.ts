@@ -41,17 +41,23 @@ const ROLE_PERMISSIONS: Record<TenantRoleName, PermissionKey[]> = {
 
 export async function getUserRole(request: NextRequest): Promise<TenantRoleName | null> {
   const authHeader = request.headers.get('Authorization');
+  console.log('[getUserRole] authHeader exists:', !!authHeader);
   if (!authHeader?.startsWith('Bearer ')) {
+    console.log('[getUserRole] No Bearer token found');
     return null;
   }
 
   const token = authHeader.slice(7);
+  console.log('[getUserRole] token length:', token.length);
   const secret = process.env.JWT_SECRET || 'development-secret-key';
   
   try {
     const { payload } = await jwtVerify(token, new TextEncoder().encode(secret));
+    console.log('[getUserRole] JWT payload:', JSON.stringify(payload));
     const roles = payload.roles as string[] | undefined;
+    console.log('[getUserRole] roles from payload:', roles);
     if (!roles || roles.length === 0) {
+      console.log('[getUserRole] No roles found in payload');
       return null;
     }
     
@@ -70,8 +76,10 @@ export async function getUserRole(request: NextRequest): Promise<TenantRoleName 
     };
     
     const normalizedRole = roleMap[roles[0].toLowerCase()];
+    console.log('[getUserRole] normalizedRole:', normalizedRole);
     return normalizedRole || null;
-  } catch {
+  } catch (e) {
+    console.log('[getUserRole] JWT verification failed:', e);
     return null;
   }
 }
