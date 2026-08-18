@@ -119,12 +119,12 @@ export class ConversationResolver {
     // NO usar conversaciones previas como determinante (evita falsos positivos de migración)
     let isClient = !!(contact && contact.clientId);
     
-    // Si no está en ContactModel, buscar en Lead con status "won" o "closed" (lead convertido a cliente)
+    // Si no está en ContactModel, buscar en Lead con status "won" (lead convertido a cliente)
     if (!isClient) {
       const lead = await LeadModel.findOne({
         tenantId: new Types.ObjectId(tenantId),
         phone: phoneMatchQuery(normalizedPhone),
-        status: { $in: ['won', 'closed'] },
+        status: 'won',
         deletedAt: null,
       }).lean();
       
@@ -317,29 +317,45 @@ export class ConversationResolver {
     // IMPORTANTE: Esto evita que se cree una nueva conversación cada vez
     
     // Buscar cualquier conversación activa (lead o cliente)
-    // IMPORTANTE: buscar tanto por lifecycleState como por state (ambos campos existen en el schema)
-    let anyActive = await ConversationModel.findOne({
+    const anyActive = await ConversationModel.findOne({
       phoneNumber: normalizedPhone,
-      $or: [
-        { lifecycleState: { $in: ['ACTIVE_LEAD', 'ACTIVE_CLIENT'] } },
-        { state: { $in: ['ACTIVE_LEAD', 'ACTIVE_CLIENT'] } }
-      ],
+      lifecycleState: { $in: ['ACTIVE_LEAD', 'ACTIVE_CLIENT'] },
     }).sort({ lastActivityAt: -1 }).lean();
     
-    console.log('[Resolver] anyActive search result:', anyActive ? `found ${anyActive._id} state=${anyActive.lifecycleState}` : 'NONE');
-    
     if (anyActive) {
-      // Verificar si la conversación de lead existente debe convertirse a cliente
-      // Si hay una conversación de lead activa pero el lead está closed/won → cerrar lead y crear cliente
-      if (anyActive.conversationType === 'lead' && isClient) {
-        console.log('[Resolver] Converting lead conversation to customer - lead is closed/won');
-        await ConversationModel.updateOne(
-          { _id: anyActive._id },
-          { $set: { lifecycleState: 'RESOLVED', state: 'closed' } }
+      // Ya hay conversación activa → continuar con esa
+      console.log('[Resolver] Found existing ACTIVE conversation:', anyActive._id, 'type:', anyActive.conversationType, 'state:', anyActive.lifecycleState);
+      
+      // Check if conversation is complete in engineData OR conversation document
+      const engineData = anyActive.engineData as Record<string, unknown> | undefined;
+      const isComplete = anyActive.isComplete === true || engineData?.complete === true || engineData?.confirmed === true;
+      
+      // Si la conversación está marcada como completa, tratarla como waiting
+      if (isComplete) {
+        console.log('[Resolver] Conversation is complete (engineData or document) - treating as waiting');
+        const customerName = engineData?.customerName as string | undefined;
+        
+        // Marcar como waiting
+        await this.markAsWaitingState(anyActive._id.toString(), waitingState, true);
+        
+        return this.handleWaitingState(
+          anyActive,
+          normalizedPhone,
+          tenantId,
+          leadId || '',
+          flowConfig,
+          waitingState,
+          customerName,
+          clientId,
+          activeGestionId
         );
-        // No reuse la conversación, crear una nueva
-        anyActive = null;
       }
+      
+      // Usar el flow original de esa conversación
+      const existingFlowConfig = anyActive.conversationType === 'customer' ? CUSTOMER_SERVICE_FLOW : LEAD_QUALIFICATION_FLOW;
+      
+      console.log('[Resolver] → CONTINUE with existing conversation, original flow:', existingFlowConfig.id);
+      return this.continueConversation(anyActive, normalizedPhone, tenantId, leadId || '', existingFlowConfig, clientId, activeGestionId);
     }
     
     // Buscar conversación de espera (ya fue atendido anteriormente)
