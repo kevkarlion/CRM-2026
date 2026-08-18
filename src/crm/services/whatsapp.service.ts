@@ -462,6 +462,19 @@ export class WhatsAppService {
         return { lead: existingLead, isNew: false };
       }
 
+      // IMPORTANTE: Verificar si existe un Cliente para este teléfono
+      // Si existe, NO crear un Lead nuevo - el cliente ya tiene su flujo
+      const existingClient = await ClientModel.findOne({
+        tenantId: new Types.ObjectId(tenantId),
+        phone: phoneMatchQuery(normalizedPhone),
+        deletedAt: null,
+      }).lean();
+
+      if (existingClient) {
+        console.log('[WhatsApp] Client exists for this phone - will use customer flow, no Lead created');
+        return { lead: null, isNew: false };
+      }
+
       // Crear nuevo lead - usar profileName si está disponible, sino fallback a "Lead WhatsApp XXXX"
       const leadName = profileName || `Lead WhatsApp ${normalizedPhone.slice(-4)}`;
       const newLead = new LeadModel({
