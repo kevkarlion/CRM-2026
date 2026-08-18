@@ -383,11 +383,14 @@ export default function WorkOrderDetailPage() {
 
   // Load work report for drawer
   async function loadWorkReport() {
+    setLoadingReport(true);
     try {
       const result = await api.get<{ data: any }>(`/api/operations/work-orders/${id}/report-view`);
       setWorkReport(unwrapData(result));
     } catch {
       // ignore
+    } finally {
+      setLoadingReport(false);
     }
   }
 
@@ -875,7 +878,7 @@ export default function WorkOrderDetailPage() {
             )}
 
             {/* Work Execution Status - Show when work has started */}
-            {(workOrder.status === 'in_progress' || workOrder.status === 'completed') && workOrder.startedAt && (
+            {(workOrder.status === 'in_progress' || workOrder.status === 'completed' || workOrder.status === 'closed') && workOrder.startedAt && (
               <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-amber-700">Estado del Trabajo</span>
@@ -1075,12 +1078,58 @@ export default function WorkOrderDetailPage() {
       {/* Work Report Drawer */}
       <Drawer
         isOpen={showReportDrawer}
-        onClose={() => setShowReportDrawer(false)}
+        onClose={() => {
+            setShowReportDrawer(false);
+            setWorkReport(null);
+          }}
         title="Reporte de Trabajo"
       >
         {loadingReport ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600"></div>
+          <div className="space-y-4 p-2">
+            {/* Header skeleton */}
+            <div className="bg-gray-100 border border-gray-200 rounded-lg p-3 animate-pulse">
+              <div className="h-4 bg-gray-200 rounded w-24"></div>
+            </div>
+            
+            {/* Technician skeleton */}
+            <div>
+              <div className="h-3 bg-gray-200 rounded w-16 mb-1 animate-pulse"></div>
+              <div className="h-5 bg-gray-200 rounded w-32 animate-pulse"></div>
+            </div>
+            
+            {/* Result skeleton */}
+            <div>
+              <div className="h-3 bg-gray-200 rounded w-14 mb-1 animate-pulse"></div>
+              <div className="h-5 bg-gray-200 rounded w-24 animate-pulse"></div>
+            </div>
+            
+            {/* Work performed skeleton */}
+            <div>
+              <div className="h-3 bg-gray-200 rounded w-28 mb-1 animate-pulse"></div>
+              <div className="space-y-2 mt-2">
+                <div className="h-4 bg-gray-200 rounded w-full animate-pulse"></div>
+                <div className="h-4 bg-gray-200 rounded w-3/4 animate-pulse"></div>
+                <div className="h-4 bg-gray-200 rounded w-5/6 animate-pulse"></div>
+              </div>
+            </div>
+            
+            {/* Duration skeleton */}
+            <div>
+              <div className="h-3 bg-gray-200 rounded w-20 mb-1 animate-pulse"></div>
+              <div className="h-5 bg-gray-200 rounded w-16 animate-pulse"></div>
+            </div>
+            
+            {/* Dates skeleton */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <div className="h-3 bg-gray-200 rounded w-20 mb-1 animate-pulse"></div>
+                <div className="h-4 bg-gray-200 rounded w-28 animate-pulse"></div>
+              </div>
+              <div>
+                <div className="h-3 bg-gray-200 rounded w-24 mb-1 animate-pulse"></div>
+                <div className="h-4 bg-gray-200 rounded w-28 animate-pulse"></div>
+              </div>
+            </div>
           </div>
         ) : workReport ? (
           <div className="space-y-4 p-2">

@@ -92,20 +92,27 @@ export async function POST(
     }
 
     // Find the active assignment for this work order and get the technician
-    const assignment = await WorkOrderAssignmentModel.findOne({
+    let assignment = await WorkOrderAssignmentModel.findOne({
       workOrderId: new mongoose.Types.ObjectId(workOrderId),
       tenantId: new mongoose.Types.ObjectId(tenantId),
-      status: { $in: ['assigned', 'acknowledged'] },
+      status: { $in: ['assigned', 'acknowledged', 'in_progress'] },
       deletedAt: null,
     }).populate('technicianId').session(session);
 
-    if (!assignment) {
+    // If no assignment found, check assignedTechnicians array on the work order
+    let technician: any = null;
+    if (!assignment && workOrder.assignedTechnicians?.length > 0) {
+      const techId = workOrder.assignedTechnicians[0];
+      technician = await TechnicianModel.findById(techId).session(session);
+    } else if (assignment) {
+      technician = assignment.technicianId as any;
+    }
+
+    if (!technician) {
       await session.abortTransaction();
       return NextResponse.json({ error: 'No active technician assignment found' }, { status: 404 });
     }
 
-    const technician = assignment.technicianId as any;
-    
     // Verify the current user is the assigned technician (via userId)
     if (!technician || technician.userId?.toString() !== userId) {
       await session.abortTransaction();

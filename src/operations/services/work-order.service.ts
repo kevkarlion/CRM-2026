@@ -1,5 +1,6 @@
 import mongoose, { Types } from 'mongoose';
 import { WorkOrderModel, WorkOrderEventModel, VisitReportModel } from '../models';
+import WorkOrderAssignmentModel from '../models/work-order-assignment';
 import { IWorkOrder, CreateWorkOrderInput, UpdateWorkOrderInput, WorkOrderStatus } from '../types/work-order';
 import { getNextWorkOrderNumber } from '../helpers/counter';
 import { validateTransition, TransitionContext, TransitionError } from '../helpers/state-machine';
@@ -112,6 +113,25 @@ export class WorkOrderService {
         createdBy: userId,
         updatedBy: userId,
       }], { session });
+
+      // Crear WorkOrderAssignment para cada técnico asignado
+      const assignedTechs = (data as any).assignedTechnicians || [];
+      if (assignedTechs.length > 0) {
+        const assignments = assignedTechs.map((techId: string) => ({
+          workOrderId: workOrder._id,
+          technicianId: new Types.ObjectId(techId),
+          tenantId: new Types.ObjectId(tenantId),
+          status: initialStatus === 'scheduled' ? 'scheduled' : 'assigned',
+          assignedAt: new Date(),
+          acknowledgedAt: null,
+          startedAt: null,
+          completedAt: null,
+          deletedAt: null,
+          assignmentType: 'manual' as const,
+          reason: 'other' as const,
+        }));
+        await WorkOrderAssignmentModel.insertMany(assignments, { session });
+      }
 
       // Guardar evento de creación en el historial
       await WorkOrderEventModel.create([{
