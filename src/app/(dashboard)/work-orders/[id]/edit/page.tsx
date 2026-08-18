@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useParams } from 'next/navigation';
 import { api } from '@/lib/api-client';
+import { useRole } from '@/dashboard/context/role-context';
 import {
   LocationActions,
 } from '@/components/location';
@@ -85,6 +86,7 @@ export default function EditWorkOrderPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
+  const { user, isAdmin } = useRole();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -129,6 +131,9 @@ const [form, setForm] = useState({
     materials: '',
     tools: '',
     additionalNotes: '',
+    // Client fields (editable for admins)
+    clientName: '',
+    clientEmail: '',
     // Location fields
     locationAddress: '',
     locationCity: '',
@@ -182,6 +187,9 @@ const [form, setForm] = useState({
           category: wo.category || 'maintenance',
           description: wo.description || '',
           status: wo.status || 'draft',
+          // Client fields
+          clientName: wo.clientSnapshot?.name || '',
+          clientEmail: wo.clientSnapshot?.email || '',
           scheduledDate: datePart(wo.scheduledDate),
           startTime: wo.scheduledStart ? extractLocalTime(wo.scheduledStart) : '',
           endTime: wo.scheduledEnd ? extractLocalTime(wo.scheduledEnd) : '',
@@ -243,6 +251,15 @@ const [form, setForm] = useState({
       // Technician assignment
       if (form.assignedTechnician) {
         body.assignedTechnicians = [form.assignedTechnician];
+      }
+
+      // Client snapshot - only editable for admins
+      if (isAdmin && (form.clientName.trim() || form.clientEmail.trim())) {
+        body.clientSnapshot = {
+          ...(workOrder?.clientSnapshot || {}),
+          name: form.clientName.trim() || undefined,
+          email: form.clientEmail.trim() || undefined,
+        };
       }
       
       // Technician notes
@@ -423,11 +440,31 @@ const [form, setForm] = useState({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-              <div className={readonlyClass}>{workOrder?.clientSnapshot?.name || '—'}</div>
+              {isAdmin ? (
+                <input
+                  type="text"
+                  value={form.clientName}
+                  onChange={(e) => setForm((p) => ({ ...p, clientName: e.target.value }))}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                  placeholder="Nombre del cliente"
+                />
+              ) : (
+                <div className={readonlyClass}>{workOrder?.clientSnapshot?.name || '—'}</div>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <div className={readonlyClass}>{workOrder?.clientSnapshot?.email || '—'}</div>
+              {isAdmin ? (
+                <input
+                  type="email"
+                  value={form.clientEmail}
+                  onChange={(e) => setForm((p) => ({ ...p, clientEmail: e.target.value }))}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+                  placeholder="email@ejemplo.com"
+                />
+              ) : (
+                <div className={readonlyClass}>{workOrder?.clientSnapshot?.email || '—'}</div>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
