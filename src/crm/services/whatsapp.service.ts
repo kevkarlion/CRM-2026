@@ -633,9 +633,11 @@ export class WhatsAppService {
           console.log('🎯 [SCORING] Buscando lead para actualizar...');
           
           try {
+            // Solo actualizar lead si NO está 'closed' ni 'won' (esos son clientes)
             const leadToUpdate = await LeadModel.findOne({
               tenantId: new Types.ObjectId(tenantId),
               phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+              status: { $nin: ['closed', 'won'] },
               deletedAt: null,
             });
             
@@ -760,9 +762,10 @@ export class WhatsAppService {
         }
 
         // SCORING PARA GESTIONES - Solo ejecutar si hay clientId en el contexto del engine
-        // Extraer clientId del contexto del resultado (disponible solo para clientes)
+        // Extraer clientId e isCustomer del contexto del resultado (disponible solo para clientes)
         const clientIdFromContext = engineResult?.context?.get<string>('clientId');
-        if (clientIdFromContext && (isCustomer || customerData?.isCustomer)) {
+        const isCustomerFromContext = engineResult?.context?.get<boolean>('isCustomer');
+        if (clientIdFromContext && (isCustomerFromContext || customerData?.isCustomer)) {
           console.log('🎯 [SCORING GESTION] Buscando gestion activa para cliente:', clientIdFromContext);
           try {
             const activeGestion = await GestionModel.findOne({
