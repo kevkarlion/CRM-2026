@@ -759,13 +759,15 @@ export class WhatsAppService {
           }
         }
 
-        // SCORING PARA GESTIONES - Si es cliente con Gestion activa, actualizar score
-        if (clientId && (isCustomer || customerData?.isCustomer)) {
-          console.log('🎯 [SCORING GESTION] Buscando gestion activa para cliente:', clientId);
+        // SCORING PARA GESTIONES - Solo ejecutar si hay clientId en el contexto del engine
+        // Extraer clientId del contexto del resultado (disponible solo para clientes)
+        const clientIdFromContext = engineResult?.context?.get<string>('clientId');
+        if (clientIdFromContext && (isCustomer || customerData?.isCustomer)) {
+          console.log('🎯 [SCORING GESTION] Buscando gestion activa para cliente:', clientIdFromContext);
           try {
             const activeGestion = await GestionModel.findOne({
               tenantId: new Types.ObjectId(tenantId),
-              clientId: new Types.ObjectId(clientId),
+              clientId: new Types.ObjectId(clientIdFromContext),
               status: { $nin: ['won', 'lost', 'closed'] },
             });
 
@@ -841,7 +843,7 @@ export class WhatsAppService {
                 console.log('[WhatsApp] ✅ Gestion updated with scoring data');
               }
             } else {
-              console.log('🎯 [SCORING GESTION] No se encontró Gestion activa para cliente:', clientId);
+              console.log('🎯 [SCORING GESTION] No se encontró Gestion activa para cliente:', clientIdFromContext);
             }
           } catch (gestionError) {
             console.error('[WhatsApp] Error updating gestion data:', gestionError);
