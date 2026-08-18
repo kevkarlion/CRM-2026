@@ -53,7 +53,9 @@ export const DOMAIN_EVENTS = {
   SALE_CONFIRMED: 'SALE_CONFIRMED',
 
   // Resolution (when user resolves a converted lead/client)
-  RESOLVE_CONVERTED_LEAD: 'RESOLVE_CONVERTED_LEAD',
+  RESOLVE_CONVERTED_LEAD: 'RESOLVE_CONVERTED_LEAD', // Legacy - mantener para compatibilidad
+  LEAD_RESOLVED: 'LEAD_RESOLVED', // Cuando se resuelve desde un lead
+  CLIENT_RESOLVED: 'CLIENT_RESOLVED', // Cuando se resuelve desde un cliente/gestion
 
   // Client
   CLIENT_CREATED: 'CLIENT_CREATED',
@@ -287,6 +289,17 @@ export interface SaleConfirmedPayload {
 
 export interface ResolveConvertedLeadPayload {
   leadId?: string;
+  clientId: string;
+  resolvedBy: string;
+}
+
+export interface LeadResolvedPayload {
+  leadId: string;
+  clientId: string;
+  resolvedBy: string;
+}
+
+export interface ClientResolvedPayload {
   clientId: string;
   resolvedBy: string;
 }

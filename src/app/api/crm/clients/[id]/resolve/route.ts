@@ -28,22 +28,12 @@ export async function POST(
       return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 });
     }
 
-    // Find the associated lead to resolve (if any)
-    const lead = await LeadModel.findOne({
-      clientId: new Types.ObjectId(clientId),
-      tenantId: new Types.ObjectId(tenantId),
-      status: 'won',
-    }).lean();
-
-    const leadId = lead ? String(lead._id) : undefined;
-
-    // Publish RESOLVE_CONVERTED_LEAD event
+    // Publish CLIENT_RESOLVED event (closes current Gestion and creates new one)
     await eventBus.publish({
-      type: DOMAIN_EVENTS.RESOLVE_CONVERTED_LEAD,
+      type: DOMAIN_EVENTS.CLIENT_RESOLVED,
       tenantId,
       userId,
       payload: {
-        leadId,
         clientId,
         resolvedBy: String(userId),
       },

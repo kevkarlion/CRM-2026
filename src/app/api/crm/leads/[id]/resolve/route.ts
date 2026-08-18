@@ -33,9 +33,9 @@ export async function POST(
       return NextResponse.json({ error: 'Lead no tiene cliente asociado' }, { status: 400 });
     }
 
-    // Publish RESOLVE_CONVERTED_LEAD event
+    // Publish LEAD_RESOLVED event
     await eventBus.publish({
-      type: DOMAIN_EVENTS.RESOLVE_CONVERTED_LEAD,
+      type: DOMAIN_EVENTS.LEAD_RESOLVED,
       tenantId,
       userId,
       payload: {

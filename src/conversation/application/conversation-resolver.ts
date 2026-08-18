@@ -323,12 +323,54 @@ export class ConversationResolver {
     }).sort({ lastActivityAt: -1 }).lean();
     
     if (anyActive) {
-      // Ya hay conversación activa → continuar con esa
-      console.log('[Resolver] Found existing ACTIVE conversation:', anyActive._id, 'type:', anyActive.conversationType, 'state:', anyActive.lifecycleState);
+      // Verificar si la conversación de lead existente debe convertirse a cliente
+      // Si hay una conversación de lead activa pero el lead está closed/won → cerrar lead y crear cliente
+      if (anyActive.conversationType === 'lead' && isClient) {
+        console.log('[Resolver] Converting lead conversation to customer - lead is closed/won');
+        await ConversationModel.updateOne(
+          { _id: anyActive._id },
+          { $set: { lifecycleState: 'RESOLVED', state: 'closed' } }
+        );
+        // No reuse la conversación, crear una nueva
+        anyActive = null;
+      } else {
+        // Ya hay conversación activa → continuar con esa
+        console.log('[Resolver] Found existing ACTIVE conversation:', anyActive._id, 'type:', anyActive.conversationType, 'state:', anyActive.lifecycleState);
+      }
+    }
+    
+    if (!anyActive) {
+      console.log('[Resolver] No active conversation or was converted - will create new one');
       
-      // Check if conversation is complete in engineData OR conversation document
-      const engineData = anyActive.engineData as Record<string, unknown> | undefined;
-      const isComplete = anyActive.isComplete === true || engineData?.complete === true || engineData?.confirmed === true;
+      // Create new conversation for the appropriate type
+      const shouldUseCustomerFlow = isClient;
+      const conversationType = shouldUseCustomerFlow ? 'customer' : 'lead';
+      const flowType = shouldUseCustomerFlow ? 'customer-service' : 'lead-qualification';
+      
+      const newConversation = await this.createConversation({
+        phone: normalizedPhone,
+        tenantId,
+        leadId: leadId || '',
+        clientId: clientId || undefined,
+        conversationType,
+        flowType,
+        waitingState,
+      });
+      
+      return this.handleNewConversation(
+        newConversation,
+        normalizedPhone,
+        tenantId,
+        leadId || '',
+        flowConfig,
+        clientId,
+        activeGestionId
+      );
+    }
+    
+    // Check if conversation is complete in engineData OR conversation document
+    const engineData = anyActive.engineData as Record<string, unknown> | undefined;
+    const isComplete = anyActive.isComplete === true || engineData?.complete === true || engineData?.confirmed === true;
       
       // Si la conversación está marcada como completa, tratarla como waiting
       if (isComplete) {

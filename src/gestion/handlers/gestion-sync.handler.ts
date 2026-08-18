@@ -7,6 +7,8 @@ import {
   CustomerFlowCompletedPayload,
   GestionStatusChangedPayload,
   ResolveConvertedLeadPayload,
+  LeadResolvedPayload,
+  ClientResolvedPayload,
 } from '@/infrastructure/events/event.types';
 import GestionModel from '../models/gestion';
 import LeadModel from '@/leads/models/lead';
@@ -32,10 +34,13 @@ export const gestionSyncHandler = {
     // Gestion status changed manually → sync
     on('GESTION_STATUS_CHANGED', gestionSyncHandler.onGestionStatusChanged as EventHandler);
     
-    // User resolved a converted lead/client → close lead, create new Gestion
-    on('RESOLVE_CONVERTED_LEAD', gestionSyncHandler.onResolveConvertedLead as EventHandler);
+    // User resolved a lead (from lead card) → close lead, create first Gestion
+    on('LEAD_RESOLVED', gestionSyncHandler.onLeadResolved as EventHandler);
+    
+    // User resolved a client/gestion → close Gestion, create new Gestion
+    on('CLIENT_RESOLVED', gestionSyncHandler.onClientResolved as EventHandler);
 
-    console.log('[GestionSync] ✅ Handlers registered for: QUOTE_SENT, VISIT_CREATED, SALE_CONFIRMED, CUSTOMER_FLOW_COMPLETED, GESTION_STATUS_CHANGED, RESOLVE_CONVERTED_LEAD');
+    console.log('[GestionSync] ✅ Handlers registered for: QUOTE_SENT, VISIT_CREATED, SALE_CONFIRMED, CUSTOMER_FLOW_COMPLETED, GESTION_STATUS_CHANGED, LEAD_RESOLVED, CLIENT_RESOLVED');
   },
 
   /**
@@ -224,57 +229,53 @@ export const gestionSyncHandler = {
   },
 
   /**
-   * Handle RESOLVE_CONVERTED_LEAD
-   * When user clicks "Resuelto" on a converted Lead/Client:
-   * - Lead status -> closed (desaparece del pipeline)
-   * - Current Gestion -> won (ya estaba)
-   * - New Gestion -> created with status "new" (oculta hasta que cliente escriba)
+   * Handle LEAD_RESOLVED
+   * Cuando se hace click en "Resuelto" desde un LEAD:
+   * - Lead -> closed
+   * - Conversación lead -> resolved
+   * - Crear primera Gestion status new
    */
-  async onResolveConvertedLead(event: DomainEvent<ResolveConvertedLeadPayload>): Promise<void> {
+  async onLeadResolved(event: DomainEvent<LeadResolvedPayload>): Promise<void> {
     const { leadId, clientId, resolvedBy } = event.payload;
     const tenantId = event.tenantId;
 
-    if (!clientId) {
-      console.log('[GestionSync] RESOLVE_CONVERTED_LEAD: no clientId in payload, skipping');
+    if (!clientId || !leadId) {
+      console.log('[GestionSync] LEAD_RESOLVED: missing leadId or clientId, skipping');
       return;
     }
 
     try {
-      console.log(`[GestionSync] RESOLVE_CONVERTED_LEAD: resolving lead ${leadId} / client ${clientId}`);
+      console.log(`[GestionSync] LEAD_RESOLVED: resolving lead ${leadId} / client ${clientId}`);
 
-      // 1. Close the Lead if provided
-      if (leadId) {
-        const lead = await LeadModel.findOne({
-          _id: new Types.ObjectId(leadId),
-          tenantId: new Types.ObjectId(tenantId),
-        });
+      // 1. Close the Lead
+      const lead = await LeadModel.findOne({
+        _id: new Types.ObjectId(leadId),
+        tenantId: new Types.ObjectId(tenantId),
+      });
 
-        if (lead) {
-          await LeadModel.updateOne(
-            { _id: lead._id },
-            { $set: { status: 'closed', updatedBy: resolvedBy } }
-          );
-          console.log(`[GestionSync] RESOLVE_CONVERTED_LEAD: Lead ${leadId} marked as closed`);
+      if (lead) {
+        await LeadModel.updateOne(
+          { _id: lead._id },
+          { $set: { status: 'closed', updatedBy: resolvedBy } }
+        );
+        console.log(`[GestionSync] LEAD_RESOLVED: Lead ${leadId} marked as closed`);
+      }
+
+      // 2. Close any active lead conversation
+      const ConversationModel = (await import('@/conversation/models/conversation')).default;
+      const phone = (lead as any)?.phone;
+      if (phone) {
+        const leadConversation = await ConversationModel.findOneAndUpdate(
+          { phoneNumber: phone, lifecycleState: { $in: ['ACTIVE_LEAD', 'WAITING_LEAD'] } },
+          { $set: { lifecycleState: 'RESOLVED', state: 'resolved' } },
+          { new: true }
+        );
+        if (leadConversation) {
+          console.log(`[GestionSync] LEAD_RESOLVED: Lead conversation ${leadConversation._id} closed`);
         }
       }
 
-      // 2. Close the won Gestion (mark as closed)
-      const wonGestion = await GestionModel.findOne({
-        clientId: new Types.ObjectId(clientId),
-        tenantId: new Types.ObjectId(tenantId),
-        status: 'won',
-      });
-
-      if (wonGestion) {
-        await GestionModel.updateOne(
-          { _id: wonGestion._id },
-          { $set: { status: 'closed', updatedBy: resolvedBy } }
-        );
-        console.log(`[GestionSync] RESOLVE_CONVERTED_LEAD: Gestion ${wonGestion._id} marked as closed`);
-      }
-
-      // 3. Create new Gestion with status "new" (hidden from pipeline until customer writes)
-      // Check if there's already any Gestion for this client (won/lost/closed don't count as active)
+      // 3. Create first Gestion (new) for this client
       const existingAnyGestion = await GestionModel.findOne({
         clientId: new Types.ObjectId(clientId),
         tenantId: new Types.ObjectId(tenantId),
@@ -282,7 +283,7 @@ export const gestionSyncHandler = {
       });
 
       if (existingAnyGestion) {
-        console.log(`[GestionSync] RESOLVE_CONVERTED_LEAD: active Gestion already exists for client ${clientId} (status: ${existingAnyGestion.status}), skipping creation`);
+        console.log(`[GestionSync] LEAD_RESOLVED: active Gestion already exists for client ${clientId}`);
       } else {
         const newGestion = await GestionModel.create({
           clientId: new Types.ObjectId(clientId),
@@ -294,10 +295,70 @@ export const gestionSyncHandler = {
           createdBy: resolvedBy,
           updatedBy: resolvedBy,
         });
-        console.log(`[GestionSync] RESOLVE_CONVERTED_LEAD: new Gestion created with status "new": ${newGestion._id}`);
+        console.log(`[GestionSync] LEAD_RESOLVED: First Gestion created: ${newGestion._id}`);
       }
     } catch (error) {
-      console.error('[GestionSync] Error in onResolveConvertedLead:', error);
+      console.error('[GestionSync] Error in onLeadResolved:', error);
+    }
+  },
+
+  /**
+   * Handle CLIENT_RESOLVED
+   * Cuando se hace click en "Resuelto" desde un CLIENTE/GESTION:
+   * - Gestion actual won -> closed
+   * - Crear nueva Gestion status new
+   */
+  async onClientResolved(event: DomainEvent<ClientResolvedPayload>): Promise<void> {
+    const { clientId, resolvedBy } = event.payload;
+    const tenantId = event.tenantId;
+
+    if (!clientId) {
+      console.log('[GestionSync] CLIENT_RESOLVED: missing clientId, skipping');
+      return;
+    }
+
+    try {
+      console.log(`[GestionSync] CLIENT_RESOLVED: resolving client ${clientId}`);
+
+      // 1. Close the won Gestion
+      const wonGestion = await GestionModel.findOne({
+        clientId: new Types.ObjectId(clientId),
+        tenantId: new Types.ObjectId(tenantId),
+        status: 'won',
+      });
+
+      if (wonGestion) {
+        await GestionModel.updateOne(
+          { _id: wonGestion._id },
+          { $set: { status: 'closed', updatedBy: resolvedBy } }
+        );
+        console.log(`[GestionSync] CLIENT_RESOLVED: Gestion ${wonGestion._id} marked as closed`);
+      }
+
+      // 2. Create new Gestion (new)
+      const existingAnyGestion = await GestionModel.findOne({
+        clientId: new Types.ObjectId(clientId),
+        tenantId: new Types.ObjectId(tenantId),
+        status: { $nin: ['won', 'lost', 'closed'] },
+      });
+
+      if (existingAnyGestion) {
+        console.log(`[GestionSync] CLIENT_RESOLVED: active Gestion already exists for client ${clientId}`);
+      } else {
+        const newGestion = await GestionModel.create({
+          clientId: new Types.ObjectId(clientId),
+          tenantId: new Types.ObjectId(tenantId),
+          name: 'Nueva gestión',
+          source: 'whatsapp',
+          status: 'new',
+          qualificationStatus: 'pending',
+          createdBy: resolvedBy,
+          updatedBy: resolvedBy,
+        });
+        console.log(`[GestionSync] CLIENT_RESOLVED: New Gestion created: ${newGestion._id}`);
+      }
+    } catch (error) {
+      console.error('[GestionSync] Error in onClientResolved:', error);
     }
   },
 };
