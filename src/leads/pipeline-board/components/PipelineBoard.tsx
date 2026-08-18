@@ -300,6 +300,19 @@ export function PipelineBoard() {
           }
         }
       }
+      // Try by clientId from Gestion
+      const clientIdFromGestion = (lead as any).clientId;
+      if (clientIdFromGestion) {
+        const clientIdStr = typeof clientIdFromGestion === 'string' ? clientIdFromGestion : String(clientIdFromGestion);
+        // Search in conversationStatusMap for clientId
+        for (const [key, convStatus] of conversationStatusMap.entries()) {
+          // Also check if this is a customer conversation by looking up by clientId in another way
+          // The conversation API should return clientId in the conversation
+          if (key === clientIdStr || (convStatus as any).clientId === clientIdStr) {
+            return convStatus;
+          }
+        }
+      }
       return conversationStatusMap.get(String(lead._id));
     }
     // For regular leads, use own ID

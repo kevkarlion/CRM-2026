@@ -5,6 +5,7 @@ import ClientModel from '../models/client';
 import ContactModel from '../models/contact';
 import TenantModel from '../../core/models/tenant';
 import { ClientServiceHistoryModel } from '@/clients';
+import GestionModel from '@/gestion/models/gestion';
 import connectDB from '@/core/db';
 import { EVENT_TYPES } from '@/crm/types/activity';
 import TimelineEventModel from '@/timeline/models/timeline-event';
@@ -16,6 +17,7 @@ import type {
 } from '../types/whatsapp-message';
 import type { ILead, InquiryReason, CustomerType } from '../../leads/types/lead';
 import { calculateLeadScore } from '@/leads/services/lead-score.service';
+import { calculateClientScore } from '@/clients/services/client-score.service';
 import { normalizePhone, phoneMatchQuery } from '@/lib/phone';
 import { eventBus } from '@/infrastructure/events/event-bus';
 import { DOMAIN_EVENTS } from '@/infrastructure/events/event.types';
@@ -754,6 +756,95 @@ export class WhatsAppService {
             }
           } catch (error) {
             console.error('[WhatsApp] Error updating lead data:', error);
+          }
+        }
+
+        // SCORING PARA GESTIONES - Si es cliente con Gestion activa, actualizar score
+        if (clientId && (isCustomer || customerData?.isCustomer)) {
+          console.log('🎯 [SCORING GESTION] Buscando gestion activa para cliente:', clientId);
+          try {
+            const activeGestion = await GestionModel.findOne({
+              tenantId: new Types.ObjectId(tenantId),
+              clientId: new Types.ObjectId(clientId),
+              status: { $nin: ['won', 'lost', 'closed'] },
+            });
+
+            if (activeGestion) {
+              console.log('🎯 [SCORING GESTION] Gestion encontrada:', activeGestion._id, 'status:', activeGestion.status);
+              
+              const gestionUpdateData: Record<string, any> = {};
+
+              // Map service type to inquiry reason for Gestion
+              if (needType) {
+                const inquiryReasonMap: Record<string, string> = {
+                  'reparación': 'repair',
+                  'repair': 'repair',
+                  'instalación': 'installation',
+                  'installation': 'installation',
+                  'mantenimiento': 'maintenance',
+                  'maintenance': 'maintenance',
+                  'presupuesto': 'budget',
+                  'budget': 'budget',
+                  'repuestos': 'spare_parts',
+                  'spare_parts': 'spare_parts',
+                  'cotización': 'budget',
+                  'quote': 'budget',
+                };
+                gestionUpdateData.inquiryReason = inquiryReasonMap[needType.toLowerCase()] || needType.toLowerCase();
+              }
+
+              // Priority
+              if (priorityForLead) {
+                gestionUpdateData.priority = priorityForLead;
+              }
+
+              // Address
+              if (address) gestionUpdateData.address = address;
+              if (locality) gestionUpdateData.locality = locality;
+              if (province) gestionUpdateData.province = province;
+
+              // Notes
+              const notesParts: string[] = [];
+              if (needType) notesParts.push(`Servicio: ${needType}`);
+              if (priorityDisplayLabel) notesParts.push(`Necesidad: ${priorityDisplayLabel}`);
+              if (description) notesParts.push(`Descripción: ${description}`);
+              if (notesParts.length > 0) {
+                gestionUpdateData.notes = notesParts.join(' | ');
+              }
+
+              // Calculate score for Gestion
+              const customerTypeFromGestion = activeGestion.customerType || 'residential';
+              const isB2BFromGestion = activeGestion.isB2B || false;
+              
+              const calculatedScore = calculateClientScore({
+                inquiryReason: gestionUpdateData.inquiryReason as any,
+                priority: priorityForLead as 'high' | 'medium' | 'low' | undefined,
+                customerType: customerTypeFromGestion as any,
+                isB2B: isB2BFromGestion,
+                lastContactAt: activeGestion.updatedAt,
+                hasOpenQuote: false,
+                hasScheduledVisit: false,
+              });
+
+              gestionUpdateData.score = calculatedScore.score;
+              gestionUpdateData.temperature = calculatedScore.temperature;
+              gestionUpdateData.scoringBreakdown = {
+                buttons: calculatedScore.breakdown?.buttons || 0,
+                property: calculatedScore.breakdown?.property || 0,
+                keywords: calculatedScore.breakdown?.keywords || 0,
+                b2b: calculatedScore.breakdown?.b2b || 0,
+              };
+
+              if (Object.keys(gestionUpdateData).length > 0) {
+                console.log('🎯 [SCORING GESTION] Guardando:', JSON.stringify(gestionUpdateData));
+                await GestionModel.findByIdAndUpdate(activeGestion._id, { $set: gestionUpdateData });
+                console.log('[WhatsApp] ✅ Gestion updated with scoring data');
+              }
+            } else {
+              console.log('🎯 [SCORING GESTION] No se encontró Gestion activa para cliente:', clientId);
+            }
+          } catch (gestionError) {
+            console.error('[WhatsApp] Error updating gestion data:', gestionError);
           }
         }
       
