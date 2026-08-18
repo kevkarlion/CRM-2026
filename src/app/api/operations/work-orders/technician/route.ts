@@ -54,8 +54,31 @@ export async function GET(request: NextRequest) {
       deletedAt: null,
     };
 
+    // Support multiple statuses separated by comma (e.g., "scheduled,assigned,confirmed")
     if (status) {
-      query.status = status;
+      const statusList = status.split(',').map(s => s.trim()).filter(Boolean);
+      if (statusList.length === 1) {
+        query.status = statusList[0];
+      } else if (statusList.length > 1) {
+        query.status = { $in: statusList };
+      }
+    }
+
+    // Support expired filter (scheduledDate < today, last 30 days)
+    const expired = searchParams.get('expired');
+    if (expired === 'true') {
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
+      // Last 30 days
+      const thirtyDaysAgo = new Date(today);
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+      
+      query.scheduledDate = { $gte: thirtyDaysAgoStr, $lt: todayStr };
+      // Exclude completed/cancelled/closed
+      if (!query.status) {
+        query.status = { $nin: ['completed', 'cancelled', 'closed'] };
+      }
     }
 
     if (priority) {

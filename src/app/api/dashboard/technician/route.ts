@@ -58,12 +58,12 @@ export async function GET(request: NextRequest) {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    // Get assigned work orders count (status: assigned, in_progress, paused)
+    // Get in-progress work orders count (status: in_progress only)
     const inProgressOrders = await WorkOrderModel.countDocuments({
       tenantId: tenantObjectId,
       assignedTechnicians: { $in: [technicianId] },
       deletedAt: null,
-      status: { $in: ['assigned', 'in_progress', 'paused'] },
+      status: 'in_progress',
     });
 
     // Get closed today (work orders + technical visits)
@@ -201,7 +201,26 @@ export async function GET(request: NextRequest) {
       assignedTechnicianId: null,
     });
 
-    // === Órdenes y Visitas Vencidas ===
+    // === Órdenes y Visitas Vencidas del TÉCNICO ESPECÍFICO ===
+    // OT vencidas asignadas a este técnico
+    const myExpiredOrders = await WorkOrderModel.countDocuments({
+      tenantId: tenantObjectId,
+      deletedAt: null,
+      assignedTechnicians: { $in: [technicianId] },
+      status: { $nin: ['completed', 'cancelled', 'closed'] },
+      scheduledDate: { $lt: todayStr },
+    });
+
+    // VT vencidas asignadas a este técnico
+    const myExpiredVisits = await TechnicalVisitModel.countDocuments({
+      tenantId: tenantObjectId,
+      deletedAt: null,
+      assignedTechnicianId: technicianId,
+      status: { $nin: ['completed', 'cancelled', 'converted_to_work_order'] },
+      scheduledDate: { $lt: todayStartDate },
+    });
+
+    // === Órdenes y Visitas Vencidas (GLOBAL) ===
     // Órdenes de trabajo vencidas (fecha programada < hoy Y no completada)
     const expiredOrders = await WorkOrderModel.countDocuments({
       tenantId: tenantObjectId,
@@ -296,7 +315,13 @@ export async function GET(request: NextRequest) {
       pendingOrders,
       inProgressOrders,
       upcomingSevenDays,
-      // Nuevos campos para el técnico
+      // Stats específicos del técnico
+      myStats: {
+        expiredOrders: myExpiredOrders,
+        expiredVisits: myExpiredVisits,
+        totalExpired: myExpiredOrders + myExpiredVisits,
+      },
+      // Stats globales (para auto-asignación)
       globalStats: {
         totalUnassignedOrders,
         totalUnassignedVisits,

@@ -47,15 +47,26 @@ export async function GET(request: NextRequest) {
       deletedAt: null,
     };
 
-    if (status) query.status = status;
-    if (priority) query.priority = priority;
-    if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: 'i' } },
-        { 'clientSnapshot.name': { $regex: search, $options: 'i' } },
-      ];
+    // Support multiple statuses separated by comma
+    if (status) {
+      const statusList = status.split(',').map(s => s.trim()).filter(Boolean);
+      if (statusList.length === 1) {
+        query.status = statusList[0];
+      } else if (statusList.length > 1) {
+        query.status = { $in: statusList };
+      }
     }
-    if (from || to) {
+
+    // Support expired filter
+    const expired = searchParams.get('expired');
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (expired === 'true') {
+      query.scheduledDate = { $lt: today };
+      if (!query.status) {
+        query.status = { $nin: ['completed', 'cancelled', 'converted_to_work_order'] };
+      }
+    } else if (from || to) {
       query.scheduledDate = {};
       if (from) (query.scheduledDate as Record<string, Date>).$gte = new Date(from);
       if (to) (query.scheduledDate as Record<string, Date>).$lte = new Date(to);

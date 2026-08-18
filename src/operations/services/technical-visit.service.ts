@@ -17,8 +17,16 @@ export class TechnicalVisitService {
     if (filters.clientId) query.clientId = new Types.ObjectId(filters.clientId as string);
     if (filters.technicianId) query.assignedTechnicianId = new Types.ObjectId(filters.technicianId as string);
     
-    if (filters.scheduledDateGte || filters.scheduledDateLte) {
-      query.scheduledDate = { $gte: filters.scheduledDateGte as Date, $lte: filters.scheduledDateLte as Date } as any;
+    if (filters.scheduledDateGte || filters.scheduledDateLte || filters.scheduledDateLt) {
+      const dateFilter: Record<string, unknown> = {};
+      if (filters.scheduledDateGte) dateFilter.$gte = filters.scheduledDateGte;
+      if (filters.scheduledDateLte) dateFilter.$lte = filters.scheduledDateLte;
+      if (filters.scheduledDateLt) dateFilter.$lt = filters.scheduledDateLt;
+      query.scheduledDate = dateFilter as any;
+    }
+
+    if (filters.statusNin) {
+      query.status = { $nin: filters.statusNin as string[] };
     }
 
     // Search by title or client name

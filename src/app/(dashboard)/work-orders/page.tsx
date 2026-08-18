@@ -3,7 +3,7 @@
 export const dynamic = 'force-dynamic';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { api, unwrapData } from '@/lib/api-client';
 import { useRole } from '@/dashboard/context/role-context';
 import { SelfAssignmentDrawer } from '@/operations/components/SelfAssignmentDrawer';
@@ -63,9 +63,13 @@ const CANONICAL_STATUS_OPTIONS = [
   { value: '', label: 'Todos' },
   { value: 'draft', label: 'Borrador' },
   { value: 'scheduled', label: 'Programada' },
+  { value: 'assigned', label: 'Asignada' },
   { value: 'in_progress', label: 'En Ejecución' },
   { value: 'completed', label: 'Completada' },
+  { value: 'closed', label: 'Cerrada' },
   { value: 'cancelled', label: 'Cancelada' },
+  { value: 'paused', label: 'Pausada' },
+  { value: 'expired', label: 'Vencidas' },
 ];
 
 // Status label helper - groups multiple internal statuses into simplified view
@@ -123,7 +127,10 @@ function isOverdue(wo: WorkOrder): boolean {
   if (!wo.scheduledDate) return false;
   if (['completed', 'closed', 'cancelled'].includes(wo.status)) return false;
   
-  const scheduled = new Date(wo.scheduledDate);
+  // Parse date in local timezone
+  const dateStr = String(wo.scheduledDate);
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const scheduled = new Date(year, month - 1, day);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
@@ -146,13 +153,16 @@ function sourceBadge(_source: string): { label: string; variant: string } {
 
 export default function WorkOrdersPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isAdmin, isTechnician, user } = useRole();
-  const [activeTab, setActiveTab] = useState<Tab>('all');
+  const [activeTab, setActiveTab] = useState<Tab>(searchParams.get('tab') as Tab || 'all');
   const [orders, setOrders] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState(
+    searchParams.get('expired') === 'true' ? 'expired' : (searchParams.get('status') || '')
+  );
   const [priorityFilter, setPriorityFilter] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
@@ -174,7 +184,12 @@ const fetchOrders = useCallback(async () => {
 
       const params: Record<string, string> = {};
       if (search) params.search = search;
-      if (statusFilter) params.status = statusFilter;
+      // Handle "expired" as a special filter
+      if (statusFilter === 'expired') {
+        params.expired = 'true';
+      } else if (statusFilter) {
+        params.status = statusFilter;
+      }
       if (priorityFilter) params.priority = priorityFilter;
       if (fromDate) params.from = fromDate;
       if (toDate) params.to = toDate;
@@ -325,18 +340,6 @@ const fetchOrders = useCallback(async () => {
               className="w-full relative z-10 rounded-lg border border-gray-200 px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
             >
               {CANONICAL_STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Filtrar por Prioridad:</label>
-            <select
-              value={priorityFilter}
-              onChange={(e) => setPriorityFilter((e.target as any).value)}
-              className="w-full relative z-10 rounded-lg border border-gray-200 px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
-            >
-              {PRIORITY_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>

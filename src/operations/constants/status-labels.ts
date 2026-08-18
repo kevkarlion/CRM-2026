@@ -4,14 +4,12 @@ export const WORK_ORDER_STATUS_LABELS: Record<string, string> = {
   // Estados canónicos
   draft: 'Borrador',
   scheduled: 'Programada',
+  assigned: 'Asignada',
   in_progress: 'En Ejecución',
   completed: 'Completada',
   cancelled: 'Cancelada',
-  // Estados legacy (para compatibilidad con datos antiguos)
-  pending_assignment: 'Pendiente',
-  assigned: 'Asignada',
+  // Estados adicionales
   closed: 'Cerrada',
-  confirmed: 'Confirmada',
   paused: 'Pausada',
 };
 

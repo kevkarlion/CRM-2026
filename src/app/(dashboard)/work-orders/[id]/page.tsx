@@ -934,8 +934,8 @@ export default function WorkOrderDetailPage() {
             {/* Work Execution Buttons - Only for technicians */}
             {isCurrentUserTheAssignedTech() && !isTerminal && (
               <>
-                {/* Start Work button - show when status is 'draft' or 'scheduled' */}
-                {(workOrder.status === 'draft' || workOrder.status === 'scheduled') && (
+                {/* Start Work button - show when status is 'draft', 'scheduled' or 'assigned' */}
+                {(workOrder.status === 'draft' || workOrder.status === 'scheduled' || workOrder.status === 'assigned') && (
                   <>
                     {startingWorkError && (
                       <div className="rounded-lg bg-danger-50 px-3 py-2 text-xs text-danger-700">

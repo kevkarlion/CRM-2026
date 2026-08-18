@@ -182,12 +182,18 @@ export class WorkOrderService {
       clientId?: string;
       scheduledDateGte?: string;
       scheduledDateLte?: string;
+      scheduledDateLt?: string;
+      statusNin?: string[];
     } = {},
   ): Promise<IWorkOrder[]> {
     const query: Record<string, unknown> = { tenantId, deletedAt: null };
 
     if (filters.status) {
       query.status = filters.status;
+    }
+
+    if (filters.statusNin) {
+      query.status = { $nin: filters.statusNin };
     }
 
     if (filters.priority) {
@@ -206,10 +212,11 @@ export class WorkOrderService {
       query.leadId = new Types.ObjectId(filters.leadId);
     }
 
-    if (filters.scheduledDateGte || filters.scheduledDateLte) {
+    if (filters.scheduledDateGte || filters.scheduledDateLte || filters.scheduledDateLt) {
       const dateFilter: Record<string, unknown> = {};
       if (filters.scheduledDateGte) dateFilter.$gte = filters.scheduledDateGte;
       if (filters.scheduledDateLte) dateFilter.$lte = filters.scheduledDateLte;
+      if (filters.scheduledDateLt) dateFilter.$lt = filters.scheduledDateLt;
       query.scheduledDate = dateFilter;
     }
 

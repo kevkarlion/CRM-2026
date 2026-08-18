@@ -148,7 +148,13 @@ export interface TechnicianDashboardResponse {
   pendingOrders: number;
   inProgressOrders: number;
   upcomingSevenDays: number;
-  maxDailyLoad: number; // Límite diario de tareas desde la DB
+  maxDailyLoad: number;
+  // Stats específicos del técnico
+  myStats?: {
+    expiredOrders: number;
+    expiredVisits: number;
+    totalExpired: number;
+  };
   // Datos globales para el técnico
   globalStats?: {
     totalUnassignedOrders: number;
