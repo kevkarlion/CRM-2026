@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
-import RoleModel from '@/src/core/models/role';
-import UserRoleModel from '@/src/core/models/user-role';
+import RoleModel from '@/core/models/role';
+import UserRoleModel from '@/core/models/user-role';
 import mongoose from 'mongoose';
 
 // Temporary route to fix missing user role
