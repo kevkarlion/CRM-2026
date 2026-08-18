@@ -349,42 +349,22 @@ export const gestionSyncHandler = {
     try {
       console.log(`[GestionSync] CLIENT_RESOLVED: resolving client ${clientId}`);
 
-      // 1. Close the won Gestion
-      const wonGestion = await GestionModel.findOne({
+      // 1. Close any existing Gestion (put it back to 'new' for new cycle)
+      const activeGestion = await GestionModel.findOne({
         clientId: new Types.ObjectId(clientId),
         tenantId: new Types.ObjectId(tenantId),
-        status: 'won',
+        status: { $nin: ['closed', 'lost'] },
       });
 
-      if (wonGestion) {
+      if (activeGestion) {
+        // Just reset to 'new' - don't create a new one
         await GestionModel.updateOne(
-          { _id: wonGestion._id },
-          { $set: { status: 'closed', updatedBy: resolvedBy } }
+          { _id: activeGestion._id },
+          { $set: { status: 'new', updatedBy: resolvedBy } }
         );
-        console.log(`[GestionSync] CLIENT_RESOLVED: Gestion ${wonGestion._id} marked as closed`);
-      }
-
-      // 2. Create new Gestion (new)
-      const existingAnyGestion = await GestionModel.findOne({
-        clientId: new Types.ObjectId(clientId),
-        tenantId: new Types.ObjectId(tenantId),
-        status: { $nin: ['won', 'lost', 'closed'] },
-      });
-
-      if (existingAnyGestion) {
-        console.log(`[GestionSync] CLIENT_RESOLVED: active Gestion already exists for client ${clientId}`);
+        console.log(`[GestionSync] CLIENT_RESOLVED: Gestion ${activeGestion._id} reset to 'new' for new cycle`);
       } else {
-        const newGestion = await GestionModel.create({
-          clientId: new Types.ObjectId(clientId),
-          tenantId: new Types.ObjectId(tenantId),
-          name: 'Nueva gestión',
-          source: 'whatsapp',
-          status: 'new',
-          qualificationStatus: 'pending',
-          createdBy: resolvedBy,
-          updatedBy: resolvedBy,
-        });
-        console.log(`[GestionSync] CLIENT_RESOLVED: New Gestion created: ${newGestion._id}`);
+        console.log(`[GestionSync] CLIENT_RESOLVED: No active Gestion found for client ${clientId}`);
       }
     } catch (error) {
       console.error('[GestionSync] Error in onClientResolved:', error);
