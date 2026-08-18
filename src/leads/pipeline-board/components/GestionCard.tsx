@@ -220,15 +220,15 @@ export const GestionCard = React.memo(function GestionCard({
       )}
 
       {/* Nueva actividad - cliente escribió después de última lectura */}
-      {/* Para Gestion: mostrar badge si hay conversationStatus con mensajes nuevos O si la Gestion fue actualizada recientemente (cliente acaba de escribir) */}
+      {/* Para Gestion: mostrar badge si hay conversationStatus con mensajes nuevos O si la Gestion fue actualizada recientemente */}
       {(() => {
         const hasUnread = conversationStatus?.lastInboundMessageAt && 
           (!conversationStatus.lastReadAt || new Date(conversationStatus.lastInboundMessageAt) > new Date(conversationStatus.lastReadAt));
         
-        // Also show badge if Gestion was just updated (within last 2 minutes) - indicates client just wrote
-        const justUpdated = gestion.updatedAt && (new Date().getTime() - new Date(gestion.updatedAt).getTime()) < 2 * 60 * 1000;
+        // Also show badge if Gestion was just updated (within last 3 minutes) - indicates client just wrote
+        const justUpdated = gestion.updatedAt && (new Date().getTime() - new Date(gestion.updatedAt).getTime()) < 3 * 60 * 1000;
         
-        return (hasUnread || (justUpdated && gestion.status === 'new')) && (
+        return (hasUnread || justUpdated) && (
           <div className="flex items-center gap-2 mt-1.5 pt-1.5 border-t border-blue-200 bg-blue-50 rounded">
             <span className="w-3 h-3 rounded-full bg-blue-600 animate-pulse" />
             <span className="text-sm font-bold text-blue-700">Nueva actividad!</span>
