@@ -12,7 +12,14 @@ import { GreetingPersonalizedState } from './greeting_personalized'
 import { ServiceTypeState, getServiceTypeLabel } from './service_type'
 import { AddressConfirmState } from './address_confirm'
 import { DescriptionState } from './description'
+import { DetailState } from './detail'
 import { PriorityState } from './priority'
+import { UrgencyState } from './urgency'
+import { NameState } from './name'
+import { QuoteWorkState } from './quote_work'
+import { SparePartState } from './spare_part'
+import { GeneralQueryState } from './general_query'
+import { SuppliersInfoState } from './suppliers_info'
 import { EvaluateState } from './evaluate'
 import { SummaryState } from './summary'
 import { WaitingOperatorState } from './waiting_operator'
@@ -23,7 +30,14 @@ const CUSTOMER_STATES: Record<string, IConversationState> = {
   service_type: new ServiceTypeState(),
   address_confirm: new AddressConfirmState(),
   description: new DescriptionState(),
+  detail: new DetailState(),
   priority: new PriorityState(),
+  urgency: new UrgencyState(),
+  name: new NameState(),
+  quote_work: new QuoteWorkState(),
+  spare_part: new SparePartState(),
+  general_query: new GeneralQueryState(),
+  suppliers_info: new SuppliersInfoState(),
   evaluate: new EvaluateState(),
   summary: new SummaryState(),
   waiting_operator: new WaitingOperatorState(),
@@ -55,6 +69,13 @@ export { GreetingPersonalizedState } from './greeting_personalized'
 export { ServiceTypeState, getServiceTypeLabel } from './service_type'
 export { AddressConfirmState } from './address_confirm'
 export { DescriptionState } from './description'
+export { DetailState } from './detail'
 export { PriorityState } from './priority'
+export { UrgencyState } from './urgency'
+export { NameState } from './name'
+export { QuoteWorkState } from './quote_work'
+export { SparePartState } from './spare_part'
+export { GeneralQueryState } from './general_query'
+export { SuppliersInfoState } from './suppliers_info'
 export { SummaryState } from './summary'
 export { WaitingOperatorState } from './waiting_operator'
