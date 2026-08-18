@@ -57,8 +57,13 @@ function TechnicianDashboardContent() {
     setTechName(name);
   }, [user.name]);
 
+  // Fecha de hoy para filtros
+  const today = new Date();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
   // Calcular los contadores para las tarjetas
-  // Asignadas: scheduled, confirmed, assigned (no in_progress)
+  // Asignadas para hoy
+  // Asignadas: scheduled, assigned (con técnico asignado)
   const assignedWO = dashboard?.assignedBreakdown?.workOrders ?? 0;
   const assignedVT = dashboard?.assignedBreakdown?.visits ?? 0;
   const totalAssigned = assignedWO + assignedVT;
@@ -206,7 +211,7 @@ function TechnicianDashboardContent() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {/* 1. ASIGNADAS */}
           <Link
-            href="/work-orders?tab=mine&status=assigned"
+            href={`/work-orders?tab=mine&status=scheduled,assigned&startDate=${todayStr}&endDate=${todayStr}`}
             className="group bg-white border border-slate-200 rounded-2xl p-5 hover:border-blue-400 hover:shadow-xl hover:-translate-y-1 transition-all relative overflow-hidden"
           >
             <div className="absolute top-0 right-0 w-20 h-20 bg-blue-50 rounded-full -mr-10 -mt-10 opacity-50" />
@@ -216,7 +221,7 @@ function TechnicianDashboardContent() {
                   <ClipboardList className="w-6 h-6 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Asignadas</p>
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Asignadas para Hoy</p>
                 </div>
               </div>
               <div className="text-4xl font-bold text-slate-900 mb-1">{loading ? '...' : totalAssigned}</div>

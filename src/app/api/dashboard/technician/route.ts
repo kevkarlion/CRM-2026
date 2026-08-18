@@ -261,23 +261,23 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    // === Tareas asignadas activas (no vencidas) ===
-    // OT activas asignadas al técnico con fecha programada >= hoy (no vencidas)
+    // === Tareas asignadas para hoy ===
+    // OT con técnico asignado, status scheduled o assigned, y scheduledDate = hoy
     const assignedOrdersWO = await WorkOrderModel.countDocuments({
       tenantId: tenantObjectId,
       deletedAt: null,
       assignedTechnicians: { $in: [technicianId] },
-      status: { $in: ['scheduled', 'confirmed', 'assigned', 'in_progress', 'paused'] },
-      scheduledDate: { $gte: todayStr },
+      status: { $in: ['scheduled', 'assigned'] },
+      scheduledDate: todayStr,
     });
 
-    // VT activas asignadas al técnico con fecha programada >= hoy (no vencidas)
+    // VT con técnico asignado, status scheduled o assigned, y scheduledDate = hoy
     const assignedVisitsVT = await TechnicalVisitModel.countDocuments({
       tenantId: tenantObjectId,
       deletedAt: null,
       assignedTechnicianId: technicianId,
-      status: { $in: ['scheduled', 'confirmed', 'assigned', 'in_progress', 'paused'] },
-      scheduledDate: { $gte: todayStartDate },
+      status: { $in: ['scheduled', 'assigned'] },
+      scheduledDate: todayStartDate,
     });
 
     const assignedCount = assignedOrdersWO + assignedVisitsVT;

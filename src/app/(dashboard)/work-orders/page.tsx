@@ -178,8 +178,8 @@ function WorkOrdersContent() {
     searchParams.get('expired') === 'true' ? 'expired' : (searchParams.get('status') || '')
   );
   const [priorityFilter, setPriorityFilter] = useState('');
-  const [fromDate, setFromDate] = useState('');
-  const [toDate, setToDate] = useState('');
+  const [fromDate, setFromDate] = useState(searchParams.get('startDate') || '');
+  const [toDate, setToDate] = useState(searchParams.get('endDate') || '');
   const [total, setTotal] = useState(0);
   const [technicians, setTechnicians] = useState<{ _id: string; name: string }[]>([]);
   const [technicianFilter, setTechnicianFilter] = useState('');
