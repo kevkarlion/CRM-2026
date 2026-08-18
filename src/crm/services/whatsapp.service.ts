@@ -765,6 +765,15 @@ export class WhatsAppService {
         // Extraer clientId e isCustomer del contexto del resultado (disponible solo para clientes)
         const clientIdFromContext = engineResult?.context?.get<string>('clientId');
         const isCustomerFromContext = engineResult?.context?.get<boolean>('isCustomer');
+        
+        // Extraer datos del contexto del engine para scoring de Gestion
+        const serviceTypeFromContext = engineResult?.context?.get<string>('serviceType') || engineResult?.context?.get<string>('needType');
+        const priorityFromContext = engineResult?.context?.get<string>('priority') || engineResult?.context?.get<string>('urgency');
+        const addressFromContext = engineResult?.context?.get<string>('address');
+        const localityFromContext = engineResult?.context?.get<string>('locality');
+        const provinceFromContext = engineResult?.context?.get<string>('province');
+        const descriptionFromContext = engineResult?.context?.get<string>('description');
+        
         if (clientIdFromContext && (isCustomerFromContext || customerData?.isCustomer)) {
           console.log('🎯 [SCORING GESTION] Buscando gestion activa para cliente:', clientIdFromContext);
           try {
@@ -780,7 +789,7 @@ export class WhatsAppService {
               const gestionUpdateData: Record<string, any> = {};
 
               // Map service type to inquiry reason for Gestion
-              if (needType) {
+              if (serviceTypeFromContext) {
                 const inquiryReasonMap: Record<string, string> = {
                   'reparación': 'repair',
                   'repair': 'repair',
@@ -795,24 +804,25 @@ export class WhatsAppService {
                   'cotización': 'budget',
                   'quote': 'budget',
                 };
-                gestionUpdateData.inquiryReason = inquiryReasonMap[needType.toLowerCase()] || needType.toLowerCase();
+                gestionUpdateData.inquiryReason = inquiryReasonMap[serviceTypeFromContext.toLowerCase()] || serviceTypeFromContext.toLowerCase();
               }
 
               // Priority
-              if (priorityForLead) {
-                gestionUpdateData.priority = priorityForLead;
+              if (priorityFromContext) {
+                gestionUpdateData.priority = priorityFromContext;
               }
 
               // Address
-              if (address) gestionUpdateData.address = address;
-              if (locality) gestionUpdateData.locality = locality;
-              if (province) gestionUpdateData.province = province;
+              if (addressFromContext) gestionUpdateData.address = addressFromContext;
+              if (localityFromContext) gestionUpdateData.locality = localityFromContext;
+              if (provinceFromContext) gestionUpdateData.province = provinceFromContext;
 
               // Notes
               const notesParts: string[] = [];
-              if (needType) notesParts.push(`Servicio: ${needType}`);
-              if (priorityDisplayLabel) notesParts.push(`Necesidad: ${priorityDisplayLabel}`);
-              if (description) notesParts.push(`Descripción: ${description}`);
+              const priorityLabelFromContext = priorityFromContext === 'high' ? 'Urgente' : priorityFromContext === 'medium' ? 'Normal' : priorityFromContext === 'low' ? 'Sin apuro' : undefined;
+              if (serviceTypeFromContext) notesParts.push(`Servicio: ${serviceTypeFromContext}`);
+              if (priorityLabelFromContext) notesParts.push(`Necesidad: ${priorityLabelFromContext}`);
+              if (descriptionFromContext) notesParts.push(`Descripción: ${descriptionFromContext}`);
               if (notesParts.length > 0) {
                 gestionUpdateData.notes = notesParts.join(' | ');
               }
@@ -823,7 +833,7 @@ export class WhatsAppService {
               
               const calculatedScore = calculateClientScore({
                 inquiryReason: gestionUpdateData.inquiryReason as any,
-                priority: priorityForLead as 'high' | 'medium' | 'low' | undefined,
+                priority: priorityFromContext as 'high' | 'medium' | 'low' | undefined,
                 customerType: customerTypeFromGestion as any,
                 isB2B: isB2BFromGestion,
                 lastContactAt: activeGestion.updatedAt,
