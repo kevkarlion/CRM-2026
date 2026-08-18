@@ -317,7 +317,7 @@ export class ConversationResolver {
     // IMPORTANTE: Esto evita que se cree una nueva conversación cada vez
     
     // Buscar cualquier conversación activa (lead o cliente)
-    const anyActive = await ConversationModel.findOne({
+    let anyActive = await ConversationModel.findOne({
       phoneNumber: normalizedPhone,
       lifecycleState: { $in: ['ACTIVE_LEAD', 'ACTIVE_CLIENT'] },
     }).sort({ lastActivityAt: -1 }).lean();
@@ -333,12 +333,10 @@ export class ConversationResolver {
         );
         // No reuse la conversación, crear una nueva
         anyActive = null;
-      } else {
-        // Ya hay conversación activa → continuar con esa
-        console.log('[Resolver] Found existing ACTIVE conversation:', anyActive._id, 'type:', anyActive.conversationType, 'state:', anyActive.lifecycleState);
       }
     }
     
+    // Si no hay conversación activa (o fue convertida a cliente), crear nueva del tipo apropiado
     if (!anyActive) {
       console.log('[Resolver] No active conversation or was converted - will create new one');
       
@@ -368,36 +366,38 @@ export class ConversationResolver {
       );
     }
     
+    // Si llegamos aquí, hay una conversación activa que NO es lead->cliente conversion
     // Check if conversation is complete in engineData OR conversation document
-    const engineData = anyActive.engineData as Record<string, unknown> | undefined;
-    const isComplete = anyActive.isComplete === true || engineData?.complete === true || engineData?.confirmed === true;
-      
-      // Si la conversación está marcada como completa, tratarla como waiting
-      if (isComplete) {
-        console.log('[Resolver] Conversation is complete (engineData or document) - treating as waiting');
-        const customerName = engineData?.customerName as string | undefined;
+    if (anyActive) {
+      const engineData = anyActive.engineData as Record<string, unknown> | undefined;
+      const isComplete = anyActive.isComplete === true || engineData?.complete === true || engineData?.confirmed === true;
         
-        // Marcar como waiting
-        await this.markAsWaitingState(anyActive._id.toString(), waitingState, true);
+        // Si la conversación está marcada como completa, tratarla como waiting
+        if (isComplete) {
+          console.log('[Resolver] Conversation is complete (engineData or document) - treating as waiting');
+          const customerName = engineData?.customerName as string | undefined;
+          
+          // Marcar como waiting
+          await this.markAsWaitingState(anyActive._id.toString(), waitingState, true);
+          
+          return this.handleWaitingState(
+            anyActive,
+            normalizedPhone,
+            tenantId,
+            leadId || '',
+            flowConfig,
+            waitingState,
+            customerName,
+            clientId,
+            activeGestionId
+          );
+        }
         
-        return this.handleWaitingState(
-          anyActive,
-          normalizedPhone,
-          tenantId,
-          leadId || '',
-          flowConfig,
-          waitingState,
-          customerName,
-          clientId,
-          activeGestionId
-        );
-      }
-      
-      // Usar el flow original de esa conversación
-      const existingFlowConfig = anyActive.conversationType === 'customer' ? CUSTOMER_SERVICE_FLOW : LEAD_QUALIFICATION_FLOW;
-      
-      console.log('[Resolver] → CONTINUE with existing conversation, original flow:', existingFlowConfig.id);
-      return this.continueConversation(anyActive, normalizedPhone, tenantId, leadId || '', existingFlowConfig, clientId, activeGestionId);
+        // Usar el flow original de esa conversación
+        const existingFlowConfig = anyActive.conversationType === 'customer' ? CUSTOMER_SERVICE_FLOW : LEAD_QUALIFICATION_FLOW;
+        
+        console.log('[Resolver] → CONTINUE with existing conversation, original flow:', existingFlowConfig.id);
+        return this.continueConversation(anyActive, normalizedPhone, tenantId, leadId || '', existingFlowConfig, clientId, activeGestionId);
     }
     
     // Buscar conversación de espera (ya fue atendido anteriormente)
