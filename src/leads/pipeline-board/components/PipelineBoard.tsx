@@ -268,7 +268,7 @@ export function PipelineBoard() {
       const gestionPhone = gestion.phone?.replace(/\D/g, '');
       const hasActiveLead = gestionPhone && activeLeadPhones.has(gestionPhone);
       
-      if (!hasActiveLead && gestion.status !== 'lost' && gestion.status !== 'new' && gestion.status !== 'closed') {
+      if (!hasActiveLead && gestion.status !== 'lost' && gestion.status !== 'closed') {
         const stageName = mapGestionStatusToStage(gestion.status);
         if (!result[stageName]) {
           result[stageName] = [];
