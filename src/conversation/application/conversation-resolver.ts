@@ -212,20 +212,11 @@ export class ConversationResolver {
       console.log('[Resolver] Client detected - closing any existing lead conversations');
       await this.closeLeadConversations(normalizedPhone);
       
-      // Crear Gestion si no existe una activa (para cliente que escribe con nueva necesidad)
+      // NO crear Gestion automáticamente cuando el cliente escribe.
+      // La Gestion se crea únicamente cuando se hace click en "Resuelto" en el pipeline.
+      // Si no existe Gestion, el cliente seguirá escribiendo pero sin Gestion asociada.
       if (clientId && !activeGestionId) {
-        try {
-          console.log('[Resolver] Creating new Gestion for client:', clientId);
-          const newGestion = await gestionService.createGestion({
-            clientId,
-            name: 'Nueva gestión',
-            source: 'whatsapp',
-          }, 'whatsapp-bot', tenantId);
-          activeGestionId = String(newGestion._id);
-          console.log('[Resolver] Created Gestion:', activeGestionId);
-        } catch (gestionError) {
-          console.error('[Resolver] Error creating Gestion:', gestionError);
-        }
+        console.log('[Resolver] No active Gestion found - will continue without Gestion (will be created on resolve)');
       }
     }
     
