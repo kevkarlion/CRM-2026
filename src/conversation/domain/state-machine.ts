@@ -31,7 +31,7 @@ const TRANSITIONS: Record<ConversationState, ConversationState[]> = {
   detail: ['address_confirm', 'name', 'evaluate'],
   description: ['evaluate'],
   name: ['summary', 'evaluate'],
-  address_confirm: ['priority', 'evaluate'],
+  address_confirm: ['name', 'evaluate'],
   priority: ['description', 'evaluate'],
   quote_work: ['name', 'evaluate'],
   spare_part: ['name', 'evaluate'],

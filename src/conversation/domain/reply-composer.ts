@@ -99,8 +99,20 @@ Soy *Rolito*, tu asistente virtual.
     content: '📍 ¿En qué dirección o zona se encuentra el equipo?',
   }),
 
+  priority: () => ({
+    content: '⚡ ¿Cuál es la prioridad del servicio?\n\n1️⃣ Normal\n2️⃣ Alta\n3️⃣ Urgente',
+  }),
+
+  description: () => ({
+    content: '📝 ¿Tenés algo más para agregar sobre el servicio o problema?',
+  }),
+
   name: () => ({
     content: '👤 ¿A nombre de quién registramos la visita?',
+  }),
+
+  summary: () => ({
+    content: '🙌 ¡Perfecto! Tu solicitud fue registrada.\n\nUn asesor te contactará a la brevedad.\n\n¡Gracias por comunicarte con Rolo Climatización! 👨‍🔧',
   }),
 
   quote_work: () => ({

@@ -108,6 +108,12 @@ export class IntentExtractor {
   extractNeedType(text: string): InquiryReason | null {
     const lower = text.toLowerCase().trim();
 
+    // Si parece ser un nombre (texto libre en estado de nombre), no es needType
+    // Solo buscar keywords específicos
+    if (lower.length < 20 && !/^\d+$/.test(lower)) {
+      // No es un número solo, puede ser nombre u otra respuesta simple
+    }
+
     // Mapeo de opciones numéricas del menú (7 opciones)
     const OPTION_MAP: Record<string, InquiryReason> = {
       '1': 'maintenance',

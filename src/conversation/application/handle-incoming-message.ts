@@ -75,6 +75,13 @@ export class HandleIncomingMessageUseCase {
     // 2. Extraer intent del mensaje
     const intent = intentExtractor.extractAll(input.messageContent);
 
+    console.log('[HandleIncoming] Intent extracted:', JSON.stringify({
+      needType: intent.needType,
+      urgency: intent.urgency,
+      location: intent.location,
+      hasAnyData: intent.hasAnyData,
+    }));
+
     // 2.1. Si está en greeting_personalized y dice algo simple ("hola", "buenas", etc)
     // → reenviar el menú de 7 opciones
     if (conversation.state === 'greeting_personalized') {
@@ -94,6 +101,12 @@ export class HandleIncomingMessageUseCase {
 
     // 3. Actualizar contexto con los datos extraídos
     const updatedContext = this.mergeContext(conversation.context, intent, input.messageContent, input.profileName);
+
+    // 3.1. Si estamos en estado 'name' y el usuario respondió algo, usar ese texto como nombre
+    if (conversation.state === 'name' && input.messageContent.trim().length > 0 && !updatedContext.userName) {
+      updatedContext.userName = input.messageContent.trim();
+      console.log('[HandleIncoming] Name captured from user response:', updatedContext.userName);
+    }
 
     // 3.1. LeadContactEstablished: el lead provee datos reales por primera vez
     const hadDataBefore = conversation.context.needType
@@ -223,6 +236,7 @@ export class HandleIncomingMessageUseCase {
 
     const newState = transition.nextState;
 
+    console.log('[HandleIncoming] transition.nextState:', transition.nextState, '| isValid:', transition.isValid, '| conversation.state:', conversation.state);
     console.log('[HandleIncoming] newState after advanceState:', newState);
 
     // 7. Actualizar contexto y avanzar conversación
@@ -243,7 +257,9 @@ export class HandleIncomingMessageUseCase {
 
     // 7.1. Si el flujo de 7 ramas se completó (summary o waiting_operator), emitir LeadFlowCompleted
     if (newState === 'summary' || newState === 'waiting_operator') {
-      console.log('[HandleIncoming] Flow completed, emitting LeadFlowCompleted');
+      console.log('[HandleIncoming] Flow completed, emitting LeadFlowCompleted and closing conversation');
+      
+      // Emitir evento para marcar lead como contactado
       actions.push({
         type: 'emit_domain_event',
         event: {
@@ -253,6 +269,17 @@ export class HandleIncomingMessageUseCase {
           timestamp: new Date(),
           context: updatedContext,
         },
+      });
+
+      // Cerrar conversación
+      await conversationService.update(conversation._id, {
+        state: 'closed',
+        closedAt: new Date(),
+      });
+      
+      actions.push({
+        type: 'close_conversation',
+        conversationId: conversation._id,
       });
     }
 
