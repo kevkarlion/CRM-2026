@@ -108,11 +108,11 @@ Soy *Rolito*, tu asistente virtual.
   }),
 
   name: () => ({
-    content: '👤 ¿A nombre de quién registramos la visita?',
+    content: '👤 Para una mejor atención, decinos tu nombre:',
   }),
 
   summary: () => ({
-    content: '🙌 ¡Perfecto! Tu solicitud fue registrada.\n\nUn asesor te contactará a la brevedad.\n\n¡Gracias por comunicarte con Rolo Climatización! 👨‍🔧',
+    content: '🙌 ¡Perfecto! Tu solicitud fue registrada.\n\nUn asesor te contactará a la brevedad.\n\n📅 Horario de atención:\n• Lun a Vie: 9am a 18hs\n• Sáb: 9am a 13hs\n\n¡Gracias por comunicarte con Rolo Climatización! 👨‍🔧',
   }),
 
   quote_work: () => ({
