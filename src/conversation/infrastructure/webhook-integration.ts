@@ -58,6 +58,7 @@ async function findOrCreateLead(
   const newLead = await LeadModel.create({
     tenantId: new Types.ObjectId(tenantId),
     name: pushName || `Lead WhatsApp ${normalizedPhone.slice(-4)}`,
+    profileName: pushName, // Guardar el nombre de perfil de WhatsApp
     phone: normalizedPhone,
     source: 'whatsapp',
     status: 'new',
@@ -174,7 +175,11 @@ export async function processWhatsAppWebhookMessage(
               inquiryReason: event.context?.needType || lead.inquiryReason,
               priority: event.context?.urgency || lead.priority,
               location: event.context?.location,
-              name: event.context?.userName || lead.name,
+              // Si el usuario proporcionó un nombre diferente, usarlo; si no, preservar el profileName existente
+              name: (event.context?.userName && event.context?.userName !== lead.name) 
+                ? event.context?.userName 
+                : (lead.name || event.context?.userName),
+              profileName: event.context?.profileName || lead.profileName,
               updatedBy: 'whatsapp-bot' 
             } 
           },
