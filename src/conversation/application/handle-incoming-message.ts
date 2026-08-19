@@ -61,6 +61,8 @@ export class HandleIncomingMessageUseCase {
       leadId: input.leadId,
     });
 
+    console.log('[HandleIncoming] Conversation state after findOrCreate:', conversation.state, '| context:', JSON.stringify(conversation.context));
+
     // Si la conversación ya está cerrada o en handoff, no procesar
     if (conversation.state === 'closed') {
       return [];
