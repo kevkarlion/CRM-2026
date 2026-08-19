@@ -199,13 +199,13 @@ export class HandleIncomingMessageUseCase {
       return actions;
     }
 
-    // 5. Manejar fallback (respuesta no entendida)
-    //特殊情况：如果在name状态并且用户提供了任何文本（已捕获到userName），则前进到summary而不是fallback
+    // 5. Manejar fallback (respuesta no entendida) - SOLO para estados old, NO para greeting_personalized ni urgency
     const isNameStateWithInput = conversation.state === 'name' && 
                                   input.messageContent.trim().length > 0 && 
                                   updatedContext.userName;
+    const isGreetingOrUrgency = conversation.state === 'greeting_personalized' || conversation.state === 'urgency';
     
-    if (!intent.hasAnyData && !intent.userAskedForHuman && this.isQuestionState(conversation.state) && !isNameStateWithInput) {
+    if (!isGreetingOrUrgency && !intent.hasAnyData && !intent.userAskedForHuman && this.isQuestionState(conversation.state) && !isNameStateWithInput) {
       const newFallbackCount = conversation.fallbackCount + 1;
       const fallbackResult = stateMachine.handleFallback(conversation.state, newFallbackCount);
 
