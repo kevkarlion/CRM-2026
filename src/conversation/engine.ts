@@ -247,8 +247,17 @@ export class ConversationEngine {
     const state = this.stateRegistry.get(stateId, this.flowConfig.id)
     console.log('[Engine] Getting state for:', stateId, '| Found:', state ? state.constructor.name : 'NOT FOUND');
 
+    // If state not found, try using reply composer directly (fallback to state machine logic)
     if (!state) {
-      return this.createErrorResult(context, `State not found: ${stateId}`)
+      console.log('[Engine] State not found, using reply composer fallback for:', stateId);
+      const reply = this.replyComposer.compose({ state: stateId } as any, context)
+      return {
+        message: reply.content,
+        options: reply.options,
+        footer: reply.footer,
+        context,
+        isComplete: false,
+      }
     }
 
     const reply = this.replyComposer.compose(state, context)
