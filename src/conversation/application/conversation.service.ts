@@ -16,7 +16,7 @@ export class ConversationService {
     const existing = await ConversationModel.findOne({
       tenantId: new Types.ObjectId(input.tenantId),
       leadId: new Types.ObjectId(input.leadId),
-      lifecycleState: { $in: ['ACTIVE', 'WAITING_OPERATOR'] },
+      lifecycleState: { $in: ['ACTIVE_LEAD', 'ACTIVE_CLIENT', 'WAITING_OPERATOR', 'WAITING_CLIENT'] },
     }).sort({ createdAt: -1 });
 
     if (existing) {
@@ -41,7 +41,7 @@ export class ConversationService {
       lastMessageAt: now,
       lastActivityAt: now,
       startedAt: now,
-      lifecycleState: 'ACTIVE',
+      lifecycleState: 'ACTIVE_LEAD',
     });
 
     await conversation.save();
