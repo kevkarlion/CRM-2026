@@ -75,6 +75,23 @@ export class HandleIncomingMessageUseCase {
     // 2. Extraer intent del mensaje
     const intent = intentExtractor.extractAll(input.messageContent);
 
+    // 2.1. Si está en greeting_personalized y dice algo simple ("hola", "buenas", etc)
+    // → reenviar el menú de 7 opciones
+    if (conversation.state === 'greeting_personalized') {
+      const simpleWords = ['hola', 'buenas', 'buenos', 'hello', 'hi', 'hey', 'que tal', 'ola'];
+      const isSimpleGreeting = simpleWords.some(w => input.messageContent.toLowerCase().includes(w));
+      
+      if (isSimpleGreeting) {
+        console.log('[HandleIncoming] Simple greeting detected in greeting_personalized - resending menu');
+        const reply = replyComposer.compose('greeting_personalized', {
+          userName: input.profileName,
+          profileName: input.profileName,
+        });
+        actions.push({ type: 'send_message', content: reply.content });
+        return actions;
+      }
+    }
+
     // 3. Actualizar contexto con los datos extraídos
     const updatedContext = this.mergeContext(conversation.context, intent, input.messageContent, input.profileName);
 
