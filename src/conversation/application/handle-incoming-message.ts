@@ -56,10 +56,22 @@ export class HandleIncomingMessageUseCase {
     const actions: BotAction[] = [];
 
     // 1. Buscar o crear conversación
-    let conversation = await conversationService.findOrCreate({
+    const { conversation: foundConversation, isNew } = await conversationService.findOrCreate({
       tenantId: input.tenantId,
       leadId: input.leadId,
     });
+    let conversation = foundConversation;
+
+    // Si es nueva conversación o se reinició, enviar menú de bienvenida inmediatamente
+    if (isNew && conversation.state === 'greeting_personalized') {
+      console.log('[HandleIncoming] New conversation - sending greeting menu');
+      const reply = replyComposer.compose('greeting_personalized', {
+        userName: input.profileName,
+        profileName: input.profileName,
+      });
+      actions.push({ type: 'send_message', content: reply.content });
+      return actions;
+    }
 
     console.log('[HandleIncoming] Conversation state after findOrCreate:', conversation.state, '| context:', JSON.stringify(conversation.context));
 
@@ -92,6 +104,14 @@ export class HandleIncomingMessageUseCase {
         // Recargar la conversación reiniciada y continuar el flujo desde ahí
         conversation = await conversationService.findById(conversation._id);
         console.log('[HandleIncoming] Conversation restarted, new state:', conversation.state);
+        
+        // Enviar menú de bienvenida porque se reinició el flow
+        const reply = replyComposer.compose('greeting_personalized', {
+          userName: input.profileName,
+          profileName: input.profileName,
+        });
+        actions.push({ type: 'send_message', content: reply.content });
+        return actions;
       } else {
         // Si no pasaron 48hs, enviar mensaje de cierre
         const closureMessage = '🙌 Tu solicitud ya fue registrada. Un asesor te contactará a la brevedad.';
@@ -119,6 +139,25 @@ export class HandleIncomingMessageUseCase {
     if (conversation.state === 'greeting_personalized') {
       const simpleWords = ['hola', 'buenas', 'buenos', 'hello', 'hi', 'hey', 'que tal', 'ola'];
       const isSimpleGreeting = simpleWords.some(w => input.messageContent.toLowerCase().includes(w));
+      const isValidOption = /^[1-7]$/.test(input.messageContent.trim());
+      
+      // Si no es greeting simple ni opción válida 1-7, reenviar menú
+      if (!isSimpleGreeting && !isValidOption) {
+        console.log('[HandleIncoming] Invalid option in greeting_personalized - resending menu');
+        const reply = replyComposer.compose('greeting_personalized', {
+          userName: input.profileName,
+          profileName: input.profileName,
+        });
+        actions.push({ type: 'send_message', content: reply.content });
+        
+        // Actualizar conversation para contar el intento
+        await conversationService.update(conversation._id, {
+          lastMessageAt: new Date(),
+          exchangesInSameState: conversation.exchangesInSameState + 1,
+        });
+        
+        return actions;
+      }
       
       if (isSimpleGreeting) {
         console.log('[HandleIncoming] Simple greeting detected in greeting_personalized - resending menu');
@@ -162,8 +201,7 @@ export class HandleIncomingMessageUseCase {
       });
     }
 
-    // 4. Manejar estados especiales primero
-    // NO activar handoff para estados del nuevo flow (opciones 1-7)
+    // 4. Definir si es nuevo flow state
     const isNewFlowState = 
       conversation.state === 'greeting_personalized' || 
       conversation.state === 'urgency' ||
@@ -171,43 +209,6 @@ export class HandleIncomingMessageUseCase {
       conversation.state === 'quote_work' ||
       conversation.state === 'general_query';
     
-    if (intent.userAskedForHuman && conversation.state !== 'handoff_pending' && !isNewFlowState) {
-      const handoffResult = handoffPolicy.shouldHandoff({
-        score: 0,
-        temperature: 'cold',
-        context: updatedContext,
-        fallbackCount: conversation.fallbackCount,
-        timeoutCount: conversation.timeoutCount,
-        exchangesInSameState: conversation.exchangesInSameState,
-        currentState: conversation.state,
-      });
-
-      const reply = replyComposer.composeForHandoff(handoffResult.reason);
-
-      const updates: UpdateConversationInput = {
-        state: 'handoff_pending',
-        previousState: conversation.state,
-        context: updatedContext,
-        handoffStatus: 'pending',
-        handoffReason: handoffResult.reason,
-        lastMessageAt: new Date(),
-        exchangesInSameState: 0,
-      };
-
-      conversation = await conversationService.update(conversation._id, updates);
-
-      actions.push({ type: 'send_message', content: reply.content });
-      actions.push({
-        type: 'trigger_handoff',
-        conversationId: conversation._id,
-        reason: handoffResult.reason,
-        priority: handoffResult.priority,
-      });
-
-      return actions;
-    }
-
-    // 5. Manejar fallback (respuesta no entendida) - SOLO para estados old
     // Excepción: greeting_personalized, urgency, spare_part, quote_work, general_query tienen su propia lógica
     const isNameStateWithInput = conversation.state === 'name' && 
                                   input.messageContent.trim().length > 0 && 
@@ -275,7 +276,12 @@ export class HandleIncomingMessageUseCase {
     }
 
     // 6. Avanzar state machine (skip steps si data ya disponible)
-    const transition = stateMachine.advanceState(conversation.state, updatedContext, input.messageContent);
+    // Para el nuevo flow, NO usar userAskedForHuman - el flow es puro sin handoff
+    const contextForStateMachine = isNewFlowState 
+      ? { ...updatedContext, userAskedForHuman: false }
+      : updatedContext;
+    
+    const transition = stateMachine.advanceState(conversation.state, contextForStateMachine, input.messageContent);
 
     if (!transition.isValid) {
       // Estado terminal o transición inválida

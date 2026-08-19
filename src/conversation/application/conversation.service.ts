@@ -7,12 +7,18 @@ import type {
 import ConversationModel from '../models/conversation';
 import type { Conversation, CreateConversationInput, UpdateConversationInput } from './types';
 
+export interface FindOrCreateResult {
+  conversation: Conversation;
+  isNew: boolean;
+}
+
 export class ConversationService {
 /**
     * Busca una conversación existente o crea una nueva
     * (el flow nuevo de 7 ramas)
+    * Retorna la conversación y un flag indicando si es nueva
     */
-  async findOrCreate(input: CreateConversationInput): Promise<Conversation> {
+  async findOrCreate(input: CreateConversationInput): Promise<FindOrCreateResult> {
     // Primero buscar si existe una conversación activa (no cerrada)
     const existing = await ConversationModel.findOne({
       tenantId: new Types.ObjectId(input.tenantId),
@@ -23,7 +29,7 @@ export class ConversationService {
     // Si existe y no está cerrada, retornarla
     if (existing) {
       console.log('[ConversationService] Found existing active conversation:', existing.state);
-      return this.toConversation(existing);
+      return { conversation: this.toConversation(existing), isNew: false };
     }
 
     // Buscar la última conversación aunque esté cerrada (para no crear nueva si ya cerró)
@@ -35,7 +41,7 @@ export class ConversationService {
     // Si ya existe pero está cerrada, retornarla (el caller la ignorará)
     if (lastConversation && (lastConversation.state === 'closed' || lastConversation.state === 'human_assigned')) {
       console.log('[ConversationService] Found closed conversation, returning for ignore:', lastConversation.state);
-      return this.toConversation(lastConversation);
+      return { conversation: this.toConversation(lastConversation), isNew: false };
     }
 
     // Si no existe, crear nueva desde greeting_personalized
@@ -64,7 +70,7 @@ export class ConversationService {
 
     await conversation.save();
     console.log('[ConversationService] Created new conversation:', conversation.state);
-    return this.toConversation(conversation);
+    return { conversation: this.toConversation(conversation), isNew: true };
   }
 
   /**
