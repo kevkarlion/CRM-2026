@@ -113,20 +113,31 @@ export async function processWhatsAppWebhookMessage(
 
   // 1. Find or create lead
   const { leadId, isNew } = await findOrCreateLead(tenantId, phone, pushName, messageContent);
+  console.log('[WebhookIntegration] findOrCreateLead result - leadId:', leadId, '| isNew:', isNew);
 
   // 2. Save inbound message
   await saveInboundMessage(tenantId, phone, messageContent, leadId, messageId);
 
   // 2.1. Check if conversation is controlled by OPERATOR - if so, skip bot
-  // Buscar por leadId (más confiable que por phone)
-  const conversation = await ConversationModel.findOne({
+  // Primero buscar conversación activa
+  console.log('[WebhookIntegration] Searching conversation for leadId:', leadId);
+  let conversation = await ConversationModel.findOne({
     tenantId: new Types.ObjectId(tenantId),
     leadId: new Types.ObjectId(leadId),
     state: { $nin: ['closed', 'timeout'] },
   }).sort({ lastMessageAt: -1 });
 
-  console.log('[WebhookIntegration] Found conversation for leadId:', conversation?._id, '| owner:', conversation?.owner, '| state:', conversation?.state);
+  // Si no hay activa, buscar la última aunque esté cerrada (para verificar si operador la tenía)
+  if (!conversation) {
+    conversation = await ConversationModel.findOne({
+      tenantId: new Types.ObjectId(tenantId),
+      leadId: new Types.ObjectId(leadId),
+    }).sort({ lastMessageAt: -1 });
+  }
 
+  console.log('[WebhookIntegration] Found conversation for leadId:', conversation?._id, '| owner:', conversation?.owner, '| state:', conversation?.state, '| closedAt:', conversation?.closedAt);
+
+  // Si el operador tiene el control O si fue atendida por operador recientemente, skip bot
   if (conversation && conversation.owner === 'OPERATOR') {
     console.log('[WebhookIntegration] Conversation owned by OPERATOR, skipping bot');
     return {
