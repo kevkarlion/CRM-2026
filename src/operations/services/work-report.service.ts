@@ -161,16 +161,16 @@ export class WorkReportService {
 
     // Validate workPerformed if provided
     if (data.workPerformed && data.workPerformed.length > 10) {
-      errors.push('Maximum 10 work items can be selected');
+      errors.push('Solo puedes seleccionar hasta 10 elementos de trabajo');
     }
 
     // Validate text fields length
-    if (data.observationsText && data.observationsText.length > 1500) {
-      errors.push('Las observaciones no pueden exceder 1500 caracteres');
+    if (data.observationsText && data.observationsText.length > 5000) {
+      errors.push('Las observaciones no pueden exceder 5000 caracteres');
     }
 
-    if (data.additionalIssuesText && data.additionalIssuesText.length > 1500) {
-      errors.push('La descripción del problema no puede exceder 1500 caracteres');
+    if (data.additionalIssuesText && data.additionalIssuesText.length > 5000) {
+      errors.push('La descripción del problema adicional no puede exceder 5000 caracteres');
     }
 
     return {

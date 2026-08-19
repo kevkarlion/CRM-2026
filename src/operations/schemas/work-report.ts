@@ -90,6 +90,7 @@ export const workReportSchema = new Schema<IWorkReport>(
     additionalIssuesText: {
       type: String,
       default: null,
+      maxlength: 5000,
     },
     nextVisitRecommendation: {
       type: String,
