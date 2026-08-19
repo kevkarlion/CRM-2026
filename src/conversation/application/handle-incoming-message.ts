@@ -163,7 +163,15 @@ export class HandleIncomingMessageUseCase {
     }
 
     // 4. Manejar estados especiales primero
-    if (intent.userAskedForHuman && conversation.state !== 'handoff_pending') {
+    // NO activar handoff para estados del nuevo flow (opciones 1-7)
+    const isNewFlowState = 
+      conversation.state === 'greeting_personalized' || 
+      conversation.state === 'urgency' ||
+      conversation.state === 'spare_part' ||
+      conversation.state === 'quote_work' ||
+      conversation.state === 'general_query';
+    
+    if (intent.userAskedForHuman && conversation.state !== 'handoff_pending' && !isNewFlowState) {
       const handoffResult = handoffPolicy.shouldHandoff({
         score: 0,
         temperature: 'cold',
@@ -393,9 +401,18 @@ export class HandleIncomingMessageUseCase {
         location: updatedContext.location ?? engineData.location as string ?? undefined,
         customerType: updatedContext.customerType ?? engineData.customerType as string ?? undefined,
         equipmentType: updatedContext.equipmentType ?? engineData.equipmentType as string ?? undefined,
-      };
-      
+};
+       
       const scoringResult = scoringService.calculateScore(scoringContext as ConversationContext);
+
+      // NO handoff para nuevos flow states - solo cerrar conversación
+      const isNewFlowState =
+        newState === 'summary' || 
+        conversation.state === 'greeting_personalized' || 
+        conversation.state === 'urgency' ||
+        conversation.state === 'spare_part' ||
+        conversation.state === 'quote_work' ||
+        conversation.state === 'general_query';
 
       const handoffResult = handoffPolicy.shouldHandoff({
         score: scoringResult.score,
@@ -438,7 +455,8 @@ export class HandleIncomingMessageUseCase {
         },
       });
 
-      if (handoffResult.shouldHandoff) {
+      // Para nuevo flow, NO hacer handoff - solo cerrar
+      if (handoffResult.shouldHandoff && !isNewFlowState) {
         const reply = replyComposer.composeForHandoff(handoffResult.reason);
 
         await conversationService.update(conversation._id, {

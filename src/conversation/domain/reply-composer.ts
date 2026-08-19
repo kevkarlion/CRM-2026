@@ -41,7 +41,7 @@ Soy *Rolito*, tu asistente virtual.
 4️⃣ Cotizaciones / Presupuestos
 5️⃣ Venta de Repuestos
 6️⃣ Otra consulta
-7️⃣ Proveedores / Administración
+7️⃣ Proveedores
 
 (Respondé con el número de opción)`,
       options: [
@@ -51,7 +51,7 @@ Soy *Rolito*, tu asistente virtual.
         '4️⃣ Cotizaciones / Presupuestos',
         '5️⃣ Venta de Repuestos',
         '6️⃣ Otra consulta',
-        '7️⃣ Proveedores / Administración',
+        '7️⃣ Proveedores',
       ],
     };
   },
@@ -128,7 +128,7 @@ Soy *Rolito*, tu asistente virtual.
   }),
 
   suppliers_info: () => ({
-    content: '📞 Para consultas de proveedores y administración, comunicate directamente al:\n\n📱 2994584104\n\n¡Gracias por comunicarte! 👋',
+    content: '📞 Para consultas de proveedores, comunicate directamente al:\n\n📱 2994584104\n\n¡Gracias por comunicarte! 👋',
   }),
 
   location_asked: () => ({
