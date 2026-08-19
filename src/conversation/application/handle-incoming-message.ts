@@ -63,13 +63,15 @@ export class HandleIncomingMessageUseCase {
 
     console.log('[HandleIncoming] Conversation state after findOrCreate:', conversation.state, '| context:', JSON.stringify(conversation.context));
 
-    // Si la conversación ya está cerrada o en handoff, no procesar
+    // Si la conversación ya está cerrada o en handoff, responder con mensaje de cierre
     if (conversation.state === 'closed') {
-      return [];
+      const closureMessage = '🙌 Tu solicitud ya fue registrada. Un asesor te contactará a la brevedad.';
+      actions.push({ type: 'send_message', content: closureMessage });
+      return actions;
     }
 
     if (conversation.state === 'human_assigned') {
-      return [];
+      return actions;
     }
 
     // 2. Extraer intent del mensaje

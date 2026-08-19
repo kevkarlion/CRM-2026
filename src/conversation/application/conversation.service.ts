@@ -8,12 +8,12 @@ import ConversationModel from '../models/conversation';
 import type { Conversation, CreateConversationInput, UpdateConversationInput } from './types';
 
 export class ConversationService {
-  /**
-   * Busca una conversación existente o crea una nueva
-   * (el flow nuevo de 7 ramas)
-   */
+/**
+    * Busca una conversación existente o crea una nueva
+    * (el flow nuevo de 7 ramas)
+    */
   async findOrCreate(input: CreateConversationInput): Promise<Conversation> {
-    // Primero buscar si existe una conversación activa para este lead
+    // Primero buscar si existe una conversación activa (no cerrada)
     const existing = await ConversationModel.findOne({
       tenantId: new Types.ObjectId(input.tenantId),
       leadId: new Types.ObjectId(input.leadId),
@@ -22,8 +22,20 @@ export class ConversationService {
 
     // Si existe y no está cerrada, retornarla
     if (existing) {
-      console.log('[ConversationService] Found existing conversation:', existing.state);
+      console.log('[ConversationService] Found existing active conversation:', existing.state);
       return this.toConversation(existing);
+    }
+
+    // Buscar la última conversación aunque esté cerrada (para no crear nueva si ya cerró)
+    const lastConversation = await ConversationModel.findOne({
+      tenantId: new Types.ObjectId(input.tenantId),
+      leadId: new Types.ObjectId(input.leadId),
+    }).sort({ lastMessageAt: -1 });
+
+    // Si ya existe pero está cerrada, retornarla (el caller la ignorará)
+    if (lastConversation && (lastConversation.state === 'closed' || lastConversation.state === 'human_assigned')) {
+      console.log('[ConversationService] Found closed conversation, returning for ignore:', lastConversation.state);
+      return this.toConversation(lastConversation);
     }
 
     // Si no existe, crear nueva desde greeting_personalized
