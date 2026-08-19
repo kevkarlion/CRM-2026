@@ -5,20 +5,27 @@ export type WorkOrderPriority = 'normal' | 'high' | 'urgent';
 export type WorkOrderCategory = 'installation' | 'maintenance' | 'repair' | 'inspection' | 'warranty' | 'emergency';
 
 /**
- * Estados canónicos de Orden de Trabajo
+ * Estados canonicos de Orden de Trabajo
  * 
- * draft - Borrador (sin fecha ni técnico)
- * scheduled - Programada (con fecha y técnico)
- * in_progress - En ejecución
+ * draft - Borrador (sin fecha ni tecnico)
+ * scheduled - Programada (con fecha, puede tener o no tecnico)
+ * assigned - Asignada (con tecnico, puede tener o no fecha)
+ * in_progress - En ejecucion
+ * paused - En pausa (no cuenta como vencida)
  * completed - Completada
  * cancelled - Cancelada
  */
 export type WorkOrderStatus = 
   | 'draft'            // Borrador
   | 'scheduled'        // Programada
-  | 'in_progress'      // En ejecución
+  | 'assigned'         // Asignada
+  | 'in_progress'      // En ejecucion
+  | 'paused'           // En pausa
   | 'completed'        // Completada
   | 'cancelled';       // Cancelada
+
+// Estado de negocio - paralelo al status operativo
+export type WorkStatus = 'active' | 'paused' | 'cancelled';
 
 export interface IClientSnapshot {
   name?: string;
@@ -101,6 +108,7 @@ export interface IWorkOrder extends Document, IAuditFields {
   priority: WorkOrderPriority;
   category: WorkOrderCategory;
   status: WorkOrderStatus;
+  workStatus: 'active' | 'paused' | 'cancelled';
   scheduledDate?: string;
   scheduledStart?: Date;
   scheduledEnd?: Date;

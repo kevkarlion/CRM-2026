@@ -24,6 +24,7 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || undefined;
     const priority = searchParams.get('priority') || undefined;
     const expired = searchParams.get('expired') || undefined;
+    const workStatus = searchParams.get('workStatus') || undefined;
 
     const filters: Record<string, unknown> = {};
     if (status) filters.status = status;
@@ -38,6 +39,7 @@ export async function GET(request: NextRequest) {
       filters.scheduledDateGte = thirtyDaysAgoStr;
       filters.scheduledDateLt = todayStr;
       filters.statusNin = ['completed', 'cancelled', 'closed'];
+      filters.workStatus = { $nin: ['paused', 'cancelled'] };
     }
     if (type === 'technical_visit') {
       filters.source = 'technical_visit';
@@ -53,6 +55,7 @@ export async function GET(request: NextRequest) {
     }
     if (search) filters.search = search;
     if (priority) filters.priority = priority;
+    if (workStatus) filters.workStatus = workStatus;
 
     const data = await service.findByTenant(tenantId, filters as any);
 

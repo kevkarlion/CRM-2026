@@ -76,7 +76,7 @@ export const workReportSchema = new Schema<IWorkReport>(
     observationsText: {
       type: String,
       default: null,
-      maxlength: 500,
+      maxlength: 5000,
     },
     hasAdditionalIssues: {
       type: Boolean,

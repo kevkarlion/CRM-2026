@@ -95,23 +95,25 @@ export default function EditWorkOrderPage() {
   const [workOrder, setWorkOrder] = useState<WorkOrderData | null>(null);
   const [technicians, setTechnicians] = useState<Array<{ _id: string; name: string; email?: string }>>([]);
   const STATUS_OPTIONS: { value: string; label: string }[] = [
-  { value: 'draft', label: 'Borrador' },
   { value: 'scheduled', label: 'Programada' },
-  { value: 'in_progress', label: 'En ejecución' },
+  { value: 'assigned', label: 'Asignada' },
+  { value: 'in_progress', label: 'En ejecucion' },
+  { value: 'paused', label: 'En pausa' },
   { value: 'completed', label: 'Completada' },
   { value: 'cancelled', label: 'Cancelada' },
 ];
 
 function getAvailableTransitions(currentStatus: string): string[] {
   const transitions: Record<string, string[]> = {
-    draft: ['scheduled', 'cancelled'],
-    scheduled: ['in_progress', 'cancelled'],
-    in_progress: ['completed', 'cancelled'],
+    scheduled: ['assigned', 'in_progress', 'paused', 'cancelled'],
+    assigned: ['in_progress', 'paused', 'cancelled'],
+    in_progress: ['paused', 'completed', 'cancelled'],
+    paused: ['in_progress', 'cancelled'],
     completed: [],
     cancelled: [],
     // Legacy
+    draft: ['scheduled', 'assigned', 'cancelled'],
     pending_assignment: ['scheduled', 'cancelled'],
-    assigned: ['scheduled', 'cancelled'],
     confirmed: ['scheduled', 'cancelled'],
   };
   return transitions[currentStatus] || [];
@@ -228,6 +230,28 @@ const [form, setForm] = useState({
 
   // Use browser GPS to get current location
   // Removed - not needed without geocoding API
+
+  // Cambiar workStatus (estado de negocio)
+  async function handleWorkStatusChange(newWorkStatus: string) {
+    setSaving(true);
+    setError(null);
+    try {
+      const version = workOrder?.version ?? 0;
+      
+      await api.patch<{ data: any }>(`/api/operations/work-orders/${id}`, {
+        workStatus: newWorkStatus,
+        version: version,
+      });
+      
+      // Reload the work order
+      const woResult = await api.get<{ data: any }>(`/api/operations/work-orders/${id}`);
+      setWorkOrder(woResult.data);
+    } catch (err: any) {
+      setError(err.message || 'Error al cambiar estado');
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function handleSubmit(approve: boolean) {
     setError(null);
@@ -352,11 +376,66 @@ const [form, setForm] = useState({
   const inputClass = 'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none';
   const readonlyClass = 'w-full rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 text-sm text-gray-600';
 
+  // WorkStatus control logic
+  // workStatus: campo de negocio (active/paused/cancelled)
+  // status: campo operativo (draft/scheduled/assigned/in_progress/paused/completed/cancelled/closed)
+  const currentWorkStatus = workOrder?.workStatus || 'active';
+  const isWorkCancelled = currentWorkStatus === 'cancelled';
+  const isWorkPaused = currentWorkStatus === 'paused';
+  const isWorkActive = currentWorkStatus === 'active';
+  
+  // No se puede cambiar workStatus si el status operativo es closed, cancelled o completed
+  const canChangeWorkStatus = !['closed', 'cancelled', 'completed'].includes(workOrder?.status || '');
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Editar Orden de Trabajo</h1>
-        <p className="text-sm text-gray-500 mt-1">Actualiza los datos de la orden de trabajo</p>
+      {/* Header with status badge and actions */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Editar Orden de Trabajo</h1>
+          {/* Badge de estado al lado del titulo */}
+          <span className={`px-3 py-1 text-sm rounded-lg font-medium ${
+            isWorkActive ? 'bg-green-100 text-green-800' : 
+            isWorkPaused ? 'bg-amber-100 text-amber-800' : 
+            'bg-red-100 text-red-800'
+          }`}>
+            {isWorkActive ? 'Activa' : isWorkPaused ? 'Pausada' : 'Cancelada'}
+          </span>
+        </div>
+        
+        {/* Botones de accion al lado opuesto */}
+        {!isWorkCancelled && canChangeWorkStatus && (
+          <div className="flex gap-2">
+            {isWorkActive && (
+              <button
+                type="button"
+                onClick={() => handleWorkStatusChange('paused')}
+                disabled={saving}
+                className="px-3 py-1.5 bg-amber-500 text-white text-sm rounded-lg hover:bg-amber-600 transition-colors disabled:opacity-50"
+              >
+                Pausar
+              </button>
+            )}
+            {isWorkPaused && (
+              <button
+                type="button"
+                onClick={() => handleWorkStatusChange('active')}
+                disabled={saving}
+                className="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+              >
+                Iniciar
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => handleWorkStatusChange('cancelled')}
+              disabled={saving}
+              className="px-3 py-1.5 bg-red-500 text-white text-sm rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+          </div>
+        )}
       </div>
 
       {error && (
@@ -386,20 +465,7 @@ const [form, setForm] = useState({
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
-              <select 
-                name="status" 
-                value={form.status}
-                onChange={(e) => setForm((p) => ({ ...p, status: e.target.value }))}
-                className={inputClass}
-              >
-                {STATUS_OPTIONS.filter(opt => getAvailableTransitions(workOrder?.status || form.status).includes(opt.value) || opt.value === form.status).map((opt) => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
               <select name="category" value={form.category}
                 onChange={(e) => setForm((p) => ({ ...p, category: e.target.value }))}
                 className={inputClass}>

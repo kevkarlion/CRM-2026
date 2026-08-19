@@ -64,7 +64,7 @@ export async function GET(request: NextRequest) {
     if (expired === 'true') {
       query.scheduledDate = { $lt: today };
       if (!query.status) {
-        query.status = { $nin: ['completed', 'cancelled', 'converted_to_work_order'] };
+        query.status = { $nin: ['completed', 'cancelled', 'converted_to_work_order', 'paused'] };
       }
     } else if (from || to) {
       query.scheduledDate = {};

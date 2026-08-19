@@ -76,10 +76,20 @@ export class WorkOrderService {
         ? (typeof scheduledStart === 'string' ? scheduledStart.slice(0, 10) : scheduledStart.toISOString().slice(0, 10))
         : data.scheduledDate;
 
-      // Auto-transition: si tiene fecha Y técnico, crear directamente como "scheduled"
+      // Auto-transition: determinamos estado inicial segun los datos disponibles
       const hasSchedule = !!(scheduledDateFromStart || (data as any).scheduledStart || (data as any).scheduledEnd);
       const hasTechnicians = !!((data as any).assignedTechnicians && (data as any).assignedTechnicians.length > 0);
-      const initialStatus: WorkOrderStatus = (hasSchedule && hasTechnicians) ? 'scheduled' : 'draft';
+      
+      // Logica de estado inicial:
+      // - Si tiene fecha -> scheduled (puede tener o no tecnico)
+      // - Si solo tiene tecnico (sin fecha) -> assigned
+      // - Si no tiene nada -> draft
+      let initialStatus: WorkOrderStatus = 'draft';
+      if (hasSchedule) {
+        initialStatus = 'scheduled';
+      } else if (hasTechnicians) {
+        initialStatus = 'assigned';
+      }
 
       const [workOrder] = await WorkOrderModel.create([{
         ...data,
@@ -204,6 +214,7 @@ export class WorkOrderService {
       scheduledDateLte?: string;
       scheduledDateLt?: string;
       statusNin?: string[];
+      workStatus?: string;
     } = {},
   ): Promise<IWorkOrder[]> {
     const query: Record<string, unknown> = { tenantId, deletedAt: null };
@@ -214,6 +225,22 @@ export class WorkOrderService {
 
     if (filters.statusNin) {
       query.status = { $nin: filters.statusNin };
+    }
+
+    // Filter by workStatus (negocio)
+    // Las OTs sin workStatus se tratan como 'active' (default del schema)
+    if (filters.workStatus) {
+      if (filters.workStatus === 'active') {
+        // Mostrar: workStatus = 'active' O workStatus no existe (undefined/null)
+        query.$or = [
+          { workStatus: 'active' },
+          { workStatus: { $exists: false } },
+          { workStatus: null }
+        ];
+      } else {
+        // Para otros valores (paused, cancelled), buscar valor exacto
+        query.workStatus = filters.workStatus;
+      }
     }
 
     if (filters.priority) {
@@ -262,6 +289,15 @@ export class WorkOrderService {
     userId: string,
     version: number,
   ): Promise<IWorkOrder | null> {
+    // Validación canónica: no se puede cambiar workStatus si la OT está cerrada, cancelada o completada
+    const dataAny = data as any;
+    if (dataAny.workStatus !== undefined) {
+      const current = await WorkOrderModel.findOne({ _id: id, tenantId, deletedAt: null }).select('status').lean();
+      if (current && ['closed', 'cancelled', 'completed'].includes(current.status)) {
+        throw new ValidationError(`No se puede cambiar el estado de negocio cuando la orden está ${current.status === 'closed' ? 'cerrada' : current.status === 'cancelled' ? 'cancelada' : 'completada'}`);
+      }
+    }
+
     // Auto-transition: si se programa y está en "Borrador", pasar a "Programada"
     const isScheduling = !!(data.scheduledDate || data.scheduledStart || data.scheduledEnd);
     let autoStatus: string | undefined;
@@ -274,7 +310,6 @@ export class WorkOrderService {
     }
 
     // Sync scheduledDate from scheduledStart (single source of truth)
-    const dataAny = data as any;
     const scheduledStart = dataAny.scheduledStart;
     const scheduledDateFromStart = scheduledStart !== undefined
       ? (typeof scheduledStart === 'string' ? scheduledStart.slice(0, 10) : scheduledStart.toISOString().slice(0, 10))
@@ -282,8 +317,10 @@ export class WorkOrderService {
 
     // Si viene scheduledStart pero no scheduledDate, derivar scheduledDate
     if (scheduledStart !== undefined && !data.scheduledDate) {
-      (data as any).scheduledDate = scheduledDateFromStart;
+      dataAny.scheduledDate = scheduledDateFromStart;
     }
+
+    const setObj = { ...data, ...(autoStatus ? { status: autoStatus } : {}), updatedBy: userId };
 
     const updated = await WorkOrderModel.findOneAndUpdate(
       { _id: id, tenantId, deletedAt: null, version },

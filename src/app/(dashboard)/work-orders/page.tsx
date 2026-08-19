@@ -60,6 +60,8 @@ const STATUS_OPTIONS = [
 ];
 
 // Canonical statuses only for filtering
+// status = operativo (flujo del técnico)
+// workStatus = negocio (control de vencidas)
 const CANONICAL_STATUS_OPTIONS = [
   { value: '', label: 'Todos' },
   { value: 'draft', label: 'Borrador' },
@@ -69,7 +71,9 @@ const CANONICAL_STATUS_OPTIONS = [
   { value: 'completed', label: 'Completada' },
   { value: 'closed', label: 'Cerrada' },
   { value: 'cancelled', label: 'Cancelada' },
-  { value: 'paused', label: 'Pausada' },
+  { value: 'paused', label: 'Pausada (operativo)' },
+  { value: 'paused_negocio', label: 'Pausada (negocio)' },
+  { value: 'active', label: 'Activa (negocio)' },
   { value: 'expired', label: 'Vencidas' },
 ];
 
@@ -123,10 +127,12 @@ const PRIORITY_LABELS: Record<string, string> = {
   urgent: 'Urgente',
 };
 
-// Check if work order is overdue (past scheduled date and not completed/closed)
+// Check if work order is overdue (past scheduled date and not completed/closed/paused)
 function isOverdue(wo: WorkOrder): boolean {
   if (!wo.scheduledDate) return false;
+  // No es vencida si: completed, closed, cancelled, o si workStatus es paused/cancelled
   if (['completed', 'closed', 'cancelled'].includes(wo.status)) return false;
+  if ((wo as any).workStatus === 'paused' || (wo as any).workStatus === 'cancelled') return false;
   
   // Parse date in local timezone
   const dateStr = String(wo.scheduledDate);
@@ -189,6 +195,45 @@ function WorkOrdersContent() {
   // Self-assignment drawer state
   const [selfAssignOpen, setSelfAssignOpen] = useState(false);
   const [selfAssignWO, setSelfAssignWO] = useState<{ id: string; number: string } | null>(null);
+
+  // WorkStatus dropdown state (negocio)
+  const [workStatusDropdown, setWorkStatusDropdown] = useState<string | null>(null);
+  const [changingWorkStatus, setChangingWorkStatus] = useState<string | null>(null);
+
+  // Cerrar dropdowns al hacer click fuera
+  const dropdownRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (workStatusDropdown && dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+        setWorkStatusDropdown(null);
+      }
+    };
+    
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [workStatusDropdown]);
+
+  // Cambiar workStatus desde la lista (solo actualiza esa fila, no recarga toda la tabla)
+  const handleWorkStatusChange = async (woId: string, newWorkStatus: string, version: number) => {
+    setChangingWorkStatus(woId);
+    try {
+      await api.patch(`/api/operations/work-orders/${woId}`, {
+        workStatus: newWorkStatus,
+        version: version,
+      });
+      // Actualizar solo la fila affected
+      setOrders(prev => prev.map(wo => 
+        wo._id === woId ? { ...wo, workStatus: newWorkStatus, version: version + 1 } : wo
+      ));
+      setWorkStatusDropdown(null);
+    } catch (err) {
+      console.error('Error changing workStatus:', err);
+    } finally {
+      setChangingWorkStatus(null);
+    }
+  };
+
   const mountedRef = useRef(false);
 
 const fetchOrders = useCallback(async () => {
@@ -198,10 +243,18 @@ const fetchOrders = useCallback(async () => {
 
       const params: Record<string, string> = {};
       if (search) params.search = search;
-      // Handle "expired" as a special filter
+      
+      // Handle special filters
       if (statusFilter === 'expired') {
         params.expired = 'true';
+      } else if (statusFilter === 'paused_negocio') {
+        // Filter by workStatus === 'paused' (negocio)
+        params.workStatus = 'paused';
+      } else if (statusFilter === 'active') {
+        // Filter by workStatus === 'active' (negocio)
+        params.workStatus = 'active';
       } else if (statusFilter) {
+        // Regular status filter (operativo)
         params.status = statusFilter;
       }
       if (priorityFilter) params.priority = priorityFilter;
@@ -521,16 +574,17 @@ const fetchOrders = useCallback(async () => {
 <div className="hidden sm:block bg-white border border-gray-200 rounded-xl overflow-hidden">
             <table className="w-full text-xs">
               <thead>
-                <tr className="border-b border-gray-200 bg-gray-50/80">
+<tr className="border-b border-gray-200 bg-gray-50/80">
                   <th className="w-14 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"></th>
                   <th className="w-16 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">#</th>
-                  <th className="min-w-[120px] px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Título</th>
+                  <th className="min-w-[120px] px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Titulo</th>
                   <th className="min-w-[100px] px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Cliente</th>
                   <th className="w-20 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Estado</th>
+                  <th className="w-20 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Negocio</th>
                   <th className="w-20 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Prioridad</th>
-                  <th className="w-24 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-brand-600" onClick={() => handleSort('createdAt')}>Creación <SortIcon field="createdAt" /></th>
+                  <th className="w-24 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-brand-600" onClick={() => handleSort('createdAt')}>Creacion <SortIcon field="createdAt" /></th>
                   <th className="w-24 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-brand-600" onClick={() => handleSort('scheduledDate')}>Fecha <SortIcon field="scheduledDate" /></th>
-                  <th className="px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Técnico</th>
+                  <th className="px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tecnico</th>
                 </tr>
               </thead>
               <tbody>
@@ -580,6 +634,75 @@ const fetchOrders = useCallback(async () => {
                             </span>
                           )}
                         </div>
+                      </td>
+                      {/* Columna de estado de negocio (workStatus) */}
+                      <td className="px-2 py-1.5 align-middle">
+                        {(() => {
+                          const canChange = !['closed', 'cancelled', 'completed'].includes(wo.status);
+                          
+                          if (changingWorkStatus === wo._id) {
+                            return <span className="text-xs text-gray-400">Cambiando...</span>;
+                          }
+                          
+                          return (
+                            <div className="relative" ref={dropdownRef}>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (canChange) {
+                                    setWorkStatusDropdown(workStatusDropdown === wo._id ? null : wo._id);
+                                  }
+                                }}
+                                className={`inline-flex items-center justify-between px-2 py-0.5 rounded-md text-xs font-medium w-20 ${
+                                  canChange ? 'cursor-pointer hover:opacity-80' : 'cursor-not-allowed opacity-60'
+                                } ${
+                                  wo.workStatus === 'active' ? 'bg-green-100 text-green-800' :
+                                  wo.workStatus === 'paused' ? 'bg-amber-100 text-amber-800' :
+                                  wo.workStatus === 'cancelled' ? 'bg-red-100 text-red-800' :
+                                  'bg-gray-100 text-gray-700'
+                                }`}
+                              >
+                                <span className="truncate">
+                                  {(!wo.workStatus || wo.workStatus === 'active') ? 'Activa' : 
+                                   wo.workStatus === 'paused' ? 'Pausada' : 
+                                   wo.workStatus === 'cancelled' ? 'Cancelada' : 
+                                   wo.workStatus}
+                                </span>
+                                {canChange && (
+                                  <svg className="w-3 h-3 ml-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                  </svg>
+                                )}
+                              </button>
+                              
+                              {/* Dropdown menu - solo muestra opciones distintas al actual */}
+                              {workStatusDropdown === wo._id && canChange && (() => {
+                                const currentWs = wo.workStatus || 'active';
+                                const options = [];
+                                if (currentWs !== 'active') options.push({ value: 'active', label: 'Activa', color: 'green' });
+                                if (currentWs !== 'paused') options.push({ value: 'paused', label: 'Pausada', color: 'amber' });
+                                if (currentWs !== 'cancelled') options.push({ value: 'cancelled', label: 'Cancelada', color: 'red' });
+                                
+                                return options.length > 0 ? (
+                                  <div className="absolute z-10 mt-1 w-28 bg-white border border-gray-200 rounded-lg shadow-lg" onClick={(e) => e.stopPropagation()}>
+                                    {options.map(opt => (
+                                      <button
+                                        key={opt.value}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleWorkStatusChange(wo._id, opt.value, wo.version);
+                                        }}
+                                        className={`block w-full text-left px-3 py-1.5 text-xs hover:bg-${opt.color}-100 cursor-pointer transition-colors text-${opt.color}-700`}
+                                      >
+                                        {opt.label}
+                                      </button>
+                                    ))}
+                                  </div>
+                                ) : null;
+                              })()}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="px-2 py-1.5 align-middle">
                         <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-medium ${PRIORITY_VARIANT[wo.priority] || 'bg-gray-100 text-gray-700'}`}>

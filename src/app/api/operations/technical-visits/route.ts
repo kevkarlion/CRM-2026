@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
       
       filters.scheduledDateGte = thirtyDaysAgoStr;
       filters.scheduledDateLt = todayStr;
-      filters.statusNin = ['completed', 'cancelled', 'closed'];
+      filters.statusNin = ['completed', 'cancelled', 'closed', 'paused'];
     }
     if (priority) filters.priority = priority;
     if (leadId) filters.leadId = leadId;

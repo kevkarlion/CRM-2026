@@ -100,9 +100,10 @@ const PRIORITY_LABELS: Record<string, string> = {
 };
 
 const NEXT_STATUSES: Record<string, { value: string; label: string }[]> = {
-  draft: [{ value: 'scheduled', label: 'Programar' }, { value: 'cancelled', label: 'Cancelar' }],
-  scheduled: [{ value: 'in_progress', label: 'Iniciar' }, { value: 'cancelled', label: 'Cancelar' }],
-  in_progress: [{ value: 'completed', label: 'Completar' }, { value: 'cancelled', label: 'Cancelar' }],
+  scheduled: [{ value: 'assigned', label: 'Asignar' }, { value: 'in_progress', label: 'Iniciar' }, { value: 'paused', label: 'Pausar' }, { value: 'cancelled', label: 'Cancelar' }],
+  assigned: [{ value: 'in_progress', label: 'Iniciar' }, { value: 'paused', label: 'Pausar' }, { value: 'cancelled', label: 'Cancelar' }],
+  in_progress: [{ value: 'paused', label: 'Pausar' }, { value: 'completed', label: 'Completar' }, { value: 'cancelled', label: 'Cancelar' }],
+  paused: [{ value: 'in_progress', label: 'Reanudar' }, { value: 'cancelled', label: 'Cancelar' }],
   completed: [],
   cancelled: [],
 };
@@ -531,6 +532,18 @@ export default function WorkOrderDetailPage() {
           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[workOrder.status]}`}>
             {STATUS_OPTIONS[workOrder.status] || workOrder.status}
           </span>
+          {/* Badge de estado de negocio (workStatus) */}
+          {(workOrder.workStatus === 'paused' || workOrder.workStatus === 'cancelled' || workOrder.workStatus === 'active') && (
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+              workOrder.workStatus === 'active' ? 'bg-green-100 text-green-800' :
+              workOrder.workStatus === 'paused' ? 'bg-amber-100 text-amber-800' :
+              'bg-red-100 text-red-800'
+            }`}>
+              {workOrder.workStatus === 'active' ? 'Activa' : 
+               workOrder.workStatus === 'paused' ? 'Pausada' : 
+               'Cancelada'}
+            </span>
+          )}
           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${PRIORITY_VARIANT[workOrder.priority]}`}>
             {PRIORITY_LABELS[workOrder.priority] || workOrder.priority}
           </span>

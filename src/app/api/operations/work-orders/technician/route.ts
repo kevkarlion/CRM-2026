@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') || undefined;
     const priority = searchParams.get('priority') || undefined;
     const search = searchParams.get('search') || undefined;
+    const workStatus = searchParams.get('workStatus') || undefined;
 
     const dateFilter: Record<string, unknown> = {};
     if (startDateParam) {
@@ -75,14 +76,20 @@ export async function GET(request: NextRequest) {
       const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
       
       query.scheduledDate = { $gte: thirtyDaysAgoStr, $lt: todayStr };
-      // Exclude completed/cancelled/closed
+      // Exclude completed/cancelled/closed and workStatus paused/cancelled
       if (!query.status) {
         query.status = { $nin: ['completed', 'cancelled', 'closed'] };
       }
+      (query as any).workStatus = { $nin: ['paused', 'cancelled'] };
     }
 
     if (priority) {
       query.priority = priority;
+    }
+
+    // Filter by workStatus (negocio)
+    if (workStatus) {
+      query.workStatus = workStatus;
     }
 
     if (search) {

@@ -8,31 +8,38 @@ export interface TransitionContext {
 }
 
 /**
- * Transiciones canónicas de estados de OT
+ * Transiciones canonicas de estados de OT
  * 
- * Flujo: draft → scheduled → in_progress → completed
+ * draft → scheduled (tiene fecha) → in_progress → completed
+ *         → assigned (tiene tecnico) → in_progress
+ *         → paused (pausar mientras programada/asignada)
+ *         → cancelled
  *                                                    ↓
- *                                                  cancelled
- * 
- * Estados legacy (para compatibilidad con datos existentes):
- * pending_assignment → scheduled (si hay técnico y fecha)
- * assigned → scheduled (si hay fecha)
+ *                                                  paused
+ *                                                    ↓
+ *                                            (Start para reanudar)
  */
 export const VALID_TRANSITIONS: Record<WorkOrderStatus, WorkOrderStatus[]> = {
-  // Estados canónicos
-  // 1. Borrador → puede programarse o cancelarse
-  draft: ['scheduled', 'cancelled'],
+  // Estados canonicos
+  // 1. Borrador → puede programarse, asignarse o cancelarse
+  draft: ['scheduled', 'assigned', 'cancelled'],
   
-  // 2. Programada → puede iniciarse o cancelarse
-  scheduled: ['in_progress', 'cancelled'],
+  // 2. Programada → puede iniciarse, asignarse, pausarse o cancelarse
+  scheduled: ['assigned', 'in_progress', 'paused', 'cancelled'],
   
-  // 3. En ejecución → puede completarse o cancelarse
-  in_progress: ['completed', 'cancelled'],
+  // 3. Asignada → puede iniciarse, pausarse o cancelarse
+  assigned: ['in_progress', 'paused', 'cancelled'],
   
-  // 4. Completada → estado terminal
+  // 4. En ejecucion → puede pausarse, completarse o cancelarse
+  in_progress: ['paused', 'completed', 'cancelled'],
+  
+  // 5. Pausada → puede reanudarse (in_progress) o cancelarse
+  paused: ['in_progress', 'cancelled'],
+  
+  // 6. Completada → estado terminal
   completed: [],
   
-  // 5. Cancelada → estado terminal
+  // 7. Cancelada → estado terminal
   cancelled: [],
 };
 
@@ -97,13 +104,21 @@ export function validateTransition(
     );
   }
 
-  // Solo aplicar validaciones de contexto para estados canónicos
-  const isCanonicalFrom = ['draft', 'scheduled', 'in_progress', 'completed', 'cancelled'].includes(from);
+  // Solo aplicar validaciones de contexto para estados canonicos
+  const isCanonicalFrom = ['draft', 'scheduled', 'assigned', 'in_progress', 'completed', 'cancelled'].includes(from);
   if (!isCanonicalFrom) return;
 
   if (from === 'scheduled' && to === 'in_progress' && !context.hasChecklist) {
     throw new TransitionError(
-      `Checklist required: ${from} → ${to}`,
+      `Debes completar el checklist antes de iniciar el trabajo`,
+      from, to,
+      'PreVisitChecklist must be completed before transitioning to in_progress.',
+    );
+  }
+
+  if (from === 'assigned' && to === 'in_progress' && !context.hasChecklist) {
+    throw new TransitionError(
+      `Debes completar el checklist antes de iniciar el trabajo`,
       from, to,
       'PreVisitChecklist must be completed before transitioning to in_progress.',
     );
@@ -111,18 +126,27 @@ export function validateTransition(
 
   if (from === 'in_progress' && to === 'completed' && !context.hasVisitReport) {
     throw new TransitionError(
-      `VisitReport required: ${from} → ${to}`,
+      `Debes completar el reporte de trabajo antes de finalizar`,
       from, to,
       'VisitReport must exist before transitioning to completed.',
     );
   }
 
-  // Para pasar a "Programada" debe tener técnico Y fecha/hora
-  if (to === 'scheduled' && (!context.hasTechnicians || !context.hasSchedule)) {
+  // Para pasar a "Programada" debe tener al menos fecha/hora
+  if (from === 'draft' && to === 'scheduled' && !context.hasSchedule) {
     throw new TransitionError(
-      `Schedule required: ${from} → ${to}`,
+      `Para programar la orden debes agregar una fecha`,
       from, to,
-      'At least one technician AND scheduledDate/scheduledStart must be set.',
+      'At least scheduledDate/scheduledStart must be set.',
+    );
+  }
+
+  // Para pasar a "Asignada" debe tener al menos un tecnico
+  if (from === 'draft' && to === 'assigned' && !context.hasTechnicians) {
+    throw new TransitionError(
+      `Para asignar la orden debes elegir un tecnico`,
+      from, to,
+      'At least one technician must be assigned.',
     );
   }
 }
