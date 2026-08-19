@@ -105,6 +105,9 @@ export const GestionCard = React.memo(function GestionCard({
     >
       <div>
         <div className="flex items-center gap-1 mb-1">
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-blue-100 text-blue-700 border border-blue-200">
+            👤 Cliente
+          </span>
           <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-green-100 text-green-700 border border-green-200">
             🟢 Gestión
           </span>
@@ -219,16 +222,17 @@ export const GestionCard = React.memo(function GestionCard({
         </div>
       )}
 
-      {/* Nueva actividad - cliente escribió después de última lectura */}
-      {/* Para Gestion: mostrar badge si hay conversationStatus con mensajes nuevos O si la Gestion fue actualizada recientemente */}
+      {/* Nueva actividad - visibleAt within 24 hours */}
       {(() => {
+        // Check if visibleAt is within last 24 hours (newly activated Gestion)
+        const hasNewActivity = gestion.visibleAt && 
+          (new Date().getTime() - new Date(gestion.visibleAt).getTime()) < 24 * 60 * 60 * 1000;
+        
+        // Also show badge if there's unread conversation
         const hasUnread = conversationStatus?.lastInboundMessageAt && 
           (!conversationStatus.lastReadAt || new Date(conversationStatus.lastInboundMessageAt) > new Date(conversationStatus.lastReadAt));
         
-        // Also show badge if Gestion was just updated (within last 3 minutes) - indicates client just wrote
-        const justUpdated = gestion.updatedAt && (new Date().getTime() - new Date(gestion.updatedAt).getTime()) < 3 * 60 * 1000;
-        
-        return (hasUnread || justUpdated) && (
+        return (hasNewActivity || hasUnread) && (
           <div className="flex items-center gap-2 mt-1.5 pt-1.5 border-t border-blue-200 bg-blue-50 rounded">
             <span className="w-3 h-3 rounded-full bg-blue-600 animate-pulse" />
             <span className="text-sm font-bold text-blue-700">Nueva actividad!</span>

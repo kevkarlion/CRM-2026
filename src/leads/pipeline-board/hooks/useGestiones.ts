@@ -34,6 +34,9 @@ interface GestionFilters {
   assignedTo?: string;
   source?: string;
   search?: string;
+  isVisible?: boolean;
+  excludeTerminalStatuses?: boolean;
+  sortByVisibleAt?: boolean;
 }
 
 export function useGestiones(filters?: GestionFilters): UseGestionesReturn {
@@ -52,6 +55,9 @@ export function useGestiones(filters?: GestionFilters): UseGestionesReturn {
       if (filters?.assignedTo) params.set('assignedTo', filters.assignedTo);
       if (filters?.source) params.set('source', filters.source);
       if (filters?.search) params.set('search', filters.search);
+      if (filters?.isVisible !== undefined) params.set('isVisible', String(filters.isVisible));
+      if (filters?.excludeTerminalStatuses) params.set('excludeTerminal', 'true');
+      if (filters?.sortByVisibleAt) params.set('sortByVisibleAt', 'true');
       params.set('limit', '100');
 
       const res = await fetch(`/api/crm/gestiones?${params.toString()}`, {
@@ -69,7 +75,7 @@ export function useGestiones(filters?: GestionFilters): UseGestionesReturn {
     } finally {
       setLoading(false);
     }
-  }, [filters?.status, filters?.clientId, filters?.assignedTo, filters?.source, filters?.search]);
+  }, [filters]);
 
   useEffect(() => {
     fetchGestiones();

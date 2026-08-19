@@ -7,6 +7,8 @@ import { WhatsAppBotAdapter } from './whatsapp-adapter';
 import type { BotAction } from '../application/types';
 import { calculateLeadScore } from '@/leads/services/lead-score.service';
 import { normalizePhone, phoneMatchQuery } from '@/lib/phone';
+import { GestionService } from '@/gestion/services/gestion.service';
+import { GestionModel } from '@/gestion/models';
 
 export interface WebhookMessageInput {
   tenantId: string;
@@ -114,6 +116,36 @@ export async function processWhatsAppWebhookMessage(
   // 1. Find or create lead
   const { leadId, isNew } = await findOrCreateLead(tenantId, phone, pushName, messageContent);
   console.log('[WebhookIntegration] findOrCreateLead result - leadId:', leadId, '| isNew:', isNew);
+
+  // 2.1. Activate hidden Gestion if client sends message (client pipeline loop)
+  // Find the lead to check if it has an associated client
+  const lead = await LeadModel.findById(leadId);
+  if (lead?.convertedToClient) {
+    try {
+      // Find hidden Gestion for this client
+      const hiddenGestion = await GestionModel.findOne({
+        tenantId: new Types.ObjectId(tenantId),
+        clientId: lead.convertedToClient,
+        isVisible: false,
+        status: { $nin: ['won', 'lost', 'closed'] },
+        deletedAt: null,
+      }).sort({ createdAt: -1 });
+
+      if (hiddenGestion) {
+        console.log('[WebhookIntegration] Activating hidden Gestion:', hiddenGestion._id);
+        const gestionService = new GestionService();
+        await gestionService.activateGestion(
+          String(hiddenGestion._id),
+          'whatsapp-bot',
+          tenantId
+        );
+        console.log('[WebhookIntegration] Hidden Gestion activated successfully');
+      }
+    } catch (activationError) {
+      // Log but don't fail - this is a best-effort activation
+      console.error('[WebhookIntegration] Failed to activate hidden Gestion:', activationError);
+    }
+  }
 
   // 2. Save inbound message
   await saveInboundMessage(tenantId, phone, messageContent, leadId, messageId);

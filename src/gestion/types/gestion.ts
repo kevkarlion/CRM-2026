@@ -76,6 +76,8 @@ export interface CreateGestionInput {
   address?: string;
   locality?: string;
   province?: string;
+  isVisible?: boolean;
+  visibleAt?: Date;
 }
 
 export interface UpdateGestionInput {

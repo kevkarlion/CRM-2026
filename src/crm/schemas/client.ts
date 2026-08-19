@@ -1,6 +1,6 @@
 import { Schema } from 'mongoose';
 import { normalizePhone } from '@/lib/phone';
-import { IClient, ClientStatus, ClientOperationStatus } from '../types/client';
+import { IClient, ClientStatus } from '../types/client';
 
 const auditFields = {
   createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
@@ -45,18 +45,6 @@ export const clientSchema = new Schema<IClient>(
         unblockedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
       },
     ],
-    operationStatus: {
-      type: String,
-      enum: ['none', 'quote_pending', 'visit_scheduled', 'sale_confirmed'] satisfies ClientOperationStatus[],
-      default: 'none',
-    },
-    operationStatusUpdatedAt: Date,
-    score: { type: Number, min: 0, max: 100, default: null },
-    temperature: {
-      type: String,
-      enum: ['hot', 'warm', 'cold'],
-      default: null,
-    },
     ...auditFields,
   },
   { timestamps: true }

@@ -72,6 +72,13 @@ export const gestionSchema = new Schema<IGestion>(
       keywords: { type: Number, default: 0 },
       b2b: { type: Number, default: 0 },
     },
+    isVisible: {
+      type: Boolean,
+      default: false,
+    },
+    visibleAt: {
+      type: Date,
+    },
     createdBy: { type: String, required: true },
     updatedBy: { type: String, required: true },
     deletedAt: { type: Date, default: null },
@@ -87,6 +94,7 @@ gestionSchema.index({ tenantId: 1, status: 1, createdAt: -1 });
 gestionSchema.index({ tenantId: 1, assignedTo: 1, status: 1 });
 gestionSchema.index({ tenantId: 1, email: 1 });
 gestionSchema.index({ tenantId: 1, phone: 1 });
+gestionSchema.index({ tenantId: 1, isVisible: 1, status: 1 });
 
 gestionSchema.pre('save', function (next) {
   if (this.phone) {

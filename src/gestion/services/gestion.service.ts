@@ -1,7 +1,6 @@
 import mongoose, { Types } from 'mongoose';
 import { GestionModel } from '../models';
 import { logActivity } from '../../audit/activity-logger';
-import ClientModel from '../../crm/models/client';
 import { cursorPage } from '../../crm/helpers/cursor-pagination';
 import type { IGestion, GestionStatus, CreateGestionInput, UpdateGestionInput, LostReason } from '../types/gestion';
 import { eventBus } from '@/infrastructure/events/event-bus';
@@ -31,6 +30,9 @@ export interface GestionListFilters {
   search?: string;
   cursor?: string;
   limit?: number;
+  isVisible?: boolean;
+  excludeTerminalStatuses?: boolean; // If true, excludes won/lost/closed
+  sortByVisibleAt?: boolean; // If true, sort by visibleAt DESC instead of createdAt
 }
 
 export interface GestionListResult {
@@ -158,12 +160,25 @@ export class GestionService {
       ];
     }
 
+    // Filter by visibility (default to true for pipeline)
+    if (filters.isVisible !== undefined) {
+      filter.isVisible = filters.isVisible;
+    }
+
+    // Exclude terminal statuses (won, lost, closed)
+    if (filters.excludeTerminalStatuses) {
+      filter.status = { $nin: ['won', 'lost', 'closed'] };
+    }
+
     const total = await GestionModel.countDocuments(filter).exec();
+
+    // Sort: use visibleAt DESC for "new activity" sorting, otherwise createdAt DESC
+    const sortField = filters.sortByVisibleAt ? { visibleAt: -1 } : { createdAt: -1 };
 
     const page = await cursorPage(GestionModel, filter, {
       limit: filters.limit || 20,
       cursor: filters.cursor,
-      sort: { createdAt: -1 },
+      sort: sortField,
       populate: [
         { path: 'clientId', select: 'fullName companyName email phone' },
         { path: 'assignedTo', select: 'name email' },
@@ -268,23 +283,6 @@ export class GestionService {
 
     if (!updatedGestion) {
       throw new ConflictError('Cannot change status, concurrent modification');
-    }
-
-    // Handle status "won" → update Client.operationStatus to "sale_confirmed"
-    if (newStatus === 'won') {
-      try {
-        await ClientModel.findOneAndUpdate(
-          { _id: gestion.clientId, tenantId: new Types.ObjectId(tenantId), deletedAt: null },
-          {
-            $set: {
-              operationStatus: 'sale_confirmed',
-              operationStatusUpdatedAt: new Date(),
-            },
-          },
-        ).exec();
-      } catch (clientError) {
-        console.error('[GestionService] Failed to update client operationStatus:', clientError);
-      }
     }
 
     // Handle status "lost" → update qualificationStatus
@@ -393,5 +391,95 @@ export class GestionService {
       .exec();
 
     return gestion as unknown as IGestion | null;
+  }
+
+  /**
+   * Create a hidden Gestion (isVisible=false) - used when client initiates contact
+   */
+  async createHidden(
+    clientId: string,
+    data: Partial<CreateGestionInput>,
+    userId: string,
+    tenantId: string,
+  ): Promise<IGestion> {
+    return this.createGestion(
+      {
+        ...data,
+        clientId,
+        isVisible: false,
+        status: data.status || 'new',
+      } as CreateGestionInput,
+      userId,
+      tenantId,
+    );
+  }
+
+  /**
+   * Activate a hidden Gestion by setting isVisible=true and visibleAt=now
+   */
+  async activateGestion(
+    gestionId: string,
+    userId: string,
+    tenantId: string,
+  ): Promise<IGestion | null> {
+    const updatedGestion = await GestionModel.findOneAndUpdate(
+      {
+        _id: new Types.ObjectId(gestionId),
+        tenantId: new Types.ObjectId(tenantId),
+        deletedAt: null,
+      },
+      {
+        $set: {
+          isVisible: true,
+          visibleAt: new Date(),
+          updatedBy: userId,
+        },
+      },
+      { new: true },
+    )
+      .populate('clientId', 'fullName companyName email phone')
+      .populate('assignedTo', 'name email')
+      .exec();
+
+    if (!updatedGestion) {
+      throw new Error('Gestion not found or already activated');
+    }
+
+    return updatedGestion as unknown as IGestion;
+  }
+
+  /**
+   * Resolve a Gestion: close current one and create new hidden one
+   * Used for the client pipeline loop pattern
+   */
+  async resolveGestion(
+    gestionId: string,
+    userId: string,
+    tenantId: string,
+  ): Promise<IGestion> {
+    const currentGestion = await this.getGestion(gestionId, tenantId);
+    if (!currentGestion) {
+      throw new Error('Gestion not found');
+    }
+
+    // Close current Gestion
+    await this.changeStatus(gestionId, 'closed', userId, tenantId);
+
+    // Create new hidden Gestion
+    const newGestion = await this.createHidden(
+      String(currentGestion.clientId),
+      {
+        name: currentGestion.name,
+        companyName: currentGestion.companyName,
+        email: currentGestion.email,
+        phone: currentGestion.phone,
+        source: currentGestion.source,
+        previousGestionId: gestionId,
+      },
+      userId,
+      tenantId,
+    );
+
+    return newGestion;
   }
 }
