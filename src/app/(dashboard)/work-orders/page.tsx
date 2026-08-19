@@ -680,7 +680,7 @@ const fetchOrders = useCallback(async () => {
                                 const currentWs = wo.workStatus || 'active';
                                 const options = [];
                                 if (currentWs !== 'active') options.push({ value: 'active', label: 'Activa', color: 'green' });
-                                if (currentWs !== 'paused') options.push({ value: 'paused', label: 'Pausada', color: 'amber' });
+                                if (currentWs !== 'paused') options.push({ value: 'paused', label: 'Pausar', color: 'amber' });
                                 if (currentWs !== 'cancelled') options.push({ value: 'cancelled', label: 'Cancelada', color: 'red' });
                                 
                                 return options.length > 0 ? (

@@ -8,6 +8,7 @@ import { logActivity } from '../../audit/activity-logger';
 import { ClientModel, LocationModel, EquipmentModel } from '../../crm/models';
 import { eventBus } from '@/infrastructure/events/event-bus';
 import { DOMAIN_EVENTS, WorkOrderCreatedPayload, WorkOrderStatusChangedPayload, WorkOrderCompletedPayload } from '@/infrastructure/events/event.types';
+import TimelineEventModel from '@/timeline/models/timeline-event';
 
 export class ConflictError extends Error {
   constructor(message: string) {
@@ -291,10 +292,17 @@ export class WorkOrderService {
   ): Promise<IWorkOrder | null> {
     // Validación canónica: no se puede cambiar workStatus si la OT está cerrada, cancelada o completada
     const dataAny = data as any;
-    if (dataAny.workStatus !== undefined) {
-      const current = await WorkOrderModel.findOne({ _id: id, tenantId, deletedAt: null }).select('status').lean();
-      if (current && ['closed', 'cancelled', 'completed'].includes(current.status)) {
-        throw new ValidationError(`No se puede cambiar el estado de negocio cuando la orden está ${current.status === 'closed' ? 'cerrada' : current.status === 'cancelled' ? 'cancelada' : 'completada'}`);
+    const newWorkStatus = dataAny.workStatus;
+    
+    // Guardar estado actual antes del update para registrar actividad después
+    let oldWorkStatus: string | null = null;
+    if (newWorkStatus !== undefined) {
+      const current = await WorkOrderModel.findOne({ _id: id, tenantId, deletedAt: null }).select('status workStatus').lean();
+      if (current) {
+        if (['closed', 'cancelled', 'completed'].includes(current.status)) {
+          throw new ValidationError(`No se puede cambiar el estado de negocio cuando la orden está ${current.status === 'closed' ? 'cerrada' : current.status === 'cancelled' ? 'cancelada' : 'completada'}`);
+        }
+        oldWorkStatus = current.workStatus || null;
       }
     }
 
@@ -335,6 +343,41 @@ export class WorkOrderService {
         throw new ConflictError('WorkOrder was modified by another user. Please refresh and retry.');
       }
       return null;
+    }
+
+    // Registrar actividad si cambió el estado de negocio (workStatus)
+    if (newWorkStatus !== undefined && oldWorkStatus !== newWorkStatus) {
+      const fromLabel = oldWorkStatus === 'active' ? 'Activa' : oldWorkStatus === 'paused' ? 'Pausada' : oldWorkStatus === 'cancelled' ? 'Cancelada' : oldWorkStatus || 'Sin estado';
+      const toLabel = newWorkStatus === 'active' ? 'Activa' : newWorkStatus === 'paused' ? 'Pausada' : newWorkStatus === 'cancelled' ? 'Cancelada' : newWorkStatus;
+      
+      await logActivity({
+        tenantId,
+        entityType: 'workOrder',
+        entityId: id,
+        action: 'workStatus_changed',
+        actorId: userId,
+        metadata: {
+          fromStatus: oldWorkStatus,
+          toStatus: newWorkStatus,
+          fromLabel,
+          toLabel,
+        },
+      });
+
+      // Also create timeline event for the order registry
+      await TimelineEventModel.create({
+        tenantId,
+        entityType: 'work_order',
+        entityId: id,
+        eventType: 'workStatus_changed',
+        title: `Estado de negocio: ${toLabel}`,
+        description: `Estado de negocio cambiado de "${fromLabel}" a "${toLabel}"`,
+        performedBy: new Types.ObjectId(userId),
+        metadata: {
+          fromStatus: oldWorkStatus,
+          toStatus: newWorkStatus,
+        },
+      });
     }
 
     return updated;
