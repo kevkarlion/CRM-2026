@@ -27,7 +27,37 @@ export class ConversationService {
     const conversation = new ConversationModel({
       tenantId: new Types.ObjectId(input.tenantId),
       leadId: new Types.ObjectId(input.leadId),
-      state: 'idle',
+      state: 'greeting_personalized', // Nuevo flow de 7 ramas
+      context: {
+        hasEmergencyKeywords: false,
+        hasProjectKeywords: false,
+        messageContainsData: false,
+        userAskedForHuman: false,
+      },
+      step: 0,
+      fallbackCount: 0,
+      timeoutCount: 0,
+      exchangesInSameState: 0,
+      lastMessageAt: now,
+      lastActivityAt: now,
+      startedAt: now,
+      lifecycleState: 'ACTIVE_LEAD',
+    });
+
+    await conversation.save();
+    return this.toConversation(conversation);
+  }
+
+  /**
+   * Crea una nueva conversación SIN buscar las existentes.
+   * Útil para reiniciar el flow desde cero.
+   */
+  async createFresh(tenantId: string, leadId: string): Promise<Conversation> {
+    const now = new Date();
+    const conversation = new ConversationModel({
+      tenantId: new Types.ObjectId(tenantId),
+      leadId: new Types.ObjectId(leadId),
+      state: 'greeting_personalized', // Siempre empezar con el nuevo flow
       context: {
         hasEmergencyKeywords: false,
         hasProjectKeywords: false,

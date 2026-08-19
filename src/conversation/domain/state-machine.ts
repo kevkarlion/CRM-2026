@@ -3,7 +3,7 @@ import type { ConversationState, ConversationContext } from './conversation';
 // Transitiones válidas del state machine.
 // Cada key es el estado actual, el value es el siguiente estado válido.
 const TRANSITIONS: Record<ConversationState, ConversationState[]> = {
-  idle: ['greeting'],
+  idle: ['greeting', 'greeting_personalized'],
   greeting: ['need_type_asked'],
   greeting_personalized: ['urgency', 'quote_work', 'spare_part', 'general_query', 'suppliers_info', 'evaluate'],
   need_type_asked: ['need_type_captured', 'detail_asked', 'urgency_asked', 'evaluate'],
@@ -24,7 +24,7 @@ const TRANSITIONS: Record<ConversationState, ConversationState[]> = {
   human_assigned: ['closed'],
   closed: [],
   timeout: ['handoff_pending', 'closed'],
-  fallback: ['greeting', 'need_type_asked', 'handoff_pending'],
+  fallback: ['greeting', 'greeting_personalized', 'need_type_asked', 'handoff_pending'],
   
   // Nuevos estados del flow de 7 ramas
   urgency: ['detail', 'address_confirm', 'name', 'evaluate'],
