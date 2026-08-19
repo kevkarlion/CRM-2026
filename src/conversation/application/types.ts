@@ -5,6 +5,7 @@ import type {
   CustomerType,
   UrgencyLevel,
   LeadContactEstablished,
+  LeadFlowCompleted,
 } from '../domain/conversation';
 import type { Temperature, ScoringBreakdown } from '../../leads/types/lead';
 
@@ -79,7 +80,8 @@ export type BotAction =
   | { type: 'update_conversation'; conversationId: string; updates: Partial<ConversationUpdate> }
   | { type: 'trigger_handoff'; conversationId: string; reason: string; priority: string }
   | { type: 'close_conversation'; conversationId: string }
-  | { type: 'emit_domain_event'; event: LeadContactEstablished };
+  | { type: 'emit_domain_event'; event: LeadContactEstablished }
+  | { type: 'emit_domain_event'; event: LeadFlowCompleted };
 
 // Campos del Lead que el bot puede actualizar
 export interface LeadUpdate {

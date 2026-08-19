@@ -98,6 +98,14 @@ export interface LeadContactEstablished {
   trigger: 'message_with_data'; // Qué condición lo disparó
 }
 
+export interface LeadFlowCompleted {
+  type: 'LeadFlowCompleted';
+  leadId: string;
+  tenantId: string;
+  timestamp: Date;
+  context: ConversationContext;
+}
+
 export interface ConversationContext {
   userName?: string;
   profileName?: string;

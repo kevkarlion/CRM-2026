@@ -132,33 +132,35 @@ export async function processWhatsAppWebhookMessage(
     await adapter.executeActions(actions, tenantId, phone, leadId);
   }
 
-  // 4.1. Handle domain events: LeadContactEstablished → new → contacted
-  const contactEvent = actions.find(
-    (a) => a.type === 'emit_domain_event' && a.event.type === 'LeadContactEstablished'
+  // 4.1. Handle domain events: LeadFlowCompleted → mark as contacted
+  const flowCompletedEvent = actions.find(
+    (a) => a.type === 'emit_domain_event' && a.event.type === 'LeadFlowCompleted'
   );
-  if (contactEvent && contactEvent.type === 'emit_domain_event') {
+  if (flowCompletedEvent && flowCompletedEvent.type === 'emit_domain_event') {
     try {
+      const event = flowCompletedEvent.event as any;
+      
       // Get lead data for scoring
       const lead = await LeadModel.findById(leadId);
-      console.log('[WebhookIntegration] Lead data for scoring:', {
+      console.log('[WebhookIntegration] LeadFlowCompleted for:', {
         leadId,
         inquiryReason: lead?.inquiryReason,
-        priority: lead?.priority,
+        priority: event.context?.urgency,
         customerType: lead?.customerType,
         isB2B: lead?.isB2B,
         currentStatus: lead?.status
       });
       
       if (lead) {
-        // Calculate score based on existing lead data
+        // Calculate score based on lead data + collected context
         const { score, temperature, breakdown } = calculateLeadScore({
-          inquiryReason: lead.inquiryReason as any,
-          priority: lead.priority as any,
-          customerType: lead.customerType as any,
+          inquiryReason: event.context?.needType as any || lead.inquiryReason as any,
+          priority: event.context?.urgency as any || lead.priority as any,
+          customerType: event.context?.customerType as any || lead.customerType as any,
           isB2B: lead.isB2B,
         });
 
-        console.log('[WebhookIntegration] Updating lead with score:', { score, temperature });
+        console.log('[WebhookIntegration] Marking lead as contacted (flow completed):', { score, temperature });
 
         await LeadModel.findByIdAndUpdate(
           leadId,
@@ -168,6 +170,10 @@ export async function processWhatsAppWebhookMessage(
               score,
               temperature,
               scoringBreakdown: breakdown,
+              // Also update lead fields from collected context
+              inquiryReason: event.context?.needType || lead.inquiryReason,
+              priority: event.context?.urgency || lead.priority,
+              location: event.context?.location,
               updatedBy: 'whatsapp-bot' 
             } 
           },

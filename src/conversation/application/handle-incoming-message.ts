@@ -239,6 +239,21 @@ export class HandleIncomingMessageUseCase {
       step: conversation.step + 1,
     });
 
+    // 7.1. Si el flujo de 7 ramas se completó (summary o waiting_operator), emitir LeadFlowCompleted
+    if (newState === 'summary' || newState === 'waiting_operator') {
+      console.log('[HandleIncoming] Flow completed, emitting LeadFlowCompleted');
+      actions.push({
+        type: 'emit_domain_event',
+        event: {
+          type: 'LeadFlowCompleted',
+          leadId: input.leadId,
+          tenantId: input.tenantId,
+          timestamp: new Date(),
+          context: updatedContext,
+        },
+      });
+    }
+
     // 8. Si llegamos a evaluate, calcular score
     if (newState === 'evaluate' || newState === 'scored') {
       // Get additional data from engineData if available

@@ -195,6 +195,12 @@ export class IntentExtractor {
    * Extrae ubicación del mensaje
    */
   extractLocation(text: string): string | null {
+    // Si parece una dirección (contiene número de dirección), tomarla directamente
+    if (/\d/.test(text) && text.length > 5) {
+      // "ushuaia 1617", "San Juan 123", etc.
+      return text.trim();
+    }
+
     for (const pattern of LOCATION_PATTERNS) {
       const match = text.match(pattern);
       if (match?.[1]) {
