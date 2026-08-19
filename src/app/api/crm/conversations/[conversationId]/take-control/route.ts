@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
 import ConversationModel from '@/conversation/models/conversation';
 import { conversationResolver } from '@/conversation/application/conversation-resolver';
+import { WhatsAppBotAdapter } from '@/conversation/infrastructure/whatsapp-adapter';
 
 /**
  * POST /api/crm/conversations/[conversationId]/take-control
@@ -43,6 +44,19 @@ export async function POST(
 
     // Take control using the resolver
     await conversationResolver.takeControl(conversationId, userId);
+
+    // Notify user that an operator will attend them
+    try {
+      const adapter = new WhatsAppBotAdapter();
+      await adapter.sendMessage(
+        '👤 Un operador va a atenderte. Pronto te responderemos.',
+        conversation.phoneNumber,
+        tenantId
+      );
+    } catch (notifyError) {
+      console.error('[TakeControl] Failed to notify user:', notifyError);
+      // Don't fail the request if notification fails
+    }
 
     return NextResponse.json({ 
       success: true, 

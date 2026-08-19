@@ -117,6 +117,24 @@ export async function processWhatsAppWebhookMessage(
   // 2. Save inbound message
   await saveInboundMessage(tenantId, phone, messageContent, leadId, messageId);
 
+  // 2.1. Check if conversation is controlled by OPERATOR - if so, skip bot
+  const conversation = await ConversationModel.findOne({
+    tenantId: new Types.ObjectId(tenantId),
+    leadId: new Types.ObjectId(leadId),
+    state: { $ne: 'closed' },
+  }).sort({ createdAt: -1 });
+
+  if (conversation && conversation.owner === 'OPERATOR') {
+    console.log('[WebhookIntegration] Conversation owned by OPERATOR, skipping bot');
+    return {
+      success: true,
+      actions: [],
+      leadId,
+      conversationId: String(conversation._id),
+      replyContent: undefined, // No reply from bot - operator will respond manually
+    };
+  }
+
   // 3. Run bot pipeline
   const handler = new BotMessageHandler();
   const { actions, conversationId } = await handler.handleIncoming(

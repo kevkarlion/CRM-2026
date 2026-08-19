@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
 import ConversationModel from '@/conversation/models/conversation';
+import { WhatsAppBotAdapter } from '@/conversation/infrastructure/whatsapp-adapter';
 
 /**
  * POST /api/crm/conversations/[conversationId]/cede-control
@@ -26,6 +27,12 @@ export async function POST(
     await connectDB();
     console.log('[cede-control] DB connected');
 
+    // Get conversation to know the phone number
+    const conversation = await ConversationModel.findById(conversationId);
+    if (!conversation) {
+      return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
+    }
+
     const result = await ConversationModel.findByIdAndUpdate(
       conversationId,
       {
@@ -39,6 +46,18 @@ export async function POST(
     );
 
     console.log('[cede-control] Updated:', !!result);
+
+    // Notify user that bot is resuming
+    try {
+      const adapter = new WhatsAppBotAdapter();
+      await adapter.sendMessage(
+        '🤖 He retomado la conversación. ¿En qué puedo ayudarte?',
+        conversation.phoneNumber,
+        tenantId
+      );
+    } catch (notifyError) {
+      console.error('[CedeControl] Failed to notify user:', notifyError);
+    }
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
