@@ -34,7 +34,7 @@ const TRANSITIONS: Record<ConversationState, ConversationState[]> = {
   address_confirm: ['name', 'evaluate'],
   priority: ['priority', 'description', 'evaluate'],
   quote_work: ['quote_work', 'name', 'evaluate'],
-  spare_part: ['spare_part', 'name', 'evaluate'],
+  spare_part: ['spare_part', 'summary'],
   general_query: ['general_query', 'name', 'evaluate'],
   suppliers_info: ['suppliers_info', 'summary'],
   summary: ['closed'],
@@ -249,8 +249,8 @@ export class ConversationStateMachine {
       description: 'summary',
       // Cotización
       quote_work: 'name',
-      // Repuestos
-      spare_part: 'name',
+      // Repuestos - va directo a cierre (no necesita visita)
+      spare_part: 'summary',
       // Otra consulta
       general_query: 'name',
       // Proveedores
