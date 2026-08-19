@@ -117,7 +117,8 @@ export class ConversationStateMachine {
    */
   advanceState(
     current: ConversationState,
-    context: ConversationContext
+    context: ConversationContext,
+    message?: string
   ): StateTransitionResult {
     const skipped: ConversationState[] = [];
 
@@ -197,16 +198,31 @@ export class ConversationStateMachine {
       return 'need_type_asked';
     }
 
-    // Si estamos en greeting_personalized (nuevo flow 7 ramas), ir al estado según el serviceType
+    // Si estamos en greeting_personalized (nuevo flow 7 ramas), solo avanzar si el usuario eligió una opción (1-7)
     if (current === 'greeting_personalized') {
-      const serviceType = context.serviceType || context.needType;
-      // Si ya tiene serviceType, ir directo al estado correspondiente
-      if (serviceType === 'budget') return 'quote_work';
-      if (serviceType === 'spare_parts') return 'spare_part';
-      if (serviceType === 'other') return 'general_query';
-      if (serviceType === 'suppliers') return 'suppliers_info';
-      // Para servicios (maintenance, repair, installation), ir a urgency
-      return 'urgency';
+      // Solo avanzar si el usuario eligió explícitamente una opción 1-7
+      const trimmed = message?.toLowerCase().trim();
+      if (trimmed && /^[1-7]$/.test(trimmed)) {
+        // Mapear opción a serviceType
+        const OPTION_MAP: Record<string, string> = {
+          '1': 'maintenance',
+          '2': 'repair',
+          '3': 'installation',
+          '4': 'budget',
+          '5': 'spare_parts',
+          '6': 'other',
+          '7': 'suppliers',
+        };
+        const serviceType = OPTION_MAP[trimmed];
+        if (serviceType === 'budget') return 'quote_work';
+        if (serviceType === 'spare_parts') return 'spare_part';
+        if (serviceType === 'other') return 'general_query';
+        if (serviceType === 'suppliers') return 'suppliers_info';
+        // Para servicios (maintenance, repair, installation), ir a urgency
+        return 'urgency';
+      }
+      // Si no eligió 1-7, quedarse en greeting_personalized (el bot reenviará el menú)
+      return 'greeting_personalized';
     }
 
     // Si estamos en fallback, retomar el flujo desde el punto correcto

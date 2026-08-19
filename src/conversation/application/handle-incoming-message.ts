@@ -261,7 +261,7 @@ export class HandleIncomingMessageUseCase {
     }
 
     // 6. Avanzar state machine (skip steps si data ya disponible)
-    const transition = stateMachine.advanceState(conversation.state, updatedContext);
+    const transition = stateMachine.advanceState(conversation.state, updatedContext, input.messageContent);
 
     if (!transition.isValid) {
       // Estado terminal o transición inválida
@@ -279,6 +279,45 @@ export class HandleIncomingMessageUseCase {
 
     console.log('[HandleIncoming] transition.nextState:', transition.nextState, '| isValid:', transition.isValid, '| conversation.state:', conversation.state);
     console.log('[HandleIncoming] newState after advanceState:', newState);
+
+    // 6.1. Si sigue en greeting_personalized (el usuario no eligió 1-7), enviar mensaje de opciones
+    // O si sigue en urgency (el usuario no eligió 1-3), reenviar mensaje de urgencia
+    const isGreetingWithInvalidOption = conversation.state === 'greeting_personalized' && newState === 'greeting_personalized';
+    const isUrgencyWithInvalidOption = conversation.state === 'urgency' && newState === 'urgency';
+    
+    if (isGreetingWithInvalidOption || isUrgencyWithInvalidOption) {
+      const userInput = input.messageContent.trim();
+      const state = conversation.state;
+      
+      // Determinar el mensaje según el estado
+      let message: string;
+      
+      if (state === 'greeting_personalized') {
+        // Verificar si el usuario envió un número que no es 1-7
+        const isNumber = /^\d+$/.test(userInput);
+        if (isNumber) {
+          message = '⚠️ Por favor, elegí una opción del 1 al 7:\n\n1️⃣ Mantenimiento\n2️⃣ Reparación\n3️⃣ Instalación\n4️⃣ Cotización\n5️⃣ Repuestos\n6️⃣ Otra consulta\n7️⃣ Proveedores';
+        } else {
+          const reply = replyComposer.compose('greeting_personalized', {
+            userName: input.profileName,
+            profileName: input.profileName,
+          });
+          message = reply.content;
+        }
+      } else if (state === 'urgency') {
+        // Verificar si el usuario envió un número que no es 1-3
+        const isNumber = /^\d+$/.test(userInput);
+        if (isNumber) {
+          message = '⚠️ Por favor, elegí una opción del 1 al 3:\n\n1️⃣ Urgente (hoy)\n2️⃣ Esta semana\n3️⃣ Sin apuro';
+        } else {
+          const reply = replyComposer.compose('urgency', {});
+          message = reply.content;
+        }
+      }
+      
+      actions.push({ type: 'send_message', content: message });
+      return actions;
+    }
 
     // 7. Actualizar contexto y avanzar conversación
     const newFallbackCount = intent.hasAnyData ? 0 : conversation.fallbackCount;
