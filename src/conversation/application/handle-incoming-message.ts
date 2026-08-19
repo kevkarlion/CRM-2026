@@ -73,20 +73,26 @@ export class HandleIncomingMessageUseCase {
     // 2. Extraer intent del mensaje
     const intent = intentExtractor.extractAll(input.messageContent);
 
-    // 2.1. Si el usuario dice "hola" o "empezar", reiniciar la conversación completamente
-    if (intent.shouldRestart) {
-      console.log('[HandleIncoming] Restart requested - creating fresh conversation');
+    // 2.1. Si la conversación está al inicio (idle, greeting, greeting_personalized, closed)
+    // → enviar el mensaje del estado actual sin procesar el intent
+    const initialStates = ['idle', 'greeting', 'greeting_personalized', 'closed', 'summary'];
+    if (initialStates.includes(conversation.state)) {
+      console.log('[HandleIncoming] Initial state detected - sending state message');
       
-      // Cerrar la conversación actual
-      try {
-        await conversationService.closeConversation(conversation._id, 'CLOSED');
-      } catch (e) {
-        console.log('[HandleIncoming] Could not close conversation:', e);
+      // Si está closed o summary, crear nueva conversación desde greeting_personalized
+      if (conversation.state === 'closed' || conversation.state === 'summary') {
+        await conversationService.update(conversation._id, {
+          lifecycleState: 'CLOSED',
+        } as any);
+        conversation = await conversationService.createFresh(input.tenantId, input.leadId);
       }
       
-      // Crear nueva conversación DESDE EL INICIO (greeting_personalized)
-      conversation = await conversationService.createFresh(input.tenantId, input.leadId);
-      console.log('[HandleIncoming] Fresh conversation created with state:', conversation.state);
+      // Enviar el mensaje del estado actual
+      const reply = replyComposer.compose(conversation.state, conversation.context);
+      actions.push({ type: 'send_message', content: reply.content });
+      
+      console.log('[HandleIncoming] Sent message for state:', conversation.state);
+      return actions;
     }
 
     // 3. Actualizar contexto con los datos extraídos
