@@ -1,5 +1,6 @@
 import mongoose, { Types } from 'mongoose';
 import { WorkOrderModel, WorkOrderEventModel, VisitReportModel } from '../models';
+import WorkOrderAssignmentModel from '../models/work-order-assignment';
 import { IWorkOrder, CreateWorkOrderInput, UpdateWorkOrderInput, WorkOrderStatus } from '../types/work-order';
 import { getNextWorkOrderNumber } from '../helpers/counter';
 import { validateTransition, TransitionContext, TransitionError } from '../helpers/state-machine';
@@ -7,6 +8,7 @@ import { logActivity } from '../../audit/activity-logger';
 import { ClientModel, LocationModel, EquipmentModel } from '../../crm/models';
 import { eventBus } from '@/infrastructure/events/event-bus';
 import { DOMAIN_EVENTS, WorkOrderCreatedPayload, WorkOrderStatusChangedPayload, WorkOrderCompletedPayload } from '@/infrastructure/events/event.types';
+import TimelineEventModel from '@/timeline/models/timeline-event';
 
 export class ConflictError extends Error {
   constructor(message: string) {
@@ -75,10 +77,20 @@ export class WorkOrderService {
         ? (typeof scheduledStart === 'string' ? scheduledStart.slice(0, 10) : scheduledStart.toISOString().slice(0, 10))
         : data.scheduledDate;
 
-      // Auto-transition: si tiene fecha Y técnico, crear directamente como "scheduled"
+      // Auto-transition: determinamos estado inicial segun los datos disponibles
       const hasSchedule = !!(scheduledDateFromStart || (data as any).scheduledStart || (data as any).scheduledEnd);
       const hasTechnicians = !!((data as any).assignedTechnicians && (data as any).assignedTechnicians.length > 0);
-      const initialStatus: WorkOrderStatus = (hasSchedule && hasTechnicians) ? 'scheduled' : 'draft';
+      
+      // Logica de estado inicial:
+      // - Si tiene fecha -> scheduled (puede tener o no tecnico)
+      // - Si solo tiene tecnico (sin fecha) -> assigned
+      // - Si no tiene nada -> draft
+      let initialStatus: WorkOrderStatus = 'draft';
+      if (hasSchedule) {
+        initialStatus = 'scheduled';
+      } else if (hasTechnicians) {
+        initialStatus = 'assigned';
+      }
 
       const [workOrder] = await WorkOrderModel.create([{
         ...data,
@@ -112,6 +124,25 @@ export class WorkOrderService {
         createdBy: userId,
         updatedBy: userId,
       }], { session });
+
+      // Crear WorkOrderAssignment para cada técnico asignado
+      const assignedTechs = (data as any).assignedTechnicians || [];
+      if (assignedTechs.length > 0) {
+        const assignments = assignedTechs.map((techId: string) => ({
+          workOrderId: workOrder._id,
+          technicianId: new Types.ObjectId(techId),
+          tenantId: new Types.ObjectId(tenantId),
+          status: initialStatus === 'scheduled' ? 'scheduled' : 'assigned',
+          assignedAt: new Date(),
+          acknowledgedAt: null,
+          startedAt: null,
+          completedAt: null,
+          deletedAt: null,
+          assignmentType: 'manual' as const,
+          reason: 'other' as const,
+        }));
+        await WorkOrderAssignmentModel.insertMany(assignments, { session });
+      }
 
       // Guardar evento de creación en el historial
       await WorkOrderEventModel.create([{
@@ -182,12 +213,37 @@ export class WorkOrderService {
       clientId?: string;
       scheduledDateGte?: string;
       scheduledDateLte?: string;
+      scheduledDateLt?: string;
+      statusNin?: string[];
+      workStatus?: string;
+      limit?: number;
+      skip?: number;
     } = {},
-  ): Promise<IWorkOrder[]> {
+  ): Promise<{ data: IWorkOrder[]; total: number }> {
     const query: Record<string, unknown> = { tenantId, deletedAt: null };
 
     if (filters.status) {
       query.status = filters.status;
+    }
+
+    if (filters.statusNin) {
+      query.status = { $nin: filters.statusNin };
+    }
+
+    // Filter by workStatus (negocio)
+    // Las OTs sin workStatus se tratan como 'active' (default del schema)
+    if (filters.workStatus) {
+      if (filters.workStatus === 'active') {
+        // Mostrar: workStatus = 'active' O workStatus no existe (undefined/null)
+        query.$or = [
+          { workStatus: 'active' },
+          { workStatus: { $exists: false } },
+          { workStatus: null }
+        ];
+      } else {
+        // Para otros valores (paused, cancelled), buscar valor exacto
+        query.workStatus = filters.workStatus;
+      }
     }
 
     if (filters.priority) {
@@ -198,6 +254,24 @@ export class WorkOrderService {
       query.assignedTechnicians = new Types.ObjectId(filters.technicianId);
     }
 
+    // Filter: sin técnicos asignados (array vacío)
+    if ((filters as any).assignedTechnicians === 'none' || (filters as any).assignedTechnicians?.$size === 0) {
+      query.assignedTechnicians = { $size: 0 };
+    }
+
+    // Filter: sin fecha programada
+    if ((filters as any).scheduledDate === 'none' || (filters as any).scheduledDate?.$exists === false) {
+      query.scheduledDate = { $exists: false };
+    }
+    // Filter: tiene fecha programada
+    if ((filters as any).hasScheduledDate === 'true') {
+      query.scheduledDate = { $exists: true, $ne: null };
+    }
+    // Filter: tiene técnico asignado
+    if ((filters as any).hasTechnician === 'true') {
+      query.assignedTechnicians = { $exists: true, $ne: [], $not: { $size: 0 } };
+    }
+
     if (filters.clientId) {
       query.clientId = new Types.ObjectId(filters.clientId);
     }
@@ -206,10 +280,11 @@ export class WorkOrderService {
       query.leadId = new Types.ObjectId(filters.leadId);
     }
 
-    if (filters.scheduledDateGte || filters.scheduledDateLte) {
+    if (filters.scheduledDateGte || filters.scheduledDateLte || filters.scheduledDateLt) {
       const dateFilter: Record<string, unknown> = {};
       if (filters.scheduledDateGte) dateFilter.$gte = filters.scheduledDateGte;
       if (filters.scheduledDateLte) dateFilter.$lte = filters.scheduledDateLte;
+      if (filters.scheduledDateLt) dateFilter.$lt = filters.scheduledDateLt;
       query.scheduledDate = dateFilter;
     }
 
@@ -222,10 +297,16 @@ export class WorkOrderService {
       ];
     }
 
-    return WorkOrderModel.find(query)
+    const total = await WorkOrderModel.countDocuments(query);
+    
+    const data = await WorkOrderModel.find(query)
       .sort({ createdAt: -1 })
       .populate('assignedTechnicians', 'name email specialties')
+      .skip(filters.skip || 0)
+      .limit(filters.limit || 50)
       .exec();
+    
+    return { data, total };
   }
 
   async update(
@@ -235,6 +316,22 @@ export class WorkOrderService {
     userId: string,
     version: number,
   ): Promise<IWorkOrder | null> {
+    // Validación canónica: no se puede cambiar workStatus si la OT está cerrada o cancelada
+    const dataAny = data as any;
+    const newWorkStatus = dataAny.workStatus;
+    
+    // Guardar estado actual antes del update para registrar actividad después
+    let oldWorkStatus: string | null = null;
+    if (newWorkStatus !== undefined) {
+      const current = await WorkOrderModel.findOne({ _id: id, tenantId, deletedAt: null }).select('status workStatus').lean();
+      if (current) {
+        if (['closed', 'cancelled'].includes(current.status)) {
+          throw new ValidationError(`No se puede cambiar el estado de negocio cuando la orden está ${current.status === 'closed' ? 'cerrada' : 'cancelada'}`);
+        }
+        oldWorkStatus = current.workStatus || null;
+      }
+    }
+
     // Auto-transition: si se programa y está en "Borrador", pasar a "Programada"
     const isScheduling = !!(data.scheduledDate || data.scheduledStart || data.scheduledEnd);
     let autoStatus: string | undefined;
@@ -247,7 +344,6 @@ export class WorkOrderService {
     }
 
     // Sync scheduledDate from scheduledStart (single source of truth)
-    const dataAny = data as any;
     const scheduledStart = dataAny.scheduledStart;
     const scheduledDateFromStart = scheduledStart !== undefined
       ? (typeof scheduledStart === 'string' ? scheduledStart.slice(0, 10) : scheduledStart.toISOString().slice(0, 10))
@@ -255,8 +351,10 @@ export class WorkOrderService {
 
     // Si viene scheduledStart pero no scheduledDate, derivar scheduledDate
     if (scheduledStart !== undefined && !data.scheduledDate) {
-      (data as any).scheduledDate = scheduledDateFromStart;
+      dataAny.scheduledDate = scheduledDateFromStart;
     }
+
+    const setObj = { ...data, ...(autoStatus ? { status: autoStatus } : {}), updatedBy: userId };
 
     const updated = await WorkOrderModel.findOneAndUpdate(
       { _id: id, tenantId, deletedAt: null, version },
@@ -271,6 +369,41 @@ export class WorkOrderService {
         throw new ConflictError('WorkOrder was modified by another user. Please refresh and retry.');
       }
       return null;
+    }
+
+    // Registrar actividad si cambió el estado de negocio (workStatus)
+    if (newWorkStatus !== undefined && oldWorkStatus !== newWorkStatus) {
+      const fromLabel = oldWorkStatus === 'active' ? 'Activa' : oldWorkStatus === 'paused' ? 'Pausada' : oldWorkStatus === 'cancelled' ? 'Cancelada' : oldWorkStatus || 'Sin estado';
+      const toLabel = newWorkStatus === 'active' ? 'Activa' : newWorkStatus === 'paused' ? 'Pausada' : newWorkStatus === 'cancelled' ? 'Cancelada' : newWorkStatus;
+      
+      await logActivity({
+        tenantId,
+        entityType: 'workOrder',
+        entityId: id,
+        action: 'workStatus_changed',
+        actorId: userId,
+        metadata: {
+          fromStatus: oldWorkStatus,
+          toStatus: newWorkStatus,
+          fromLabel,
+          toLabel,
+        },
+      });
+
+      // Also create timeline event for the order registry
+      await TimelineEventModel.create({
+        tenantId,
+        entityType: 'work_order',
+        entityId: id,
+        eventType: 'workStatus_changed',
+        title: `Estado de negocio: ${toLabel}`,
+        description: `Estado de negocio cambiado de "${fromLabel}" a "${toLabel}"`,
+        performedBy: new Types.ObjectId(userId),
+        metadata: {
+          fromStatus: oldWorkStatus,
+          toStatus: newWorkStatus,
+        },
+      });
     }
 
     return updated;
@@ -316,6 +449,8 @@ export class WorkOrderService {
           $set: {
             status: targetStatus,
             updatedBy: userId,
+            // Cuando se cierra, automáticamente el estado de negocio es 'completed'
+            ...(targetStatus === 'closed' ? { workStatus: 'completed', closedAt: new Date() } : {}),
             ...(targetStatus === 'completed' ? { closedAt: new Date() } : {}),
           },
           $inc: { version: 1 },

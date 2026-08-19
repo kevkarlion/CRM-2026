@@ -63,6 +63,40 @@ export function clientName(client: { fullName?: string; companyName?: string }):
   return client.companyName || client.fullName || '—';
 }
 
+/** Gestion status labels - mirrors Lead pipeline */
+export const GESTION_STATUS_LABELS: Record<string, string> = {
+  new: 'Nuevo',
+  contacted: 'Contactado',
+  quote_sent: 'Presupuesto enviado',
+  technical_visit: 'Visita técnica',
+  negotiation: 'Negociación',
+  won: 'Ganado',
+  lost: 'Perdido',
+  disqualified: 'Descalificado',
+};
+
+export const GESTION_STATUS_VARIANT: Record<string, string> = {
+  new: 'bg-gray-100 text-gray-700',
+  contacted: 'bg-blue-50 text-blue-700',
+  quote_sent: 'bg-purple-50 text-purple-700',
+  technical_visit: 'bg-orange-50 text-orange-700',
+  negotiation: 'bg-yellow-50 text-yellow-700',
+  won: 'bg-success-50 text-success-700',
+  lost: 'bg-danger-50 text-danger-700',
+  disqualified: 'bg-gray-100 text-gray-500',
+};
+
+export const GESTION_STATUS_DOT_COLOR: Record<string, string> = {
+  new: 'bg-gray-500',
+  contacted: 'bg-blue-500',
+  quote_sent: 'bg-purple-500',
+  technical_visit: 'bg-orange-500',
+  negotiation: 'bg-yellow-500',
+  won: 'bg-success-500',
+  lost: 'bg-danger-500',
+  disqualified: 'bg-gray-400',
+};
+
 /**
  * Renders the display name of a User reference inside block history entries.
  * Accepts the id (when the ref is not populated) or a populated user object.

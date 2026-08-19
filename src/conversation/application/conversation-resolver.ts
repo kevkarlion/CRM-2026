@@ -3,11 +3,15 @@ import { connectDB } from '@/core/db';
 import ConversationModel from '@/conversation/models/conversation';
 import LeadModel from '@/leads/models/lead';
 import ContactModel from '@/crm/models/contact';
+import ClientModel from '@/crm/models/client';
+import { GestionService } from '@/gestion/services/gestion.service';
 import { LEAD_QUALIFICATION_FLOW, CUSTOMER_SERVICE_FLOW } from '@/conversation/config';
 import type { ConversationLifecycleState, ConversationOwner, ConversationLifecycleEvent } from '@/conversation/domain/conversation';
 import { CONVERSATION_REUSE_WINDOW_MS } from '@/conversation/domain/conversation';
 import { FAREWELL_MESSAGES } from '@/conversation/utils/business-hours';
 import { normalizePhone, phoneMatchQuery } from '@/lib/phone';
+
+const gestionService = new GestionService();
 
 const CONVERSATION_TIMEOUT_MINUTES = 30;
 
@@ -40,6 +44,8 @@ export interface ResolvedConversation {
     id: string;
     phoneNumber: string;
     leadId: string;
+    /** Active Gestion ID if client has one */
+    gestionId?: string;
     lifecycleState: ConversationLifecycleState;
     engineData?: Record<string, unknown>;
     waitingMessageCount?: number;
@@ -64,6 +70,10 @@ export interface ResolvedConversation {
   profileName?: string;
   /** Skip bot processing - operator has control */
   skipBot?: boolean;
+  /** Client ID if this is a client conversation */
+  clientId?: string;
+  /** Whether client needs a new Gestion created */
+  needsNewGestion?: boolean;
 }
 
 /**
@@ -105,43 +115,111 @@ export class ConversationResolver {
       deletedAt: null,
     }).populate('clientId');
     
-    // Primero verificar en ContactModel
+    // Solo verificar en ContactModel o Lead ganado
+    // NO usar conversaciones previas como determinante (evita falsos positivos de migración)
     let isClient = !!(contact && contact.clientId);
     
-    // Si no está en ContactModel, buscar en Lead con status "won"
+    // IMPORTANTE: Solo considerar cliente cuando el lead está 'closed' (ya se hizo click en "Resuelto")
+    // Un lead 'won' sigue siendo Lead hasta que se hace click en "Resuelto"
     if (!isClient) {
       const lead = await LeadModel.findOne({
         tenantId: new Types.ObjectId(tenantId),
         phone: phoneMatchQuery(normalizedPhone),
-        status: 'won',
+        status: 'closed', // Solo cuando está cerrado por "Resuelto" se convierte en cliente
         deletedAt: null,
       }).lean();
       
       isClient = !!lead;
     }
     
-    // Si no se detectó como cliente por Contact/Lead, verificar si hay una conversación previa de cliente
-    // Esto es más robusto porque respeta el tipo de conversación anterior
-    if (!isClient) {
-      const previousConversation = await ConversationModel.findOne({
-        phoneNumber: normalizedPhone,
-        conversationType: 'customer', // Filter by customer type
-        lifecycleState: { $in: ['ACTIVE_CLIENT', 'WAITING_CLIENT', 'RESOLVED'] },
-      }).sort({ lastActivityAt: -1 }).lean();
-      
-      if (previousConversation) {
-        console.log('[Resolver] Found previous CUSTOMER conversation, overriding detection. leadId:', previousConversation.leadId, 'lifecycleState:', previousConversation.lifecycleState);
-        isClient = true;
-      }
-    }
+    // NO buscar conversaciones previas de customer - eso quedó de la migración y genera falsos positivos
+    // El cliente debe estar verificado en ClientModel o Lead ganado
     
     console.log('[Resolver] isClient:', isClient);
+    
+    // ===== STEP 1.5: RESOLVE CLIENT ID AND ACTIVE GESTION =====
+    let clientId: string | undefined;
+    let activeGestionId: string | undefined;
+    let needsNewGestion = false;
+    
+    if (isClient) {
+      // Get client ID from contact or client model
+      if (contact?.clientId) {
+        clientId = String(contact.clientId._id);
+      } else {
+        // Try to find client by phone in ClientModel
+        const client = await ClientModel.findOne({
+          tenantId: new Types.ObjectId(tenantId),
+          phone: phoneMatchQuery(normalizedPhone),
+          deletedAt: null,
+        }).lean();
+        if (client) {
+          clientId = String(client._id);
+        } else {
+          // Solo buscar Lead con status 'closed' (ya se hizo click en "Resuelto")
+          // Un lead 'won' o 'qualified' sigue siendo Lead hasta que se resuelve
+          const wonLead = await LeadModel.findOne({
+            tenantId: new Types.ObjectId(tenantId),
+            phone: phoneMatchQuery(normalizedPhone),
+            status: 'closed',
+            deletedAt: null,
+          }).lean();
+          if (wonLead) {
+            // Crear Cliente a partir del Lead ganado
+            console.log('[Resolver] Creating Client from won Lead:', wonLead._id);
+            try {
+              const newClient = await ClientModel.create({
+                tenantId: new Types.ObjectId(tenantId),
+                fullName: wonLead.name || 'Cliente',
+                companyName: wonLead.companyName || wonLead.name,
+                phone: wonLead.phone,
+                email: wonLead.email,
+                address: wonLead.address,
+                source: 'whatsapp',
+                status: 'active',
+                operationStatus: 'none',
+                createdBy: 'system-conversion',
+                updatedBy: 'system-conversion',
+              });
+              clientId = String(newClient._id);
+              console.log('[Resolver] Created Client:', clientId);
+            } catch (createError) {
+              console.error('[Resolver] Error creating Client from lead:', createError);
+            }
+          }
+        }
+      }
+      
+      // Check for active Gestion
+      if (clientId) {
+        try {
+          const activeGestion = await gestionService.getActiveGestionByClient(clientId, tenantId);
+          if (activeGestion) {
+            activeGestionId = String(activeGestion._id);
+            console.log('[Resolver] Found active Gestion:', activeGestionId, 'status:', activeGestion.status);
+          } else {
+            // No active Gestion - need to create one
+            needsNewGestion = true;
+            console.log('[Resolver] No active Gestion found for client:', clientId, '- needs new Gestion');
+          }
+        } catch (gestionError) {
+          console.error('[Resolver] Error checking active Gestion:', gestionError);
+        }
+      }
+    }
     
     // Si es cliente, cerrar cualquier conversación de lead existente
     // Esto asegura que un lead convertido a cliente inicie fresh con flow de cliente
     if (isClient) {
       console.log('[Resolver] Client detected - closing any existing lead conversations');
       await this.closeLeadConversations(normalizedPhone);
+      
+      // NO crear Gestion automáticamente cuando el cliente escribe.
+      // La Gestion se crea únicamente cuando se hace click en "Resuelto" en el pipeline.
+      // Si no existe Gestion, el cliente seguirá escribiendo pero sin Gestion asociada.
+      if (clientId && !activeGestionId) {
+        console.log('[Resolver] No active Gestion found - will continue without Gestion (will be created on resolve)');
+      }
     }
     
     // Seleccionar flow según tipo
@@ -171,9 +249,19 @@ export class ConversationResolver {
         console.log('[Resolver] → OPERATOR HAS CONTROL (IN_PROGRESS) - Bot should NOT respond');
         return {
           skipBot: true,
-          conversation: operatorControl,
+          conversation: {
+            id: String(operatorControl._id),
+            phoneNumber: (operatorControl as any).phoneNumber || '',
+            leadId: String(operatorControl.leadId || ''),
+            gestionId: activeGestionId,
+            lifecycleState: operatorControl.lifecycleState,
+            engineData: (operatorControl as any).engineData as Record<string, unknown> | undefined,
+          },
           flowConfig,
           isNew: false,
+          shouldContinue: false,
+          isWaitingForOperator: false,
+          clientId,
         };
       }
       
@@ -250,7 +338,9 @@ export class ConversationResolver {
           leadId || '',
           flowConfig,
           waitingState,
-          customerName
+          customerName,
+          clientId,
+          activeGestionId
         );
       }
       
@@ -258,7 +348,7 @@ export class ConversationResolver {
       const existingFlowConfig = anyActive.conversationType === 'customer' ? CUSTOMER_SERVICE_FLOW : LEAD_QUALIFICATION_FLOW;
       
       console.log('[Resolver] → CONTINUE with existing conversation, original flow:', existingFlowConfig.id);
-      return this.continueConversation(anyActive, normalizedPhone, tenantId, leadId || '', existingFlowConfig);
+      return this.continueConversation(anyActive, normalizedPhone, tenantId, leadId || '', existingFlowConfig, clientId, activeGestionId);
     }
     
     // Buscar conversación de espera (ya fue atendido anteriormente)
@@ -284,7 +374,7 @@ export class ConversationResolver {
           },
         });
         
-        return this.continueConversation(existingWaiting, normalizedPhone, tenantId, leadId || '', flowConfig);
+        return this.continueConversation(existingWaiting, normalizedPhone, tenantId, leadId || '', flowConfig, clientId, activeGestionId);
       }
       
       // Si ya está completa (documento o engineData), devolver mensaje de espera
@@ -298,7 +388,9 @@ export class ConversationResolver {
         leadId || '',
         flowConfig,
         waitingState,
-        customerName
+        customerName,
+        clientId,
+        activeGestionId
       );
     }
     
@@ -342,7 +434,7 @@ export class ConversationResolver {
     
     // Paso 3: No hay conversación → crear nueva
     console.log(`[Resolver] → CREATE NEW (${isClient ? 'CLIENTE' : 'LEAD'})`);
-    return this.createNewConversation(normalizedPhone, tenantId, leadId, flowConfig, activeState, conversationType);
+    return this.createNewConversation(normalizedPhone, tenantId, leadId, flowConfig, activeState, conversationType, clientId, activeGestionId);
   }
 
   /**
@@ -397,7 +489,9 @@ export class ConversationResolver {
     leadId: string,
     flowConfig: { id: string; initialState: string },
     waitingState: 'WAITING_OPERATOR' | 'WAITING_CLIENT',
-    customerName?: string
+    customerName?: string,
+    clientId?: string,
+    gestionId?: string,
   ): Promise<ResolvedConversation> {
     // Get current message count (for priority calculation)
     const messageCount = (conversation.waitingMessageCount || 0) + 1;
@@ -439,6 +533,7 @@ export class ConversationResolver {
         id: conversation._id.toString(),
         phoneNumber: normalizedPhone,
         leadId: conversation.leadId?.toString() || leadId,
+        gestionId,
         lifecycleState: waitingState,
         engineData: conversation.engineData as Record<string, unknown> | undefined,
         waitingMessageCount: messageCount,
@@ -451,6 +546,7 @@ export class ConversationResolver {
       waitingMessage,
       flowConfig,
       profileName: conversation.profileName,
+      clientId,
     };
   }
 
@@ -482,18 +578,21 @@ export class ConversationResolver {
     normalizedPhone: string,
     tenantId: string,
     leadId: string,
-    flowConfig: { id: string; initialState: string }
+    flowConfig: { id: string; initialState: string },
+    clientId?: string,
+    gestionId?: string,
   ): ResolvedConversation {
     const engineData = conversation.engineData as Record<string, unknown> | undefined;
     const currentState = engineData?.currentState as string | undefined;
     
-    console.log(`[Resolver] Continuing conversation - State: ${currentState}, LeadId: ${conversation.leadId}`);
+    console.log(`[Resolver] Continuing conversation - State: ${currentState}, LeadId: ${conversation.leadId}, GestionId: ${gestionId}`);
     
     return {
       conversation: {
         id: conversation._id.toString(),
         phoneNumber: normalizedPhone,
         leadId: conversation.leadId?.toString() || leadId,
+        gestionId,
         lifecycleState: 'ACTIVE',
         engineData,
       },
@@ -501,6 +600,7 @@ export class ConversationResolver {
       isWaitingForOperator: false,
       isNew: false,
       flowConfig,
+      clientId,
     };
   }
 
@@ -694,7 +794,9 @@ export class ConversationResolver {
     leadId: string,
     flowConfig: { id: string; initialState: string },
     lifecycleState: string = 'ACTIVE',
-    conversationType: 'lead' | 'customer' = 'lead'
+    conversationType: 'lead' | 'customer' = 'lead',
+    clientId?: string,
+    gestionId?: string,
   ): Promise<ResolvedConversation> {
     const now = new Date();
     
@@ -726,22 +828,25 @@ export class ConversationResolver {
       waitingMessageCount: 0,
       waitingPriority: WaitingPriority.NORMAL,
       flowType: flowConfig.id, // Guardar el tipo de flow (lead-qualification o customer-service)
-      conversationType, // lead o customer - separates conversations completely
+      conversationType, // lead o customer - separates conversations completamente
     });
     
-    console.log('[Resolver] Created new ACTIVE conversation:', conversation._id);
+    console.log('[Resolver] Created new ACTIVE conversation:', conversation._id, 'clientId:', clientId, 'gestionId:', gestionId);
     
     return {
       conversation: {
         id: conversation._id.toString(),
         phoneNumber,
         leadId,
+        gestionId,
         lifecycleState: 'ACTIVE',
       },
       shouldContinue: true,
       isWaitingForOperator: false,
       isNew: true,
       flowConfig,
+      clientId,
+      needsNewGestion: !gestionId && !!clientId,
     };
   }
 

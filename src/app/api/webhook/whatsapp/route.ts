@@ -7,6 +7,7 @@ import '@/crm/models/whatsapp-message';
 import '@/leads/models/lead';
 import '@/core/models/tenant';
 import connectDB from '@/core/db';
+import { isMaintenanceMode, isMaintenanceBypassPhone, getMaintenanceWhatsAppMessage } from '@/lib/maintenance';
 
 // Token de verificación para validar la conexión con Meta
 const WEBHOOK_VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || 'mi_token_secreto_crm';
@@ -127,6 +128,21 @@ console.log(`📩 Mensaje recibido de ${fromNumber}, tipo: ${messageType}, id: $
       console.log('[Webhook] Getting tenant ID...');
       const tenantId = await whatsappService.getActiveTenantId();
       console.log('[Webhook] Tenant ID:', tenantId);
+
+      // Check maintenance mode - if active and user doesn't have bypass, return maintenance message
+      if (isMaintenanceMode() && !isMaintenanceBypassPhone(fromNumber)) {
+        console.log(`[Webhook] 🔧 Maintenance mode active, sending maintenance message to ${fromNumber}`);
+        
+        // Send maintenance message back
+        const maintenanceMessage = getMaintenanceWhatsAppMessage();
+        try {
+          await whatsappService.sendMessage(tenantId, fromNumber, maintenanceMessage, undefined);
+        } catch (sendError) {
+          console.error('[Webhook] Error sending maintenance message:', sendError);
+        }
+        
+        return NextResponse.json({ status: 'ok', maintenance: true }, { status: 200 });
+      }
 
       // Ya no procesamos multimedia automáticamente - se maneja desde el chat
       // Solo guardamos los metadatos para mostrar en el chat

@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status') || undefined;
     const priority = searchParams.get('priority') || undefined;
     const search = searchParams.get('search') || undefined;
+    const workStatus = searchParams.get('workStatus') || undefined;
 
     const dateFilter: Record<string, unknown> = {};
     if (startDateParam) {
@@ -54,12 +55,45 @@ export async function GET(request: NextRequest) {
       deletedAt: null,
     };
 
+    // Support multiple statuses separated by comma (e.g., "scheduled,assigned,confirmed")
     if (status) {
-      query.status = status;
+      const statusList = status.split(',').map(s => s.trim()).filter(Boolean);
+      if (statusList.length === 1) {
+        query.status = statusList[0];
+      } else if (statusList.length > 1) {
+        query.status = { $in: statusList };
+      }
+    }
+
+    // Support expired filter (scheduledDate <= today, last 30 days, excluding today)
+    const expired = searchParams.get('expired');
+    if (expired === 'true') {
+      // Usar timezone de Argentina (UTC-3) para calcular "hoy"
+      const now = new Date();
+      const argentinaOffset = -3 * 60;
+      const localTime = new Date(now.getTime() + (now.getTimezoneOffset() + argentinaOffset) * 60000);
+      const todayStr = localTime.toISOString().split('T')[0];
+      
+      // Last 30 days but BEFORE today
+      const thirtyDaysAgo = new Date(localTime);
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+      
+      query.scheduledDate = { $gte: thirtyDaysAgoStr, $lt: todayStr };  // Cambiado a Lt para excluir hoy
+      // Exclude completed/cancelled/closed and workStatus paused/cancelled
+      if (!query.status) {
+        query.status = { $nin: ['completed', 'cancelled', 'closed'] };
+      }
+      (query as any).workStatus = { $nin: ['paused', 'cancelled'] };
     }
 
     if (priority) {
       query.priority = priority;
+    }
+
+    // Filter by workStatus (negocio)
+    if (workStatus) {
+      query.workStatus = workStatus;
     }
 
     if (search) {

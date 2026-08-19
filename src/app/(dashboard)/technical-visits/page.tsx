@@ -2,13 +2,14 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, useCallback, useRef, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { api, unwrapData } from '@/lib/api-client';
 import { useRole } from '@/dashboard/context/role-context';
 import { SelfAssignmentVisitDrawer } from '@/operations/components/SelfAssignmentVisitDrawer';
 import { TECHNICAL_VISIT_STATUS_LABELS } from '@/operations/constants/status-labels';
 import { SearchInput } from '@/components/ui/SearchInput';
+import { Loader2 } from 'lucide-react';
 
 type Tab = 'all' | 'mine';
 
@@ -39,6 +40,21 @@ interface ListResponse {
 const STATUS_OPTIONS = [
   { value: '', label: 'Todos' },
   ...Object.entries(TECHNICAL_VISIT_STATUS_LABELS).map(([value, label]) => ({ value, label })),
+  { value: 'expired', label: 'Vencidas' },
+];
+
+// Status options for visits (canónicos)
+const VISIT_STATUS_OPTIONS = [
+  { value: '', label: 'Todos' },
+  { value: 'draft', label: 'Borrador' },
+  { value: 'scheduled', label: 'Programada' },
+  { value: 'confirmed', label: 'Confirmada' },
+  { value: 'assigned', label: 'Asignada' },
+  { value: 'in_progress', label: 'En Ejecución' },
+  { value: 'completed', label: 'Completada' },
+  { value: 'cancelled', label: 'Cancelada' },
+  { value: 'converted_to_work_order', label: 'Convertida a OT' },
+  { value: 'expired', label: 'Vencidas' },
 ];
 
 // Status label helper - groups multiple internal statuses into simplified view
@@ -99,7 +115,10 @@ function isOverdue(vt: TechnicalVisit): boolean {
   if (!vt.scheduledDate) return false;
   if (['completed', 'cancelled', 'converted_to_work_order'].includes(vt.status)) return false;
   
-  const scheduled = new Date(vt.scheduledDate);
+  // Parse date in local timezone
+  const dateStr = String(vt.scheduledDate);
+  const [year, month, day] = dateStr.split('-').map(Number);
+  const scheduled = new Date(year, month - 1, day);
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
@@ -139,14 +158,30 @@ function isVisitAssignedToMe(visit: TechnicalVisit, currentUserEmail: string | n
 }
 
 export default function TechnicalVisitsPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
+        <span className="ml-2 text-gray-500">Cargando...</span>
+      </div>
+    }>
+      <TechnicalVisitsContent />
+    </Suspense>
+  );
+}
+
+function TechnicalVisitsContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isAdmin, isTechnician, user } = useRole();
-  const [activeTab, setActiveTab] = useState<Tab>('all');
+  const [activeTab, setActiveTab] = useState<Tab>(searchParams.get('tab') as Tab || 'all');
   const [visits, setVisits] = useState<TechnicalVisit[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState(
+    searchParams.get('expired') === 'true' ? 'expired' : (searchParams.get('status') || '')
+  );
   const [priorityFilter, setPriorityFilter] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
   const [fromDate, setFromDate] = useState('');
@@ -169,7 +204,12 @@ export default function TechnicalVisitsPage() {
 
       const params: Record<string, string> = {};
       if (search) params.search = search;
-      if (statusFilter) params.status = statusFilter;
+      // Handle "expired" as a special filter
+      if (statusFilter === 'expired') {
+        params.expired = 'true';
+      } else if (statusFilter) {
+        params.status = statusFilter;
+      }
       if (priorityFilter) params.priority = priorityFilter;
       if (categoryFilter) params.category = categoryFilter;
       if (fromDate) params.from = fromDate;
@@ -322,18 +362,6 @@ export default function TechnicalVisitsPage() {
               ))}
             </select>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Filtrar por Prioridad:</label>
-            <select
-              value={priorityFilter}
-              onChange={(e) => setPriorityFilter((e.target as any).value)}
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
-            >
-              {PRIORITY_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -370,14 +398,14 @@ export default function TechnicalVisitsPage() {
               ))}
             </select>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Filtrar por Prioridad:</label>
+<div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Filtrar por Estado:</label>
             <select
-              value={priorityFilter}
-              onChange={(e) => setPriorityFilter((e.target as any).value)}
+              value={statusFilter}
+              onChange={(e) => setStatusFilter((e.target as any).value)}
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
             >
-              {PRIORITY_OPTIONS.map((opt) => (
+              {VISIT_STATUS_OPTIONS.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>

@@ -4,7 +4,7 @@ import LeadModel from '@/leads/models/lead';
 import ClientModel from '@/crm/models/client';
 import ConversationModel from '../models/conversation';
 import TimelineEventModel from '@/timeline/models/timeline-event';
-import type { BotAction, LeadUpdate, ClientUpdate, ConversationUpdate } from '../application/types';
+import type { BotAction, LeadUpdate, ClientUpdate, ConversationUpdate, GestionUpdate } from '../application/types';
 import type { ConversationState, LeadContactEstablished } from '../domain/conversation';
 
 export interface WhatsAppBotAdapterDeps {
@@ -38,6 +38,9 @@ export class WhatsAppBotAdapter {
           break;
         case 'update_client':
           await this.updateClient(action.clientId, action.updates);
+          break;
+        case 'update_gestion_for_client':
+          await this.updateGestionForClient(action.leadId, action.updates);
           break;
         case 'update_conversation':
           await this.updateConversation(action.conversationId, action.updates);
@@ -145,6 +148,47 @@ export class WhatsAppBotAdapter {
     } catch (error) {
       console.error('[WhatsAppBotAdapter] Error updating client:', error);
       throw error;
+    }
+  }
+
+  /**
+   * Updates a Gestion for a client when bot finishes scoring.
+   * Finds the active Gestion for the lead that was won and updates it.
+   */
+  async updateGestionForClient(leadId: string, updates: Partial<GestionUpdate>): Promise<void> {
+    try {
+      const { GestionModel } = await import('@/gestion/models/gestion');
+      
+      // Find the Gestion that was created from this lead (has originalLeadId)
+      const gestion = await GestionModel.findOne({
+        originalLeadId: new Types.ObjectId(leadId),
+        status: 'new', // Only update if still in 'new' status
+        deletedAt: null,
+      });
+
+      if (!gestion) {
+        console.log('[WhatsAppBotAdapter] No active Gestion found for lead:', leadId);
+        return;
+      }
+
+      const setFields: Record<string, unknown> = { updatedBy: 'whatsapp-bot' };
+
+      if (updates.score !== undefined) setFields.score = updates.score;
+      if (updates.temperature !== undefined) setFields.temperature = updates.temperature;
+      if (updates.inquiryReason !== undefined) setFields.inquiryReason = updates.inquiryReason;
+      if (updates.status !== undefined) setFields.status = updates.status;
+      if (updates.priority !== undefined) setFields.priority = updates.priority;
+
+      await GestionModel.findByIdAndUpdate(
+        gestion._id,
+        { $set: setFields },
+        { new: true }
+      );
+      
+      console.log('[WhatsAppBotAdapter] Gestion updated:', gestion._id, setFields);
+    } catch (error) {
+      console.error('[WhatsAppBotAdapter] Error updating gestion:', error);
+      // Don't throw - this is a non-critical update
     }
   }
 

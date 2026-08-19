@@ -1,151 +1,174 @@
 /**
- * Script para limpiar datos de conversación, lead y cliente por número de teléfono.
+ * Complete Cleanup script - Delete ALL data related to a phone
+ * Usage: npx tsx scripts/db-cleanup.ts 5492984252859
  * 
- * Uso:
- *   npx tsx scripts/db-cleanup.ts +5492984252859           # borrar todo
- *   npx tsx scripts/db-cleanup.ts +5492984252859 --dry-run # solo mostrar qué borraría
- *   npx tsx scripts/db-cleanup.ts +5492984252859 --whatsapp   # solo whatsappmessages
- *   npx tsx scripts/db-cleanup.ts +5492984252859 --leads       # solo leads
- *   npx tsx scripts/db-cleanup.ts +5492984252859 --conversations # solo conversations
- *   npx tsx scripts/db-cleanup.ts +5492984252859 --clients     # solo clients
+ * Cleans: leads, clients, gestions, conversations, messages, 
+ * work orders, quotes, negotiations, technical visits, contracts,
+ * service histories, and more
  */
 
-import { config } from 'dotenv';
-config({ path: '.env.local' });
-
+import 'dotenv/config';
 import mongoose from 'mongoose';
 
-const MONGO_URI = process.env.MONGODB_URI;
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://kriquelme10_db_user:sUBCG6imJ3gcRzCI@cluster0.1grzrfe.mongodb.net/test?appName=Cluster0';
 
-if (!MONGO_URI) {
-  console.error('❌ Error: No se encontró la variable de entorno MONGODB_URI');
-  process.exit(1);
-}
-
-// Parsear argumentos
-const args = process.argv.slice(2);
-const phoneNumber = args[0]?.replace(/^0/, '+54'); // Normalizar: 549... -> +549...
-const options = args.slice(1);
-
-if (!phoneNumber) {
-  console.error('❌ Uso: npx tsx scripts/db-cleanup.ts <numero> [opciones]');
-  console.error('   Ejemplo: npx tsx scripts/db-cleanup.ts 5492984252859');
-  console.error('   Opciones: --dry-run, --whatsapp, --leads, --conversations, --clients');
-  process.exit(1);
-}
-
-// Normalizar: +549... -> 549... para buscar en la DB
-const normalizedPhone = phoneNumber.replace(/^\+54/, '54').replace(/^0/, '');
-
-const dryRun = options.includes('--dry-run');
-
-// Si no se especifica ninguna colección, hacer todas
-// Si se especifica alguna, hacer solo esas
-const hasAnyCollection = options.some(o => ['--whatsapp', '--leads', '--conversations', '--clients'].includes(o));
-
-const doWhatsApp = !hasAnyCollection || options.includes('--whatsapp');
-const doLeads = !hasAnyCollection || options.includes('--leads');
-const doConversations = !hasAnyCollection || options.includes('--conversations');
-const doClients = !hasAnyCollection || options.includes(--clients);
+const PHONE = process.argv[2] || '5492984252859';
+const NORMALIZED = PHONE.replace(/\D/g, '');
+const LAST_9 = NORMALIZED.slice(-9);
 
 async function cleanup() {
-  console.log('🔌 Conectando a MongoDB...');
-  await mongoose.connect(MONGO_URI);
-  console.log('✅ Conectado\n');
+  await mongoose.connect(MONGODB_URI);
+  console.log('✅ Connected to MongoDB\n');
+  console.log(`📱 Phone: ${PHONE} (normalized: ${NORMALIZED})\n`);
 
   const db = mongoose.connection.db;
+  let total = 0;
+
+  // Helper para buscar por teléfono
+  const phoneQuery = {
+    $or: [
+      { phone: PHONE },
+      { phone: NORMALIZED },
+      { phone: { $regex: new RegExp(NORMALIZED) } },
+      { phone: { $regex: new RegExp(LAST_9) } },
+      { phoneNumber: PHONE },
+      { phoneNumber: NORMALIZED },
+      { phoneNumber: { $regex: new RegExp(NORMALIZED) } },
+      { phoneNumber: { $regex: new RegExp(LAST_9) } },
+    ]
+  };
+
+  // 1. Find client IDs first (for cascade delete)
+  const clients = await db.collection('clients').find(phoneQuery).toArray();
+  const clientIds = clients.map(c => c._id);
+  const leadIds = (await db.collection('leads').find(phoneQuery).toArray()).map(l => l._id);
+
+  console.log(`📋 Found ${clients.length} clients, ${leadIds.length} leads\n`);
+
+  // 2. Delete Conversations FIRST (before clients/leads)
+  const conversationsResult = await db.collection('conversations').deleteMany(phoneQuery);
+  console.log(`🗑️  Deleted ${conversationsResult.deletedCount} conversations`);
+  total += conversationsResult.deletedCount;
+
+  // 3. Delete Clients
+  const clientsResult = await db.collection('clients').deleteMany(phoneQuery);
+  console.log(`🗑️  Deleted ${clientsResult.deletedCount} clients`);
+  total += clientsResult.deletedCount;
+
+  // 4. Delete Leads
+  const leadsResult = await db.collection('leads').deleteMany(phoneQuery);
+  console.log(`🗑️  Deleted ${leadsResult.deletedCount} leads`);
+  total += leadsResult.deletedCount;
+
+  // 5. Delete Gestions (by phone or clientId)
+  const gestionsQuery = clientIds.length > 0 
+    ? { $or: [phoneQuery, { clientId: { $in: clientIds } }] }
+    : phoneQuery;
+  const gestionsResult = await db.collection('gestions').deleteMany(gestionsQuery);
+  console.log(`🗑️  Deleted ${gestionsResult.deletedCount} gestions`);
+  total += gestionsResult.deletedCount;
+
+  // 6. Delete WhatsApp Messages (both from and to) - check both collection names
+  const messagesQuery = {
+    $or: [
+      { from: PHONE },
+      { from: NORMALIZED },
+      { from: { $regex: new RegExp(LAST_9) } },
+      { to: PHONE },
+      { to: NORMALIZED },
+      { to: { $regex: new RegExp(LAST_9) } },
+      { phoneNumber: PHONE },
+      { phoneNumber: NORMALIZED },
+      { phoneNumber: { $regex: new RegExp(LAST_9) } },
+      { phone: PHONE },
+      { phone: NORMALIZED },
+      { phone: { $regex: new RegExp(LAST_9) } },
+    ]
+  };
   
-  console.log(`📱 Teléfono: ${phoneNumber}`);
-  console.log(`📱 Normalizado: ${normalizedPhone}`);
-  console.log(`🔍 dry-run: ${dryRun}\n`);
+  // whatsappmessages (singular, sin guión)
+  const messagesResult1 = await db.collection('whatsappmessages').deleteMany(messagesQuery);
+  console.log(`🗑️  Deleted ${messagesResult1.deletedCount} whatsappmessages`);
+  total += messagesResult1.deletedCount;
+  
+  // whatsapp_messages (plural, con guión bajo)
+  const messagesResult2 = await db.collection('whatsapp_messages').deleteMany(messagesQuery);
+  console.log(`🗑️  Deleted ${messagesResult2.deletedCount} whatsapp_messages`);
+  total += messagesResult2.deletedCount;
 
-  const results: { collection: string; deleted: number }[] = [];
+  // 7. Delete Work Orders (by client phone or clientId)
+  const woQuery = clientIds.length > 0
+    ? { $or: [phoneQuery, { clientId: { $in: clientIds } }] }
+    : phoneQuery;
+  const workOrdersResult = await db.collection('workorders').deleteMany(woQuery);
+  console.log(`🗑️  Deleted ${workOrdersResult.deletedCount} workorders`);
+  total += workOrdersResult.deletedCount;
 
-  // 1. WhatsApp Messages
-  if (doWhatsApp) {
-    const collection = db.collection('whatsappmessages');
-    const query = { phone: normalizedPhone };
-    const count = await collection.countDocuments(query);
-    
-    if (count > 0) {
-      if (!dryRun) {
-        const result = await collection.deleteMany(query);
-        results.push({ collection: 'whatsappmessages', deleted: result.deletedCount });
-        console.log(`🗑️  whatsappmessages: ${result.deletedCount} documentos borrados`);
-      } else {
-        console.log(`🔍 whatsappmessages: ${count} documentos`);
-      }
-    } else {
-      console.log(`✅ whatsappmessages: 0 documentos`);
-    }
-  }
+  // 8. Delete Quotes (by leadId or phone)
+  const quotesQuery = leadIds.length > 0 || clientIds.length > 0
+    ? { $or: [phoneQuery, { leadId: { $in: leadIds } }, { clientId: { $in: clientIds } }] }
+    : phoneQuery;
+  const quotesResult = await db.collection('quotes').deleteMany(quotesQuery);
+  console.log(`🗑️  Deleted ${quotesResult.deletedCount} quotes`);
+  total += quotesResult.deletedCount;
 
-  // 2. Leads
-  if (doLeads) {
-    const collection = db.collection('leads');
-    const query = { phone: normalizedPhone };
-    const count = await collection.countDocuments(query);
-    
-    if (count > 0) {
-      if (!dryRun) {
-        const result = await collection.deleteMany(query);
-        results.push({ collection: 'leads', deleted: result.deletedCount });
-        console.log(`🗑️  leads: ${result.deletedCount} documentos borrados`);
-      } else {
-        console.log(`🔍 leads: ${count} documentos`);
-      }
-    } else {
-      console.log(`✅ leads: 0 documentos`);
-    }
-  }
+  // 9. Delete Negotiations
+  const negotiationsQuery = leadIds.length > 0 || clientIds.length > 0
+    ? { $or: [phoneQuery, { leadId: { $in: leadIds } }, { clientId: { $in: clientIds } }] }
+    : phoneQuery;
+  const negotiationsResult = await db.collection('negotiations').deleteMany(negotiationsQuery);
+  console.log(`🗑️  Deleted ${negotiationsResult.deletedCount} negotiations`);
+  total += negotiationsResult.deletedCount;
 
-  // 3. Conversations (phoneNumber field)
-  if (doConversations) {
-    const collection = db.collection('conversations');
-    const query = { phoneNumber: normalizedPhone };
-    const count = await collection.countDocuments(query);
-    
-    if (count > 0) {
-      if (!dryRun) {
-        const result = await collection.deleteMany(query);
-        results.push({ collection: 'conversations', deleted: result.deletedCount });
-        console.log(`🗑️  conversations: ${result.deletedCount} documentos borrados`);
-      } else {
-        console.log(`🔍 conversations: ${count} documentos`);
-      }
-    } else {
-      console.log(`✅ conversations: 0 documentos`);
-    }
-  }
+  // 10. Delete Technical Visits
+  const visitsQuery = leadIds.length > 0 || clientIds.length > 0
+    ? { $or: [phoneQuery, { leadId: { $in: leadIds } }, { clientId: { $in: clientIds } }] }
+    : phoneQuery;
+  const visitsResult = await db.collection('technicalvisits').deleteMany(visitsQuery);
+  console.log(`🗑️  Deleted ${visitsResult.deletedCount} technicalvisits`);
+  total += visitsResult.deletedCount;
 
-  // 4. Clients (phone field)
-  if (doClients) {
-    const collection = db.collection('clients');
-    const query = { phone: normalizedPhone };
-    const count = await collection.countDocuments(query);
-    
-    if (count > 0) {
-      if (!dryRun) {
-        const result = await collection.deleteMany(query);
-        results.push({ collection: 'clients', deleted: result.deletedCount });
-        console.log(`🗑️  clients: ${result.deletedCount} documentos borrados`);
-      } else {
-        console.log(`🔍 clients: ${count} documentos`);
-      }
-    } else {
-      console.log(`✅ clients: 0 documentos`);
-    }
-  }
+  // 11. Delete Contracts
+  const contractsQuery = clientIds.length > 0
+    ? { $or: [phoneQuery, { clientId: { $in: clientIds } }] }
+    : phoneQuery;
+  const contractsResult = await db.collection('contracts').deleteMany(contractsQuery);
+  console.log(`🗑️  Deleted ${contractsResult.deletedCount} contracts`);
+  total += contractsResult.deletedCount;
 
-  if (dryRun) {
-    console.log('\n⚠️  [DRY RUN] No se borró nada. Quita --dry-run para ejecutar.');
-  }
+  // 12. Delete Service Histories
+  const serviceHistoriesQuery = clientIds.length > 0
+    ? { $or: [phoneQuery, { clientId: { $in: clientIds } }] }
+    : phoneQuery;
+  const serviceHistoriesResult = await db.collection('clientservicehistories').deleteMany(serviceHistoriesQuery);
+  console.log(`🗑️  Deleted ${serviceHistoriesResult.deletedCount} clientservicehistories`);
+  total += serviceHistoriesResult.deletedCount;
 
-  const totalDeleted = results.reduce((sum, r) => sum + r.deleted, 0);
-  console.log(`\n📊 Total: ${dryRun ? 'encontrados' : 'borrados'} ${totalDeleted} documentos`);
+  // 13. Delete Client Activities / Timeline
+  const activitiesQuery = clientIds.length > 0
+    ? { $or: [phoneQuery, { clientId: { $in: clientIds } }] }
+    : phoneQuery;
+  const activitiesResult = await db.collection('clientactivities').deleteMany(activitiesQuery);
+  console.log(`🗑️  Deleted ${activitiesResult.deletedCount} clientactivities`);
+  total += activitiesResult.deletedCount;
+
+  // 14. Delete Audit Logs
+  const auditQuery = {
+    $or: [
+      phoneQuery,
+      ...(clientIds.length > 0 ? [{ entityId: { $in: clientIds } }] : []),
+      ...(leadIds.length > 0 ? [{ entityId: { $in: leadIds } }] : []),
+    ]
+  };
+  const auditResult = await db.collection('auditlogs').deleteMany(auditQuery);
+  console.log(`🗑️  Deleted ${auditResult.deletedCount} auditlogs`);
+  total += auditResult.deletedCount;
+
+  console.log(`\n📊 Total: ${total} documentos borrados`);
 
   await mongoose.disconnect();
-  console.log('\n🔌 Desconectado');
+  console.log('✅ Cleanup complete!');
+  process.exit(0);
 }
 
 cleanup().catch(console.error);

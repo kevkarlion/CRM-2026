@@ -22,9 +22,22 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || undefined;
     const technicianId = searchParams.get('technicianId') || undefined;
     const clientId = searchParams.get('clientId') || undefined;
+    const expired = searchParams.get('expired') || undefined;
 
     const filters: Record<string, unknown> = {};
     if (status) filters.status = status;
+    if (expired === 'true') {
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
+      // Last 30 days
+      const thirtyDaysAgo = new Date(today);
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+      
+      filters.scheduledDateGte = thirtyDaysAgoStr;
+      filters.scheduledDateLt = todayStr;
+      filters.statusNin = ['completed', 'cancelled', 'closed', 'paused'];
+    }
     if (priority) filters.priority = priority;
     if (leadId) filters.leadId = leadId;
     if (search) filters.search = search;

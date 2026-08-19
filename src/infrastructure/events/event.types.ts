@@ -16,6 +16,13 @@ export const DOMAIN_EVENTS = {
   LEAD_STATUS_CHANGED: 'LEAD_STATUS_CHANGED',
   LEAD_CONVERTED: 'LEAD_CONVERTED',
   
+  // Gestion
+  GESTION_CREATED: 'GESTION_CREATED',
+  GESTION_STATUS_CHANGED: 'GESTION_STATUS_CHANGED',
+  
+  // Conversation / Customer Flow
+  CUSTOMER_FLOW_COMPLETED: 'CUSTOMER_FLOW_COMPLETED',
+  
   // Quote
   QUOTE_CREATED: 'QUOTE_CREATED',
   QUOTE_SENT: 'QUOTE_SENT',
@@ -44,6 +51,11 @@ export const DOMAIN_EVENTS = {
   
   // Sale
   SALE_CONFIRMED: 'SALE_CONFIRMED',
+
+  // Resolution (when user resolves a converted lead/client)
+  RESOLVE_CONVERTED_LEAD: 'RESOLVE_CONVERTED_LEAD', // Legacy - mantener para compatibilidad
+  LEAD_RESOLVED: 'LEAD_RESOLVED', // Cuando se resuelve desde un lead
+  CLIENT_RESOLVED: 'CLIENT_RESOLVED', // Cuando se resuelve desde un cliente/gestion
 
   // Client
   CLIENT_CREATED: 'CLIENT_CREATED',
@@ -74,6 +86,31 @@ export interface LeadConvertedPayload {
   clientId: string;
   leadName?: string;
   clientName?: string;
+}
+
+export interface GestionCreatedPayload {
+  gestionId: string;
+  clientId: string;
+  name: string;
+  source: string;
+  email?: string;
+  phone?: string;
+  companyName?: string;
+}
+
+export interface GestionStatusChangedPayload {
+  gestionId: string;
+  clientId: string;
+  from: string;
+  to: string;
+  gestionName?: string;
+}
+
+export interface CustomerFlowCompletedPayload {
+  clientId: string;
+  serviceType?: string;
+  description?: string;
+  address?: string;
 }
 
 export interface QuoteCreatedPayload {
@@ -248,6 +285,23 @@ export interface SaleConfirmedPayload {
   saleMode: 'quotes' | 'direct';
   leadName?: string;
   quotesCount?: number;
+}
+
+export interface ResolveConvertedLeadPayload {
+  leadId?: string;
+  clientId: string;
+  resolvedBy: string;
+}
+
+export interface LeadResolvedPayload {
+  leadId: string;
+  clientId: string;
+  resolvedBy: string;
+}
+
+export interface ClientResolvedPayload {
+  clientId: string;
+  resolvedBy: string;
 }
 
 export interface ClientCreatedPayload {

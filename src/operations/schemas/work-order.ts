@@ -98,9 +98,15 @@ export const workOrderSchema = new Schema<IWorkOrder>(
     },
     status: {
       type: String,
-      enum: ['draft', 'scheduled', 'in_progress', 'completed', 'cancelled'],
+      enum: ['draft', 'scheduled', 'assigned', 'in_progress', 'paused', 'completed', 'cancelled'],
       required: true,
       default: 'draft',
+    },
+    // Estado de negocio: active (vigente), paused (pausada, no es vencida), cancelled (dada de baja), completed (cerrada)
+    workStatus: {
+      type: String,
+      enum: ['active', 'paused', 'cancelled', 'completed'],
+      default: 'active',
     },
     scheduledDate: String,
     scheduledStart: Date,

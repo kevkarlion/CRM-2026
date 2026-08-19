@@ -148,10 +148,14 @@ export async function POST(
         },
       });
       
+      // NOTE: No se crea Gestion aquí. Se crea cuando el usuario hace click en "Resuelto"
+      
+      // Get client name for work order
+      const clientName = (leadData as any).companyName || (leadData as any).name || 'Cliente';
+      
       // Create work order in draft status
       const tenantPrefix = tenantId.slice(-6);
       const workOrderNumber = await getNextWorkOrderNumber(tenantPrefix);
-      const clientName = (leadData as any).companyName || (leadData as any).name;
       
       const [workOrder] = await WorkOrderModel.create([{
         tenantId: new mongoose.Types.ObjectId(tenantId),

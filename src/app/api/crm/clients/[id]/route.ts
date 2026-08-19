@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
 import ClientModel from '@/crm/models/client';
+import GestionModel from '@/gestion/models/gestion';
 import { Types } from 'mongoose';
 
 /**
@@ -28,8 +29,24 @@ export async function GET(
     if (!client) {
       return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 });
     }
-    
-    return NextResponse.json(client);
+
+    // Get latest Gestion for this client (active or closed)
+    // Show the most recent one so user always sees current status
+    const latestGestion = await GestionModel.findOne({
+      clientId: new Types.ObjectId(id),
+      tenantId: new Types.ObjectId(tenantId),
+    }).sort({ createdAt: -1 }).lean();
+
+    // Return client with latest Gestion info
+    return NextResponse.json({
+      ...client,
+      activeGestion: latestGestion ? {
+        _id: String(latestGestion._id),
+        status: latestGestion.status,
+        name: latestGestion.name,
+        createdAt: latestGestion.createdAt,
+      } : null,
+    });
   } catch (error: any) {
     console.error('[clients] GET error:', error?.message || error);
     return NextResponse.json({ error: error?.message || 'Error' }, { status: 500 });

@@ -32,6 +32,7 @@ const STATUS_LABELS: Record<string, string> = {
   won: 'Ganado',
   lost: 'Perdido',
   disqualified: 'Descalificado',
+  closed: 'Cerrado',
 };
 
 const STATUS_VARIANTS: Record<string, string> = {
@@ -62,6 +63,7 @@ const INQUIRY_LABELS: Record<string, string> = {
 
 interface LeadCardProps {
   lead: ILead;
+  entityType?: 'lead' | 'gestion';
   onClick?: (leadId: string) => void;
   onWhatsAppClick?: (lead: ILead) => void;
   conversationStatus?: ConversationStatus | null;
@@ -73,6 +75,7 @@ interface LeadCardProps {
 
 export const LeadCard = React.memo(function LeadCard({
   lead,
+  entityType = 'lead',
   onClick,
   onWhatsAppClick,
   conversationStatus,
@@ -130,9 +133,23 @@ export const LeadCard = React.memo(function LeadCard({
       }`}
       role="button"
       tabIndex={0}
-      aria-label={`Lead: ${lead.name}`}
+      aria-label={`${entityType === 'gestion' ? 'Cliente' : 'Lead'}: ${lead.name}`}
     >
       <div>
+        {entityType === 'gestion' && (
+          <div className="flex items-center gap-1 mb-1">
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-green-100 text-green-700 border border-green-200">
+              🟢 Cliente
+            </span>
+          </div>
+        )}
+        {entityType === 'lead' && (
+          <div className="flex items-center gap-1 mb-1">
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-blue-100 text-blue-700 border border-blue-200">
+              🔵 Lead
+            </span>
+          </div>
+        )}
         <p className="text-xs md:text-[13px] font-semibold text-gray-900 leading-tight">
           {lead.profileName || lead.companyName || lead.name}
         </p>
@@ -140,16 +157,23 @@ export const LeadCard = React.memo(function LeadCard({
           <p className="text-[10px] md:text-[11px] text-gray-500 truncate mt-0.5">{lead.name}</p>
         )}
         <div className="flex items-center gap-1 mt-1">
-          {(calculatedScore?.temperature || lead.temperature) && TEMPERATURE_CONFIG[calculatedScore?.temperature || lead.temperature] && (
-            <span className={`inline-flex items-center px-1 py-px rounded text-[9px] font-medium border ${TEMPERATURE_CONFIG[calculatedScore?.temperature || lead.temperature].className}`}>
-              {TEMPERATURE_CONFIG[calculatedScore?.temperature || lead.temperature].icon} {calculatedScore?.score || lead.score || 0}
-            </span>
-          )}
-          {!calculatedScore?.temperature && !lead.temperature && (calculatedScore?.score || lead.score) && (calculatedScore?.score || lead.score) > 0 && (
-            <span className="inline-flex items-center px-1 py-px rounded text-[9px] font-medium bg-gray-100 text-gray-700 border border-gray-200">
-              {calculatedScore?.score || lead.score}
-            </span>
-          )}
+          {(() => {
+            const temp = (calculatedScore?.temperature || lead.temperature) as string | undefined;
+            return temp && TEMPERATURE_CONFIG[temp] ? (
+              <span className={`inline-flex items-center px-1 py-px rounded text-[9px] font-medium border ${TEMPERATURE_CONFIG[temp].className}`}>
+                {TEMPERATURE_CONFIG[temp].icon} {calculatedScore?.score || lead.score || 0}
+              </span>
+            ) : null;
+          })()}
+          {(() => {
+            const temp = (calculatedScore?.temperature || lead.temperature) as string | undefined;
+            const score = calculatedScore?.score ?? lead.score;
+            return !temp && score && score > 0 ? (
+              <span className="inline-flex items-center px-1 py-px rounded text-[9px] font-medium bg-gray-100 text-gray-700 border border-gray-200">
+                {score}
+              </span>
+            ) : null;
+          })()}
           <span className={`inline-flex items-center px-1.5 py-px rounded text-[9px] font-medium ${STATUS_VARIANTS[lead.status] || 'bg-gray-100 text-gray-700'}`}>
             {STATUS_LABELS[lead.status] || lead.status}
           </span>
@@ -275,6 +299,18 @@ export const LeadCard = React.memo(function LeadCard({
             className="px-2 py-0.5 text-[10px] font-medium bg-green-50 text-green-700 rounded hover:bg-green-100 transition-colors"
           >
             Descalificar
+          </button>
+        </div>
+      )}
+
+      {/* Botón Resuelto - solo para leads convertidos (status won) */}
+      {lead.status === 'won' && (
+        <div className="mt-1.5">
+          <button
+            onClick={(e) => { e.stopPropagation(); onResolve?.(lead); }}
+            className="w-full px-2 py-1 text-[10px] font-medium bg-emerald-100 text-emerald-800 rounded hover:bg-emerald-200 transition-colors"
+          >
+            ✓ Resuelto
           </button>
         </div>
       )}

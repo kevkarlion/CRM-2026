@@ -7,15 +7,17 @@ import { usePipelineBoard } from '../hooks/usePipelineBoard';
 import { useConversationStatus } from '../hooks/useConversationStatus';
 import { usePendingHandoffs } from '../hooks/usePendingHandoffs';
 import { useBotClients } from '../hooks/useBotClients';
-import { useCustomerConversations } from '../hooks/useCustomerConversations';
+import { useGestiones } from '../hooks/useGestiones';
 import { calculateClientScore } from '@/clients/services/client-score.service';
 import { PipelineColumn } from './PipelineColumn';
 import { LeadFilters } from './LeadFilters';
 import { LeadChatDrawer } from './LeadChatDrawer';
 import { ClientChatDrawer } from './ClientChatDrawer';
 import { ClientCard } from './ClientCard';
+import { GestionCard } from './GestionCard';
 import type { ILead } from '../../types/lead';
-import type { IClient } from '@/crm/types/client';
+import type { IGestion } from '@/gestion/types/gestion';
+import type { IGestion } from '@/gestion/types/gestion';
 
 function SkeletonColumn() {
   return (
@@ -77,7 +79,20 @@ export function PipelineBoard() {
     return pipeline.stages.filter((s) => s.isActive).sort((a, b) => a.position - b.position);
   }, [pipeline]);
 
-  const { columns } = usePipelineBoard(stages, groups, refetch);
+  // Filter out leads that are closed - they shouldn't appear in pipeline
+  // Note: leads with status 'won' and convertedAt should still show in "Ganado"
+  const filteredGroups = useMemo(() => {
+    const result: typeof groups = {};
+    for (const [stageName, stageData] of Object.entries(groups)) {
+      result[stageName] = {
+        ...stageData,
+        leads: stageData.leads.filter((lead: ILead) => lead.status !== 'closed'),
+      };
+    }
+    return result;
+  }, [groups]);
+
+  const { columns } = usePipelineBoard(stages, filteredGroups, refetch);
 
   // Read stage filter from URL params
   const visibleStageNames = useMemo(() => {
@@ -137,19 +152,221 @@ export function PipelineBoard() {
   const { statusMap: conversationStatusMap } = useConversationStatus(allLeadIds);
   const { count: pendingHandoffs, handoffs: handoffList } = usePendingHandoffs();
   const { clients: botClients, refetch: refetchBotClients } = useBotClients();
-  const { conversations: customerConversations, refetch: refetchCustomerConversations } = useCustomerConversations();
+  const { gestions, loading: loadingGestiones, refetch: refetchGestiones } = useGestiones();
+
+  // Map Gestion status to pipeline stage name (Spanish names from DB)
+  const mapGestionStatusToStage = (status: string): string => {
+    const statusToStage: Record<string, string> = {
+      'new': 'Nuevo contacto',
+      'contacted': 'Contactado',
+      'qualified': 'Calificado',
+      'quote_sent': 'Presupuesto enviado',
+      'proposal': 'Presupuesto enviado',
+      'technical_visit': 'Visita técnica',
+      'negotiation': 'Negociación',
+      'won': 'Ganado',
+      'lost': 'Perdido',
+      'closed': 'Ganado', // Closed still shows in Ganado for reference
+    };
+    return statusToStage[status] || 'Nuevo contacto';
+  };
+
+  // Convert Gestion to ILead-like for pipeline display
+  const gestionsAsLeads = useMemo((): ILead[] => {
+    return gestions.map((g) => {
+      // Get client data from populate
+      const clientData = g.clientId as any;
+      // Handle both populated (object with _id) and non-populated (ObjectId) cases
+      const clientIdValue = clientData?._id || clientData || g.clientId;
+      const clientIdString = clientIdValue ? String(clientIdValue) : undefined;
+      
+      const clientName = clientData?.fullName || clientData?.companyName || g.name || 'Cliente';
+      const clientCompany = clientData?.companyName || clientName;
+      const clientPhone = g.phone || clientData?.phone;
+      const clientEmail = g.email || clientData?.email;
+      
+      // Get original lead ID for conversation tracking
+      const originalLeadId = (g as any).originalLeadId;
+      
+      // Get score from conversation status if available
+      let gestionScore = g.score || 0;
+      let gestionTemperature = g.temperature;
+      if (originalLeadId) {
+        const convStatus = conversationStatusMap.get(String(originalLeadId));
+        if (convStatus?.score && convStatus.score > 0) {
+          gestionScore = convStatus.score;
+        }
+        if (convStatus?.temperature && !gestionTemperature) {
+          gestionTemperature = convStatus.temperature;
+        }
+      }
+      
+      return {
+        _id: g._id as any,
+        tenantId: g.tenantId,
+        name: clientName,
+        profileName: clientData?.companyName || undefined, // WhatsApp profile name (company)
+        companyName: clientCompany,
+        phone: clientPhone,
+        email: clientEmail,
+        status: g.status as any,
+        priority: g.priority,
+        score: gestionScore,
+        temperature: gestionTemperature as any,
+        inquiryReason: g.inquiryReason as any,
+        source: 'gestion' as any, // Mark as Gestion
+        assignedTo: g.assignedTo,
+        createdAt: g.createdAt,
+        updatedAt: g.updatedAt,
+        // Mark as Gestion
+        isFromGestion: true,
+        clientId: clientIdString,
+        // For conversation status lookup - use original lead ID
+        originalLeadId: originalLeadId || undefined,
+      };
+    });
+  }, [gestions, conversationStatusMap]);
+
+// Add gestions to columns based on their status
+  const columnsWithGestions = useMemo(() => {
+    const result: Record<string, ILead[]> = {};
+    
+    // Create set of client phones from ALL active Gestiones (not won/lost)
+    // Any client with an active Gestion should hide their lead from pipeline
+    const activeGestionPhones = new Set(
+      gestions
+        .filter(g => g.status !== 'won' && g.status !== 'lost' && g.status !== 'closed')
+        .map(g => g.phone?.replace(/\D/g, ''))
+        .filter(Boolean)
+    );
+    
+    // Create set of phones from leads that are NOT closed (active leads)
+    // Don't show Gestion for these phones until lead is resolved
+    const activeLeadPhones = new Set(
+      Object.values(columns)
+        .flatMap(stageLeads => stageLeads)
+        .filter(lead => lead.status !== 'closed')
+        .map(lead => lead.phone?.replace(/\D/g, ''))
+        .filter(Boolean)
+    );
+    
+    // Initialize with existing columns - filter leads that have active Gestion
+    for (const [stageName, leads] of Object.entries(columns)) {
+      // Hide lead if there's any active Gestion for this phone (client is already in Gestion flow)
+      result[stageName] = leads.filter(lead => {
+        const leadPhone = lead.phone?.replace(/\D/g, '');
+        // Keep lead if there's NO active Gestion for this phone
+        return !(leadPhone && activeGestionPhones.has(leadPhone));
+      });
+    }
+    
+    // Add gestions as separate cards in their columns
+    // BUT: only show if there's NO active lead for this phone (lead has been resolved)
+    for (const gestion of gestionsAsLeads) {
+      // Only add if it's NOT 'lost', 'new', or 'closed'
+      // Also skip if there's an active lead for this phone (gestion waiting for resolve)
+      const gestionPhone = gestion.phone?.replace(/\D/g, '');
+      const hasActiveLead = gestionPhone && activeLeadPhones.has(gestionPhone);
+      
+      if (!hasActiveLead && gestion.status !== 'lost' && gestion.status !== 'closed') {
+        const stageName = mapGestionStatusToStage(gestion.status);
+        if (!result[stageName]) {
+          result[stageName] = [];
+        }
+        result[stageName].push(gestion);
+      }
+    }
+    
+    return result;
+  }, [columns, gestionsAsLeads, gestions]);
+
+  // Helper to get conversation status for a lead or gestion (must be before handlers that use it)
+  const getConversationStatus = useCallback((lead: ILead) => {
+    const isGestion = (lead as any).isFromGestion === true || lead.source === 'gestion';
+    if (isGestion) {
+      // For Gestiones, try originalLeadId first, then own ID, then by phone
+      const originalLeadId = (lead as any).originalLeadId;
+      if (originalLeadId) {
+        const status = conversationStatusMap.get(String(originalLeadId)) ?? conversationStatusMap.get(String(lead._id));
+        if (status) return status;
+      }
+      // Try by phone number - normalize to match conversation phoneNumber
+      if (lead.phone) {
+        const normalizedPhone = lead.phone.replace(/\D/g, '');
+        for (const [key, convStatus] of conversationStatusMap.entries()) {
+          // Check if any conversation matches this phone (for customer conversations)
+          if (key.includes(normalizedPhone) || normalizedPhone.includes(key.slice(-9))) {
+            return convStatus;
+          }
+        }
+      }
+      // Try by clientId from Gestion
+      const clientIdFromGestion = (lead as any).clientId;
+      if (clientIdFromGestion) {
+        const clientIdStr = typeof clientIdFromGestion === 'string' ? clientIdFromGestion : String(clientIdFromGestion);
+        // Search in conversationStatusMap for clientId
+        for (const [key, convStatus] of conversationStatusMap.entries()) {
+          // Also check if this is a customer conversation by looking up by clientId in another way
+          // The conversation API should return clientId in the conversation
+          if (key === clientIdStr || (convStatus as any).clientId === clientIdStr) {
+            return convStatus;
+          }
+        }
+      }
+      return conversationStatusMap.get(String(lead._id));
+    }
+    // For regular leads, use own ID
+    return conversationStatusMap.get(String(lead._id));
+  }, [conversationStatusMap]);
 
   // Open WhatsApp chat drawer for a lead
   const handleLeadWhatsAppClick = useCallback((lead: ILead) => {
+    const isGestion = (lead as any).isFromGestion === true || lead.source === 'gestion';
+    if (isGestion) {
+      // It's a Gestion - open client chat with the clientId
+      const clientData = lead.clientId as any;
+      const clientId = typeof clientData === 'string' ? clientData : clientData?._id;
+      if (clientId) {
+        // Get conversation status using originalLeadId for proper tracking
+        const convStatus = getConversationStatus(lead);
+        setSelectedClientForChat({
+          id: clientId,
+          name: lead.name || 'Cliente',
+          phone: lead.phone || '',
+        });
+        setSelectedClientConversationStatus(convStatus || null);
+        setChatDrawerOpen(true);
+        return;
+      }
+    }
     setSelectedLeadForChat(lead);
     setChatDrawerOpen(true);
-  }, []);
+  }, [getConversationStatus]);
 
   // Open chat for a specific lead (from quick actions)
   const handleOpenChat = useCallback((lead: ILead) => {
+    const isGestion = (lead as any).isFromGestion === true || lead.source === 'gestion';
+    if (isGestion) {
+      // It's a Gestion - open client chat with the clientId
+      const clientData = lead.clientId as any;
+      const clientId = typeof clientData === 'string' ? clientData : clientData?._id;
+      if (clientId) {
+        // Get conversation status using originalLeadId for proper tracking
+        const convStatus = getConversationStatus(lead);
+        setSelectedClientForChat({
+          id: clientId,
+          name: lead.name || 'Cliente',
+          phone: lead.phone || '',
+        });
+        setSelectedClientConversationStatus(convStatus || null);
+        setChatDrawerOpen(true);
+        return;
+      }
+    }
+    // Regular lead
     setSelectedLeadForChat(lead);
     setChatDrawerOpen(true);
-  }, []);
+  }, [getConversationStatus]);
 
   // Quick reply opens the chat drawer focused on input
   const handleQuickReply = useCallback((lead: ILead) => {
@@ -209,9 +426,9 @@ export function PipelineBoard() {
       console.log('[Resolve] Response status:', res.status);
       if (res.ok) {
         setNotification({ type: 'success', message: 'Lead descalificado' });
-        // Refresh both customers and leads
-        refetchCustomerConversations();
+        // Refresh leads and gestions
         refetch();
+        refetchGestiones();
       } else {
         const errorData = await res.json().catch(() => ({}));
         setNotification({ type: 'error', message: errorData.error || 'Error al descalificar' });
@@ -225,7 +442,7 @@ export function PipelineBoard() {
       setResolveLeadId(null);
       setTimeout(() => setNotification(null), 5000);
     }
-  }, [resolveConversationId, resolveLeadId, refetchCustomerConversations]);
+  }, [resolveConversationId, resolveLeadId, refetch, refetchGestiones]);
 
   // Resolve conversation directly by ID (for ClientCard button)
   const handleResolveConversationWithId = useCallback(async (conversationId: string) => {
@@ -242,7 +459,7 @@ export function PipelineBoard() {
       console.log('[Resolve] handleResolveConversationWithId response:', res.status);
       if (res.ok) {
         setNotification({ type: 'success', message: 'Lead descalificado ✅' });
-        refetchCustomerConversations();
+        refetchGestiones();
       } else {
         setNotification({ type: 'error', message: 'Error al resolver' });
       }
@@ -250,22 +467,68 @@ export function PipelineBoard() {
       setNotification({ type: 'error', message: 'Error al resolver' });
     }
     setTimeout(() => setNotification(null), 5000);
-  }, [refetchCustomerConversations]);
+  }, [refetchGestiones]);
 
   // Resolve lead - works with or without conversation
   const handleLeadResolve = useCallback(async (lead: ILead) => {
-    const status = conversationStatusMap.get(String(lead._id));
+    // If lead is won, resolve it (close lead and create new Gestion)
+    if (lead.status === 'won') {
+      try {
+        // Determine if it's a Lead or Gestion
+        const isGestion = (lead as any).isFromGestion === true || lead.source === 'gestion';
+        
+        let endpoint: string;
+        if (isGestion) {
+          // For Gestion, use client endpoint with clientId
+          const clientId = (lead as any).clientId;
+          endpoint = `/api/crm/clients/${clientId}/resolve`;
+        } else {
+          // For Lead, use lead endpoint
+          endpoint = `/api/crm/leads/${lead._id}/resolve`;
+        }
+        
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(() => {
+              if (typeof window === 'undefined') return {};
+              const token = localStorage.getItem('token');
+              const tenantId = localStorage.getItem('tenantId');
+              const headers: Record<string, string> = {};
+              if (token) headers['Authorization'] = `Bearer ${token}`;
+              if (tenantId) headers['x-tenant-id'] = tenantId;
+              return headers;
+            })(),
+          },
+        });
+        
+        if (res.ok) {
+          // Refresh data
+          refetch();
+          refetchGestiones?.();
+        } else {
+          console.error('[Resolve] Failed:', res.status);
+        }
+      } catch (error) {
+        console.error('[Resolve] Error:', error);
+      }
+      return;
+    }
+    
+    // Otherwise, open modal to disqualify (existing behavior)
+    const status = getConversationStatus(lead);
     
     // Open modal regardless - with or without conversation
     setResolveConversationId(status?.conversationId ?? null);
     setResolveLeadId(String(lead._id));
     setResolveConversationName(lead.profileName || lead.name || lead.companyName || 'este lead');
     setResolveConfirmOpen(true);
-  }, [conversationStatusMap]);
+  }, [conversationStatusMap, refetch, refetchGestiones]);
 
   // Take case — assign the current user to the conversation
   const handleTakeCase = useCallback(async (lead: ILead) => {
-    const status = conversationStatusMap.get(String(lead._id));
+    const status = getConversationStatus(lead);
     if (!status?.conversationId) return;
     try {
       const res = await fetch(`/api/crm/conversations/${status.conversationId}/assign`, {
@@ -308,22 +571,22 @@ export function PipelineBoard() {
     const interval = setInterval(() => {
       refetch();
       refetchBotClients();
-      refetchCustomerConversations();
+      refetchGestiones();
     }, 5000);
     return () => clearInterval(interval);
-  }, [refetch, refetchBotClients, refetchCustomerConversations]);
+  }, [refetch, refetchBotClients, refetchGestiones]);
 
   const hasData = Object.keys(groups).length > 0;
 
   // Metrics for the filters bar
   const metrics = useMemo(() => {
-    const allLeads = Object.values(columns).flat();
+    const allLeads = Object.values(columnsWithGestions).flat();
     const total = allLeads.length;
     const calientes = allLeads.filter((l) => l.temperature === 'hot').length;
     const handoffs = pendingHandoffs;
     const sinRespuesta = allLeads.filter((l) => !conversationStatusMap.has(String(l._id))).length;
     return { total, calientes, handoffs, sinRespuesta };
-  }, [columns, pendingHandoffs, conversationStatusMap]);
+  }, [columnsWithGestions, pendingHandoffs, conversationStatusMap]);
 
   // Filter leads by ALL URL params
   const filteredColumns = useMemo(() => {
@@ -335,10 +598,10 @@ export function PipelineBoard() {
     if (!hasActiveFilter) {
       // Sort leads: inbound recent first, then outbound waiting, then by score
       const result: Record<string, ILead[]> = {};
-      for (const [stageName, leads] of Object.entries(columns)) {
+      for (const [stageName, leads] of Object.entries(columnsWithGestions)) {
         const sortedLeads = [...leads].sort((a, b) => {
-          const convA = conversationStatusMap.get(String(a._id));
-          const convB = conversationStatusMap.get(String(b._id));
+          const convA = getConversationStatus(a);
+          const convB = getConversationStatus(b);
           
           // Priority 1: Has unread inbound (lead wrote after last read)
           const hasUnreadA = convA?.lastInboundMessageAt && 
@@ -411,7 +674,7 @@ export function PipelineBoard() {
         }
 
         // Conversation-based filters
-        const convStatus = conversationStatusMap.get(String(lead._id));
+        const convStatus = getConversationStatus(lead);
         if (f.isBotActive && !convStatus?.isBotActive) return false;
         if (f.isHandoff && !convStatus?.isHandoffPending) return false;
 
@@ -437,7 +700,7 @@ export function PipelineBoard() {
       });
     }
     return result;
-  }, [columns, filterParams, conversationStatusMap]);
+  }, [columnsWithGestions, filterParams, conversationStatusMap]);
 
   const visibleColumns = filteredColumns;
 
@@ -504,6 +767,7 @@ export function PipelineBoard() {
                 onLeadClick={handleLeadClick}
                 onWhatsAppClick={handleLeadWhatsAppClick}
                 conversationStatusMap={conversationStatusMap}
+                getConversationStatus={getConversationStatus}
                 onTakeCase={handleTakeCase}
                 onQuickReply={handleQuickReply}
                 onOpenChat={handleOpenChat}
@@ -511,72 +775,6 @@ export function PipelineBoard() {
               />
             );
           })}
-
-          {/* Columna de clientes con atención activa */}
-          {customerConversations.length > 0 && (
-            <div className="bg-green-50 rounded-lg border border-green-200 min-w-[85vw] md:min-w-[280px] md:flex-1 snap-start">
-              <div className="flex items-center justify-between px-3 py-2 border-b border-green-200 bg-green-50 rounded-t-lg">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-semibold text-green-700 truncate">
-                    Clientes
-                  </h3>
-                  <span className="badge badge-success text-xs shrink-0">
-                    {customerConversations.length}
-                  </span>
-                </div>
-              </div>
-              <div className="p-2 space-y-2">
-                {customerConversations.map((conv) => {
-                  // Crear objeto cliente a partir de datos de conversación
-                  const clientData = {
-                    _id: conv.clientId,
-                    name: conv.clientName,
-                    companyName: conv.clientName,
-                    phone: conv.clientPhone || '',
-                    email: '',
-                    operationStatus: conv.lifecycleState === 'ACTIVE_CLIENT' ? 'active' : 
-                                     conv.lifecycleState === 'IN_PROGRESS' ? 'quote_pending' : 'none',
-                    score: conv.clientScore ?? 0,
-                    temperature: conv.clientTemperature as any,
-                    assignedTo: null,
-                    createdAt: conv.lastMessageAt ? { toString: () => conv.lastMessageAt } as any : undefined,
-                    estimatedValue: undefined,
-                    notes: '',
-                    priority: 'medium',
-                  } as any;
-
-                  const conversationStatus = {
-                    conversationId: conv.conversationId,
-                    leadId: conv.clientId || '',
-                    hasActiveConversation: true,
-                    conversationState: conv.lifecycleState as any,
-                    isBotActive: conv.owner === 'BOT' && ['ACTIVE_LEAD', 'ACTIVE_CLIENT', 'WAITING_OPERATOR', 'WAITING_CLIENT'].includes(conv.lifecycleState),
-                    isHandoffPending: conv.lifecycleState === 'handoff_pending',
-                    isHumanAssigned: conv.lifecycleState === 'human_assigned' || conv.lifecycleState === 'IN_PROGRESS',
-                    lastMessageAt: conv.lastMessageAt ? new Date(conv.lastMessageAt) : null,
-                    lastMessagePreview: conv.lastMessagePreview,
-                    unreadCount: 0,
-                    score: conv.clientScore ?? undefined,
-                    temperature: conv.clientTemperature,
-                  } as any;
-
-                  return (
-                    <ClientCard
-                      key={conv.conversationId}
-                      client={clientData}
-                      onClick={(clientId) => window.location.href = `/clients/${clientId}`}
-                      onWhatsAppClick={(client) => handleClientChatClick(client._id?.toString() || '', client.name, client.phone, conversationStatus)}
-                      conversationStatus={conversationStatus}
-                      onTakeCase={(client) => handleClientChatClick(client._id?.toString() || '', client.name, client.phone, conversationStatus)}
-                      onQuickReply={(client) => handleClientChatClick(client._id?.toString() || '', client.name, client.phone, conversationStatus)}
-                      onOpenChat={(client) => handleClientChatClick(client._id?.toString() || '', client.name, client.phone, conversationStatus)}
-                      onResolve={() => handleResolveConversationWithId(conv.conversationId)}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          )}
 
           {/* Note: "Sin etapa" column removed - shows leads with status not mapped to any pipeline stage */}
         </div>
@@ -594,7 +792,7 @@ export function PipelineBoard() {
           }}
           lead={selectedLeadForChat}
           client={null}
-          conversationStatus={conversationStatusMap.get(String((selectedLeadForChat as any)._id)) ?? null}
+          conversationStatus={getConversationStatus(selectedLeadForChat) ?? null}
         />
       )}
 

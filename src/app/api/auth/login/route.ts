@@ -5,6 +5,7 @@ import { connectDB } from '@/core/db';
 import UserModel from '@/core/models/user';
 import UserRoleModel from '@/core/models/user-role';
 import RoleModel from '@/core/models/role';
+import { isMaintenanceMode, isMaintenanceBypassEmail } from '@/lib/maintenance';
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,6 +33,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Account is not active' }, { status: 403 });
     }
 
+    // Check maintenance mode - only allow users with bypass during maintenance
+    if (isMaintenanceMode() && !isMaintenanceBypassEmail(email)) {
+      console.log(`[Login] Maintenance mode active - denying login for: ${email}`);
+      return NextResponse.json(
+        { error: 'Sistema en mantenimiento. Intente más tarde.' },
+        { status: 503 }
+      );
+    }
+
     const secret = process.env.JWT_SECRET;
     if (!secret) {
       return NextResponse.json({ error: 'Server misconfiguration: JWT_SECRET not set' }, { status: 500 });
@@ -43,9 +53,13 @@ export async function POST(request: NextRequest) {
     );
 
     const userRoles = await UserRoleModel.find({ userId: user._id, tenantId: user.tenantId, deletedAt: null }).lean();
+    console.log('[Login] userRoles:', JSON.stringify(userRoles));
     const roleIds = userRoles.map(ur => ur.roleId);
+    console.log('[Login] roleIds:', roleIds);
     const roles = await RoleModel.find({ _id: { $in: roleIds } }).lean();
+    console.log('[Login] roles:', JSON.stringify(roles));
     const roleNames = roles.map(r => r.name);
+    console.log('[Login] roleNames:', roleNames);
 
     const token = await generateToken(
       {
@@ -53,6 +67,7 @@ export async function POST(request: NextRequest) {
         tenantId: user.tenantId.toString(),
         roles: roleNames,
         name: `${user.firstName} ${user.lastName}`.trim(),
+        email: user.email,
       },
       secret,
     );

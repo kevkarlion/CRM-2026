@@ -5,6 +5,7 @@ import ClientModel from '../models/client';
 import ContactModel from '../models/contact';
 import TenantModel from '../../core/models/tenant';
 import { ClientServiceHistoryModel } from '@/clients';
+import GestionModel from '@/gestion/models/gestion';
 import connectDB from '@/core/db';
 import { EVENT_TYPES } from '@/crm/types/activity';
 import TimelineEventModel from '@/timeline/models/timeline-event';
@@ -16,7 +17,10 @@ import type {
 } from '../types/whatsapp-message';
 import type { ILead, InquiryReason, CustomerType } from '../../leads/types/lead';
 import { calculateLeadScore } from '@/leads/services/lead-score.service';
+import { calculateClientScore } from '@/clients/services/client-score.service';
 import { normalizePhone, phoneMatchQuery } from '@/lib/phone';
+import { eventBus } from '@/infrastructure/events/event-bus';
+import { DOMAIN_EVENTS } from '@/infrastructure/events/event.types';
 
 // Conversation Engine imports
 import {
@@ -413,10 +417,11 @@ export class WhatsAppService {
     // Normalizar teléfono dentro de la función
     const normalizedPhone = normalizePhone(phone);
     
-    // Buscar lead existente por teléfono
+    // Buscar lead existente por teléfono - EXCLUIR leads 'closed' y 'won' (ya son clientes)
     let existingLead = await LeadModel.findOne({
       tenantId: new Types.ObjectId(tenantId),
       phone: phoneMatchQuery(normalizedPhone),
+      status: { $nin: ['closed', 'won'] }, // No buscar leads ya convertidos a cliente
       deletedAt: null,
     });
 
@@ -457,6 +462,19 @@ export class WhatsAppService {
           existingLead = await LeadModel.findById(existingLead._id);
         }
         return { lead: existingLead, isNew: false };
+      }
+
+      // IMPORTANTE: Verificar si existe un Cliente para este teléfono
+      // Si existe, NO crear un Lead nuevo - el cliente ya tiene su flujo
+      const existingClient = await ClientModel.findOne({
+        tenantId: new Types.ObjectId(tenantId),
+        phone: phoneMatchQuery(normalizedPhone),
+        deletedAt: null,
+      }).lean();
+
+      if (existingClient) {
+        console.log('[WhatsApp] Client exists for this phone - will use customer flow, no Lead created');
+        return { lead: null, isNew: false };
       }
 
       // Crear nuevo lead - usar profileName si está disponible, sino fallback a "Lead WhatsApp XXXX"
@@ -615,9 +633,11 @@ export class WhatsAppService {
           console.log('🎯 [SCORING] Buscando lead para actualizar...');
           
           try {
+            // Solo actualizar lead si NO está 'closed' ni 'won' (esos son clientes)
             const leadToUpdate = await LeadModel.findOne({
               tenantId: new Types.ObjectId(tenantId),
               phone: { $regex: new RegExp(normalizedPhone.replace(/^\+/, ''), 'i') },
+              status: { $nin: ['closed', 'won'] },
               deletedAt: null,
             });
             
@@ -738,6 +758,108 @@ export class WhatsAppService {
             }
           } catch (error) {
             console.error('[WhatsApp] Error updating lead data:', error);
+          }
+        }
+
+        // SCORING PARA GESTIONES - Solo ejecutar si hay clientId en el contexto del engine
+        // Extraer clientId e isCustomer del contexto del resultado (disponible solo para clientes)
+        const clientIdFromContext = engineResult?.context?.get<string>('clientId');
+        const isCustomerFromContext = engineResult?.context?.get<boolean>('isCustomer');
+        
+        // Extraer datos del contexto del engine para scoring de Gestion
+        const serviceTypeFromContext = engineResult?.context?.get<string>('serviceType') || engineResult?.context?.get<string>('needType');
+        const priorityFromContext = engineResult?.context?.get<string>('priority') || engineResult?.context?.get<string>('urgency');
+        const addressFromContext = engineResult?.context?.get<string>('address');
+        const localityFromContext = engineResult?.context?.get<string>('locality');
+        const provinceFromContext = engineResult?.context?.get<string>('province');
+        const descriptionFromContext = engineResult?.context?.get<string>('description');
+        
+        if (clientIdFromContext && (isCustomerFromContext || customerData?.isCustomer)) {
+          console.log('🎯 [SCORING GESTION] Buscando gestion activa para cliente:', clientIdFromContext);
+          try {
+            const activeGestion = await GestionModel.findOne({
+              tenantId: new Types.ObjectId(tenantId),
+              clientId: new Types.ObjectId(clientIdFromContext),
+              status: { $nin: ['won', 'lost', 'closed'] },
+            });
+
+            if (activeGestion) {
+              console.log('🎯 [SCORING GESTION] Gestion encontrada:', activeGestion._id, 'status:', activeGestion.status);
+              
+              const gestionUpdateData: Record<string, any> = {};
+
+              // Map service type to inquiry reason for Gestion
+              if (serviceTypeFromContext) {
+                const inquiryReasonMap: Record<string, string> = {
+                  'reparación': 'repair',
+                  'repair': 'repair',
+                  'instalación': 'installation',
+                  'installation': 'installation',
+                  'mantenimiento': 'maintenance',
+                  'maintenance': 'maintenance',
+                  'presupuesto': 'budget',
+                  'budget': 'budget',
+                  'repuestos': 'spare_parts',
+                  'spare_parts': 'spare_parts',
+                  'cotización': 'budget',
+                  'quote': 'budget',
+                };
+                gestionUpdateData.inquiryReason = inquiryReasonMap[serviceTypeFromContext.toLowerCase()] || serviceTypeFromContext.toLowerCase();
+              }
+
+              // Priority
+              if (priorityFromContext) {
+                gestionUpdateData.priority = priorityFromContext;
+              }
+
+              // Address
+              if (addressFromContext) gestionUpdateData.address = addressFromContext;
+              if (localityFromContext) gestionUpdateData.locality = localityFromContext;
+              if (provinceFromContext) gestionUpdateData.province = provinceFromContext;
+
+              // Notes
+              const notesParts: string[] = [];
+              const priorityLabelFromContext = priorityFromContext === 'high' ? 'Urgente' : priorityFromContext === 'medium' ? 'Normal' : priorityFromContext === 'low' ? 'Sin apuro' : undefined;
+              if (serviceTypeFromContext) notesParts.push(`Servicio: ${serviceTypeFromContext}`);
+              if (priorityLabelFromContext) notesParts.push(`Necesidad: ${priorityLabelFromContext}`);
+              if (descriptionFromContext) notesParts.push(`Descripción: ${descriptionFromContext}`);
+              if (notesParts.length > 0) {
+                gestionUpdateData.notes = notesParts.join(' | ');
+              }
+
+              // Calculate score for Gestion
+              const customerTypeFromGestion = activeGestion.customerType || 'residential';
+              const isB2BFromGestion = activeGestion.isB2B || false;
+              
+              const calculatedScore = calculateClientScore({
+                inquiryReason: gestionUpdateData.inquiryReason as any,
+                priority: priorityFromContext as 'high' | 'medium' | 'low' | undefined,
+                customerType: customerTypeFromGestion as any,
+                isB2B: isB2BFromGestion,
+                lastContactAt: activeGestion.updatedAt,
+                hasOpenQuote: false,
+                hasScheduledVisit: false,
+              });
+
+              gestionUpdateData.score = calculatedScore.score;
+              gestionUpdateData.temperature = calculatedScore.temperature;
+              gestionUpdateData.scoringBreakdown = {
+                buttons: calculatedScore.breakdown?.buttons || 0,
+                property: calculatedScore.breakdown?.property || 0,
+                keywords: calculatedScore.breakdown?.keywords || 0,
+                b2b: calculatedScore.breakdown?.b2b || 0,
+              };
+
+              if (Object.keys(gestionUpdateData).length > 0) {
+                console.log('🎯 [SCORING GESTION] Guardando:', JSON.stringify(gestionUpdateData));
+                await GestionModel.findByIdAndUpdate(activeGestion._id, { $set: gestionUpdateData });
+                console.log('[WhatsApp] ✅ Gestion updated with scoring data');
+              }
+            } else {
+              console.log('🎯 [SCORING GESTION] No se encontró Gestion activa para cliente:', clientIdFromContext);
+            }
+          } catch (gestionError) {
+            console.error('[WhatsApp] Error updating gestion data:', gestionError);
           }
         }
       
@@ -870,48 +992,65 @@ export class WhatsAppService {
     if (resolved.flowConfig.id === 'customer-service') {
       console.log('[Engine] Loading customer data for personalized greeting...');
       try {
-        // FIRST: Try to find via ContactModel (phone is stored in contacts, not clients)
+        // FIRST: PRIORITIZE ClientModel - this is the canonical source for customer data
         const normalizedPhoneSearch = normalizedPhone.replace(/^\+/, '');
-        const contactWithPhone = await ContactModel.findOne({
+        const actualClient = await ClientModel.findOne({
           tenantId: new Types.ObjectId(tenantId),
           phone: { $regex: new RegExp(normalizedPhoneSearch, 'i') },
           deletedAt: null,
-        }).populate('clientId').lean();
-        
-        if (contactWithPhone && contactWithPhone.clientId) {
-          const client = contactWithPhone.clientId as any;
-          console.log('[Engine] ✅ Customer found via ContactModel:', client.fullName || client.name);
+        }).lean();
+
+        if (actualClient) {
+          console.log('[Engine] ✅ Client found (canonical source):', actualClient.fullName || actualClient.companyName);
           const tempContext = new ConversationContext(phoneNumber);
-          tempContext.initializeFromCustomer(client);
+          tempContext.initializeFromCustomer({
+            fullName: actualClient.fullName || actualClient.companyName,
+            address: actualClient.address,
+            locality: actualClient.locality,
+            province: actualClient.province,
+            _id: actualClient._id,
+            tenantId: actualClient.tenantId,
+          } as any);
           
+          // Get active Gestion for this client to include scoring data
+          const activeGestion = await GestionModel.findOne({
+            tenantId: new Types.ObjectId(tenantId),
+            clientId: actualClient._id,
+            status: { $nin: ['won', 'lost', 'closed'] },
+          }).lean();
+
           customerData = {
             customerName: tempContext.get('customerName'),
-            address: tempContext.get('address'),
-            locality: tempContext.get('locality'),
-            province: tempContext.get('province'),
+            address: actualClient.address || tempContext.get('address'),
+            locality: actualClient.locality || tempContext.get('locality'),
+            province: actualClient.province || tempContext.get('province'),
             isCustomer: true,
-            clientId: tempContext.get('clientId'),
+            clientId: String(actualClient._id),
             tenantId: tenantId,
-            originalAddress: tempContext.get('address'),
-            originalLocality: tempContext.get('locality'),
-            originalProvince: tempContext.get('province'),
+            originalAddress: actualClient.address || tempContext.get('address'),
+            originalLocality: actualClient.locality || tempContext.get('locality'),
+            originalProvince: actualClient.province || tempContext.get('province'),
+            // Include Gestion data if available
+            gestionScore: activeGestion?.score,
+            gestionTemperature: activeGestion?.temperature,
+            gestionPriority: activeGestion?.priority,
+            gestionStatus: activeGestion?.status,
           };
           
-          console.log('[Engine] Customer data ready:', customerData);
+          console.log('[Engine] Customer data from Client model:', customerData);
         } else {
-          // SECOND: Try to find via LeadModel (lead was won/qualified - use lead data)
-          console.log('[Engine] Looking for lead with status won/qualified, phone:', normalizedPhoneSearch);
+          // FALLBACK: Try LeadModel (for legacy data where client may not exist yet)
+          console.log('[Engine] Looking for lead with status won/qualified/closed, phone:', normalizedPhoneSearch);
           const lead = await LeadModel.findOne({
             tenantId: new Types.ObjectId(tenantId),
             phone: { $regex: new RegExp(normalizedPhoneSearch, 'i') },
-            status: { $in: ['won', 'qualified'] },
+            status: { $in: ['won', 'qualified', 'closed'] },
             deletedAt: null,
           }).lean();
           
           if (lead) {
-            console.log('[Engine] ✅ Customer found via LeadModel (won/qualified):', lead.name);
+            console.log('[Engine] ✅ Customer found via LeadModel (fallback):', lead.name);
             const tempContext = new ConversationContext(phoneNumber);
-            // Initialize from lead data (has name, address, etc.)
             tempContext.initializeFromCustomer({
               fullName: lead.name,
               address: lead.address,
@@ -934,7 +1073,7 @@ export class WhatsAppService {
               originalProvince: tempContext.get('province'),
             };
             
-            console.log('[Engine] Customer data ready from lead:', customerData);
+            console.log('[Engine] Customer data ready from lead (fallback):', customerData);
           } else {
             console.log('[Engine] ❌ No customer/lead data found for phone:', normalizedPhoneSearch);
           }
@@ -1002,10 +1141,53 @@ export class WhatsAppService {
       const isCustomer = result.context.get<boolean>('isCustomer');
       const isComplete = result.context.get<boolean>('complete');
       
-      if (result.handoff && isCustomer && isComplete && clientId && tenantId) {
+      console.log('[Engine] ═══════════════════════════════════════════');
+      console.log('[Engine] Checking customer flow completion:');
+      console.log('[Engine]   isCustomer:', isCustomer);
+      console.log('[Engine]   isComplete:', isComplete);
+      console.log('[Engine]   clientId:', clientId);
+      console.log('[Engine]   tenantId:', tenantId);
+      console.log('[Engine]   result.isComplete (engine):', result.isComplete);
+      console.log('[Engine]   result.handoff:', result.handoff);
+      console.log('[Engine] ═══════════════════════════════════════════');
+      
+      console.log('[Engine] >>> Checking if should publish CUSTOMER_FLOW_COMPLETED');
+      console.log('[Engine] >>> isCustomer:', isCustomer, '| isComplete:', isComplete, '| clientId:', clientId, '| tenantId:', tenantId);
+      
+      // Publish CUSTOMER_FLOW_COMPLETED when:
+      // 1. Customer completes the full flow (isComplete: true), OR
+      // 2. Customer writes and there's a pending Gestion with status "new" (activates the Gestion)
+      const shouldPublish = (isCustomer && isComplete && clientId && tenantId) || 
+                            (isCustomer && clientId && tenantId); // Also publish when customer writes to activate Gestion
+      
+      if (shouldPublish) {
+        console.log('[Engine] >>> CONDITION MET - Will publish event');
         const serviceType = result.context.get<string>('serviceType');
         const description = result.context.get<string>('description');
         
+        // Publish event to sync Gestion status to "contacted"
+        try {
+          console.log('[Engine] >>> Publishing CUSTOMER_FLOW_COMPLETED event...');
+          await eventBus.publish({
+            type: DOMAIN_EVENTS.CUSTOMER_FLOW_COMPLETED,
+            aggregateId: clientId,
+            aggregateType: 'Client',
+            tenantId,
+            userId: 'whatsapp-bot',
+            timestamp: new Date(),
+            payload: {
+              clientId,
+              serviceType,
+              description,
+              address: currentAddress,
+            },
+          });
+          console.log('[Engine] >>> Published CUSTOMER_FLOW_COMPLETED event');
+        } catch (eventError) {
+          console.error('[Engine] Error publishing CUSTOMER_FLOW_COMPLETED:', eventError);
+        }
+        
+        // Also create service history record if serviceType exists
         if (serviceType) {
           console.log('[Engine] Creating service history record:', { clientId, serviceType, address: currentAddress });
           try {

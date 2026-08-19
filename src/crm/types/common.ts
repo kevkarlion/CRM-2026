@@ -12,6 +12,7 @@ export interface CursorOptions {
   sortField?: string;
   sortOrder?: 1 | -1;
   sort?: Record<string, 1 | -1>;
+  populate?: Array<{ path: string; select?: string }>;
 }
 
 export interface IPolymorphicRef {

@@ -75,6 +75,7 @@ export type BotAction =
   | { type: 'send_message'; content: string }
   | { type: 'update_lead'; leadId: string; updates: Partial<LeadUpdate> }
   | { type: 'update_client'; clientId: string; updates: Partial<ClientUpdate> }
+  | { type: 'update_gestion_for_client'; leadId: string; updates: Partial<GestionUpdate> }
   | { type: 'update_conversation'; conversationId: string; updates: Partial<ConversationUpdate> }
   | { type: 'trigger_handoff'; conversationId: string; reason: string; priority: string }
   | { type: 'close_conversation'; conversationId: string }
@@ -97,6 +98,15 @@ export interface ClientUpdate {
   temperature?: Temperature;
   score?: number;
   operationStatus?: 'none' | 'quote_pending' | 'visit_scheduled' | 'sale_confirmed';
+  priority?: 'high' | 'medium' | 'low';
+}
+
+// Campos de la Gestion que el bot puede actualizar
+export interface GestionUpdate {
+  temperature?: Temperature;
+  score?: number;
+  inquiryReason?: string;
+  status?: 'new' | 'contacted' | 'qualified' | 'proposal' | 'negotiation' | 'won' | 'lost';
   priority?: 'high' | 'medium' | 'low';
 }
 

@@ -266,6 +266,18 @@ export class HandleIncomingMessageUseCase {
         },
       });
 
+      // Also update Gestion if exists (for clients whose lead was won)
+      actions.push({
+        type: 'update_gestion_for_client',
+        leadId: input.leadId,
+        updates: {
+          status: 'contacted',
+          score: scoringResult.score,
+          temperature: scoringResult.temperature,
+          inquiryReason: updatedContext.needType ?? undefined,
+        },
+      });
+
       if (handoffResult.shouldHandoff) {
         const reply = replyComposer.composeForHandoff(handoffResult.reason);
 

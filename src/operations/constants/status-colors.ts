@@ -2,14 +2,12 @@ export const WORK_ORDER_STATUS_VARIANT: Record<string, string> = {
   // Estados canónicos
   draft: 'bg-gray-100 text-gray-700',
   scheduled: 'bg-blue-50 text-blue-700',
+  assigned: 'bg-indigo-50 text-indigo-700',
   in_progress: 'bg-amber-50 text-amber-700',
   completed: 'bg-green-50 text-green-700',
   cancelled: 'bg-red-50 text-red-700',
-  // Estados legacy (para compatibilidad con datos antiguos)
-  pending_assignment: 'bg-gray-100 text-gray-700',
-  assigned: 'bg-indigo-50 text-indigo-700',
+  // Estados adicionales
   closed: 'bg-slate-50 text-slate-700',
-  confirmed: 'bg-teal-50 text-teal-700',
   paused: 'bg-yellow-50 text-yellow-700',
 };
 

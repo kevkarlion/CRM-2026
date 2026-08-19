@@ -354,6 +354,32 @@ export class LeadService {
       
       .exec();
 
+    if (!lead) return null;
+
+    // If lead is converted to client, get active Gestion
+    if (lead.convertedToClient) {
+      try {
+        const GestionModel = (await import('@/gestion/models/gestion')).default;
+        const activeGestion = await GestionModel.findOne({
+          clientId: lead.convertedToClient,
+          tenantId: new Types.ObjectId(tenantId),
+          status: { $nin: ['won', 'lost'] },
+        }).lean();
+
+        if (activeGestion) {
+          // Add activeGestion to lead response
+          (lead as any).activeGestion = {
+            _id: String(activeGestion._id),
+            status: activeGestion.status,
+            name: activeGestion.name,
+            createdAt: activeGestion.createdAt,
+          };
+        }
+      } catch (gestionError) {
+        console.error('[LeadService] Error fetching activeGestion:', gestionError);
+      }
+    }
+
     return lead as unknown as ILead | null;
   }
 
@@ -463,6 +489,59 @@ export class LeadService {
 
     if (!updatedLead) {
       throw new ConflictError('Cannot change status, concurrent modification');
+    }
+
+    // Si el lead pasa a "won", crear Cliente y Gestión automáticamente
+    if (newStatus === 'won') {
+      try {
+        console.log('[LeadService] Lead won - creating Client and Gestion automatically');
+        
+        // Buscar si ya existe Cliente con ese teléfono
+        const existingClient = await (await import('@/crm/models/client')).default.findOne({
+          tenantId: new Types.ObjectId(tenantId),
+          phone: lead.phone,
+          deletedAt: null,
+        }).lean();
+
+        let clientId: string;
+        
+        if (existingClient) {
+          clientId = String(existingClient._id);
+          console.log('[LeadService] Client already exists:', clientId);
+        } else {
+          // Crear Cliente desde el Lead
+          const newClient = await (await import('@/crm/models/client')).default.create({
+            tenantId: new Types.ObjectId(tenantId),
+            fullName: lead.name,
+            companyName: lead.companyName,
+            phone: lead.phone,
+            email: lead.email,
+            address: lead.address,
+            locality: lead.locality,
+            province: lead.province,
+            source: lead.source,
+            status: 'active',
+            operationStatus: 'none',
+            createdBy: userId,
+            updatedBy: userId,
+          });
+          clientId = String(newClient._id);
+          console.log('[LeadService] Created Client:', clientId);
+        }
+
+        // Crear Gestión
+        const gestionService = new (await import('@/gestion/services/gestion.service')).GestionService();
+        const newGestion = await gestionService.createGestion({
+          clientId,
+          name: 'Gestión inicial',
+          source: lead.source || 'whatsapp',
+        }, userId, tenantId);
+        console.log('[LeadService] Created Gestion:', String(newGestion._id));
+
+      } catch (conversionError) {
+        console.error('[LeadService] Error creating Client/Gestion from won lead:', conversionError);
+        // No lanzar error - el Lead ya se marcó como won
+      }
     }
 
     try {

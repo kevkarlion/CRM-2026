@@ -1,6 +1,14 @@
 import type { QuoteStatus } from '@/quotes/types/quote';
 import type { BlockHistoryEntry } from '@/crm/types/client';
 
+/** Active Gestion info for client detail */
+export interface ActiveGestionInfo {
+  _id: string;
+  status: string;
+  name: string;
+  createdAt: string;
+}
+
 /** Client as returned by GET /api/crm/clients/:id. */
 export interface ClientDetail {
   _id: string;
@@ -21,6 +29,7 @@ export interface ClientDetail {
   operationStatus?: string;
   createdAt: string;
   updatedAt: string;
+  activeGestion?: ActiveGestionInfo | null;
 }
 
 /** Quote item from GET /api/crm/quotes?clientId=:id. */

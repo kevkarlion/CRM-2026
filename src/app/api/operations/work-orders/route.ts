@@ -23,9 +23,31 @@ export async function GET(request: NextRequest) {
     const to = searchParams.get('to') || undefined;
     const search = searchParams.get('search') || undefined;
     const priority = searchParams.get('priority') || undefined;
+    const expired = searchParams.get('expired') || undefined;
+    const workStatus = searchParams.get('workStatus') || undefined;
+    const page = parseInt(searchParams.get('page') || '1');
+    const limit = parseInt(searchParams.get('limit') || '50');
+    const skip = (page - 1) * limit;
 
     const filters: Record<string, unknown> = {};
     if (status) filters.status = status;
+if (expired === 'true') {
+      // Usar timezone de Argentina (UTC-3) para calcular "hoy"
+      const now = new Date();
+      const argentinaOffset = -3 * 60; // UTC-3 en minutos
+      const localTime = new Date(now.getTime() + (now.getTimezoneOffset() + argentinaOffset) * 60000);
+      const todayStr = localTime.toISOString().split('T')[0];
+      
+      // Last 30 days but BEFORE today (not including today - use Lt not Lte)
+      const thirtyDaysAgo = new Date(localTime);
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+      
+      filters.scheduledDateGte = thirtyDaysAgoStr;
+      filters.scheduledDateLt = todayStr;  // Cambiado a Lt para EXCLUIR las de hoy
+      filters.statusNin = ['completed', 'cancelled', 'closed'];
+      filters.workStatus = { $nin: ['paused', 'cancelled'] };
+    }
     if (type === 'technical_visit') {
       filters.source = 'technical_visit';
     } else if (type === 'work_order') {
@@ -40,10 +62,34 @@ export async function GET(request: NextRequest) {
     }
     if (search) filters.search = search;
     if (priority) filters.priority = priority;
+    if (workStatus) {
+      filters.workStatus = workStatus;
+      // Si filtra por active, excluir las cerradas (ya que se muestran como completed)
+      if (workStatus === 'active') {
+        filters.status = { $ne: 'closed' };
+      }
+    }
+    
+    // Filtros especiales de_programada + asignada
+    if (searchParams.get('assignedTechnicians') === 'none') {
+      filters.assignedTechnicians = { $size: 0 };
+    }
+    if (searchParams.get('scheduledDate') === 'none') {
+      filters.scheduledDate = { $exists: false };
+    }
+    if (searchParams.get('hasScheduledDate') === 'true') {
+      filters.scheduledDate = { $exists: true, $ne: null };
+    }
+    if (searchParams.get('hasTechnician') === 'true') {
+      filters.assignedTechnicians = { $exists: true, $ne: [], $not: { $size: 0 } };
+    }
 
-    const data = await service.findByTenant(tenantId, filters as any);
+    filters.limit = limit;
+    filters.skip = skip;
+    
+    const result = await service.findByTenant(tenantId, filters as any);
 
-    return NextResponse.json({ data, total: data.length });
+    return NextResponse.json({ data: result.data, total: result.total, page, limit });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Internal server error' },

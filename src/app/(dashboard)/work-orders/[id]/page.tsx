@@ -100,9 +100,10 @@ const PRIORITY_LABELS: Record<string, string> = {
 };
 
 const NEXT_STATUSES: Record<string, { value: string; label: string }[]> = {
-  draft: [{ value: 'scheduled', label: 'Programar' }, { value: 'cancelled', label: 'Cancelar' }],
-  scheduled: [{ value: 'in_progress', label: 'Iniciar' }, { value: 'cancelled', label: 'Cancelar' }],
-  in_progress: [{ value: 'completed', label: 'Completar' }, { value: 'cancelled', label: 'Cancelar' }],
+  scheduled: [{ value: 'assigned', label: 'Asignar' }, { value: 'in_progress', label: 'Iniciar' }, { value: 'paused', label: 'Pausar' }, { value: 'cancelled', label: 'Cancelar' }],
+  assigned: [{ value: 'in_progress', label: 'Iniciar' }, { value: 'paused', label: 'Pausar' }, { value: 'cancelled', label: 'Cancelar' }],
+  in_progress: [{ value: 'paused', label: 'Pausar' }, { value: 'completed', label: 'Completar' }, { value: 'cancelled', label: 'Cancelar' }],
+  paused: [{ value: 'in_progress', label: 'Reanudar' }, { value: 'cancelled', label: 'Cancelar' }],
   completed: [],
   cancelled: [],
 };
@@ -383,11 +384,14 @@ export default function WorkOrderDetailPage() {
 
   // Load work report for drawer
   async function loadWorkReport() {
+    setLoadingReport(true);
     try {
       const result = await api.get<{ data: any }>(`/api/operations/work-orders/${id}/report-view`);
       setWorkReport(unwrapData(result));
     } catch {
       // ignore
+    } finally {
+      setLoadingReport(false);
     }
   }
 
@@ -528,6 +532,20 @@ export default function WorkOrderDetailPage() {
           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[workOrder.status]}`}>
             {STATUS_OPTIONS[workOrder.status] || workOrder.status}
           </span>
+          {/* Badge de estado de negocio (workStatus) */}
+          {(workOrder.workStatus === 'paused' || workOrder.workStatus === 'cancelled' || workOrder.workStatus === 'active' || workOrder.workStatus === 'completed') && (
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+              workOrder.workStatus === 'active' ? 'bg-green-100 text-green-800' :
+              workOrder.workStatus === 'paused' ? 'bg-amber-100 text-amber-800' :
+              workOrder.workStatus === 'completed' ? 'bg-blue-100 text-blue-800' :
+              'bg-red-100 text-red-800'
+            }`}>
+              {workOrder.workStatus === 'active' ? 'Activa' : 
+               workOrder.workStatus === 'paused' ? 'Pausada' : 
+               workOrder.workStatus === 'completed' ? 'Completada' : 
+               'Cancelada'}
+            </span>
+          )}
           <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${PRIORITY_VARIANT[workOrder.priority]}`}>
             {PRIORITY_LABELS[workOrder.priority] || workOrder.priority}
           </span>
@@ -875,7 +893,7 @@ export default function WorkOrderDetailPage() {
             )}
 
             {/* Work Execution Status - Show when work has started */}
-            {(workOrder.status === 'in_progress' || workOrder.status === 'completed') && workOrder.startedAt && (
+            {(workOrder.status === 'in_progress' || workOrder.status === 'completed' || workOrder.status === 'closed') && workOrder.startedAt && (
               <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-medium text-amber-700">Estado del Trabajo</span>
@@ -934,8 +952,8 @@ export default function WorkOrderDetailPage() {
             {/* Work Execution Buttons - Only for technicians */}
             {isCurrentUserTheAssignedTech() && !isTerminal && (
               <>
-                {/* Start Work button - show when status is 'draft' or 'scheduled' */}
-                {(workOrder.status === 'draft' || workOrder.status === 'scheduled') && (
+                {/* Start Work button - show when status is 'draft', 'scheduled' or 'assigned' */}
+                {(workOrder.status === 'draft' || workOrder.status === 'scheduled' || workOrder.status === 'assigned') && (
                   <>
                     {startingWorkError && (
                       <div className="rounded-lg bg-danger-50 px-3 py-2 text-xs text-danger-700">
@@ -1075,12 +1093,58 @@ export default function WorkOrderDetailPage() {
       {/* Work Report Drawer */}
       <Drawer
         isOpen={showReportDrawer}
-        onClose={() => setShowReportDrawer(false)}
+        onClose={() => {
+            setShowReportDrawer(false);
+            setWorkReport(null);
+          }}
         title="Reporte de Trabajo"
       >
         {loadingReport ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-600"></div>
+          <div className="space-y-4 p-2">
+            {/* Header skeleton */}
+            <div className="bg-gray-100 border border-gray-200 rounded-lg p-3 animate-pulse">
+              <div className="h-4 bg-gray-200 rounded w-24"></div>
+            </div>
+            
+            {/* Technician skeleton */}
+            <div>
+              <div className="h-3 bg-gray-200 rounded w-16 mb-1 animate-pulse"></div>
+              <div className="h-5 bg-gray-200 rounded w-32 animate-pulse"></div>
+            </div>
+            
+            {/* Result skeleton */}
+            <div>
+              <div className="h-3 bg-gray-200 rounded w-14 mb-1 animate-pulse"></div>
+              <div className="h-5 bg-gray-200 rounded w-24 animate-pulse"></div>
+            </div>
+            
+            {/* Work performed skeleton */}
+            <div>
+              <div className="h-3 bg-gray-200 rounded w-28 mb-1 animate-pulse"></div>
+              <div className="space-y-2 mt-2">
+                <div className="h-4 bg-gray-200 rounded w-full animate-pulse"></div>
+                <div className="h-4 bg-gray-200 rounded w-3/4 animate-pulse"></div>
+                <div className="h-4 bg-gray-200 rounded w-5/6 animate-pulse"></div>
+              </div>
+            </div>
+            
+            {/* Duration skeleton */}
+            <div>
+              <div className="h-3 bg-gray-200 rounded w-20 mb-1 animate-pulse"></div>
+              <div className="h-5 bg-gray-200 rounded w-16 animate-pulse"></div>
+            </div>
+            
+            {/* Dates skeleton */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <div className="h-3 bg-gray-200 rounded w-20 mb-1 animate-pulse"></div>
+                <div className="h-4 bg-gray-200 rounded w-28 animate-pulse"></div>
+              </div>
+              <div>
+                <div className="h-3 bg-gray-200 rounded w-24 mb-1 animate-pulse"></div>
+                <div className="h-4 bg-gray-200 rounded w-28 animate-pulse"></div>
+              </div>
+            </div>
           </div>
         ) : workReport ? (
           <div className="space-y-4 p-2">

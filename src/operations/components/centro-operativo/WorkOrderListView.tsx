@@ -101,7 +101,22 @@ const FILTER_PILLS: FilterPill[] = [
 
 function filterWorkOrders(orders: WorkOrderRow[], filter: OrderFilter): WorkOrderRow[] {
   const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+  // Reset to midnight local time for accurate date comparison
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const todayStr = todayStart.toISOString().split('T')[0];
+
+  // Helper to normalize scheduledDate to YYYY-MM-DD string
+  const getScheduledDateStr = (date: any): string | null => {
+    if (!date) return null;
+    if (typeof date === 'string') {
+      // Handle both "2026-08-18" and "2026-08-18T00:00:00.000Z" formats
+      return date.split('T')[0];
+    }
+    if (date instanceof Date) {
+      return date.toISOString().split('T')[0];
+    }
+    return null;
+  };
 
   switch (filter) {
     case 'all':
@@ -110,12 +125,17 @@ function filterWorkOrders(orders: WorkOrderRow[], filter: OrderFilter): WorkOrde
       return orders.filter((wo) => !wo.assignedTechnicians?.length);
     case 'overdue':
       return orders.filter((wo) => {
-        if (!wo.scheduledDate) return false;
+        const scheduledDateStr = getScheduledDateStr(wo.scheduledDate);
+        if (!scheduledDateStr) return false;
         // Excluir estados terminales canónicos y legacy
-        return wo.scheduledDate < todayStr && !['closed', 'cancelled', 'completed'].includes(wo.status);
+        return scheduledDateStr < todayStr && !['closed', 'cancelled', 'completed'].includes(wo.status);
       });
     case 'today':
-      return orders.filter((wo) => wo.scheduledDate === todayStr);
+      return orders.filter((wo) => {
+        const scheduledDateStr = getScheduledDateStr(wo.scheduledDate);
+        if (!scheduledDateStr) return false;
+        return scheduledDateStr === todayStr;
+      });
     case 'urgent':
       return orders.filter((wo) => wo.priority === 'urgent');
     case 'closed':

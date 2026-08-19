@@ -6,6 +6,7 @@ export interface JwtPayload {
   userId: string;
   tenantId: string;
   roles: string[];
+  email?: string;
 }
 
 function toSecretKey(secret: string): Uint8Array {

@@ -22,6 +22,9 @@ import {
   CLIENT_STATUS_OPTIONS,
   CLIENT_STATUS_VARIANT,
   CUSTOMER_TYPE_LABEL,
+  GESTION_STATUS_LABELS,
+  GESTION_STATUS_VARIANT,
+  GESTION_STATUS_DOT_COLOR,
   clientName,
 } from '@/crm/components/detail';
 import { LeadCommercialActionsCard, LeadBotControlCard } from '@/leads/components/detail';
@@ -62,6 +65,9 @@ export default function ClientDetailPage() {
   const [blockReason, setBlockReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+
+  // Resolve client flow
+  const [resolvingClient, setResolvingClient] = useState(false);
 
   // Commercial actions drawers
   const [showQuoteDrawer, setShowQuoteDrawer] = useState(false);
@@ -193,6 +199,34 @@ export default function ClientDetailPage() {
     }
   }, [id]);
 
+  // Handle resolve client (close converted lead, create new Gestion)
+  const handleResolveClient = useCallback(async () => {
+    if (!id) return;
+    
+    setResolvingClient(true);
+    try {
+      const res = await fetch(`/api/crm/clients/${id}/resolve`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      
+      if (res.ok) {
+        // Refresh client data to show new state
+        loadClient();
+      } else {
+        const data = await res.json();
+        setActionError(data.error || 'Error al resolver');
+      }
+    } catch (error) {
+      console.error('[Resolve client] Error:', error);
+      setActionError('Error al resolver cliente');
+    } finally {
+      setResolvingClient(false);
+    }
+  }, [id, loadClient]);
+
   async function refreshClient() {
     try {
       const data = await api.get<ClientDetail>(`/api/crm/clients/${id}`);
@@ -248,6 +282,18 @@ export default function ClientDetailPage() {
   useEffect(() => {
     loadClient();
   }, [loadClient]);
+
+  // Refresh client data when window gets focus (event-driven, not polling)
+  useEffect(() => {
+    if (!id) return;
+    
+    const handleFocus = () => {
+      loadClient();
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [id, loadClient]);
 
   async function loadQuotes() {
     setLoadingQuotes(true);
@@ -347,6 +393,26 @@ export default function ClientDetailPage() {
             <span className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium border bg-gray-50 border-gray-200 text-gray-600">
               {CUSTOMER_TYPE_LABEL[client.customerType] || client.customerType}
             </span>
+            {client.activeGestion && (
+              <span
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-sm font-medium border ${
+                  GESTION_STATUS_VARIANT[client.activeGestion.status] || 'bg-gray-50 border-gray-200 text-gray-500'
+                }`}
+              >
+                <span className={`w-2 h-2 rounded-full ${GESTION_STATUS_DOT_COLOR[client.activeGestion.status] || 'bg-gray-400'}`} />
+                {GESTION_STATUS_LABELS[client.activeGestion.status] || client.activeGestion.status}
+              </span>
+            )}
+            {/* Botón Resuelto - solo para clientes con Gestion ganada */}
+            {client.activeGestion?.status === 'won' && (
+              <button
+                onClick={handleResolveClient}
+                disabled={resolvingClient}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-sm font-medium bg-emerald-100 text-emerald-800 hover:bg-emerald-200 transition-colors disabled:opacity-50"
+              >
+                {resolvingClient ? 'Resolviendo...' : '✓ Resuelto'}
+              </button>
+            )}
           </>
         }
         actions={

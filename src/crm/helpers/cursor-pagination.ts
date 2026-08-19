@@ -41,12 +41,21 @@ export async function cursorPage<T>(
   }
 
   // Fetch one extra to determine hasMore
-  const docs = await model
+  let query = model
     .find(queryFilter)
     .sort({ [sortField]: sortOrder, _id: sortOrder as 1 | -1 })
-    .limit(limit + 1)
-    
-    .exec();
+    .limit(limit + 1);
+
+  // Apply populate if provided
+  if (options.populate && Array.isArray(options.populate)) {
+    for (const pop of options.populate) {
+      if (typeof pop === 'object' && pop.path) {
+        query = query.populate(pop.path, pop.select);
+      }
+    }
+  }
+
+  const docs = await query.exec();
 
   const hasMore = docs.length > limit;
   const data = hasMore ? docs.slice(0, limit) : docs;
