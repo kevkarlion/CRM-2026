@@ -3,6 +3,7 @@ import { Document, Types } from 'mongoose';
 export type ConversationState =
   | 'idle'
   | 'greeting'
+  | 'greeting_personalized'
   | 'need_type_asked'
   | 'need_type_captured'
   | 'detail_asked'
@@ -21,7 +22,26 @@ export type ConversationState =
   | 'human_assigned'
   | 'closed'
   | 'timeout'
-  | 'fallback';
+  | 'fallback'
+  // Nuevos estados del flow de 7 ramas
+  | 'urgency'
+  | 'detail'
+  | 'description'
+  | 'name'
+  | 'name_captured'
+  | 'address_confirm'
+  | 'address_confirmed'
+  | 'priority'
+  | 'priority_captured'
+  | 'quote_work'
+  | 'quote_work_captured'
+  | 'spare_part'
+  | 'spare_part_captured'
+  | 'general_query'
+  | 'general_query_captured'
+  | 'suppliers_info'
+  | 'summary'
+  | 'waiting_operator';
 
 /**
  * Lifecycle states for Conversation entity
@@ -91,6 +111,13 @@ export interface ConversationContext {
   hasProjectKeywords: boolean;
   messageContainsData: boolean;
   userAskedForHuman: boolean;
+  // Nuevos campos para flow de 7 ramas
+  serviceType?: string;
+  serviceTypeLabel?: string;
+  customerName?: string;
+  scoringPriority?: string;
+  isSuppliers?: boolean;
+  addressConfirmed?: boolean;
 }
 
 export interface IConversation extends Document {

@@ -107,18 +107,21 @@ export class IntentExtractor {
   extractNeedType(text: string): InquiryReason | null {
     const lower = text.toLowerCase().trim();
 
-    // Mapeo de opciones numéricas del menú
+    // Mapeo de opciones numéricas del menú (7 opciones)
     const OPTION_MAP: Record<string, InquiryReason> = {
       '1': 'maintenance',
       '2': 'repair',
-      '3': 'spare_parts',
-      '4': 'installation',
-      '5': 'budget',
+      '3': 'installation',
+      '4': 'budget',
+      '5': 'spare_parts',
       '6': 'other',
+      '7': 'other', // suppliers - trata como other para el flow, luego se marca especial
       // Texto de opciones
       'mantenimiento': 'maintenance',
+      'service': 'maintenance',
       'reparación': 'repair',
       'reparacion': 'repair',
+      'falla': 'repair',
       'repuestos': 'spare_parts',
       'repuesto': 'spare_parts',
       'instalación': 'installation',
@@ -126,7 +129,12 @@ export class IntentExtractor {
       'cotización': 'budget',
       'cotizacion': 'budget',
       'presupuesto': 'budget',
+      'presup': 'budget',
+      'cotizaciones': 'budget',
+      'presupuestos': 'budget',
       'otro': 'other',
+      'otra consulta': 'other',
+      'proveedores': 'other',
     };
 
     // Primero verificar si es una opción numérica o texto directo

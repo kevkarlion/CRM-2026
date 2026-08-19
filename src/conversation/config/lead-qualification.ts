@@ -14,13 +14,13 @@ import type { FlowConfig } from '../types'
  */
 export const LEAD_QUALIFICATION_FLOW: FlowConfig = {
   id: 'lead-qualification',
-  initialState: 'greeting',
+  initialState: 'greeting_personalized',
   metadata: {
     name: 'Lead Qualification Flow',
     description: 'Flujo de calificación de leads - nuevos contactos',
   },
   states: {
-    greeting: {
+    greeting_personalized: {
       next: 'name',
     },
     name: {

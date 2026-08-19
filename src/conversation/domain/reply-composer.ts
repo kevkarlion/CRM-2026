@@ -11,6 +11,51 @@ const STATE_REPLIES: Record<string, (ctx: ConversationContext) => BotReply> = {
     content: '¡Hola! Soy el asistente de Rolo Climatización S.R.L. ¿En qué puedo ayudarte? 🌡️',
   }),
 
+  greeting_personalized: (ctx) => {
+    // Get hour in Argentina timezone (UTC-3) - approximate by subtracting 3 from UTC
+    const utcHour = new Date().getHours();
+    const argentinaHour = (utcHour - 3 + 24) % 24;
+    
+    let greeting: string;
+    if (argentinaHour >= 20 || argentinaHour < 6) {
+      greeting = '🌙 Buenas noches';
+    } else if (argentinaHour < 12) {
+      greeting = '🌞 Buenos días';
+    } else {
+      greeting = '☀️ Buenas tardes';
+    }
+
+    const customerName = ctx.userName || ctx.profileName;
+    const namePart = customerName ? ` ${customerName}!` : '';
+    
+    return {
+      content: `${greeting}! Bienvenid@ a Rolo Climatización. ❄️🔥
+
+Soy *Rolito*, tu asistente virtual.
+
+¿En qué te podemos ayudar hoy?
+
+1️⃣ Mantenimiento / Service
+2️⃣ Reparación o Falla técnica
+3️⃣ Instalación de equipos
+4️⃣ Cotizaciones / Presupuestos
+5️⃣ Venta de Repuestos
+6️⃣ Otra consulta
+7️⃣ Proveedores / Administración
+
+(Respondé con el número de opción)`,
+      options: [
+        '1️⃣ Mantenimiento / Service',
+        '2️⃣ Reparación o Falla técnica',
+        '3️⃣ Instalación de equipos',
+        '4️⃣ Cotizaciones / Presupuestos',
+        '5️⃣ Venta de Repuestos',
+        '6️⃣ Otra consulta',
+        '7️⃣ Proveedores / Administración',
+      ],
+    };
+  },
+
   need_type_asked: () => ({
     content: '¿Qué tipo de servicio necesitas?\n\n1️⃣ Mantenimiento\n2️⃣ Reparación\n3️⃣ Repuestos\n4️⃣ Instalación\n5️⃣ Cotización\n6️⃣ Otro\n\n¿Eres proveedor? Por favor comunícate directamente al 2994584104.',
     options: ['Mantenimiento', 'Reparación', 'Repuestos', 'Instalación', 'Cotización', 'Otro'],

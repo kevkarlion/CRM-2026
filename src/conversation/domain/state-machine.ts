@@ -5,6 +5,7 @@ import type { ConversationState, ConversationContext } from './conversation';
 const TRANSITIONS: Record<ConversationState, ConversationState[]> = {
   idle: ['greeting'],
   greeting: ['need_type_asked'],
+  greeting_personalized: ['urgency', 'quote_work', 'spare_part', 'general_query', 'suppliers_info', 'evaluate'],
   need_type_asked: ['need_type_captured', 'detail_asked', 'urgency_asked', 'evaluate'],
   need_type_captured: ['detail_asked', 'urgency_asked', 'location_asked', 'evaluate'],
   detail_asked: ['detail_captured', 'urgency_asked', 'location_asked', 'evaluate'],
@@ -24,6 +25,20 @@ const TRANSITIONS: Record<ConversationState, ConversationState[]> = {
   closed: [],
   timeout: ['handoff_pending', 'closed'],
   fallback: ['greeting', 'need_type_asked', 'handoff_pending'],
+  
+  // Nuevos estados del flow de 7 ramas
+  urgency: ['detail', 'address_confirm', 'name', 'evaluate'],
+  detail: ['address_confirm', 'name', 'evaluate'],
+  description: ['evaluate'],
+  name: ['summary', 'evaluate'],
+  address_confirm: ['priority', 'evaluate'],
+  priority: ['description', 'evaluate'],
+  quote_work: ['name', 'evaluate'],
+  spare_part: ['name', 'evaluate'],
+  general_query: ['name', 'evaluate'],
+  suppliers_info: ['summary'],
+  summary: ['closed'],
+  waiting_operator: ['closed'],
 };
 
 // Estados que representan que se hizo una pregunta al usuario
@@ -34,6 +49,17 @@ const QUESTION_STATES: ConversationState[] = [
   'urgency_asked',
   'location_asked',
   'equipment_asked',
+  'greeting_personalized',
+  'urgency',
+  'detail',
+  'description',
+  'name',
+  'address_confirm',
+  'priority',
+  'quote_work',
+  'spare_part',
+  'general_query',
+  'suppliers_info',
 ];
 
 // Estados que representan que se capturó información
@@ -44,10 +70,18 @@ const CAPTURED_STATES: ConversationState[] = [
   'urgency_captured',
   'location_captured',
   'equipment_captured',
+  'urgency_captured',
+  'detail_captured',
+  'name_captured',
+  'address_confirmed',
+  'priority_captured',
+  'quote_work_captured',
+  'spare_part_captured',
+  'general_query_captured',
 ];
 
 // Estado final de la conversación
-const TERMINAL_STATES: ConversationState[] = ['closed', 'handoff_pending', 'human_assigned'];
+const TERMINAL_STATES: ConversationState[] = ['closed', 'handoff_pending', 'human_assigned', 'summary', 'waiting_operator'];
 
 export interface StateTransitionResult {
   nextState: ConversationState;
@@ -161,6 +195,18 @@ export class ConversationStateMachine {
     // Si estamos en greeting, ir a need_type_asked
     if (current === 'greeting') {
       return 'need_type_asked';
+    }
+
+    // Si estamos en greeting_personalized (nuevo flow 7 ramas), ir al estado según el serviceType
+    if (current === 'greeting_personalized') {
+      const serviceType = context.serviceType || context.needType;
+      // Si ya tiene serviceType, ir directo al estado correspondiente
+      if (serviceType === 'budget') return 'quote_work';
+      if (serviceType === 'spare_parts') return 'spare_part';
+      if (serviceType === 'other') return 'general_query';
+      if (serviceType === 'suppliers') return 'suppliers_info';
+      // Para servicios (maintenance, repair, installation), ir a urgency
+      return 'urgency';
     }
 
     // Si estamos en fallback, retomar el flujo desde el punto correcto

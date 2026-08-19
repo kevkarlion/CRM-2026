@@ -351,6 +351,8 @@ export class HandleIncomingMessageUseCase {
       hasProjectKeywords: existing.hasProjectKeywords || intent.hasProjectKeywords,
       messageContainsData: intent.hasAnyData,
       userAskedForHuman: intent.userAskedForHuman,
+      // Map needType to serviceType for the 7-branch flow
+      serviceType: intent.needType ?? contextData.serviceType ?? existing.serviceType,
     };
   }
 
@@ -359,12 +361,23 @@ export class HandleIncomingMessageUseCase {
    */
   private isQuestionState(state: ConversationState): boolean {
     const QUESTION_STATES: ConversationState[] = [
+      'greeting_personalized',
       'need_type_asked',
       'detail_asked',
       'customer_type_asked',
       'urgency_asked',
       'location_asked',
       'equipment_asked',
+      'urgency',
+      'detail',
+      'description',
+      'name',
+      'address_confirm',
+      'priority',
+      'quote_work',
+      'spare_part',
+      'general_query',
+      'suppliers_info',
     ];
     return QUESTION_STATES.includes(state);
   }
