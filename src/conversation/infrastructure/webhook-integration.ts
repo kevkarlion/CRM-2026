@@ -174,6 +174,7 @@ export async function processWhatsAppWebhookMessage(
               inquiryReason: event.context?.needType || lead.inquiryReason,
               priority: event.context?.urgency || lead.priority,
               location: event.context?.location,
+              name: event.context?.userName || lead.name,
               updatedBy: 'whatsapp-bot' 
             } 
           },

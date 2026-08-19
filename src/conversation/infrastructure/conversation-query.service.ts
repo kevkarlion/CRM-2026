@@ -69,8 +69,15 @@ export class ConversationQueryService {
 
     const matchFilter: Record<string, unknown> = {
       tenantId: tid,
-      state: { $nin: ['closed'] },
-      lifecycleState: { $in: ['ACTIVE_LEAD', 'ACTIVE_CLIENT', 'WAITING_OPERATOR', 'WAITING_CLIENT', 'IN_PROGRESS'] },
+      // Include active conversations OR recently closed (last 24h) for "Nueva actividad" badge
+      $or: [
+        { state: { $nin: ['closed'] } },
+        { 
+          state: 'closed',
+          closedAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Closed in last 24h
+        }
+      ],
+      lifecycleState: { $in: ['ACTIVE_LEAD', 'ACTIVE_CLIENT', 'WAITING_OPERATOR', 'WAITING_CLIENT', 'IN_PROGRESS', 'COMPLETED'] },
     };
 
     if (status) {
