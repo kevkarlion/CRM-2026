@@ -549,7 +549,7 @@ export function LeadChatDrawer({ isOpen, onClose, lead, client, conversationStat
                       )}
                       {hasPriority && (
                         <span className={`flex items-center gap-1 ${(lead.priority || notesPriority?.toLowerCase()) === 'high' || notesPriority?.toLowerCase().includes('urgente') ? 'text-red-600 font-medium' : ''}`}>
-                          {(lead.priority || notesPriority?.toLowerCase()) === 'high' || notesPriority?.toLowerCase().includes('urgente') ? '🔴' : (lead.priority || notesPriority?.toLowerCase()) === 'medium' || notesPriority?.toLowerCase().includes('semana') ? '🟡' : '🟢'}
+                          {(lead.priority || notesPriority?.toLowerCase()) === 'high' || notesPriority?.toLowerCase().includes('urgente') ? '🚨' : (lead.priority || notesPriority?.toLowerCase()) === 'medium' || notesPriority?.toLowerCase().includes('semana') ? '⏳' : '✅'}
                           {lead.priority === 'high' || notesPriority?.toLowerCase().includes('urgente') ? 'Urgente' : lead.priority === 'medium' || notesPriority?.toLowerCase().includes('semana') ? 'Esta semana' : lead.priority === 'low' ? 'No urgente' : notesPriority || lead.priority}
                         </span>
                       )}

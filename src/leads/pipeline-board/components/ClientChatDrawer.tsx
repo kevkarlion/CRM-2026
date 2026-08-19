@@ -19,7 +19,7 @@ interface ClientChatDrawerProps {
 
 const TEMPERATURE_CONFIG: Record<string, { icon: string; className: string }> = {
   hot: { icon: '🔥', className: 'bg-red-100 text-red-700 border-red-200' },
-  warm: { icon: '🟡', className: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+  warm: { icon: '🌡️', className: 'bg-orange-100 text-orange-700 border-orange-200' },
   cold: { icon: '❄️', className: 'bg-blue-100 text-blue-700 border-blue-200' },
 };
 
@@ -175,7 +175,7 @@ function ClientInfoTab({ client, conversationStatus }: {
         {conversationStatus?.unreadCount !== undefined && conversationStatus.unreadCount > 0 && (
           <div className="mt-3 pt-3 border-t border-gray-100">
             <span className="inline-flex items-center px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">
-              🔵 {conversationStatus.unreadCount} mensaje(s) sin leer
+              🔔 {conversationStatus.unreadCount} mensaje(s) sin leer
             </span>
           </div>
         )}

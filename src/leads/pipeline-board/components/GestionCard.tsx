@@ -45,7 +45,7 @@ const STATUS_VARIANTS: Record<string, string> = {
 
 const TEMPERATURE_CONFIG: Record<string, { label: string; icon: string; className: string }> = {
   hot: { label: 'Caliente', icon: '🔥', className: 'bg-red-100 text-red-700 border-red-200' },
-  warm: { label: 'Tibio', icon: '🟡', className: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+  warm: { label: 'Tibio', icon: '🌡️', className: 'bg-orange-100 text-orange-700 border-orange-200' },
   cold: { label: 'Frío', icon: '❄️', className: 'bg-blue-100 text-blue-700 border-blue-200' },
 };
 

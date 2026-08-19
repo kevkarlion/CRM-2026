@@ -49,7 +49,7 @@ const STATUS_VARIANTS: Record<string, string> = {
 
 const TEMPERATURE_CONFIG: Record<string, { label: string; icon: string; className: string }> = {
   hot: { label: 'Caliente', icon: '🔥', className: 'bg-red-100 text-red-700 border-red-200' },
-  warm: { label: 'Tibio', icon: '🟡', className: 'bg-yellow-100 text-yellow-700 border-yellow-200' },
+  warm: { label: 'Tibio', icon: '🌡️', className: 'bg-orange-100 text-orange-700 border-orange-200' },
   cold: { label: 'Frío', icon: '❄️', className: 'bg-blue-100 text-blue-700 border-blue-200' },
 };
 
@@ -145,8 +145,8 @@ export const LeadCard = React.memo(function LeadCard({
         )}
         {entityType === 'lead' && (
           <div className="flex items-center gap-1 mb-1">
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-blue-100 text-blue-700 border border-blue-200">
-              🔵 Lead
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-indigo-100 text-indigo-700 border border-indigo-200">
+              👤 Nuevo Lead
             </span>
           </div>
         )}
