@@ -351,6 +351,8 @@ export class HandleIncomingMessageUseCase {
     const updatedConversation = await conversationService.findById(conversation._id);
     const finalContext = updatedConversation?.context ?? updatedContext;
 
+    console.log('[HandleIncoming] Composing reply for state:', newState, '| context:', JSON.stringify(finalContext));
+
     const reply = replyComposer.compose(newState, finalContext);
     actions.push({ type: 'send_message', content: reply.content });
 
