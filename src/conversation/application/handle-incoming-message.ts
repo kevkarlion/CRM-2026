@@ -199,13 +199,19 @@ export class HandleIncomingMessageUseCase {
       return actions;
     }
 
-    // 5. Manejar fallback (respuesta no entendida) - SOLO para estados old, NO para greeting_personalized ni urgency
+    // 5. Manejar fallback (respuesta no entendida) - SOLO para estados old
+    // Excepción: greeting_personalized, urgency, spare_part, quote_work, general_query tienen su propia lógica
     const isNameStateWithInput = conversation.state === 'name' && 
                                   input.messageContent.trim().length > 0 && 
                                   updatedContext.userName;
-    const isGreetingOrUrgency = conversation.state === 'greeting_personalized' || conversation.state === 'urgency';
+    const isNewFlowQuestionState = 
+      conversation.state === 'greeting_personalized' || 
+      conversation.state === 'urgency' ||
+      conversation.state === 'spare_part' ||
+      conversation.state === 'quote_work' ||
+      conversation.state === 'general_query';
     
-    if (!isGreetingOrUrgency && !intent.hasAnyData && !intent.userAskedForHuman && this.isQuestionState(conversation.state) && !isNameStateWithInput) {
+    if (!isNewFlowQuestionState && !intent.hasAnyData && !intent.userAskedForHuman && this.isQuestionState(conversation.state) && !isNameStateWithInput) {
       const newFallbackCount = conversation.fallbackCount + 1;
       const fallbackResult = stateMachine.handleFallback(conversation.state, newFallbackCount);
 
@@ -280,12 +286,18 @@ export class HandleIncomingMessageUseCase {
     console.log('[HandleIncoming] transition.nextState:', transition.nextState, '| isValid:', transition.isValid, '| conversation.state:', conversation.state);
     console.log('[HandleIncoming] newState after advanceState:', newState);
 
-    // 6.1. Si sigue en greeting_personalized (el usuario no eligió 1-7), enviar mensaje de opciones
-    // O si sigue en urgency (el usuario no eligió 1-3), reenviar mensaje de urgencia
+    // 6.1. Si sigue en estados de pregunta del nuevo flow (el usuario no eligió opción válida), reenviar mensaje
     const isGreetingWithInvalidOption = conversation.state === 'greeting_personalized' && newState === 'greeting_personalized';
     const isUrgencyWithInvalidOption = conversation.state === 'urgency' && newState === 'urgency';
+    const isSparePartWithInput = conversation.state === 'spare_part' && input.messageContent.trim().length > 0;
+    const isQuoteWorkWithInput = conversation.state === 'quote_work' && input.messageContent.trim().length > 0;
+    const isGeneralQueryWithInput = conversation.state === 'general_query' && input.messageContent.trim().length > 0;
     
-    if (isGreetingWithInvalidOption || isUrgencyWithInvalidOption) {
+    // Para spare_part, quote_work, general_query - si el usuario dice algo, avanzar a name/summary
+    if (isSparePartWithInput || isQuoteWorkWithInput || isGeneralQueryWithInput) {
+      console.log('[HandleIncoming] User provided input in question state, advancing to next step');
+      // El state machine ya avanza automáticamente, solo dejamos que continúe
+    } else if (isGreetingWithInvalidOption || isUrgencyWithInvalidOption) {
       const userInput = input.messageContent.trim();
       const state = conversation.state;
       
