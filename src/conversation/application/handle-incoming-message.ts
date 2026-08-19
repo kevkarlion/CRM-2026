@@ -383,10 +383,9 @@ export class HandleIncomingMessageUseCase {
     }
 
     // 9. Compone y retorna la respuesta para el estado actual
-    // Recargar conversación para tener el estado actualizado
-    const updatedConversation = await conversationService.findById(conversation._id);
-    const finalContext = updatedConversation?.context ?? updatedContext;
-    const finalState = updatedConversation?.state ?? newState;
+    // IMPORTANTE: usar newState, NO updatedConversation.state porque ya fue cerrado
+    const finalContext = updatedContext;
+    const finalState = newState;
 
     console.log('[HandleIncoming] Composing reply for state:', finalState, '| newState was:', newState, '| context:', JSON.stringify(finalContext));
 
