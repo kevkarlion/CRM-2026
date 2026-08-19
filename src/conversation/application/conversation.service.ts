@@ -10,24 +10,17 @@ import type { Conversation, CreateConversationInput, UpdateConversationInput } f
 export class ConversationService {
   /**
    * Busca una conversación activa por leadId y tenantId.
-   * Si no existe, crea una nueva en estado idle.
+   * SIEMPRE crea una nueva conversación en greeting_personalized
+   * (el flow nuevo de 7 ramas)
    */
   async findOrCreate(input: CreateConversationInput): Promise<Conversation> {
-    const existing = await ConversationModel.findOne({
-      tenantId: new Types.ObjectId(input.tenantId),
-      leadId: new Types.ObjectId(input.leadId),
-      lifecycleState: { $in: ['ACTIVE_LEAD', 'ACTIVE_CLIENT', 'WAITING_OPERATOR', 'WAITING_CLIENT'] },
-    }).sort({ createdAt: -1 });
-
-    if (existing) {
-      return this.toConversation(existing);
-    }
-
+    // Siempre crear nueva conversación desde greeting_personalized
+    // (el flow viejo no se usa más)
     const now = new Date();
     const conversation = new ConversationModel({
       tenantId: new Types.ObjectId(input.tenantId),
       leadId: new Types.ObjectId(input.leadId),
-      state: 'greeting_personalized', // Nuevo flow de 7 ramas
+      state: 'greeting_personalized', // Siempre empezar con el nuevo flow
       context: {
         hasEmergencyKeywords: false,
         hasProjectKeywords: false,
@@ -42,6 +35,8 @@ export class ConversationService {
       lastActivityAt: now,
       startedAt: now,
       lifecycleState: 'ACTIVE_LEAD',
+      conversationType: 'lead',
+      owner: 'BOT',
     });
 
     await conversation.save();

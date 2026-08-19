@@ -73,28 +73,6 @@ export class HandleIncomingMessageUseCase {
     // 2. Extraer intent del mensaje
     const intent = intentExtractor.extractAll(input.messageContent);
 
-    // 2.1. Si la conversación está al inicio (idle, greeting, greeting_personalized, closed)
-    // → enviar el mensaje del estado actual sin procesar el intent
-    const initialStates = ['idle', 'greeting', 'greeting_personalized', 'closed', 'summary'];
-    if (initialStates.includes(conversation.state)) {
-      console.log('[HandleIncoming] Initial state detected - sending state message');
-      
-      // Si está closed o summary, crear nueva conversación desde greeting_personalized
-      if (conversation.state === 'closed' || conversation.state === 'summary') {
-        await conversationService.update(conversation._id, {
-          lifecycleState: 'CLOSED',
-        } as any);
-        conversation = await conversationService.createFresh(input.tenantId, input.leadId);
-      }
-      
-      // Enviar el mensaje del estado actual
-      const reply = replyComposer.compose(conversation.state, conversation.context);
-      actions.push({ type: 'send_message', content: reply.content });
-      
-      console.log('[HandleIncoming] Sent message for state:', conversation.state);
-      return actions;
-    }
-
     // 3. Actualizar contexto con los datos extraídos
     const updatedContext = this.mergeContext(conversation.context, intent, input.messageContent, input.profileName);
 
