@@ -39,6 +39,7 @@ export const whatsappMessageSchema = new Schema<IWhatsAppMessage>(
     errorMessage: { type: String },
     readAt: { type: Date },
     deliveredAt: { type: Date },
+    failedAt: { type: Date },
     processedAt: { type: Date },
   },
   { timestamps: { createdAt: true, updatedAt: true } }

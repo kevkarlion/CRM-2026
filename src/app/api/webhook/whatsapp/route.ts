@@ -49,9 +49,65 @@ export async function POST(req: NextRequest) {
       const changes = entry?.changes?.[0];
       const value = changes?.value;
 
-      // IGNORAR status updates (delivery receipts)
+      // ✅ PROCESAR status updates (delivery receipts) - Double Check
+      if (value?.statuses && value.statuses.length > 0) {
+        console.log('📭 Processing status update:', JSON.stringify(value.statuses));
+        
+        for (const statusUpdate of value.statuses) {
+          const waMessageId = statusUpdate.id;
+          const waStatus = statusUpdate.status;
+          
+          console.log(`[StatusUpdate] messageId: ${waMessageId}, status: ${waStatus}`);
+          
+          // Find the message in our DB
+          const message = await WhatsAppMessageModel.findOne({ messageId: waMessageId });
+          
+          if (!message) {
+            console.log(`[StatusUpdate] Message not found in DB: ${waMessageId}, ignoring`);
+            continue;
+          }
+          
+          // Map WhatsApp status to our status
+          let newStatus: 'pending' | 'sent' | 'delivered' | 'read' | 'failed' = 'sent';
+          const updateFields: Record<string, unknown> = {};
+          
+          if (waStatus === 'sent') {
+            newStatus = 'sent';
+          } else if (waStatus === 'delivered') {
+            newStatus = 'delivered';
+            updateFields.deliveredAt = new Date();
+          } else if (waStatus === 'read') {
+            newStatus = 'read';
+            updateFields.readAt = new Date();
+          } else if (waStatus === 'failed') {
+            newStatus = 'failed';
+            updateFields.failedAt = new Date();
+            updateFields.errorMessage = statusUpdate.errors?.[0]?.description || 'Send failed';
+          }
+          
+          // Idempotent: only update if moving forward
+          const statusOrder = { pending: 0, sent: 1, delivered: 2, read: 3, failed: 4 };
+          const currentOrder = statusOrder[message.status as keyof typeof statusOrder] || 0;
+          const newOrder = statusOrder[newStatus] || 0;
+          
+          if (newOrder >= currentOrder) {
+            updateFields.status = newStatus;
+            await WhatsAppMessageModel.updateOne(
+              { _id: message._id },
+              { $set: updateFields }
+            );
+            console.log(`[StatusUpdate] Updated ${waMessageId}: ${message.status} → ${newStatus}`);
+          } else {
+            console.log(`[StatusUpdate] Skipping ${waMessageId}: already at ${message.status}, ignoring ${waStatus}`);
+          }
+        }
+        
+        return NextResponse.json({ status: 'ok' }, { status: 200 });
+      }
+
+      // New message - continue with existing logic
       if (!value?.messages || !value.messages[0]) {
-        console.log('📭 Ignorando status update:', value?.statuses?.[0]?.status);
+        console.log('📭 No messages or statuses found');
         return NextResponse.json({ status: 'ok' }, { status: 200 });
       }
 
@@ -80,9 +136,14 @@ export async function POST(req: NextRequest) {
 
       // Extraer contenido según tipo de mensaje
       let messageContent = '';
+      let messageType = 'text';
+      let mediaId: string | undefined;
+      let caption: string | undefined;
+      let filename: string | undefined;
 
       if (message.type === 'text') {
         messageContent = message.text?.body || '';
+        messageType = 'text';
       } else if (message.type === 'interactive') {
         messageContent =
           message.button?.text ||
@@ -90,14 +151,26 @@ export async function POST(req: NextRequest) {
           message.button?.payload ||
           message.list_reply?.id ||
           '';
+        messageType = 'interactive';
       } else if (message.type === 'image') {
         messageContent = message.image?.caption || '[Imagen]';
+        messageType = 'image';
+        mediaId = message.image?.id;
+        caption = message.image?.caption;
       } else if (message.type === 'audio') {
         messageContent = '[Audio]';
+        messageType = 'audio';
+        mediaId = message.audio?.id;
       } else if (message.type === 'video') {
         messageContent = message.video?.caption || '[Video]';
+        messageType = 'video';
+        mediaId = message.video?.id;
+        caption = message.video?.caption;
       } else if (message.type === 'document') {
         messageContent = `[Documento: ${message.document?.filename || 'archivo'}]`;
+        messageType = 'document';
+        mediaId = message.document?.id;
+        filename = message.document?.filename;
       }
 
       if (!messageContent) {
@@ -149,6 +222,10 @@ export async function POST(req: NextRequest) {
         messageContent,
         pushName,
         messageId,
+        messageType,
+        mediaId,
+        caption,
+        filename,
       });
 
       console.log(`[Webhook] Processed: ${result.actions.length} actions, leadId: ${result.leadId}`);

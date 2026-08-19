@@ -37,6 +37,7 @@ export interface ChatMessage {
   errorMessage?: string;
   readAt?: string;
   deliveredAt?: string;
+  failedAt?: string;
   createdAt: string;
 }
 
