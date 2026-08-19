@@ -1166,7 +1166,7 @@ export default function WorkOrderDetailPage() {
 
             {workReport.workPerformed && workReport.workPerformed.length > 0 && (
               <div>
-                <h4 className="text-sm font-medium text-gray-500">Trabajo Realizado</h4>
+                <h4 className="text-sm font-medium text-gray-500">Trabajos Realizados</h4>
                 <ul className="mt-1 space-y-1">
                   {workReport.workPerformed.map((item: string, idx: number) => (
                     <li key={idx} className="flex items-start gap-2 text-sm text-gray-700">
@@ -1178,14 +1178,21 @@ export default function WorkOrderDetailPage() {
               </div>
             )}
 
-            {workReport.observations && (
+            {workReport.workPerformedOther && (
               <div>
-                <h4 className="text-sm font-medium text-gray-500">Observaciones</h4>
-                <p className="text-sm text-gray-900">{workReport.observations}</p>
+                <h4 className="text-sm font-medium text-gray-500">Otros Trabajos</h4>
+                <p className="text-sm text-gray-900">{workReport.workPerformedOther}</p>
               </div>
             )}
 
-            {workReport.additionalIssues && workReport.additionalIssues.length > 0 && (
+            {workReport.hasObservations && workReport.observationsText && (
+              <div>
+                <h4 className="text-sm font-medium text-gray-500">Observaciones</h4>
+                <p className="text-sm text-gray-900 whitespace-pre-wrap">{workReport.observationsText}</p>
+              </div>
+            )}
+
+            {workReport.hasAdditionalIssues && workReport.additionalIssues && workReport.additionalIssues.length > 0 && (
               <div>
                 <h4 className="text-sm font-medium text-gray-500">Problemas Adicionales</h4>
                 <ul className="mt-1 space-y-1">
@@ -1199,10 +1206,26 @@ export default function WorkOrderDetailPage() {
               </div>
             )}
 
-            {workReport.nextVisitRecommendation && (
+            {workReport.hasAdditionalIssues && workReport.additionalIssuesText && (
+              <div>
+                <h4 className="text-sm font-medium text-gray-500">Descripción Problemas Adicionales</h4>
+                <p className="text-sm text-gray-900 whitespace-pre-wrap">{workReport.additionalIssuesText}</p>
+              </div>
+            )}
+
+            {workReport.nextVisitRecommendation && workReport.nextVisitRecommendation !== 'No' && (
               <div>
                 <h4 className="text-sm font-medium text-gray-500">Recomendación Próxima Visita</h4>
                 <p className="text-sm text-gray-900">{workReport.nextVisitRecommendation}</p>
+              </div>
+            )}
+
+            {workReport.startedAt && (
+              <div>
+                <h4 className="text-sm font-medium text-gray-500">Fecha de Inicio</h4>
+                <p className="text-base text-gray-900">
+                  {new Date(workReport.startedAt).toLocaleString('es-CL')}
+                </p>
               </div>
             )}
 

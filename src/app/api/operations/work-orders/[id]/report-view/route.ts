@@ -51,25 +51,26 @@ export async function GET(
       return NextResponse.json({ error: 'Reporte no encontrado' }, { status: 404 });
     }
     
+    // Calculate duration if not saved
+    let duration: number | undefined;
+    if (report.startedAt && report.finishedAt) {
+      duration = Math.round((new Date(report.finishedAt).getTime() - new Date(report.startedAt).getTime()) / 60000);
+    } else if (report.duration) {
+      duration = report.duration;
+    }
+    
     // Get technician info
     let technicianName = 'Técnico';
     if (report.technicianId) {
-      const tech = await db.collection('technicians').findOne({ _id: report.technicianId });
-      if (tech) technicianName = tech.name;
-    }
-    
-    // Get user who completed
-    let completedByName = 'Técnico';
-    if (report.completedBy) {
-      const user = await db.collection('users').findOne({ _id: report.completedBy });
-      if (user) completedByName = user.name;
+      const tech = await db.collection('platformusers').findOne({ _id: report.technicianId });
+      if (tech) technicianName = `${tech.firstName || ''} ${tech.lastName || ''}`.trim() || tech.email || 'Técnico';
     }
     
     return NextResponse.json({
       data: {
         ...report,
         technicianName,
-        completedByName,
+        duration,
       }
     });
   } catch (error) {
