@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { ChatMessage } from './ChatMessage';
 import { ChatInput } from './ChatInput';
+import { groupMessagesByDate, getMessageDateKey } from '../utils/format-chat-date';
 import type { ChatMessage as ChatMessageType } from '../types/chat';
 
 // Debug: cuenta renders
@@ -115,15 +116,33 @@ export function ChatPanel({
           </div>
         )}
 
-        {messages.map((msg) => (
-          <ChatMessage 
-            key={msg._id} 
-            message={msg} 
-            onDownload={onDownload}
-            clientId={clientId}
-            leadId={leadId}
-          />
-        ))}
+        {/* Group messages by date */}
+        {(() => {
+          const groupedMessages = groupMessagesByDate(messages);
+          const dateKeys = Array.from(groupedMessages.keys());
+          
+          return dateKeys.map((dateKey) => (
+            <div key={dateKey}>
+              {/* Date separator */}
+              <div className="flex items-center justify-center my-4">
+                <div className="px-3 py-1 bg-gray-200 rounded-full text-xs text-gray-600 font-medium">
+                  {dateKey}
+                </div>
+              </div>
+              
+              {/* Messages for this date */}
+              {groupedMessages.get(dateKey)?.map((msg) => (
+                <ChatMessage 
+                  key={msg._id} 
+                  message={msg} 
+                  onDownload={onDownload}
+                  clientId={clientId}
+                  leadId={leadId}
+                />
+              ))}
+            </div>
+          ));
+        })()}
       </div>
 
       <ChatInput 

@@ -176,6 +176,7 @@ export class ChatService {
     const update: Record<string, unknown> = { status };
     if (status === 'delivered') update.deliveredAt = new Date();
     if (status === 'read') update.readAt = new Date();
+    if (status === 'failed') update.failedAt = new Date();
     if (errorMessage) update.errorMessage = errorMessage;
 
     return WhatsAppMessageModel.findOneAndUpdate(

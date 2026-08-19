@@ -14,6 +14,10 @@ export interface WebhookMessageInput {
   messageContent: string;
   pushName?: string;
   messageId?: string;
+  messageType?: string;
+  mediaId?: string;
+  caption?: string;
+  filename?: string;
 }
 
 export interface WebhookProcessResult {
@@ -78,7 +82,11 @@ async function saveInboundMessage(
   phone: string,
   content: string,
   leadId: string,
-  messageId?: string
+  messageId?: string,
+  messageType?: string,
+  mediaId?: string,
+  caption?: string,
+  filename?: string
 ): Promise<void> {
   try {
     await WhatsAppMessageModel.create({
@@ -86,10 +94,11 @@ async function saveInboundMessage(
       phone,
       messageId: messageId || `wamid.bot.${Date.now()}`,
       direction: 'inbound',
-      type: 'text',
+      type: messageType || 'text',
       content,
       status: 'delivered',
       leadId: new Types.ObjectId(leadId),
+      metadata: mediaId ? { mediaId, caption, filename } : undefined,
     });
   } catch (error) {
     console.error('[WebhookIntegration] Error saving inbound message:', error);
@@ -109,14 +118,14 @@ async function saveInboundMessage(
 export async function processWhatsAppWebhookMessage(
   input: WebhookMessageInput
 ): Promise<WebhookProcessResult> {
-  const { tenantId, phone, messageContent, pushName, messageId } = input;
+  const { tenantId, phone, messageContent, pushName, messageId, messageType, mediaId, caption, filename } = input;
 
   // 1. Find or create lead
   const { leadId, isNew } = await findOrCreateLead(tenantId, phone, pushName, messageContent);
   console.log('[WebhookIntegration] findOrCreateLead result - leadId:', leadId, '| isNew:', isNew);
 
   // 2. Save inbound message
-  await saveInboundMessage(tenantId, phone, messageContent, leadId, messageId);
+  await saveInboundMessage(tenantId, phone, messageContent, leadId, messageId, messageType, mediaId, caption, filename);
 
   // 2.1. Check if conversation is controlled by OPERATOR - if so, skip bot
   // Primero buscar conversación activa

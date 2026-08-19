@@ -29,6 +29,7 @@ export interface IWhatsAppMessage extends Document {
   errorMessage?: string;
   readAt?: Date;
   deliveredAt?: Date;
+  failedAt?: Date;
   processedAt?: Date;
   createdAt: Date;
   updatedAt: Date;

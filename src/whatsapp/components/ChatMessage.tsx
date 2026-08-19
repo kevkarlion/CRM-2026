@@ -52,8 +52,8 @@ function StatusIcon({ status }: { status: ChatMessageType['status'] }) {
 
   if (status === 'read') {
     return (
-      <svg className="w-3.5 h-3.5 text-brand-500" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M1 13l4 4L11 11M7 13l4 4L19 7" />
+      <svg className="w-3.5 h-3.5 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M1 13l4 4L11 11M7 13l4 4L19 7" />
       </svg>
     );
   }
