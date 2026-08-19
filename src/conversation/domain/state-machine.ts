@@ -5,7 +5,7 @@ import type { ConversationState, ConversationContext } from './conversation';
 const TRANSITIONS: Record<ConversationState, ConversationState[]> = {
   idle: ['greeting', 'greeting_personalized'],
   greeting: ['need_type_asked'],
-  greeting_personalized: ['urgency', 'quote_work', 'spare_part', 'general_query', 'suppliers_info', 'evaluate'],
+  greeting_personalized: ['greeting_personalized', 'urgency', 'quote_work', 'spare_part', 'general_query', 'suppliers_info', 'evaluate'],
   need_type_asked: ['need_type_captured', 'detail_asked', 'urgency_asked', 'evaluate'],
   need_type_captured: ['detail_asked', 'urgency_asked', 'location_asked', 'evaluate'],
   detail_asked: ['detail_captured', 'urgency_asked', 'location_asked', 'evaluate'],
@@ -27,7 +27,7 @@ const TRANSITIONS: Record<ConversationState, ConversationState[]> = {
   fallback: ['greeting', 'greeting_personalized', 'need_type_asked', 'handoff_pending'],
   
   // Nuevos estados del flow de 7 ramas
-  urgency: ['detail', 'address_confirm', 'name', 'evaluate'],
+  urgency: ['urgency', 'detail', 'address_confirm', 'name', 'evaluate'],
   detail: ['address_confirm', 'name', 'evaluate'],
   description: ['evaluate'],
   name: ['summary', 'evaluate'],
