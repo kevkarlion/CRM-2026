@@ -125,14 +125,22 @@ export async function POST(req: NextRequest) {
       console.log(`[Webhook] Processing message from ${phone}: "${messageContent}"`);
 
       // IMPORTANTE: Verificar si hay una conversación con owner: OPERATOR antes de procesar
+      // Buscar usando el phone original o los últimos 10 dígitos
       const normalizedPhone = phone.replace(/\D/g, '');
+      const phoneLast10 = normalizedPhone.slice(-10);
+      
+      // Buscar por phone que termine en los últimos 10 dígitos
       const activeConv = await ConversationModel.findOne({
         tenantId: new Types.ObjectId(tenantId),
-        phoneNumber: { $regex: normalizedPhone.slice(-10) },
+        $or: [
+          { phoneNumber: { $regex: phoneLast10 } },
+          { phoneNumber: { $regex: normalizedPhone } },
+          { phoneNumber: phone },
+        ],
         state: { $nin: ['closed', 'timeout'] },
       }).sort({ lastMessageAt: -1 });
       
-      console.log(`[Webhook] Debug - phone: ${phone}, normalized: ${normalizedPhone.slice(-10)}, conv: ${activeConv?._id}, owner: ${activeConv?.owner}, state: ${activeConv?.state}`);
+      console.log(`[Webhook] Debug - phone: ${phone}, normalized: ${normalizedPhone}, last10: ${phoneLast10}, conv: ${activeConv?._id}, owner: ${activeConv?.owner}, state: ${activeConv?.state}`);
 
       // Procesar con el nuevo bot flow
       const result = await processWhatsAppWebhookMessage({
