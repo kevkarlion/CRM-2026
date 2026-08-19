@@ -69,6 +69,20 @@ if (expired === 'true') {
         filters.status = { $ne: 'closed' };
       }
     }
+    
+    // Filtros especiales de_programada + asignada
+    if (searchParams.get('assignedTechnicians') === 'none') {
+      filters.assignedTechnicians = { $size: 0 };
+    }
+    if (searchParams.get('scheduledDate') === 'none') {
+      filters.scheduledDate = { $exists: false };
+    }
+    if (searchParams.get('hasScheduledDate') === 'true') {
+      filters.scheduledDate = { $exists: true, $ne: null };
+    }
+    if (searchParams.get('hasTechnician') === 'true') {
+      filters.assignedTechnicians = { $exists: true, $ne: [], $not: { $size: 0 } };
+    }
 
     filters.limit = limit;
     filters.skip = skip;

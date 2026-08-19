@@ -254,6 +254,24 @@ export class WorkOrderService {
       query.assignedTechnicians = new Types.ObjectId(filters.technicianId);
     }
 
+    // Filter: sin técnicos asignados (array vacío)
+    if ((filters as any).assignedTechnicians === 'none' || (filters as any).assignedTechnicians?.$size === 0) {
+      query.assignedTechnicians = { $size: 0 };
+    }
+
+    // Filter: sin fecha programada
+    if ((filters as any).scheduledDate === 'none' || (filters as any).scheduledDate?.$exists === false) {
+      query.scheduledDate = { $exists: false };
+    }
+    // Filter: tiene fecha programada
+    if ((filters as any).hasScheduledDate === 'true') {
+      query.scheduledDate = { $exists: true, $ne: null };
+    }
+    // Filter: tiene técnico asignado
+    if ((filters as any).hasTechnician === 'true') {
+      query.assignedTechnicians = { $exists: true, $ne: [], $not: { $size: 0 } };
+    }
+
     if (filters.clientId) {
       query.clientId = new Types.ObjectId(filters.clientId);
     }

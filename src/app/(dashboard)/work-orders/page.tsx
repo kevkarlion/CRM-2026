@@ -65,8 +65,9 @@ const STATUS_OPTIONS = [
 const CANONICAL_STATUS_OPTIONS = [
   { value: '', label: 'Todos' },
   { value: 'draft', label: 'Borrador' },
-  { value: 'scheduled', label: 'Programada' },
-  { value: 'assigned', label: 'Asignada' },
+  { value: 'scheduled_only', label: 'Programada' }, // Solo programadas sin técnico
+  { value: 'assigned_only', label: 'Asignada' }, // Solo asignadas sin fecha
+  { value: 'scheduled_assigned', label: 'Programada + Asignada' }, // Tiene ambas
   { value: 'in_progress', label: 'En Ejecucion' },
   { value: 'closed', label: 'Cerrada' },
   { value: 'paused', label: 'Pausada (operativo)' },
@@ -271,6 +272,18 @@ const fetchOrders = useCallback(async () => {
       } else if (statusFilter === 'active') {
         // Filter by workStatus === 'active' (negocio)
         params.workStatus = 'active';
+} else if (statusFilter === 'scheduled_assigned') {
+        // Programada + Asignada (tiene scheduledDate Y técnico asignado)
+        // No filtramos por status, solo por los campos
+        params.hasScheduledDate = 'true';
+        params.hasTechnician = 'true';
+      } else if (statusFilter === 'scheduled_only') {
+        // Solo programadas (scheduled)
+        params.status = 'scheduled';
+      } else if (statusFilter === 'assigned_only') {
+        // Solo asignadas (in_progress sin scheduledDate)
+        params.status = 'in_progress';
+        params.scheduledDate = 'none';
       } else if (statusFilter) {
         // Regular status filter (operativo)
         params.status = statusFilter;
@@ -662,7 +675,7 @@ const fetchOrders = useCallback(async () => {
                         {(() => {
                           // Si el status operativo es 'closed', mostrar como completed aunque workStatus sea 'active'
                           const effectiveWorkStatus = wo.status === 'closed' ? 'completed' : (wo.workStatus || 'active');
-                          const canChange = !['closed', 'cancelled'].includes(wo.status) && effectiveWorkStatus !== 'completed';
+                          const canChange = !['closed', 'cancelled', 'in_progress'].includes(wo.status) && effectiveWorkStatus !== 'completed';
                           
                           if (changingWorkStatus === wo._id) {
                             return <span className="text-xs text-gray-400">Cambiando...</span>;

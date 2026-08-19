@@ -385,8 +385,8 @@ const [form, setForm] = useState({
   const isWorkActive = currentWorkStatus === 'active';
   const isWorkCompleted = currentWorkStatus === 'completed';
   
-  // No se puede cambiar workStatus si el status operativo es closed o cancelled
-  const canChangeWorkStatus = !['closed', 'cancelled'].includes(workOrder?.status || '') && !isWorkCompleted;
+  // No se puede cambiar workStatus si el status operativo es closed, cancelled o in_progress
+  const canChangeWorkStatus = !['closed', 'cancelled', 'in_progress'].includes(workOrder?.status || '') && !isWorkCompleted;
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
