@@ -20,7 +20,7 @@ function formatTime(dateStr: string): string {
 function StatusIcon({ status }: { status: ChatMessageType['status'] }) {
   if (status === 'failed') {
     return (
-      <svg className="w-3.5 h-3.5 text-danger-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-3.5 h-3.5 text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
     );
@@ -28,7 +28,7 @@ function StatusIcon({ status }: { status: ChatMessageType['status'] }) {
 
   if (status === 'pending') {
     return (
-      <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-3.5 h-3.5 text-white/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
     );
@@ -36,7 +36,7 @@ function StatusIcon({ status }: { status: ChatMessageType['status'] }) {
 
   if (status === 'sent') {
     return (
-      <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
       </svg>
     );
@@ -44,7 +44,7 @@ function StatusIcon({ status }: { status: ChatMessageType['status'] }) {
 
   if (status === 'delivered') {
     return (
-      <svg className="w-3.5 h-3.5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M1 13l4 4L11 11M7 13l4 4L19 7" />
       </svg>
     );
@@ -52,7 +52,7 @@ function StatusIcon({ status }: { status: ChatMessageType['status'] }) {
 
   if (status === 'read') {
     return (
-      <svg className="w-3.5 h-3.5 text-blue-600" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+      <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M1 13l4 4L11 11M7 13l4 4L19 7" />
       </svg>
     );
