@@ -9,13 +9,24 @@ import type { Conversation, CreateConversationInput, UpdateConversationInput } f
 
 export class ConversationService {
   /**
-   * Busca una conversación activa por leadId y tenantId.
-   * SIEMPRE crea una nueva conversación en greeting_personalized
+   * Busca una conversación existente o crea una nueva
    * (el flow nuevo de 7 ramas)
    */
   async findOrCreate(input: CreateConversationInput): Promise<Conversation> {
-    // Siempre crear nueva conversación desde greeting_personalized
-    // (el flow viejo no se usa más)
+    // Primero buscar si existe una conversación activa para este lead
+    const existing = await ConversationModel.findOne({
+      tenantId: new Types.ObjectId(input.tenantId),
+      leadId: new Types.ObjectId(input.leadId),
+      state: { $nin: ['closed', 'human_assigned'] },
+    }).sort({ lastMessageAt: -1 });
+
+    // Si existe y no está cerrada, retornarla
+    if (existing) {
+      console.log('[ConversationService] Found existing conversation:', existing.state);
+      return this.toConversation(existing);
+    }
+
+    // Si no existe, crear nueva desde greeting_personalized
     const now = new Date();
     const conversation = new ConversationModel({
       tenantId: new Types.ObjectId(input.tenantId),
@@ -40,6 +51,7 @@ export class ConversationService {
     });
 
     await conversation.save();
+    console.log('[ConversationService] Created new conversation:', conversation.state);
     return this.toConversation(conversation);
   }
 
