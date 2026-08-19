@@ -85,6 +85,58 @@ Soy *Rolito*, tu asistente virtual.
     options: ['Urgente', 'Esta semana', 'No es urgente'],
   }),
 
+  // Nuevos estados del flow de 7 ramas
+  urgency: () => ({
+    content: '⚡ URGENCIA\n\n¿Con qué urgencia lo necesitás?\n\n1️⃣ Urgente (hoy)\n2️⃣ Esta semana\n3️⃣ Sin apuro',
+    options: ['1️⃣ Urgente', '2️⃣ Esta semana', '3️⃣ Sin apuro'],
+  }),
+
+  detail: () => ({
+    content: '📝 Describí brevemente el problema o servicio que necesitás:',
+  }),
+
+  address_confirm: () => ({
+    content: '📍 ¿En qué dirección o zona se encuentra el equipo?',
+  }),
+
+  name: () => ({
+    content: '👤 ¿A nombre de quién registramos la visita?',
+  }),
+
+  quote_work: () => ({
+    content: '📋 ¿Qué tipo de trabajo o servicio necesitás presupuestar?',
+  }),
+
+  spare_part: () => ({
+    content: '🔧 ¿Qué repuesto o pieza estás buscando?',
+  }),
+
+  general_query: () => ({
+    content: '💬 Contame más detalles sobre tu consulta:',
+  }),
+
+  suppliers_info: () => ({
+    content: '📞 Para consultas de proveedores y administración, comunicate directamente al:\n\n📱 2994584104\n📧 admin@roloclimatizacion.com\n\n¡Gracias por comunicarte! 👋',
+  }),
+
+  summary: (ctx) => {
+    return {
+      content: `✅ Resumen de tu solicitud
+
+👤 Nombre: ${ctx.userName || 'No especificado'}
+🛠️ Servicio: ${ctx.serviceTypeLabel || ctx.needType || 'No especificado'}
+📍 Dirección: ${ctx.location || 'No especificada'}
+📅 Necesidad: ${ctx.urgency || 'No especificada'}
+📝 Descripción: ${ctx.detail || ctx.messageContainsData || 'No especificada'}
+
+¿La información es correcta?
+
+1️⃣ Sí
+2️⃣ Corregir`,
+      options: ['1️⃣ Sí', '2️⃣ Corregir'],
+    };
+  },
+
   location_asked: () => ({
     content: '¿En qué zona o dirección se encuentra el equipo? 📍',
   }),

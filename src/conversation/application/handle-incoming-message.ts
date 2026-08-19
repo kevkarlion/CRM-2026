@@ -73,6 +73,17 @@ export class HandleIncomingMessageUseCase {
     // 2. Extraer intent del mensaje
     const intent = intentExtractor.extractAll(input.messageContent);
 
+    // 2.1. Si el usuario dice "hola" o "empezar", reiniciar la conversación
+    if (intent.shouldRestart) {
+      console.log('[HandleIncoming] Restart requested - resetting conversation');
+      await conversationService.update(conversation._id, {
+        state: 'greeting_personalized',
+        previousState: conversation.state,
+        context: {},
+        lastMessageAt: new Date(),
+      });
+    }
+
     // 3. Actualizar contexto con los datos extraídos
     const updatedContext = this.mergeContext(conversation.context, intent, input.messageContent, input.profileName);
 

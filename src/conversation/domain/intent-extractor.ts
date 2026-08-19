@@ -10,6 +10,7 @@ export interface ExtractedIntent {
   hasProjectKeywords: boolean;
   userAskedForHuman: boolean;
   hasAnyData: boolean;
+  shouldRestart: boolean; // Para reiniciar conversación cuando dice "hola"
 }
 
 // Keywords para tipos de necesidad (RepairReason / InquiryReason)
@@ -273,6 +274,15 @@ export class IntentExtractor {
   }
 
   /**
+   * Detecta si el usuario quiere reiniciar la conversación
+   */
+  isRestartRequest(text: string): boolean {
+    const lower = text.toLowerCase().trim();
+    const RESTART_KEYWORDS = ['hola', 'hello', 'hi', 'empezar', 'iniciar', 'nuevo', 'start', 'reiniciar', 'otra vez', 'de nuevo'];
+    return RESTART_KEYWORDS.includes(lower);
+  }
+
+  /**
    * Extrae todo el intent del mensaje en una sola llamada
    */
   extractAll(text: string): ExtractedIntent {
@@ -291,6 +301,9 @@ export class IntentExtractor {
       || customerType !== null
       || equipmentType !== null;
 
+    // Detectar si el usuario quiere reiniciar ("hola", "empezar", "nuevo", etc.)
+    const shouldRestart = this.isRestartRequest(text);
+
     return {
       needType,
       urgency,
@@ -301,6 +314,7 @@ export class IntentExtractor {
       hasProjectKeywords: hasProject,
       userAskedForHuman,
       hasAnyData,
+      shouldRestart,
     };
   }
 }
