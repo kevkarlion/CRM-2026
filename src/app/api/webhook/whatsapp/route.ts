@@ -4,6 +4,8 @@ import { processWhatsAppWebhookMessage } from '@/conversation/infrastructure/web
 import WhatsAppMessageModel from '@/crm/models/whatsapp-message';
 import { isMaintenanceMode, isMaintenanceBypassPhone, getMaintenanceWhatsAppMessage } from '@/lib/maintenance';
 import whatsappService from '@/crm/services/whatsapp.service';
+import ConversationModel from '@/conversation/models/conversation';
+import { Types } from 'mongoose';
 
 // Token de verificación para validar la conexión con Meta
 const WEBHOOK_VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || 'mi_token_secreto_crm';
@@ -121,6 +123,16 @@ export async function POST(req: NextRequest) {
       const tenantId = await whatsappService.getActiveTenantId();
 
       console.log(`[Webhook] Processing message from ${phone}: "${messageContent}"`);
+
+      // IMPORTANTE: Verificar si hay una conversación con owner: OPERATOR antes de procesar
+      const normalizedPhone = phone.replace(/\D/g, '');
+      const activeConv = await ConversationModel.findOne({
+        tenantId: new Types.ObjectId(tenantId),
+        phoneNumber: { $regex: normalizedPhone.slice(-10) },
+        state: { $nin: ['closed', 'timeout'] },
+      }).sort({ lastMessageAt: -1 });
+      
+      console.log(`[Webhook] Debug - phone: ${phone}, normalized: ${normalizedPhone.slice(-10)}, conv: ${activeConv?._id}, owner: ${activeConv?.owner}, state: ${activeConv?.state}`);
 
       // Procesar con el nuevo bot flow
       const result = await processWhatsAppWebhookMessage({
