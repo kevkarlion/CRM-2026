@@ -63,39 +63,22 @@ export class WhatsAppBotAdapter {
     }
   }
 
-  /**
-   * Sends a WhatsApp text message and persists it.
-   * Never throws — if WhatsApp API fails, message is still saved to DB.
-   */
+/**
+    * Sends a WhatsApp text message.
+    * The message is persisted by whatsappService.sendMessage() - no need to double-save.
+    */
   async sendMessage(
     content: string,
     phone: string,
     tenantId: string,
     leadId?: string
   ): Promise<void> {
-    // Always persist the outbound message to DB
-    try {
-      const WhatsAppMessageModel = (await import('@/crm/models/whatsapp-message')).default;
-      await WhatsAppMessageModel.create({
-        tenantId: new Types.ObjectId(tenantId),
-        phone,
-        messageId: `wamid.bot.${Date.now()}`,
-        direction: 'outbound',
-        type: 'text',
-        content,
-        status: 'sent',
-        leadId: leadId ? new Types.ObjectId(leadId) : undefined,
-      });
-    } catch (dbError) {
-      console.error('[WhatsAppBotAdapter] Error saving outbound message to DB:', dbError);
-    }
-
-    // Try to send via WhatsApp API (non-blocking)
+    // Send via WhatsApp API (whatsappService.saveMessage() will persist it)
     try {
       await this.wa.sendMessage(tenantId, phone, content, leadId);
     } catch (error) {
-      console.warn('[WhatsAppBotAdapter] WhatsApp API send failed (message saved to DB):', (error as Error).message);
-      // Don't throw — message is already persisted
+      console.warn('[WhatsAppBotAdapter] WhatsApp API send failed:', (error as Error).message);
+      // Don't throw - we already handle the failure in the service
     }
   }
 

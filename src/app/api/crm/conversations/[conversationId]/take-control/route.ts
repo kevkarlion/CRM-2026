@@ -42,20 +42,33 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    // Get phone number from conversation or lead
+    let phoneNumber = conversation.phoneNumber;
+    if (!phoneNumber) {
+      // Try to get phone from lead
+      const LeadModel = (await import('@/leads/models/lead')).default;
+      const lead = await LeadModel.findById(conversation.leadId);
+      phoneNumber = lead?.phone;
+    }
+
     // Take control using the resolver
     await conversationResolver.takeControl(conversationId, userId);
 
-    // Notify user that an operator will attend them
-    try {
-      const adapter = new WhatsAppBotAdapter();
-      await adapter.sendMessage(
-        '👤 Un operador va a atenderte. Pronto te responderemos.',
-        conversation.phoneNumber,
-        tenantId
-      );
-    } catch (notifyError) {
-      console.error('[TakeControl] Failed to notify user:', notifyError);
-      // Don't fail the request if notification fails
+    // Notify user that an operator will attend them (only if we have phone)
+    if (phoneNumber) {
+      try {
+        const adapter = new WhatsAppBotAdapter();
+        await adapter.sendMessage(
+          '👤 Un operador va a atenderte. Pronto te responderemos.',
+          phoneNumber,
+          tenantId
+        );
+      } catch (notifyError) {
+        console.error('[TakeControl] Failed to notify user:', notifyError);
+        // Don't fail the request if notification fails
+      }
+    } else {
+      console.warn('[TakeControl] No phone number found to notify user');
     }
 
     return NextResponse.json({ 
