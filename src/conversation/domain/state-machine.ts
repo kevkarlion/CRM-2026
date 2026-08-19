@@ -214,10 +214,39 @@ export class ConversationStateMachine {
       return this.skipAheadFrom('need_type_asked', context, skipped);
     }
 
-    // Flujo normal desde un estado de pregunta
+    // Flujo normal desde un estado de pregunta (OLD flow)
     const currentIdx = QUESTION_FLOW.indexOf(current);
     if (currentIdx >= 0) {
       return this.skipAheadFrom(current, context, skipped);
+    }
+
+    // === NUEVO FLOW DE 7 RAMAS ===
+    // Estados de captura del nuevo flow → siguiente pregunta
+    const newCaptureToNext: Partial<Record<ConversationState, ConversationState>> = {
+      // Mantenimiento, Reparación, Instalación
+      urgency: 'detail',
+      detail: 'address_confirm',
+      address_confirm: 'name',
+      name: 'summary',
+      priority: 'description',
+      description: 'summary',
+      // Cotización
+      quote_work: 'name',
+      // Repuestos
+      spare_part: 'name',
+      // Otra consulta
+      general_query: 'name',
+      // Proveedores
+      suppliers_info: 'summary',
+      // Estados finales
+      summary: 'closed',
+      waiting_operator: 'closed',
+    };
+
+    if (current in newCaptureToNext) {
+      const nextState = newCaptureToNext[current as ConversationState];
+      console.log(`[StateMachine] New flow: ${current} → ${nextState}`);
+      return nextState;
     }
 
     // Si estamos en un estado de captura, ir al siguiente pregunta

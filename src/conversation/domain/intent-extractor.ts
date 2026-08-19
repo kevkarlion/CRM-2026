@@ -167,9 +167,19 @@ export class IntentExtractor {
    * Extrae el nivel de urgencia del mensaje
    */
   extractUrgency(text: string): UrgencyLevel | null {
-    const lower = text.toLowerCase();
+    const lower = text.toLowerCase().trim();
 
-    // Prioridad: high > medium > low (primera keyword que matchea gana)
+    // Primero verificar si es un número (1, 2, 3)
+    const numMap: Record<string, UrgencyLevel> = {
+      '1': 'high',
+      '2': 'medium', 
+      '3': 'low',
+    };
+    if (numMap[lower]) {
+      return numMap[lower];
+    }
+
+    // Luego buscar keywords
     for (const level of ['high', 'medium', 'low'] as UrgencyLevel[]) {
       for (const keyword of URGENCY_KEYWORDS[level]) {
         if (lower.includes(keyword)) {
