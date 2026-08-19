@@ -49,7 +49,7 @@ export const conversationSchema = new Schema<IConversation>(
     state: {
       type: String,
       enum: [
-        'idle', 'greeting',
+        'idle', 'greeting', 'greeting_personalized',
         'need_type_asked', 'need_type_captured',
         'detail_asked', 'detail_captured',
         'customer_type_asked', 'customer_type_captured',
@@ -59,9 +59,16 @@ export const conversationSchema = new Schema<IConversation>(
         'evaluate', 'scored',
         'handoff_pending', 'human_assigned',
         'closed', 'timeout', 'fallback',
+        // Nuevos estados del flow 7 ramas
+        'urgency', 'detail', 'description', 'name', 'name_captured',
+        'address_confirm', 'address_confirmed', 'priority', 'priority_captured',
+        'quote_work', 'quote_work_captured',
+        'spare_part', 'spare_part_captured',
+        'general_query', 'general_query_captured',
+        'suppliers_info', 'summary', 'waiting_operator',
       ] as ConversationState[],
       required: true,
-      default: 'idle',
+      default: 'greeting_personalized',
       index: true,
     },
     previousState: {
