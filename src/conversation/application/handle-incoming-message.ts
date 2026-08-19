@@ -352,10 +352,11 @@ export class HandleIncomingMessageUseCase {
     // Recargar conversación para tener el estado actualizado
     const updatedConversation = await conversationService.findById(conversation._id);
     const finalContext = updatedConversation?.context ?? updatedContext;
+    const finalState = updatedConversation?.state ?? newState;
 
-    console.log('[HandleIncoming] Composing reply for state:', newState, '| context:', JSON.stringify(finalContext));
+    console.log('[HandleIncoming] Composing reply for state:', finalState, '| newState was:', newState, '| context:', JSON.stringify(finalContext));
 
-    const reply = replyComposer.compose(newState, finalContext);
+    const reply = replyComposer.compose(finalState, finalContext);
     actions.push({ type: 'send_message', content: reply.content });
 
     return actions;
