@@ -533,14 +533,16 @@ export default function WorkOrderDetailPage() {
             {STATUS_OPTIONS[workOrder.status] || workOrder.status}
           </span>
           {/* Badge de estado de negocio (workStatus) */}
-          {(workOrder.workStatus === 'paused' || workOrder.workStatus === 'cancelled' || workOrder.workStatus === 'active') && (
+          {(workOrder.workStatus === 'paused' || workOrder.workStatus === 'cancelled' || workOrder.workStatus === 'active' || workOrder.workStatus === 'completed') && (
             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
               workOrder.workStatus === 'active' ? 'bg-green-100 text-green-800' :
               workOrder.workStatus === 'paused' ? 'bg-amber-100 text-amber-800' :
+              workOrder.workStatus === 'completed' ? 'bg-blue-100 text-blue-800' :
               'bg-red-100 text-red-800'
             }`}>
               {workOrder.workStatus === 'active' ? 'Activa' : 
                workOrder.workStatus === 'paused' ? 'Pausada' : 
+               workOrder.workStatus === 'completed' ? 'Completada' : 
                'Cancelada'}
             </span>
           )}

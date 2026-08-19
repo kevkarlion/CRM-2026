@@ -65,17 +65,21 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Support expired filter (scheduledDate < today, last 30 days)
+    // Support expired filter (scheduledDate <= today, last 30 days, excluding today)
     const expired = searchParams.get('expired');
     if (expired === 'true') {
-      const today = new Date();
-      const todayStr = today.toISOString().split('T')[0];
-      // Last 30 days
-      const thirtyDaysAgo = new Date(today);
+      // Usar timezone de Argentina (UTC-3) para calcular "hoy"
+      const now = new Date();
+      const argentinaOffset = -3 * 60;
+      const localTime = new Date(now.getTime() + (now.getTimezoneOffset() + argentinaOffset) * 60000);
+      const todayStr = localTime.toISOString().split('T')[0];
+      
+      // Last 30 days but BEFORE today
+      const thirtyDaysAgo = new Date(localTime);
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
       const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
       
-      query.scheduledDate = { $gte: thirtyDaysAgoStr, $lt: todayStr };
+      query.scheduledDate = { $gte: thirtyDaysAgoStr, $lt: todayStr };  // Cambiado a Lt para excluir hoy
       // Exclude completed/cancelled/closed and workStatus paused/cancelled
       if (!query.status) {
         query.status = { $nin: ['completed', 'cancelled', 'closed'] };

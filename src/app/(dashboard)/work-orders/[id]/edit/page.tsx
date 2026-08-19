@@ -383,9 +383,10 @@ const [form, setForm] = useState({
   const isWorkCancelled = currentWorkStatus === 'cancelled';
   const isWorkPaused = currentWorkStatus === 'paused';
   const isWorkActive = currentWorkStatus === 'active';
+  const isWorkCompleted = currentWorkStatus === 'completed';
   
-  // No se puede cambiar workStatus si el status operativo es closed, cancelled o completed
-  const canChangeWorkStatus = !['closed', 'cancelled', 'completed'].includes(workOrder?.status || '');
+  // No se puede cambiar workStatus si el status operativo es closed o cancelled
+  const canChangeWorkStatus = !['closed', 'cancelled'].includes(workOrder?.status || '') && !isWorkCompleted;
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -397,9 +398,10 @@ const [form, setForm] = useState({
           <span className={`px-3 py-1 text-sm rounded-lg font-medium ${
             isWorkActive ? 'bg-green-100 text-green-800' : 
             isWorkPaused ? 'bg-amber-100 text-amber-800' : 
+            isWorkCompleted ? 'bg-blue-100 text-blue-800' : 
             'bg-red-100 text-red-800'
           }`}>
-            {isWorkActive ? 'Activa' : isWorkPaused ? 'Pausada' : 'Cancelada'}
+            {isWorkActive ? 'Activa' : isWorkPaused ? 'Pausada' : isWorkCompleted ? 'Completada' : 'Cancelada'}
           </span>
         </div>
         

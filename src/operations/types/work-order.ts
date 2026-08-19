@@ -108,7 +108,7 @@ export interface IWorkOrder extends Document, IAuditFields {
   priority: WorkOrderPriority;
   category: WorkOrderCategory;
   status: WorkOrderStatus;
-  workStatus: 'active' | 'paused' | 'cancelled';
+  workStatus: 'active' | 'paused' | 'cancelled' | 'completed';
   scheduledDate?: string;
   scheduledStart?: Date;
   scheduledEnd?: Date;

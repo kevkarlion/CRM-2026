@@ -67,12 +67,11 @@ const CANONICAL_STATUS_OPTIONS = [
   { value: 'draft', label: 'Borrador' },
   { value: 'scheduled', label: 'Programada' },
   { value: 'assigned', label: 'Asignada' },
-  { value: 'in_progress', label: 'En Ejecución' },
-  { value: 'completed', label: 'Completada' },
+  { value: 'in_progress', label: 'En Ejecucion' },
   { value: 'closed', label: 'Cerrada' },
-  { value: 'cancelled', label: 'Cancelada' },
   { value: 'paused', label: 'Pausada (operativo)' },
   { value: 'paused_negocio', label: 'Pausada (negocio)' },
+  { value: 'cancelled_negocio', label: 'Cancelada (negocio)' },
   { value: 'active', label: 'Activa (negocio)' },
   { value: 'expired', label: 'Vencidas' },
 ];
@@ -132,16 +131,25 @@ function isOverdue(wo: WorkOrder): boolean {
   if (!wo.scheduledDate) return false;
   // No es vencida si: completed, closed, cancelled, o si workStatus es paused/cancelled
   if (['completed', 'closed', 'cancelled'].includes(wo.status)) return false;
-  if ((wo as any).workStatus === 'paused' || (wo as any).workStatus === 'cancelled') return false;
+  if ((wo as any).workStatus === 'paused' || (wo as any).workStatus === 'cancelled' || (wo as any).workStatus === 'completed') return false;
   
-  // Parse date in local timezone
+  // Parse date
   const dateStr = String(wo.scheduledDate);
-  const [year, month, day] = dateStr.split('-').map(Number);
-  const scheduled = new Date(year, month - 1, day);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  const parts = dateStr.split('-').map(Number);
+  const year = parts[0];
+  const month = parts[1];
+  const day = parts[2];
   
-  return scheduled < today;
+  // Calcular "hoy" en timezone Argentina (UTC-3)
+  const now = new Date();
+  const argentinaOffset = -3 * 60;
+  const localNow = new Date(now.getTime() + (now.getTimezoneOffset() + argentinaOffset) * 60000);
+  localNow.setHours(0, 0, 0, 0);
+  
+  const scheduled = new Date(year, month - 1, day);
+  scheduled.setHours(0, 0, 0, 0);
+  
+  return scheduled < localNow;
 }
 
 function clientName(wo: WorkOrder): string {
@@ -187,6 +195,8 @@ function WorkOrdersContent() {
   const [fromDate, setFromDate] = useState(searchParams.get('startDate') || '');
   const [toDate, setToDate] = useState(searchParams.get('endDate') || '');
   const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [limit] = useState(50);
   const [technicians, setTechnicians] = useState<{ _id: string; name: string }[]>([]);
   const [technicianFilter, setTechnicianFilter] = useState('');
   const [sortField, setSortField] = useState<'scheduledDate' | 'createdAt' | 'workOrderNumber'>('scheduledDate');
@@ -199,6 +209,11 @@ function WorkOrdersContent() {
   // WorkStatus dropdown state (negocio)
   const [workStatusDropdown, setWorkStatusDropdown] = useState<string | null>(null);
   const [changingWorkStatus, setChangingWorkStatus] = useState<string | null>(null);
+
+  // Reset page to 1 when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, priorityFilter, fromDate, toDate, technicianFilter, search, workStatusDropdown]);
 
   // Cerrar dropdowns al hacer click fuera
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -250,6 +265,9 @@ const fetchOrders = useCallback(async () => {
       } else if (statusFilter === 'paused_negocio') {
         // Filter by workStatus === 'paused' (negocio)
         params.workStatus = 'paused';
+      } else if (statusFilter === 'cancelled_negocio') {
+        // Filter by workStatus === 'cancelled' (negocio)
+        params.workStatus = 'cancelled';
       } else if (statusFilter === 'active') {
         // Filter by workStatus === 'active' (negocio)
         params.workStatus = 'active';
@@ -261,6 +279,10 @@ const fetchOrders = useCallback(async () => {
       if (fromDate) params.from = fromDate;
       if (toDate) params.to = toDate;
       if (technicianFilter) params.technicianId = technicianFilter;
+      
+      // Pagination
+      params.page = String(page);
+      params.limit = String(limit);
 
       // Use different endpoint based on tab
       const endpoint = activeTab === 'mine' && isTechnician
@@ -289,7 +311,7 @@ const fetchOrders = useCallback(async () => {
       fetchOrders();
     }, search ? 400 : 0);
     return () => clearTimeout(timer);
-  }, [search, statusFilter, priorityFilter, fromDate, toDate, technicianFilter, activeTab]);
+  }, [search, statusFilter, priorityFilter, fromDate, toDate, technicianFilter, activeTab, page]);
 
   async function loadTechnicians() {
     try {
@@ -638,7 +660,9 @@ const fetchOrders = useCallback(async () => {
                       {/* Columna de estado de negocio (workStatus) */}
                       <td className="px-2 py-1.5 align-middle">
                         {(() => {
-                          const canChange = !['closed', 'cancelled', 'completed'].includes(wo.status);
+                          // Si el status operativo es 'closed', mostrar como completed aunque workStatus sea 'active'
+                          const effectiveWorkStatus = wo.status === 'closed' ? 'completed' : (wo.workStatus || 'active');
+                          const canChange = !['closed', 'cancelled'].includes(wo.status) && effectiveWorkStatus !== 'completed';
                           
                           if (changingWorkStatus === wo._id) {
                             return <span className="text-xs text-gray-400">Cambiando...</span>;
@@ -656,17 +680,19 @@ const fetchOrders = useCallback(async () => {
                                 className={`inline-flex items-center justify-between px-2 py-0.5 rounded-md text-xs font-medium w-20 ${
                                   canChange ? 'cursor-pointer hover:opacity-80' : 'cursor-not-allowed opacity-60'
                                 } ${
-                                  wo.workStatus === 'active' ? 'bg-green-100 text-green-800' :
-                                  wo.workStatus === 'paused' ? 'bg-amber-100 text-amber-800' :
-                                  wo.workStatus === 'cancelled' ? 'bg-red-100 text-red-800' :
+                                  effectiveWorkStatus === 'active' ? 'bg-green-100 text-green-800' :
+                                  effectiveWorkStatus === 'paused' ? 'bg-amber-100 text-amber-800' :
+                                  effectiveWorkStatus === 'cancelled' ? 'bg-red-100 text-red-800' :
+                                  effectiveWorkStatus === 'completed' ? 'bg-blue-100 text-blue-800' :
                                   'bg-gray-100 text-gray-700'
                                 }`}
                               >
                                 <span className="truncate">
-                                  {(!wo.workStatus || wo.workStatus === 'active') ? 'Activa' : 
-                                   wo.workStatus === 'paused' ? 'Pausada' : 
-                                   wo.workStatus === 'cancelled' ? 'Cancelada' : 
-                                   wo.workStatus}
+                                  {effectiveWorkStatus === 'active' ? 'Activa' : 
+                                   effectiveWorkStatus === 'paused' ? 'Pausada' : 
+                                   effectiveWorkStatus === 'cancelled' ? 'Cancelada' : 
+                                   effectiveWorkStatus === 'completed' ? 'Completada' : 
+                                   effectiveWorkStatus}
                                 </span>
                                 {canChange && (
                                   <svg className="w-3 h-3 ml-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -677,7 +703,7 @@ const fetchOrders = useCallback(async () => {
                               
                               {/* Dropdown menu - solo muestra opciones distintas al actual */}
                               {workStatusDropdown === wo._id && canChange && (() => {
-                                const currentWs = wo.workStatus || 'active';
+                                const currentWs = effectiveWorkStatus;
                                 const options = [];
                                 if (currentWs !== 'active') options.push({ value: 'active', label: 'Activa', color: 'green' });
                                 if (currentWs !== 'paused') options.push({ value: 'paused', label: 'Pausar', color: 'amber' });
@@ -788,6 +814,31 @@ const fetchOrders = useCallback(async () => {
               );
             })}
           </div>
+          
+          {/* Pagination */}
+          {total > limit && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200">
+              <div className="text-sm text-gray-500">
+                Mostrando {((page - 1) * limit) + 1} - {Math.min(page * limit, total)} de {total}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                  disabled={page === 1}
+                  className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Anterior
+                </button>
+                <button
+                  onClick={() => setPage(p => p + 1)}
+                  disabled={page * limit >= total}
+                  className="px-3 py-1 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Siguiente
+                </button>
+              </div>
+            </div>
+          )}
         </>
       )}
 

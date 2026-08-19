@@ -216,8 +216,10 @@ export class WorkOrderService {
       scheduledDateLt?: string;
       statusNin?: string[];
       workStatus?: string;
+      limit?: number;
+      skip?: number;
     } = {},
-  ): Promise<IWorkOrder[]> {
+  ): Promise<{ data: IWorkOrder[]; total: number }> {
     const query: Record<string, unknown> = { tenantId, deletedAt: null };
 
     if (filters.status) {
@@ -277,10 +279,16 @@ export class WorkOrderService {
       ];
     }
 
-    return WorkOrderModel.find(query)
+    const total = await WorkOrderModel.countDocuments(query);
+    
+    const data = await WorkOrderModel.find(query)
       .sort({ createdAt: -1 })
       .populate('assignedTechnicians', 'name email specialties')
+      .skip(filters.skip || 0)
+      .limit(filters.limit || 50)
       .exec();
+    
+    return { data, total };
   }
 
   async update(
@@ -290,7 +298,7 @@ export class WorkOrderService {
     userId: string,
     version: number,
   ): Promise<IWorkOrder | null> {
-    // Validación canónica: no se puede cambiar workStatus si la OT está cerrada, cancelada o completada
+    // Validación canónica: no se puede cambiar workStatus si la OT está cerrada o cancelada
     const dataAny = data as any;
     const newWorkStatus = dataAny.workStatus;
     
@@ -299,8 +307,8 @@ export class WorkOrderService {
     if (newWorkStatus !== undefined) {
       const current = await WorkOrderModel.findOne({ _id: id, tenantId, deletedAt: null }).select('status workStatus').lean();
       if (current) {
-        if (['closed', 'cancelled', 'completed'].includes(current.status)) {
-          throw new ValidationError(`No se puede cambiar el estado de negocio cuando la orden está ${current.status === 'closed' ? 'cerrada' : current.status === 'cancelled' ? 'cancelada' : 'completada'}`);
+        if (['closed', 'cancelled'].includes(current.status)) {
+          throw new ValidationError(`No se puede cambiar el estado de negocio cuando la orden está ${current.status === 'closed' ? 'cerrada' : 'cancelada'}`);
         }
         oldWorkStatus = current.workStatus || null;
       }
@@ -423,6 +431,8 @@ export class WorkOrderService {
           $set: {
             status: targetStatus,
             updatedBy: userId,
+            // Cuando se cierra, automáticamente el estado de negocio es 'completed'
+            ...(targetStatus === 'closed' ? { workStatus: 'completed', closedAt: new Date() } : {}),
             ...(targetStatus === 'completed' ? { closedAt: new Date() } : {}),
           },
           $inc: { version: 1 },
