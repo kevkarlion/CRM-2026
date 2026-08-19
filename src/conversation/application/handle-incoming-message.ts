@@ -223,6 +223,8 @@ export class HandleIncomingMessageUseCase {
 
     const newState = transition.nextState;
 
+    console.log('[HandleIncoming] newState after advanceState:', newState);
+
     // 7. Actualizar contexto y avanzar conversación
     const newFallbackCount = intent.hasAnyData ? 0 : conversation.fallbackCount;
     const exchangesInSameState = newState === conversation.state
