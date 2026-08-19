@@ -137,7 +137,7 @@ export class ConversationStateMachine {
     }
 
     // Calcular el siguiente estado ideal, saltando los que ya tienen data
-    let next = this.getNextIdealState(current, context, skipped);
+    let next = this.getNextIdealState(current, context, skipped, message);
 
     // Validar que la transición sea legal
     if (!this.canTransition(current, next)) {
@@ -159,7 +159,8 @@ export class ConversationStateMachine {
   private getNextIdealState(
     current: ConversationState,
     context: ConversationContext,
-    skipped: ConversationState[]
+    skipped: ConversationState[],
+    message?: string
   ): ConversationState {
     // Mapa de estado preguntado → campo que necesita capturar.
     // Solo se mapean los estados de pregunta; el resto mapea a null.
