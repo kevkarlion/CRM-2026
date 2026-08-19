@@ -348,20 +348,25 @@ export class HandleIncomingMessageUseCase {
     });
 
     // 7.1. Si el flujo de 7 ramas se completó (summary o waiting_operator), emitir LeadFlowCompleted
+    // EXCEPTO para suppliers_info (opción 7) - no es un lead, solo información de contacto
+    const isSuppliersFlow = conversation.state === 'suppliers_info';
+    
     if (newState === 'summary' || newState === 'waiting_operator') {
-      console.log('[HandleIncoming] Flow completed, emitting LeadFlowCompleted and closing conversation');
+      console.log('[HandleIncoming] Flow completed, closing conversation', isSuppliersFlow ? '(suppliers - no lead)' : '');
       
-      // Emitir evento para marcar lead como contactado
-      actions.push({
-        type: 'emit_domain_event',
-        event: {
-          type: 'LeadFlowCompleted',
-          leadId: input.leadId,
-          tenantId: input.tenantId,
-          timestamp: new Date(),
-          context: updatedContext,
-        },
-      });
+      if (!isSuppliersFlow) {
+        // Solo crear lead si NO es suppliers (opción 7)
+        actions.push({
+          type: 'emit_domain_event',
+          event: {
+            type: 'LeadFlowCompleted',
+            leadId: input.leadId,
+            tenantId: input.tenantId,
+            timestamp: new Date(),
+            context: updatedContext,
+          },
+        });
+      }
 
       // Cerrar conversación
       await conversationService.update(conversation._id, {

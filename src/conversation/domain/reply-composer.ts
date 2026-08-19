@@ -128,7 +128,7 @@ Soy *Rolito*, tu asistente virtual.
   }),
 
   suppliers_info: () => ({
-    content: '📞 Para consultas de proveedores y administración, comunicate directamente al:\n\n📱 2994584104\n📧 admin@roloclimatizacion.com\n\n¡Gracias por comunicarte! 👋',
+    content: '📞 Para consultas de proveedores y administración, comunicate directamente al:\n\n📱 2994584104\n\n¡Gracias por comunicarte! 👋',
   }),
 
   location_asked: () => ({
