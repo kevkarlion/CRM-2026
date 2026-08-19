@@ -131,24 +131,6 @@ Soy *Rolito*, tu asistente virtual.
     content: '📞 Para consultas de proveedores y administración, comunicate directamente al:\n\n📱 2994584104\n📧 admin@roloclimatizacion.com\n\n¡Gracias por comunicarte! 👋',
   }),
 
-  summary: (ctx) => {
-    return {
-      content: `✅ Resumen de tu solicitud
-
-👤 Nombre: ${ctx.userName || 'No especificado'}
-🛠️ Servicio: ${ctx.serviceTypeLabel || ctx.needType || 'No especificado'}
-📍 Dirección: ${ctx.location || 'No especificada'}
-📅 Necesidad: ${ctx.urgency || 'No especificada'}
-📝 Descripción: ${ctx.detail || ctx.messageContainsData || 'No especificada'}
-
-¿La información es correcta?
-
-1️⃣ Sí
-2️⃣ Corregir`,
-      options: ['1️⃣ Sí', '2️⃣ Corregir'],
-    };
-  },
-
   location_asked: () => ({
     content: '¿En qué zona o dirección se encuentra el equipo? 📍',
   }),

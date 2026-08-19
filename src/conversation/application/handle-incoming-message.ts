@@ -108,6 +108,8 @@ export class HandleIncomingMessageUseCase {
       console.log('[HandleIncoming] Name captured from user response:', updatedContext.userName);
     }
 
+    console.log('[HandleIncoming] Before advanceState - conversation.state:', conversation.state, '| newState variable not set yet');
+
     // 3.1. LeadContactEstablished: el lead provee datos reales por primera vez
     const hadDataBefore = conversation.context.needType
       || conversation.context.urgency
@@ -164,7 +166,12 @@ export class HandleIncomingMessageUseCase {
     }
 
     // 5. Manejar fallback (respuesta no entendida)
-    if (!intent.hasAnyData && !intent.userAskedForHuman && this.isQuestionState(conversation.state)) {
+    //特殊情况：如果在name状态并且用户提供了任何文本（已捕获到userName），则前进到summary而不是fallback
+    const isNameStateWithInput = conversation.state === 'name' && 
+                                  input.messageContent.trim().length > 0 && 
+                                  updatedContext.userName;
+    
+    if (!intent.hasAnyData && !intent.userAskedForHuman && this.isQuestionState(conversation.state) && !isNameStateWithInput) {
       const newFallbackCount = conversation.fallbackCount + 1;
       const fallbackResult = stateMachine.handleFallback(conversation.state, newFallbackCount);
 
