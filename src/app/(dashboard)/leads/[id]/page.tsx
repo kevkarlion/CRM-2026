@@ -426,9 +426,10 @@ const handleCedeControl = async () => {
               <LeadSummaryNoteCard notes={lead.notes} />
               <LeadAdminNotesCard notes={lead.adminNotes} onSave={saveNotes} />
 
-              {/* Chat + Bot Control - side by side on desktop */}
+              {/* Chat + Bot Control + Commercial - side by side on desktop, stacked on mobile */}
               <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-                <div className="lg:col-span-3">
+                {/* Chat - first on desktop */}
+                <div className="lg:col-span-3 order-2 lg:order-1">
                   <LeadActivityTabs
                     activeTab={activeDetailTab}
                     onActiveTabChange={setActiveDetailTab}
@@ -447,14 +448,10 @@ const handleCedeControl = async () => {
                     timelineRefreshKey={timelineRefreshKey}
                   />
                 </div>
-                <div className="lg:col-span-1 space-y-4">
-                  <LeadBotControlCard
-                    conversation={conversation}
-                    loading={loadingConversation}
-                    actionLoading={actionLoading}
-                    onTakeControl={handleTakeControl}
-                    onCedeControl={handleCedeControl}
-                  />
+                
+                {/* Right sidebar: Commercial + Bot - on desktop they stack here */}
+                <div className="lg:col-span-1 order-1 lg:order-2 space-y-4">
+                  {/* Commercial Actions - first on mobile */}
                   {canCreateQuoteOrVisit && (
                     <LeadCommercialActionsCard
                       onOpenQuoteDrawer={() => setShowQuoteDrawer(true)}
@@ -466,6 +463,14 @@ const handleCedeControl = async () => {
                       onConfirmSalePdf={refreshLeadAndTimeline}
                     />
                   )}
+                  {/* Bot Control - second on mobile */}
+                  <LeadBotControlCard
+                    conversation={conversation}
+                    loading={loadingConversation}
+                    actionLoading={actionLoading}
+                    onTakeControl={handleTakeControl}
+                    onCedeControl={handleCedeControl}
+                  />
                 </div>
               </div>
             </div>

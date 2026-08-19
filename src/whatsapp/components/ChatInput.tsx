@@ -16,33 +16,21 @@ export function ChatInput({ onSend, onAttach, disabled, sending }: ChatInputProp
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Validar archivo
   const validateFile = useCallback((file: File): boolean => {
-    const allowedTypes = [
-      'image/jpeg',
-      'image/png',
-      'image/gif',
-      'image/webp',
-      'application/pdf',
-    ];
-    
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'application/pdf'];
     if (!allowedTypes.includes(file.type)) {
       alert('Tipo de archivo no permitido. Solo se permiten imágenes y PDFs.');
       return false;
     }
-
     if (file.size > 10 * 1024 * 1024) {
       alert('El archivo excede el tamaño máximo de 10MB.');
       return false;
     }
-
     return true;
   }, []);
 
-  // Procesar archivo
   const processFile = useCallback(async (file: File) => {
     if (!validateFile(file) || !onAttach) return;
-    
     setUploading(true);
     try {
       await onAttach(file);
@@ -54,13 +42,10 @@ export function ChatInput({ onSend, onAttach, disabled, sending }: ChatInputProp
     }
   }, [onAttach, validateFile]);
 
-  // Drag and drop handlers
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (onAttach) {
-      setIsDragging(true);
-    }
+    if (onAttach) setIsDragging(true);
   }, [onAttach]);
 
   const handleDragLeave = useCallback((e: React.DragEvent) => {
@@ -73,40 +58,30 @@ export function ChatInput({ onSend, onAttach, disabled, sending }: ChatInputProp
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
-    
     const files = e.dataTransfer.files;
-    if (files && files.length > 0) {
-      processFile(files[0]);
-    }
+    if (files && files.length > 0) processFile(files[0]);
   }, [processFile]);
 
   const handleSend = useCallback(() => {
     const trimmed = value.trim();
     if (!trimmed || sending) return;
-
     onSend(trimmed);
     setValue('');
-
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-    }
+    if (textareaRef.current) textareaRef.current.style.height = 'auto';
   }, [value, sending, onSend]);
 
-  const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        handleSend();
-      }
-    },
-    [handleSend]
-  );
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSend();
+    }
+  }, [handleSend]);
 
   const handleInput = useCallback(() => {
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = 'auto';
-    el.style.height = `${Math.min(el.scrollHeight, 120)}px`;
+    el.style.height = `${Math.min(el.scrollHeight, 100)}px`;
   }, []);
 
   const handleAttachClick = useCallback(() => {
@@ -116,10 +91,8 @@ export function ChatInput({ onSend, onAttach, disabled, sending }: ChatInputProp
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0 || !onAttach) return;
-
     const file = files[0];
     if (!validateFile(file)) return;
-
     setUploading(true);
     try {
       await onAttach(file);
@@ -128,10 +101,7 @@ export function ChatInput({ onSend, onAttach, disabled, sending }: ChatInputProp
       alert('Error al subir archivo. Intenta de nuevo.');
     } finally {
       setUploading(false);
-      // Limpiar input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   }, [onAttach, validateFile]);
 
@@ -139,22 +109,18 @@ export function ChatInput({ onSend, onAttach, disabled, sending }: ChatInputProp
 
   return (
     <div 
-      className={`border-t border-gray-200 bg-white px-4 py-3 transition-colors ${isDragging ? 'bg-brand-50 border-brand-300' : ''}`}
+      className={`border-t border-gray-200 bg-gray-50 -mx-2 md:mx-0 ${isDragging ? 'bg-brand-50 border-brand-300' : ''}`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
       {isDragging && (
-        <div className="absolute inset-0 flex items-center justify-center bg-brand-500/10 border-2 border-dashed border-brand-400 rounded-lg m-1">
-          <div className="text-center">
-            <svg className="w-10 h-10 mx-auto text-brand-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
-            <p className="text-sm font-medium text-brand-700">Soltá el archivo aquí</p>
-          </div>
+        <div className="absolute inset-0 flex items-center justify-center bg-brand-500/10 border-2 border-dashed border-brand-400 m-1">
+          <p className="text-sm font-medium text-brand-700">Soltá el archivo aquí</p>
         </div>
       )}
-      <div className="flex items-end gap-2 relative z-10">
+      
+      <div className="flex items-end gap-1 md:gap-2 px-3 md:px-4 py-1.5 relative z-10">
         <input
           ref={fileInputRef}
           type="file"
@@ -162,12 +128,13 @@ export function ChatInput({ onSend, onAttach, disabled, sending }: ChatInputProp
           onChange={handleFileChange}
           accept="image/jpeg,image/png,image/gif,image/webp,application/pdf"
         />
+        
         <button
           type="button"
           onClick={handleAttachClick}
           disabled={isActionDisabled}
-          className="shrink-0 p-2.5 text-gray-500 hover:text-brand-600 hover:bg-gray-100 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          title="Adjuntar archivo"
+          className="shrink-0 p-2 text-gray-400 hover:text-brand-600 hover:bg-gray-100 rounded-full disabled:opacity-40 transition-colors"
+          title="Adjuntar"
         >
           {uploading ? (
             <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -180,6 +147,7 @@ export function ChatInput({ onSend, onAttach, disabled, sending }: ChatInputProp
             </svg>
           )}
         </button>
+        
         <textarea
           ref={textareaRef}
           value={value}
@@ -188,15 +156,16 @@ export function ChatInput({ onSend, onAttach, disabled, sending }: ChatInputProp
             handleInput();
           }}
           onKeyDown={handleKeyDown}
-          placeholder="Escribí un mensaje..."
+          placeholder="Mensaje"
           disabled={disabled}
           rows={1}
-          className="flex-1 resize-none rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none disabled:bg-gray-50 disabled:text-gray-400"
+          className="flex-1 resize-none rounded-full border border-gray-200 bg-white px-3 md:px-4 py-1.5 md:py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none disabled:bg-gray-100"
         />
+        
         <button
           onClick={handleSend}
           disabled={!value.trim() || sending || disabled}
-          className="shrink-0 rounded-xl bg-brand-600 p-2.5 text-white hover:bg-brand-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="shrink-0 rounded-full bg-brand-600 p-2 text-white hover:bg-brand-700 disabled:opacity-40 transition-colors"
         >
           {sending ? (
             <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">

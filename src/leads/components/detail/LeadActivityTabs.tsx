@@ -62,7 +62,7 @@ export function LeadActivityTabs({
       />
       <EntityTab id="timeline" label="Actividad" />
 
-      <EntityTabPanel id="chat" className="h-[500px] p-0">
+      <EntityTabPanel id="chat" className="h-[calc(100vh-320px)] md:h-[500px] p-0">
         <ChatPanel
           messages={messages}
           loading={chatLoading}

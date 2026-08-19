@@ -23,7 +23,7 @@ export function EntityTabPanel({ id, children, className }: EntityTabPanelProps)
       id={`${baseId}-panel-${id}`}
       aria-labelledby={`${baseId}-tab-${id}`}
       tabIndex={0}
-      className={['entity-panel-in bg-white p-5 outline-none', className].filter(Boolean).join(' ')}
+      className={['entity-panel-in bg-white p-3 md:p-5 outline-none', className].filter(Boolean).join(' ')}
     >
       {children}
     </div>
