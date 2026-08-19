@@ -37,6 +37,16 @@ const LEAD_STATES: Record<string, IConversationState> = {
   description: new LeadDescriptionState(),
   evaluate: new LeadEvaluateState(),
   confirmation: new LeadConfirmationState(),
+  // Nuevos estados del flow de 7 ramas
+  greeting_personalized: getCustomerState('greeting_personalized')!,
+  urgency: getCustomerState('urgency')!,
+  detail: getCustomerState('detail')!,
+  quote_work: getCustomerState('quote_work')!,
+  spare_part: getCustomerState('spare_part')!,
+  general_query: getCustomerState('general_query')!,
+  suppliers_info: getCustomerState('suppliers_info')!,
+  summary: getCustomerState('summary')!,
+  waiting_operator: getCustomerState('waiting_operator')!,
 }
 
 /**
