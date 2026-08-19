@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
-import { LeadModel } from '@/leads/models/lead';
+import LeadModel from '@/leads/models/lead';
 import { Types } from 'mongoose';
 
 /**
