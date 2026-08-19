@@ -63,11 +63,41 @@ export class HandleIncomingMessageUseCase {
 
     console.log('[HandleIncoming] Conversation state after findOrCreate:', conversation.state, '| context:', JSON.stringify(conversation.context));
 
-    // Si la conversación ya está cerrada o en handoff, responder con mensaje de cierre
+    // Si la conversación ya está cerrada o en handoff, responder con mensaje de cierre o reiniciar si pasaron 48hs
     if (conversation.state === 'closed') {
-      const closureMessage = '🙌 Tu solicitud ya fue registrada. Un asesor te contactará a la brevedad.';
-      actions.push({ type: 'send_message', content: closureMessage });
-      return actions;
+      // Verificar si pasaron 48hs desde que se cerró
+      const closedAt = conversation.closedAt ? new Date(conversation.closedAt).getTime() : 0;
+      const fortyEightHoursAgo = Date.now() - (48 * 60 * 60 * 1000);
+      
+      // Si pasaron más de 48hs, reiniciar el flujo
+      if (closedAt < fortyEightHoursAgo) {
+        console.log('[HandleIncoming] 48h passed since closure, restarting flow');
+        
+        // Reiniciar conversación a greeting_personalized
+        await conversationService.update(conversation._id, {
+          state: 'greeting_personalized',
+          previousState: 'closed',
+          context: {
+            hasEmergencyKeywords: false,
+            hasProjectKeywords: false,
+            messageContainsData: false,
+            userAskedForHuman: false,
+          },
+          step: 0,
+          fallbackCount: 0,
+          exchangesInSameState: 0,
+          lastMessageAt: new Date(),
+        });
+        
+        // Recargar la conversación reiniciada y continuar el flujo desde ahí
+        conversation = await conversationService.findById(conversation._id);
+        console.log('[HandleIncoming] Conversation restarted, new state:', conversation.state);
+      } else {
+        // Si no pasaron 48hs, enviar mensaje de cierre
+        const closureMessage = '🙌 Tu solicitud ya fue registrada. Un asesor te contactará a la brevedad.';
+        actions.push({ type: 'send_message', content: closureMessage });
+        return actions;
+      }
     }
 
     if (conversation.state === 'human_assigned') {
@@ -105,9 +135,11 @@ export class HandleIncomingMessageUseCase {
     const updatedContext = this.mergeContext(conversation.context, intent, input.messageContent, input.profileName);
 
     // 3.1. Si estamos en estado 'name' y el usuario respondió algo, usar ese texto como nombre
-    if (conversation.state === 'name' && input.messageContent.trim().length > 0 && !updatedContext.userName) {
-      updatedContext.userName = input.messageContent.trim();
-      console.log('[HandleIncoming] Name captured from user response:', updatedContext.userName);
+    // (sobrescribir el nombre del perfil si el usuario da otro nombre explícitamente)
+    if (conversation.state === 'name' && input.messageContent.trim().length > 0) {
+      const providedName = input.messageContent.trim();
+      updatedContext.userName = providedName;
+      console.log('[HandleIncoming] Name captured from user response:', providedName);
     }
 
     console.log('[HandleIncoming] Before advanceState - conversation.state:', conversation.state, '| newState variable not set yet');
