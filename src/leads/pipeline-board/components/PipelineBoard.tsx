@@ -152,7 +152,12 @@ export function PipelineBoard() {
   const { statusMap: conversationStatusMap } = useConversationStatus(allLeadIds);
   const { count: pendingHandoffs, handoffs: handoffList } = usePendingHandoffs();
   const { clients: botClients, refetch: refetchBotClients } = useBotClients();
-  const { gestions, loading: loadingGestiones, refetch: refetchGestiones } = useGestiones();
+  // Fetch visible Gestiones excluding terminal statuses, sorted by visibleAt for "new activity" ordering
+  const { gestions, loading: loadingGestiones, refetch: refetchGestiones } = useGestiones({
+    isVisible: true,
+    excludeTerminalStatuses: true,
+    sortByVisibleAt: true,
+  });
 
   // Map Gestion status to pipeline stage name (Spanish names from DB)
   const mapGestionStatusToStage = (status: string): string => {
