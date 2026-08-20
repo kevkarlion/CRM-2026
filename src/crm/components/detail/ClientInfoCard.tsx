@@ -56,7 +56,7 @@ export function ClientInfoCard({ client }: ClientInfoCardProps) {
 
       <div className="space-y-5">
         <SectionBlock title="Identificación">
-          <InfoField label="Razón social" value={client.companyName || ''} />
+          <InfoField label="Empresa" value={client.profileName || client.companyName || ''} />
           <InfoField label="Nombre completo" value={client.fullName || ''} />
           <InfoField label="RUT / Tax ID" value={client.taxId || ''} />
           <InfoField

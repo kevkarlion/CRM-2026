@@ -15,6 +15,7 @@ interface ClientChatDrawerProps {
   onClose: () => void;
   client: { id: string; name: string; phone: string } | null;
   conversationStatus?: ConversationStatus | null;
+  onMarkAsRead?: () => void;
 }
 
 const TEMPERATURE_CONFIG: Record<string, { icon: string; className: string }> = {
@@ -236,7 +237,7 @@ function ClientInfoTab({ client, conversationStatus }: {
   );
 }
 
-export function ClientChatDrawer({ isOpen, onClose, client, conversationStatus }: ClientChatDrawerProps) {
+export function ClientChatDrawer({ isOpen, onClose, client, conversationStatus, onMarkAsRead }: ClientChatDrawerProps) {
   const [activeTab, setActiveTab] = useState<TabType>('chat');
   const router = useRouter();
 
@@ -252,17 +253,20 @@ export function ClientChatDrawer({ isOpen, onClose, client, conversationStatus }
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
           ...(tenantId ? { 'x-tenant-id': tenantId } : {}),
         },
+      }).then(() => {
+        onMarkAsRead?.();
       }).catch(() => {
         // Silent fail - not critical
       });
     }
-  }, [isOpen, conversationStatus?.conversationId]);
+  }, [isOpen, conversationStatus?.conversationId, onMarkAsRead]);
 
   const phone = client?.phone || '';
 
   // Score del cliente desde conversationStatus o valor por defecto
   const displayScore = conversationStatus?.score ?? 0;
   const displayTemperature = (conversationStatus?.temperature as Temperature) || 'cold';
+  const displayProfileName = (conversationStatus as any)?.profileName || null;
 
   const {
     messages,
@@ -332,7 +336,10 @@ export function ClientChatDrawer({ isOpen, onClose, client, conversationStatus }
                 {client.name.charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0">
-                <h3 className="text-base font-bold text-gray-900 truncate">{client.name}</h3>
+                {displayProfileName && displayProfileName !== client.name && (
+                  <p className="text-sm font-bold text-gray-900 truncate">{displayProfileName}</p>
+                )}
+                <h3 className="text-xs text-gray-500 truncate">{client.name}</h3>
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
                   {displayTemperature && TEMPERATURE_CONFIG[displayTemperature] && (
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${TEMPERATURE_CONFIG[displayTemperature].className}`}>

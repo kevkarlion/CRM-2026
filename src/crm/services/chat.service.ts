@@ -116,7 +116,7 @@ export class ChatService {
     const { limit = 50, before, after } = options;
     const normalizedPhone = this.normalizePhone(phone);
     
-    console.log('[ChatService] getConversationMessages - phone:', phone, 'normalized:', normalizedPhone);
+    // console.log('[ChatService] getConversationMessages - phone:', phone, 'normalized:', normalizedPhone);
     
     const query: Record<string, unknown> = {
       tenantId: new Types.ObjectId(tenantId),

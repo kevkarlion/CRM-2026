@@ -439,6 +439,7 @@ export class SaleConfirmationService {
             customerType: resolvedCustomerType,
             fullName: lead.name,
             companyName: lead.companyName,
+            profileName: (lead as any).profileName || lead.companyName,
             email: lead.email,
             phone: lead.phone,
             status: 'active',

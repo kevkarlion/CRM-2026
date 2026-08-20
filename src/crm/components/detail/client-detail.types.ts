@@ -16,6 +16,7 @@ export interface ClientDetail {
   status: string;
   fullName?: string;
   companyName?: string;
+  profileName?: string;
   taxId?: string;
   email?: string;
   phone?: string;

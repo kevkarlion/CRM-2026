@@ -90,7 +90,7 @@ export function calculateLeadScore(lead: {
     temperature = 'cold';
   }
 
-  console.log('[LeadScore] Calculated:', { score, temperature, inquiryReason: lead.inquiryReason, priority: lead.priority, customerType: lead.customerType });
+  // console.log('[LeadScore] Calculated:', { score, temperature, inquiryReason: lead.inquiryReason, priority: lead.priority, customerType: lead.customerType });
 
   return { score, temperature, breakdown };
 }

@@ -7,17 +7,29 @@ import { usePipelineBoard } from '../hooks/usePipelineBoard';
 import { useConversationStatus } from '../hooks/useConversationStatus';
 import { usePendingHandoffs } from '../hooks/usePendingHandoffs';
 import { useBotClients } from '../hooks/useBotClients';
-import { useGestiones } from '../hooks/useGestiones';
+import { useCustomerConversations, type CustomerEntry } from '../hooks/useCustomerConversations';
+
+// Relative time helper
+function relativeTime(date: Date | string): string {
+  const now = Date.now();
+  const diff = now - new Date(date).getTime();
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return 'ahora';
+  if (minutes < 60) return `hace ${minutes}m`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `hace ${hours}h`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `hace ${days}d`;
+  const months = Math.floor(days / 30);
+  return `hace ${months}meses`;
+}
 import { calculateClientScore } from '@/clients/services/client-score.service';
 import { PipelineColumn } from './PipelineColumn';
 import { LeadFilters } from './LeadFilters';
 import { LeadChatDrawer } from './LeadChatDrawer';
 import { ClientChatDrawer } from './ClientChatDrawer';
 import { ClientCard } from './ClientCard';
-import { GestionCard } from './GestionCard';
 import type { ILead } from '../../types/lead';
-import type { IGestion } from '@/gestion/types/gestion';
-import type { IGestion } from '@/gestion/types/gestion';
 
 function SkeletonColumn() {
   return (
@@ -152,7 +164,7 @@ export function PipelineBoard() {
   const { statusMap: conversationStatusMap } = useConversationStatus(allLeadIds);
   const { count: pendingHandoffs, handoffs: handoffList } = usePendingHandoffs();
   const { clients: botClients, refetch: refetchBotClients } = useBotClients();
-  const { gestions, loading: loadingGestiones, refetch: refetchGestiones } = useGestiones();
+  const { customers, loading: loadingCustomers, refetch: refetchCustomers } = useCustomerConversations();
 
   // Map Gestion status to pipeline stage name (Spanish names from DB)
   const mapGestionStatusToStage = (status: string): string => {
@@ -171,114 +183,9 @@ export function PipelineBoard() {
     return statusToStage[status] || 'Nuevo contacto';
   };
 
-  // Convert Gestion to ILead-like for pipeline display
-  const gestionsAsLeads = useMemo((): ILead[] => {
-    return gestions.map((g) => {
-      // Get client data from populate
-      const clientData = g.clientId as any;
-      // Handle both populated (object with _id) and non-populated (ObjectId) cases
-      const clientIdValue = clientData?._id || clientData || g.clientId;
-      const clientIdString = clientIdValue ? String(clientIdValue) : undefined;
-      
-      const clientName = clientData?.fullName || clientData?.companyName || g.name || 'Cliente';
-      const clientCompany = clientData?.companyName || clientName;
-      const clientPhone = g.phone || clientData?.phone;
-      const clientEmail = g.email || clientData?.email;
-      
-      // Get original lead ID for conversation tracking
-      const originalLeadId = (g as any).originalLeadId;
-      
-      // Get score from conversation status if available
-      let gestionScore = g.score || 0;
-      let gestionTemperature = g.temperature;
-      if (originalLeadId) {
-        const convStatus = conversationStatusMap.get(String(originalLeadId));
-        if (convStatus?.score && convStatus.score > 0) {
-          gestionScore = convStatus.score;
-        }
-        if (convStatus?.temperature && !gestionTemperature) {
-          gestionTemperature = convStatus.temperature;
-        }
-      }
-      
-      return {
-        _id: g._id as any,
-        tenantId: g.tenantId,
-        name: clientName,
-        profileName: clientData?.companyName || undefined, // WhatsApp profile name (company)
-        companyName: clientCompany,
-        phone: clientPhone,
-        email: clientEmail,
-        status: g.status as any,
-        priority: g.priority,
-        score: gestionScore,
-        temperature: gestionTemperature as any,
-        inquiryReason: g.inquiryReason as any,
-        source: 'gestion' as any, // Mark as Gestion
-        assignedTo: g.assignedTo,
-        createdAt: g.createdAt,
-        updatedAt: g.updatedAt,
-        // Mark as Gestion
-        isFromGestion: true,
-        clientId: clientIdString,
-        // For conversation status lookup - use original lead ID
-        originalLeadId: originalLeadId || undefined,
-      };
-    });
-  }, [gestions, conversationStatusMap]);
-
-// Add gestions to columns based on their status
-  const columnsWithGestions = useMemo(() => {
-    const result: Record<string, ILead[]> = {};
-    
-    // Create set of client phones from ALL active Gestiones (not won/lost)
-    // Any client with an active Gestion should hide their lead from pipeline
-    const activeGestionPhones = new Set(
-      gestions
-        .filter(g => g.status !== 'won' && g.status !== 'lost' && g.status !== 'closed')
-        .map(g => g.phone?.replace(/\D/g, ''))
-        .filter(Boolean)
-    );
-    
-    // Create set of phones from leads that are NOT closed (active leads)
-    // Don't show Gestion for these phones until lead is resolved
-    const activeLeadPhones = new Set(
-      Object.values(columns)
-        .flatMap(stageLeads => stageLeads)
-        .filter(lead => lead.status !== 'closed')
-        .map(lead => lead.phone?.replace(/\D/g, ''))
-        .filter(Boolean)
-    );
-    
-    // Initialize with existing columns - filter leads that have active Gestion
-    for (const [stageName, leads] of Object.entries(columns)) {
-      // Hide lead if there's any active Gestion for this phone (client is already in Gestion flow)
-      result[stageName] = leads.filter(lead => {
-        const leadPhone = lead.phone?.replace(/\D/g, '');
-        // Keep lead if there's NO active Gestion for this phone
-        return !(leadPhone && activeGestionPhones.has(leadPhone));
-      });
-    }
-    
-    // Add gestions as separate cards in their columns
-    // BUT: only show if there's NO active lead for this phone (lead has been resolved)
-    for (const gestion of gestionsAsLeads) {
-      // Only add if it's NOT 'lost', 'new', or 'closed'
-      // Also skip if there's an active lead for this phone (gestion waiting for resolve)
-      const gestionPhone = gestion.phone?.replace(/\D/g, '');
-      const hasActiveLead = gestionPhone && activeLeadPhones.has(gestionPhone);
-      
-      if (!hasActiveLead && gestion.status !== 'lost' && gestion.status !== 'closed') {
-        const stageName = mapGestionStatusToStage(gestion.status);
-        if (!result[stageName]) {
-          result[stageName] = [];
-        }
-        result[stageName].push(gestion);
-      }
-    }
-    
-    return result;
-  }, [columns, gestionsAsLeads, gestions]);
+  // Las Gestiones ya NO se muestran en el pipeline de leads
+  // Se muestran en la columna "Clientes" separada
+  const columnsWithGestions = columns;
 
   // Helper to get conversation status for a lead or gestion (must be before handlers that use it)
   const getConversationStatus = useCallback((lead: ILead) => {
@@ -363,7 +270,6 @@ export function PipelineBoard() {
         return;
       }
     }
-    // Regular lead
     setSelectedLeadForChat(lead);
     setChatDrawerOpen(true);
   }, [getConversationStatus]);
@@ -428,7 +334,7 @@ export function PipelineBoard() {
         setNotification({ type: 'success', message: 'Lead descalificado' });
         // Refresh leads and gestions
         refetch();
-        refetchGestiones();
+        refetchCustomers();
       } else {
         const errorData = await res.json().catch(() => ({}));
         setNotification({ type: 'error', message: errorData.error || 'Error al descalificar' });
@@ -442,7 +348,7 @@ export function PipelineBoard() {
       setResolveLeadId(null);
       setTimeout(() => setNotification(null), 5000);
     }
-  }, [resolveConversationId, resolveLeadId, refetch, refetchGestiones]);
+  }, [resolveConversationId, resolveLeadId, refetch, refetchCustomers]);
 
   // Resolve conversation directly by ID (for ClientCard button)
   const handleResolveConversationWithId = useCallback(async (conversationId: string) => {
@@ -459,7 +365,7 @@ export function PipelineBoard() {
       console.log('[Resolve] handleResolveConversationWithId response:', res.status);
       if (res.ok) {
         setNotification({ type: 'success', message: 'Lead descalificado ✅' });
-        refetchGestiones();
+        refetchCustomers();
       } else {
         setNotification({ type: 'error', message: 'Error al resolver' });
       }
@@ -467,7 +373,7 @@ export function PipelineBoard() {
       setNotification({ type: 'error', message: 'Error al resolver' });
     }
     setTimeout(() => setNotification(null), 5000);
-  }, [refetchGestiones]);
+  }, [refetchCustomers]);
 
   // Resolve lead - works with or without conversation
   const handleLeadResolve = useCallback(async (lead: ILead) => {
@@ -506,7 +412,7 @@ export function PipelineBoard() {
         if (res.ok) {
           // Refresh data
           refetch();
-          refetchGestiones?.();
+          refetchCustomers?.();
         } else {
           console.error('[Resolve] Failed:', res.status);
         }
@@ -524,7 +430,7 @@ export function PipelineBoard() {
     setResolveLeadId(String(lead._id));
     setResolveConversationName(lead.profileName || lead.name || lead.companyName || 'este lead');
     setResolveConfirmOpen(true);
-  }, [conversationStatusMap, refetch, refetchGestiones]);
+  }, [conversationStatusMap, refetch, refetchCustomers]);
 
   // Take case — assign the current user to the conversation
   const handleTakeCase = useCallback(async (lead: ILead) => {
@@ -571,10 +477,10 @@ export function PipelineBoard() {
     const interval = setInterval(() => {
       refetch();
       refetchBotClients();
-      refetchGestiones();
+      refetchCustomers();
     }, 5000);
     return () => clearInterval(interval);
-  }, [refetch, refetchBotClients, refetchGestiones]);
+  }, [refetch, refetchBotClients, refetchCustomers]);
 
   const hasData = Object.keys(groups).length > 0;
 
@@ -776,7 +682,211 @@ export function PipelineBoard() {
             );
           })}
 
-          {/* Note: "Sin etapa" column removed - shows leads with status not mapped to any pipeline stage */}
+          {/* Columna Clientes - solo aparece si hay clientes */}
+          {customers.length > 0 && (
+            <div className="bg-green-50 rounded-lg border border-green-200 min-w-[85vw] md:min-w-[280px] md:flex-1 snap-start flex flex-col max-h-[calc(100vh-180px)]">
+              <div className="flex items-center justify-between px-3 py-2 border-b border-green-200 bg-green-50 rounded-t-lg shrink-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-green-700 truncate">
+                    Clientes
+                  </h3>
+                  <span className="badge badge-success text-xs shrink-0">
+                    {customers.length}
+                  </span>
+                </div>
+              </div>
+              <div className="p-2 space-y-2 overflow-y-auto flex-1">
+                {customers.map((customer) => {
+                  const typeLabel = customer.type === 'gestion' ? 'Gestión' : customer.type === 'client' ? 'Cliente' : 'Lead';
+                  const typeBadge = customer.type === 'gestion' ? 'bg-green-100 text-green-700 border-green-200' : 
+                                   customer.type === 'client' ? 'bg-blue-100 text-blue-700 border-blue-200' : 
+                                   'bg-purple-100 text-purple-700 border-purple-200';
+                  
+                  // Badge de nueva actividad - igual que en LeadCard
+                  // Se muestra cuando: hay lastInboundMessageAt Y (no hay lastReadAt O lastInboundMessageAt > lastReadAt)
+                  const hasNewActivity = customer.lastInboundMessageAt && 
+                    (!customer.lastReadAt || new Date(customer.lastInboundMessageAt) > new Date(customer.lastReadAt));
+                  
+                  // Temperature config
+                  const TEMP_CONFIG: Record<string, { label: string; icon: string; className: string }> = {
+                    hot: { label: 'Caliente', icon: '🔥', className: 'bg-red-100 text-red-700 border-red-200' },
+                    warm: { label: 'Tibio', icon: '🌡️', className: 'bg-orange-100 text-orange-700 border-orange-200' },
+                    cold: { label: 'Frío', icon: '❄️', className: 'bg-blue-100 text-blue-700 border-blue-200' },
+                  };
+                  const tempConfig = customer.temperature ? TEMP_CONFIG[customer.temperature] : null;
+                  
+                  return (
+                    <div
+                      key={customer.id}
+                      className={`bg-white rounded-lg border-2 border-l-4 border-l-green-500 border-gray-200 p-2.5 cursor-pointer shadow-sm hover:shadow-md transition-shadow w-full ${
+                        hasNewActivity ? 'border-blue-300' : ''
+                      }`}
+                      onClick={() => {
+                        const convId = customer.conversationId;
+                        setSelectedClientForChat({
+                          id: customer.id,
+                          name: customer.name,
+                          phone: customer.phone || '',
+                        });
+                        setSelectedClientConversationStatus({
+                          conversationId: convId,
+                          leadId: customer.leadId || customer.gestionId || customer.clientId || '',
+                          hasActiveConversation: customer.hasActiveConversation,
+                          conversationState: customer.lifecycleState as any || null,
+                          isBotActive: customer.lifecycleState === 'ACTIVE_CLIENT' && customer.owner === 'BOT',
+                          isHandoffPending: false,
+                          isHumanAssigned: customer.lifecycleState === 'IN_PROGRESS',
+                          lastMessageAt: customer.lastMessageAt ? new Date(customer.lastMessageAt) : null,
+                          lastReadAt: customer.lastReadAt ? new Date(customer.lastReadAt) : null,
+                          lastInboundMessageAt: customer.lastInboundMessageAt ? new Date(customer.lastInboundMessageAt) : undefined,
+                          lastMessageDirection: customer.hasNewActivity ? 'inbound' : null,
+                          lastMessagePreview: customer.lastMessagePreview || null,
+                          unreadCount: 0,
+                          profileName: customer.profileName,
+                        });
+                        setChatDrawerOpen(true);
+                      }}
+                      role="button"
+                      tabIndex={0}
+                      aria-label={`Cliente: ${customer.name}`}
+                    >
+                      <div>
+                        <div className="flex items-center gap-1 mb-1 flex-wrap">
+                          <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium border ${typeBadge}`}>
+                            {customer.type === 'gestion' ? '🟢' : customer.type === 'client' ? '👤' : '📈'} {typeLabel}
+                          </span>
+                          {tempConfig && (
+                            <span className={`inline-flex items-center px-1 py-px rounded text-[9px] font-medium border ${tempConfig.className}`}>
+                              {tempConfig.icon} {customer.score || 0}
+                            </span>
+                          )}
+                          {customer.score && !customer.temperature && (
+                            <span className="inline-flex items-center px-1 py-px rounded text-[9px] font-medium bg-gray-100 text-gray-700 border border-gray-200">
+                              {customer.score} pts
+                            </span>
+                          )}
+                        </div>
+                        {customer.profileName && (
+                          <p className="text-xs md:text-[13px] font-bold text-gray-900 leading-tight">
+                            {customer.profileName}
+                          </p>
+                        )}
+                        <p className="text-[10px] md:text-[11px] text-gray-500 truncate mt-0.5">
+                          {customer.name}
+                        </p>
+                        
+                        <div className="flex items-center gap-2 mt-2">
+                          {customer.phone && (
+                            <>
+                              <a
+                                href={`tel:${customer.phone}`}
+                                onClick={(e) => e.stopPropagation()}
+                                className="text-xs text-brand-600 hover:underline"
+                              >
+                                {customer.phone}
+                              </a>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedClientForChat({
+                                    id: customer.id,
+                                    name: customer.name,
+                                    phone: customer.phone || '',
+                                  });
+                                  setSelectedClientConversationStatus({
+                                    conversationId: customer.conversationId || '',
+                                    leadId: customer.leadId || customer.gestionId || customer.clientId || '',
+                                    hasActiveConversation: customer.hasActiveConversation,
+                                    conversationState: customer.lifecycleState as any || null,
+                                    isBotActive: customer.lifecycleState === 'ACTIVE_CLIENT' && customer.owner === 'BOT',
+                                    isHandoffPending: false,
+                                    isHumanAssigned: customer.lifecycleState === 'IN_PROGRESS',
+                                    lastMessageAt: customer.lastMessageAt ? new Date(customer.lastMessageAt) : null,
+                                    lastReadAt: customer.lastReadAt ? new Date(customer.lastReadAt) : null,
+                                    lastInboundMessageAt: customer.lastInboundMessageAt ? new Date(customer.lastInboundMessageAt) : undefined,
+                                    lastMessageDirection: customer.hasNewActivity ? 'inbound' : null,
+                                    lastMessagePreview: customer.lastMessagePreview || null,
+                                    unreadCount: 0,
+                                    profileName: customer.profileName,
+                                  });
+                                  setChatDrawerOpen(true);
+                                }}
+                                className="inline-flex items-center justify-center w-5 h-5 rounded bg-green-50 text-green-700 hover:bg-green-100 transition-colors"
+                                title="Abrir chat de WhatsApp"
+                              >
+                                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
+                                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                                </svg>
+                              </button>
+                            </>
+                          )}
+                        </div>
+                        
+                        {/* Ubicación */}
+                        {(customer.locality || customer.province) && (
+                          <div className="flex items-center gap-1 mt-1 text-[10px] text-gray-400">
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            <span>{[customer.locality, customer.province].filter(Boolean).join(', ')}</span>
+                          </div>
+                        )}
+
+                        {/* Estado de conversación + info */}
+                        {customer.hasActiveConversation && (
+                          <div className="mt-1.5 pt-1.5 border-t border-gray-100 space-y-0.5">
+                            {/* Badge Nueva Actividad */}
+                            {hasNewActivity && (
+                              <div className="flex items-center gap-2 pt-0.5 pb-1">
+                                <span className="w-3 h-3 rounded-full bg-blue-600 animate-pulse" />
+                                <span className="text-sm font-bold text-blue-700">Nueva actividad!</span>
+                              </div>
+                            )}
+
+                            {/* Indicadores de estado */}
+                            {customer.lifecycleState === 'IN_PROGRESS' && customer.owner === 'OPERATOR' && (
+                              <div className="flex items-center gap-1.5 text-sm text-amber-600">
+                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+                                <span>En atención</span>
+                              </div>
+                            )}
+                            {customer.lifecycleState === 'ACTIVE_CLIENT' && (
+                              <div className="flex items-center gap-1.5 text-sm text-blue-600">
+                                <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                                <span>Bot activo</span>
+                              </div>
+                            )}
+                            {customer.lifecycleState === 'WAITING_CLIENT' && (
+                              <div className="flex items-center gap-1.5 text-sm text-gray-500">
+                                <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+                                <span>Esperando</span>
+                              </div>
+                            )}
+
+                            {/* Último mensaje */}
+                            {customer.lastMessagePreview && (
+                              <div className="flex items-center gap-1.5 text-xs text-gray-500">
+                                <span className="truncate max-w-[200px]">{customer.lastMessagePreview}</span>
+                                {customer.lastMessageAt && (
+                                  <span className="shrink-0">{relativeTime(customer.lastMessageAt)}</span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Primer contacto */}
+                        <div className="mt-1.5 text-xs text-gray-400">
+                          1er contacto {customer.createdAt ? relativeTime(customer.createdAt) : '-'}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -808,6 +918,7 @@ export function PipelineBoard() {
           }}
           client={selectedClientForChat}
           conversationStatus={selectedClientConversationStatus}
+          onMarkAsRead={refetchCustomers}
         />
       )}
 

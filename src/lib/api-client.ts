@@ -103,7 +103,7 @@ async function request<T>(
   const userId = getUserId();
   const headers: Record<string, string> = {};
 
-  console.log('[api-client] token:', !!token, 'tenantId:', tenantId, 'userId:', userId);
+  // console.log('[api-client] token:', !!token, 'tenantId:', tenantId, 'userId:', userId);
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
@@ -111,12 +111,12 @@ async function request<T>(
 
   if (tenantId) {
     headers['x-tenant-id'] = tenantId;
-    console.log('[api-client] Setting x-tenant-id header:', tenantId);
+    // console.log('[api-client] Setting x-tenant-id header:', tenantId);
   }
 
   if (userId) {
     headers['x-user-id'] = userId;
-    console.log('[api-client] Setting x-user-id header:', userId);
+    // console.log('[api-client] Setting x-user-id header:', userId);
   }
 
   let url = path;

@@ -143,19 +143,14 @@ export const LeadCard = React.memo(function LeadCard({
             </span>
           </div>
         )}
-        {entityType === 'lead' && (
-          <div className="flex items-center gap-1 mb-1">
-            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-medium bg-indigo-100 text-indigo-700 border border-indigo-200">
-              👤 Nuevo Lead
-            </span>
-          </div>
+        {lead.profileName && (
+          <p className="text-xs md:text-[13px] font-bold text-gray-900 leading-tight">
+            {lead.profileName}
+          </p>
         )}
-        <p className="text-xs md:text-[13px] font-semibold text-gray-900 leading-tight">
-          {lead.profileName || lead.companyName || lead.name}
+        <p className="text-[10px] md:text-[11px] text-gray-500 truncate mt-0.5">
+          {lead.name}
         </p>
-        {lead.profileName && lead.name && lead.name !== lead.profileName && (
-          <p className="text-[10px] md:text-[11px] text-gray-500 truncate mt-0.5">{lead.name}</p>
-        )}
         <div className="flex items-center gap-1 mt-1">
           {(() => {
             const temp = (calculatedScore?.temperature || lead.temperature) as string | undefined;

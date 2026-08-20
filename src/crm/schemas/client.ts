@@ -24,6 +24,7 @@ export const clientSchema = new Schema<IClient>(
     },
     fullName: String,
     companyName: String,
+    profileName: String,
     taxId: String,
     email: String,
     phone: String,

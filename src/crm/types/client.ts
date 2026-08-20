@@ -30,6 +30,7 @@ export interface IClient extends Document, IAuditFields {
   status: ClientStatus;
   fullName?: string;
   companyName?: string;
+  profileName?: string;
   taxId?: string;
   email?: string;
   phone?: string;

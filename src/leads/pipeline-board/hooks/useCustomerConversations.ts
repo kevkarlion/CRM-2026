@@ -1,24 +1,52 @@
 import { useState, useEffect, useCallback } from 'react';
 
-interface CustomerConversation {
-  conversationId: string;
-  phoneNumber: string;
-  lifecycleState: 'ACTIVE_CLIENT' | 'WAITING_CLIENT' | 'IN_PROGRESS';
-  owner: 'BOT' | 'OPERATOR';
-  lastMessageAt: string;
+export type CustomerSource = 'gestion' | 'client' | 'lead-won';
+
+export interface CustomerEntry {
+  // Identificadores
+  type: CustomerSource;
+  id: string;
+  clientId?: string | null;
+  gestionId?: string | null;
+  leadId?: string | null;
+  
+  // Datos del cliente
+  name: string;
+  phone: string | null;
+  email?: string | null;
+  profileName?: string | null;
+  address?: string | null;
+  locality?: string | null;
+  province?: string | null;
+  status?: string;
+  operationStatus?: string;
+  
+  // Datos adicionales
+  temperature?: 'hot' | 'warm' | 'cold' | null;
+  score?: number | null;
+  priority?: string | null;
+  estimatedValue?: number | null;
+  inquiryReason?: string | null;
+  
+  // Metadatos
+  source: CustomerSource;
   lastActivityAt: string;
-  waitingMessageCount: number;
-  waitingPriority: 'normal' | 'medium' | 'high';
-  assignedToUserId: string | null;
-  clientId: string | null;
-  clientName: string;
-  clientPhone: string | null;
-  clientScore: number | null;
-  clientTemperature: 'hot' | 'warm' | 'cold' | null;
+  createdAt?: string;
+  
+  // Estado de conversación
+  hasActiveConversation: boolean;
+  conversationId?: string;
+  lifecycleState?: 'ACTIVE_CLIENT' | 'WAITING_CLIENT' | 'IN_PROGRESS' | null;
+  owner?: 'BOT' | 'OPERATOR' | null;
+  lastMessageAt?: string | null;
+  lastReadAt?: string | null;
+  lastInboundMessageAt?: string | null;
+  lastMessagePreview?: string | null;
+  hasNewActivity?: boolean;
 }
 
 interface UseCustomerConversationsReturn {
-  conversations: CustomerConversation[];
+  customers: CustomerEntry[];
   loading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
@@ -41,11 +69,11 @@ function authHeaders(): Record<string, string> {
 }
 
 export function useCustomerConversations(): UseCustomerConversationsReturn {
-  const [conversations, setConversations] = useState<CustomerConversation[]>([]);
+  const [customers, setCustomers] = useState<CustomerEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchConversations = useCallback(async () => {
+  const fetchCustomers = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -55,11 +83,11 @@ export function useCustomerConversations(): UseCustomerConversationsReturn {
       });
       
       if (!res.ok) {
-        throw new Error('Error al cargar conversaciones de clientes');
+        throw new Error('Error al cargar clientes');
       }
       
       const json = await res.json();
-      setConversations(json.data || []);
+      setCustomers(json.data || []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error desconocido');
     } finally {
@@ -68,13 +96,13 @@ export function useCustomerConversations(): UseCustomerConversationsReturn {
   }, []);
 
   useEffect(() => {
-    fetchConversations();
-  }, [fetchConversations]);
+    fetchCustomers();
+  }, [fetchCustomers]);
 
   return {
-    conversations,
+    customers,
     loading,
     error,
-    refetch: fetchConversations,
+    refetch: fetchCustomers,
   };
 }

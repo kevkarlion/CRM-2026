@@ -12,6 +12,7 @@ interface Client {
   status: string;
   fullName?: string;
   companyName?: string;
+  profileName?: string;
   taxId?: string;
   email?: string;
   phone?: string;
@@ -58,7 +59,7 @@ function formatDate(dateStr: string) {
 }
 
 function clientName(client: Client): string {
-  return client.companyName || client.fullName || '—';
+  return (client as any).profileName || client.companyName || client.fullName || '—';
 }
 
 function ViewClientLink({ clientId }: { clientId: string }) {
