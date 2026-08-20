@@ -21,12 +21,9 @@ export async function GET(request: NextRequest) {
     const cursor = searchParams.get('cursor') || undefined;
     const search = searchParams.get('search') || undefined;
     const limit = parseInt(searchParams.get('limit') || '20', 10);
-    const isVisible = searchParams.get('isVisible') === 'true' ? true : (searchParams.get('isVisible') === 'false' ? false : undefined);
-    const excludeTerminal = searchParams.get('excludeTerminal') === 'true';
-    const sortByVisibleAt = searchParams.get('sortByVisibleAt') === 'true';
 
     const result = await service.listGestiones(
-      { status, clientId, assignedTo, source, cursor, search, limit, isVisible, excludeTerminalStatuses: excludeTerminal, sortByVisibleAt },
+      { status, clientId, assignedTo, source, cursor, search, limit },
       tenantId,
     );
 
