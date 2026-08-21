@@ -10,6 +10,7 @@ export type NextActionType =
   | 'schedule_work_order'
   | 'awaiting_execution'
   | 'follow_up_visit'
+  | 'product_sale'
   | 'none';
 
 export const NEXT_ACTION_LABELS: Record<NextActionType, string> = {
@@ -23,8 +24,9 @@ export const NEXT_ACTION_LABELS: Record<NextActionType, string> = {
   confirm_sale: 'Confirmar Venta',
   schedule_work_order: 'Programar la OT',
   awaiting_execution: 'Esperando ejecución',
-  follow_up_visit: 'Dar seguimiento VT',
-  none: '—',
+  follow_up_visit: 'Seguimiento de visita',
+  product_sale: 'Venta por producto',
+  none: '',
 };
 
 export type ExpiryBadgeType = 'expired' | 'expiring' | 'none';
@@ -41,6 +43,7 @@ export interface QuoteTableRow {
   clientName: string;
   companyName?: string;
   status: string;
+  saleType?: string | null;
   total: number | null;
   validUntil: string | null;
   nextAction: NextActionType;
@@ -80,6 +83,7 @@ export interface ApiQuote {
   _id: string;
   number: string;
   status: string;
+  saleType?: string;
   total: number;
   subtotal: number;
   validUntil?: string;
@@ -91,6 +95,7 @@ export interface ApiQuote {
   createdAt: string;
   updatedAt?: string;
   approvedAt?: string;
+  wonAt?: string;
   sentAt?: string;
   leadName?: string;
   leadStatus?: string;

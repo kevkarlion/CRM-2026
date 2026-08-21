@@ -12,6 +12,7 @@ export type ClientStatus = 'prospect' | 'active' | 'inactive' | 'blocked';
 export type ClientOperationStatus = 
   | 'none'                    // Sin operación activa
   | 'quote_pending'           // Presupuesto enviado
+  | 'quote_approved'          // Presupuesto aprobado
   | 'visit_scheduled'          // Visita técnica programada
   | 'sale_confirmed';          // Venta confirmada
 

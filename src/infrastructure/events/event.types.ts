@@ -282,9 +282,11 @@ export interface SaleConfirmedPayload {
   leadId: string | null;
   clientId: string;
   amount: number;
-  saleMode: 'quotes' | 'direct';
+  saleMode: 'quotes' | 'direct' | 'product';
   leadName?: string;
   quotesCount?: number;
+  documentId?: string;
+  documentTitle?: string;
 }
 
 export interface ResolveConvertedLeadPayload {

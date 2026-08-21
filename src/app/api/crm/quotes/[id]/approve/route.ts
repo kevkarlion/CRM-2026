@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
 import { QuoteService, NotFoundError, ConflictError, ValidationError } from '@/quotes/services';
 import { TransitionError } from '@/quotes/helpers/state-machine';
+import ClientModel from '@/crm/models/client';
 
 const service = new QuoteService();
 
@@ -19,6 +20,19 @@ export async function POST(
     }
 
     const result = await service.approveQuote(id, userId, tenantId);
+
+    // Update client's operationStatus to quote_approved
+    if (result.clientId) {
+      await ClientModel.updateOne(
+        { _id: result.clientId },
+        { 
+          $set: { 
+            operationStatus: 'quote_approved',
+            operationStatusUpdatedAt: new Date()
+          }
+        }
+      );
+    }
 
     return NextResponse.json(result);
   } catch (error) {

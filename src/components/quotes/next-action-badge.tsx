@@ -9,6 +9,7 @@ export function getNextAction(entity: {
   hasNegotiationWithCounteroffer?: boolean;
   workOrderStatus?: string | null;
   leadStatus?: string | null;
+  saleType?: string | null;
 }): { type: NextActionType; label: string } {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -62,6 +63,10 @@ export function getNextAction(entity: {
   }
 
   if (entity.entityType === 'quote' && entity.status === 'direct_sale') {
+    // Product sale - no work order or explicitly product
+    if (!entity.workOrderStatus || entity.saleType === 'product') {
+      return { type: 'product_sale', label: NEXT_ACTION_LABELS.product_sale };
+    }
     if (entity.workOrderStatus === 'draft') {
       return { type: 'schedule_work_order', label: NEXT_ACTION_LABELS.schedule_work_order };
     }
@@ -83,6 +88,7 @@ const actionStyles: Record<NextActionType, string> = {
   schedule_work_order: 'bg-teal-50 text-teal-700 ring-teal-600/20',
   awaiting_execution: 'bg-indigo-50 text-indigo-700 ring-indigo-600/20',
   follow_up_visit: 'bg-teal-50 text-teal-700 ring-teal-600/20',
+  product_sale: 'bg-gray-100 text-gray-600 ring-gray-500/20',
   none: '',
 };
 
@@ -92,12 +98,14 @@ interface NextActionBadgeProps {
 }
 
 export function NextActionBadge({ type, label }: NextActionBadgeProps) {
-  if (type === 'none') {
-    return <span className="text-gray-400">{label}</span>;
+  if (type === 'none' || !label) {
+    return <span className="text-gray-400">-</span>;
   }
 
+  const style = actionStyles[type] || 'bg-gray-50 text-gray-700 ring-gray-600/20';
+  
   return (
-    <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${actionStyles[type]}`}>
+    <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${style}`}>
       {label}
     </span>
   );

@@ -118,16 +118,37 @@ export const clientActivityOrchestrator = {
 
   async onSaleConfirmed(event: DomainEvent<SaleConfirmedPayload>): Promise<void> {
     const p = event.payload;
+    // Only create for clients without leadId - timeline handler creates for leads
     if (p.leadId || !p.clientId) return;
-    const modeLabel = p.saleMode === 'quotes' ? 'mediante presupuestos' : 'venta directa';
+    
+    // Determine sale type label
+    let saleTypeLabel = '';
+    if (p.saleMode === 'product') {
+      saleTypeLabel = 'por producto';
+    } else if (p.saleMode === 'direct') {
+      saleTypeLabel = 'por servicio';
+    } else {
+      saleTypeLabel = p.saleMode === 'quotes' ? 'mediante presupuestos' : 'venta directa';
+    }
+    
+    const documentInfo = p.documentTitle ? ` — "${p.documentTitle}"` : '';
+    const date = new Date(event.timestamp);
+    date.setHours(date.getHours() - 3); // Adjust from UTC to Argentina timezone
+    const formattedDate = date.toLocaleString('es-AR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
     await timelineService.create({
       tenantId: event.tenantId,
       clientId: p.clientId,
       entityType: 'client',
       entityId: p.clientId,
       eventType: 'client.sale_confirmed',
-      title: 'Venta confirmada',
-      summary: `$${p.amount.toLocaleString('es-AR')} — ${modeLabel}${p.quotesCount ? ` (${p.quotesCount} presupuesto${p.quotesCount > 1 ? 's' : ''})` : ''}`,
+      title: `Venta confirmada ${saleTypeLabel} — ${formattedDate}`,
+      summary: `$${p.amount.toLocaleString('es-AR')}${p.quotesCount ? ` (${p.quotesCount} presupuesto${p.quotesCount > 1 ? 's' : ''})` : ''}${documentInfo}`,
       icon: 'check-circle',
       color: 'green',
       performedBy: event.userId,
@@ -137,6 +158,8 @@ export const clientActivityOrchestrator = {
         clientId: p.clientId,
         leadName: p.leadName,
         quotesCount: p.quotesCount,
+        documentId: p.documentId,
+        documentTitle: p.documentTitle,
       },
     });
   },
@@ -151,6 +174,9 @@ export const clientActivityOrchestrator = {
     if (p.leadId && await eventExists(event.tenantId, p.leadId, 'quote.created', 'quote')) {
       return;
     }
+    
+    // Only create for client quotes (no leadId)
+    if (p.leadId) return;
     
     await timelineService.create({
       tenantId: event.tenantId,
@@ -185,6 +211,9 @@ export const clientActivityOrchestrator = {
       return;
     }
     
+    // Only create for client quotes (no leadId)
+    if (p.leadId) return;
+    
     await timelineService.create({
       tenantId: event.tenantId,
       clientId: p.clientId,
@@ -212,6 +241,14 @@ export const clientActivityOrchestrator = {
   async onQuoteApproved(event: DomainEvent<QuoteApprovedPayload>): Promise<void> {
     const p = event.payload;
     if (!p.clientId) return;
+    
+    // Skip if lead already has this event (timeline handler creates it)
+    if (p.leadId && await eventExists(event.tenantId, p.leadId, 'quote.approved', 'quote')) {
+      return;
+    }
+    
+    // Only create for client quotes (no leadId)
+    if (p.leadId) return;
     await timelineService.create({
       tenantId: event.tenantId,
       clientId: p.clientId,

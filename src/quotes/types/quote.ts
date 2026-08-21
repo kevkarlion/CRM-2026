@@ -2,6 +2,7 @@ import { Document, Types } from 'mongoose';
 import { CreateQuoteItemInput } from './quote-version';
 
 export type QuoteStatus = 'draft' | 'sent' | 'approved' | 'rejected' | 'expired' | 'cancelled' | 'direct_sale';
+export type SaleType = 'product' | 'service' | null;
 
 export interface IQuote extends Document {
   _id: Types.ObjectId;
@@ -12,6 +13,7 @@ export interface IQuote extends Document {
   sourceDocumentId: Types.ObjectId | null;
   number: string;
   status: QuoteStatus;
+  saleType: SaleType;
   currentVersion: number;
   title: string;
   description?: string;
@@ -23,6 +25,7 @@ export interface IQuote extends Document {
   notes?: string;
   sentAt: Date | null;
   approvedAt: Date | null;
+  wonAt: Date | null;
   rejectedAt: Date | null;
   rejectedReason: string | null;
   convertedToWorkOrder: Types.ObjectId | null;

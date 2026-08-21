@@ -64,6 +64,9 @@ import '@/leads/models/pipeline';
 import '@/quotes/models/quote';
 import '@/quotes/models/quote-version';
 
+// ─── Remitos ─────────────────────────────────────────────────────────
+import '@/remitos/models/remito';
+
 // ─── Negotiation ─────────────────────────────────────────────────────
 import '@/negotiation/models/negotiation';
 import '@/negotiation/models/negotiation-event';

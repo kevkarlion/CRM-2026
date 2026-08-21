@@ -76,6 +76,7 @@ export function SmartTableRow({ row }: SmartTableRowProps) {
     validUntil: row.validUntil,
     workOrderStatus: row.workOrderStatus,
     leadStatus: row.leadStatus,
+    saleType: row.saleType,
   });
   const statusColor = getStatusColor(row.status);
   const validDate = row.validUntil ? formatDateShort(row.validUntil) : null;

@@ -52,7 +52,7 @@ export default function ClientDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Entity tabs
-  const [activeTab, setActiveTab] = useState<DetailTabId>('resumen');
+  const [activeTab, setActiveTab] = useState<DetailTabId>('documentacion');
 
   // Quotes fetched by clientId through the existing /api/crm/quotes endpoint
   const [quotes, setQuotes] = useState<QuoteListItem[]>([]);
@@ -68,6 +68,15 @@ export default function ClientDetailPage() {
 
   // Resolve client flow
   const [resolvingClient, setResolvingClient] = useState(false);
+  
+  // Operation status - for reactive updates from documentation tab
+  const [operationStatus, setOperationStatus] = useState<string | null>(null);
+
+  // Sync operationStatus with client when it loads
+  useEffect(() => {
+    // Use client's operationStatus field (not activeGestion which is from Gestion table)
+    setOperationStatus((client as any)?.operationStatus || null);
+  }, [client]);
 
   // Commercial actions drawers
   const [showQuoteDrawer, setShowQuoteDrawer] = useState(false);
@@ -213,8 +222,8 @@ export default function ClientDetailPage() {
       });
       
       if (res.ok) {
-        // Refresh client data to show new state
-        loadClient();
+        // Clear operation status locally (no full re-render needed)
+        setOperationStatus(null);
       } else {
         const data = await res.json();
         setActionError(data.error || 'Error al resolver');
@@ -225,7 +234,7 @@ export default function ClientDetailPage() {
     } finally {
       setResolvingClient(false);
     }
-  }, [id, loadClient]);
+  }, [id]);
 
   async function refreshClient() {
     try {
@@ -284,16 +293,17 @@ export default function ClientDetailPage() {
   }, [loadClient]);
 
   // Refresh client data when window gets focus (event-driven, not polling)
-  useEffect(() => {
-    if (!id) return;
-    
-    const handleFocus = () => {
-      loadClient();
-    };
-    
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [id, loadClient]);
+  // DISABLED: causes constant re-renders on every click
+  // useEffect(() => {
+  //   if (!id) return;
+  //   
+  //   const handleFocus = () => {
+  //     loadClient();
+  //   };
+  //   
+  //   window.addEventListener('focus', handleFocus);
+  //   return () => window.removeEventListener('focus', handleFocus);
+  // }, [id, loadClient]);
 
   async function loadQuotes() {
     setLoadingQuotes(true);
@@ -378,7 +388,13 @@ export default function ClientDetailPage() {
       <EntityDetailLayout
         backHref="/clients"
         backLabel="Volver a clientes"
-        title={name}
+        title={
+          <div className="flex items-center gap-2">
+            {client.profileName && <span>{client.profileName}</span>}
+            <span className="text-gray-400">|</span>
+            <span>{name}</span>
+          </div>
+        }
         subtitle={client.companyName && client.fullName ? client.fullName : client.email}
         badges={
           <>
@@ -393,7 +409,29 @@ export default function ClientDetailPage() {
             <span className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium border bg-gray-50 border-gray-200 text-gray-600">
               {CUSTOMER_TYPE_LABEL[client.customerType] || client.customerType}
             </span>
-            {client.activeGestion && (
+            {/* Operation status - from client.operationStatus field - shows immediate feedback */}
+            {/* Only show activeGestion if operationStatus is not set (avoid duplicate status badges) */}
+            {(operationStatus && operationStatus !== 'none') ? (
+              <span
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-sm font-medium border ${
+                  operationStatus === 'sale_confirmed' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
+                  operationStatus === 'quote_pending' ? 'bg-blue-50 border-blue-200 text-blue-700' :
+                  operationStatus === 'quote_approved' ? 'bg-purple-50 border-purple-200 text-purple-700' :
+                  'bg-gray-50 border-gray-200 text-gray-500'
+                }`}
+              >
+                <span className={`w-2 h-2 rounded-full ${
+                  operationStatus === 'sale_confirmed' ? 'bg-emerald-500' :
+                  operationStatus === 'quote_pending' ? 'bg-blue-500' :
+                  operationStatus === 'quote_approved' ? 'bg-purple-500' :
+                  'bg-gray-400'
+                }`} />
+                {operationStatus === 'sale_confirmed' ? 'Venta ganada' :
+                 operationStatus === 'quote_pending' ? 'Presupuesto enviado' :
+                 operationStatus === 'quote_approved' ? 'Presupuesto aprobado' :
+                 operationStatus}
+              </span>
+            ) : client.activeGestion && (
               <span
                 className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-sm font-medium border ${
                   GESTION_STATUS_VARIANT[client.activeGestion.status] || 'bg-gray-50 border-gray-200 text-gray-500'
@@ -403,8 +441,8 @@ export default function ClientDetailPage() {
                 {GESTION_STATUS_LABELS[client.activeGestion.status] || client.activeGestion.status}
               </span>
             )}
-            {/* Botón Resuelto - solo para clientes con Gestion ganada */}
-            {client.activeGestion?.status === 'won' && (
+            {/* Botón Resuelto - solo cuando hay operationStatus de venta */}
+            {operationStatus === 'sale_confirmed' && (
               <button
                 onClick={handleResolveClient}
                 disabled={resolvingClient}
@@ -535,7 +573,7 @@ export default function ClientDetailPage() {
             </EntityTabPanel>
 
             <EntityTabPanel id="documentacion">
-              <ClientDocumentationTab clientId={id} />
+              <ClientDocumentationTab clientId={id} clientPhone={client.phone} onStatusChange={(newStatus) => setOperationStatus(newStatus)} />
             </EntityTabPanel>
 
             <EntityTabPanel id="actividad">

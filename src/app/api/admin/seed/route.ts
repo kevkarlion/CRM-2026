@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
         tenantId: tenant._id,
         userId: adminUser._id,
         roleId: adminRole._id,
+        assignedBy: adminUser._id,
       });
     }
 

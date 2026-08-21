@@ -48,7 +48,7 @@ export const clientSchema = new Schema<IClient>(
     ],
     operationStatus: {
       type: String,
-      enum: ['none', 'quote_pending', 'visit_scheduled', 'sale_confirmed'] satisfies ClientOperationStatus[],
+      enum: ['none', 'quote_pending', 'quote_approved', 'visit_scheduled', 'sale_confirmed'] satisfies ClientOperationStatus[],
       default: 'none',
     },
     operationStatusUpdatedAt: Date,

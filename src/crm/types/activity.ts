@@ -13,6 +13,7 @@ export const EVENT_TYPES = {
   QUOTE_SENT: 'quote.sent',
   QUOTE_APPROVED: 'quote.approved',
   QUOTE_REJECTED: 'quote.rejected',
+  REMITO_SENT: 'remito.sent',
   VISIT_CREATED: 'visit.created',
   VISIT_STATUS_CHANGED: 'visit.status_changed',
   NEGOTIATION_CREATED: 'negotiation.created',

@@ -292,7 +292,7 @@ export class QuoteService {
     const enrichedData = (populated as any[]).map(q => {
       const leadName = q.leadId?.name || (q.clientId ? (q.clientId.companyName || q.clientId.fullName) : '') || '—';
       const leadStatus = q.leadId?.status || '';
-      return { ...q.toObject(), leadName, leadStatus };
+      return { ...q.toObject(), leadName, leadStatus, wonAt: q.wonAt || q.approvedAt || q.convertedAt };
     });
 
     return {
@@ -1031,6 +1031,7 @@ export class QuoteService {
     quoteId: string,
     userId: string,
     tenantId: string,
+    saleType: 'product' | 'service' | null = null,
   ): Promise<IQuote> {
     const quote = await QuoteModel.findOne({
       _id: new Types.ObjectId(quoteId),
@@ -1053,7 +1054,9 @@ export class QuoteService {
       {
         $set: {
           status: 'direct_sale',
+          saleType: saleType || 'service',
           approvedAt: new Date(),
+          wonAt: new Date(),
           convertedAt: new Date(),
           updatedBy: new Types.ObjectId(userId),
         },

@@ -40,8 +40,8 @@ export function ChatPanel({
   clientId,
   leadId,
 }: ChatPanelProps) {
-  renderCount++;
-  console.log(`[ChatPanel] Render #${renderCount} - onDownload:`, typeof onDownload, 'selectedPhone:', selectedPhone);
+  // renderCount++;
+  // console.log(`[ChatPanel] Render #${renderCount}`);
   
   const containerRef = useRef<HTMLDivElement>(null);
 

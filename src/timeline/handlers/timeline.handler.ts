@@ -151,6 +151,8 @@ export const timelineHandler = {
 
   async onQuoteCreated(event: DomainEvent<QuoteCreatedPayload>): Promise<void> {
     const p = event.payload;
+    // Skip for client quotes - client-activity handler creates the events for clients
+    if (!p.leadId) return;
     const statusLabel = label(p.status) || p.status;
     await timelineService.create({
       tenantId: event.tenantId,
@@ -178,6 +180,8 @@ export const timelineHandler = {
 
   async onQuoteSent(event: DomainEvent<QuoteSentPayload>): Promise<void> {
     const p = event.payload;
+    // Skip for client quotes - client-activity handler creates the events for clients
+    if (!p.leadId) return;
     await timelineService.create({
       tenantId: event.tenantId,
       leadId: p.leadId ?? undefined,
@@ -202,6 +206,8 @@ export const timelineHandler = {
 
   async onQuoteApproved(event: DomainEvent<QuoteApprovedPayload>): Promise<void> {
     const p = event.payload;
+    // Skip for client quotes - client-activity handler creates the events for clients
+    if (!p.leadId) return;
     await timelineService.create({
       tenantId: event.tenantId,
       leadId: p.leadId ?? undefined,
@@ -635,14 +641,24 @@ export const timelineHandler = {
     const p = event.payload;
     if (p.leadId === null) return; // client-scoped entries are written by clientActivityOrchestrator
     const modeLabel = p.saleMode === 'quotes' ? 'mediante presupuestos' : 'venta directa';
+    const documentInfo = p.documentTitle ? ` — "${p.documentTitle}"` : '';
+    const date = new Date(event.timestamp);
+    date.setHours(date.getHours() - 3); // Adjust from UTC to Argentina timezone
+    const formattedDate = date.toLocaleString('es-AR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
     await timelineService.create({
       tenantId: event.tenantId,
       leadId: p.leadId,
       entityType: 'lead',
       entityId: p.leadId,
       eventType: 'lead.converted',
-      title: 'Venta confirmada',
-      summary: `$${p.amount.toLocaleString('es-AR')} — ${modeLabel}${p.quotesCount ? ` (${p.quotesCount} presupuesto${p.quotesCount > 1 ? 's' : ''})` : ''}`,
+      title: `Venta confirmada — ${formattedDate}`,
+      summary: `$${p.amount.toLocaleString('es-AR')} — ${modeLabel}${p.quotesCount ? ` (${p.quotesCount} presupuesto${p.quotesCount > 1 ? 's' : ''})` : ''}${documentInfo}`,
       icon: 'check-circle',
       color: 'green',
       performedBy: event.userId,
@@ -652,7 +668,9 @@ export const timelineHandler = {
         clientId: p.clientId,
         leadName: p.leadName,
         quotesCount: p.quotesCount,
+        documentId: p.documentId,
+        documentTitle: p.documentTitle,
       },
     });
-  },
+  }
 };
