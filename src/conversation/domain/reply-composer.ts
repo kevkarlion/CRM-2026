@@ -26,10 +26,10 @@ const STATE_REPLIES: Record<string, (ctx: ConversationContext) => BotReply> = {
     }
 
     const customerName = ctx.userName || ctx.profileName;
-    const namePart = customerName ? ` ${customerName}!` : '';
+    const namePart = customerName ? `, ${customerName}!` : '!';
     
     return {
-      content: `${greeting}! Bienvenid@ a Rolo Climatización. ❄️🔥
+      content: `${greeting}${namePart} Bienvenid@ a Rolo Climatización S.R.L. ❄️🔥
 
 Soy *Rolito*, tu asistente virtual.
 

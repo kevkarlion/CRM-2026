@@ -131,11 +131,11 @@ export class GreetingPersonalizedState implements IConversationState {
       ? `${greeting}, ${customerName}!` 
       : `${greeting}! Bienvenid@`;
     
-    return `${personalizedGreeting} a Rolo Climatización. ❄️🔥
+    return `${personalizedGreeting} a Rolo Climatización S.R.L. ❄️🔥
 
 Soy *Rolito*, tu asistente virtual.
 
-¿En qué te podemos ayudarte hoy?
+¿En qué te podemos ayudar hoy?
 
 1️⃣ Mantenimiento / Service
 2️⃣ Reparación o Falla técnica
@@ -143,7 +143,7 @@ Soy *Rolito*, tu asistente virtual.
 4️⃣ Cotizaciones / Presupuestos
 5️⃣ Venta de Repuestos
 6️⃣ Otra consulta
-7️⃣ Proveedores / Administración
+7️⃣ Proveedores
 
 (Respondé con el número de opción)`
   }

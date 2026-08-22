@@ -144,9 +144,11 @@ export class HandleIncomingMessageUseCase {
       // Si no es greeting simple ni opción válida 1-7, reenviar menú
       if (!isSimpleGreeting && !isValidOption) {
         console.log('[HandleIncoming] Invalid option in greeting_personalized - resending menu');
+        // Usar el nombre del cliente del context, o el profileName de WhatsApp como fallback
+        const customerName = conversation.context?.customerName || input.profileName;
         const reply = replyComposer.compose('greeting_personalized', {
-          userName: input.profileName,
-          profileName: input.profileName,
+          userName: customerName,
+          profileName: customerName,
         });
         actions.push({ type: 'send_message', content: reply.content });
         
@@ -161,9 +163,10 @@ export class HandleIncomingMessageUseCase {
       
       if (isSimpleGreeting) {
         console.log('[HandleIncoming] Simple greeting detected in greeting_personalized - resending menu');
+        const customerName = conversation.context?.customerName || input.profileName;
         const reply = replyComposer.compose('greeting_personalized', {
-          userName: input.profileName,
-          profileName: input.profileName,
+          userName: customerName,
+          profileName: customerName,
         });
         actions.push({ type: 'send_message', content: reply.content });
         return actions;
@@ -213,12 +216,37 @@ export class HandleIncomingMessageUseCase {
     const isNameStateWithInput = conversation.state === 'name' && 
                                   input.messageContent.trim().length > 0 && 
                                   updatedContext.userName;
-    const isNewFlowQuestionState = 
+    
+    // Customer flow states that handle their own invalid input (no fallback)
+    const isCustomerFlowQuestionState = 
       conversation.state === 'greeting_personalized' || 
       conversation.state === 'urgency' ||
       conversation.state === 'spare_part' ||
       conversation.state === 'quote_work' ||
-      conversation.state === 'general_query';
+      conversation.state === 'general_query' ||
+      conversation.state === 'service_type' ||
+      conversation.state === 'address_confirm' ||
+      conversation.state === 'priority' ||
+      conversation.state === 'detail' ||
+      conversation.state === 'description' ||
+      conversation.state === 'name' ||
+      conversation.state === 'suppliers_info';
+    
+    // Lead flow states that handle their own invalid input (no fallback)
+    const isLeadFlowQuestionState = 
+      conversation.state === 'greeting_personalized' ||
+      conversation.state === 'name' ||
+      conversation.state === 'service' ||
+      conversation.state === 'address' ||
+      conversation.state === 'priority' ||
+      conversation.state === 'description';
+    
+    // Para conversaciones de cliente, NUNCA usamos fallback - los estados manejan sus propios errores
+    // Para leads, solo permittedimos fallback en estados específicos
+    const isNewFlowQuestionState = 
+      conversation.conversationType === 'customer' 
+        ? isCustomerFlowQuestionState 
+        : isLeadFlowQuestionState;
     
     if (!isNewFlowQuestionState && !intent.hasAnyData && !intent.userAskedForHuman && this.isQuestionState(conversation.state) && !isNameStateWithInput) {
       const newFallbackCount = conversation.fallbackCount + 1;
