@@ -478,7 +478,8 @@ export class SaleConfirmationService {
       }
 
       // Migrar conversación de lead a cliente
-      await ConversationModel.updateMany(
+      console.log('[ConfirmSale] Migrando conversación - leadId:', lead._id, 'clientId:', clientId);
+      const convResult = await ConversationModel.updateMany(
         {
           leadId: lead._id,
           conversationType: 'lead',
@@ -494,9 +495,11 @@ export class SaleConfirmationService {
         },
         { session }
       );
+      console.log('[ConfirmSale] Conversaciones migradas:', convResult.modifiedCount);
 
       // Migrar mensajes de WhatsApp del lead al cliente
-      await WhatsAppMessageModel.updateMany(
+      console.log('[ConfirmSale] Migrando mensajes - leadId:', lead._id, 'clientId:', clientId);
+      const msgResult = await WhatsAppMessageModel.updateMany(
         {
           leadId: lead._id,
         },
@@ -507,6 +510,7 @@ export class SaleConfirmationService {
         },
         { session }
       );
+      console.log('[ConfirmSale] Mensajes migrados:', msgResult.modifiedCount);
     }
 
     return clientId;
