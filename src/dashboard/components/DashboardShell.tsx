@@ -5,6 +5,7 @@
 import type { ReactNode } from 'react';
 import { RoleProvider, useRole } from '@/dashboard/context/role-context';
 import { Sidebar } from '@/dashboard/components/Sidebar';
+import { WorkReportToast } from '@/app/(dashboard)/components/WorkReportToast';
 import { useEffect, useState } from 'react';
 import { useTheme } from '@/app/providers/ThemeProvider';
 import { Sun, Moon, LogOut } from 'lucide-react';
@@ -90,6 +91,7 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
         <Sidebar />
         <div className="flex-1 flex flex-col min-w-0 lg:ml-56 relative z-0">
           <HeaderBar />
+          <WorkReportToastWrapper />
           {/* Page content */}
           <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 relative z-0">
             {children}
@@ -98,4 +100,9 @@ export default function DashboardShell({ children }: { children: ReactNode }) {
       </div>
     </RoleProvider>
   );
+}
+
+function WorkReportToastWrapper() {
+  const { isAdmin } = useRole();
+  return <WorkReportToast isAdmin={isAdmin} />;
 }

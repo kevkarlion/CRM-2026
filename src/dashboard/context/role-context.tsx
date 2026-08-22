@@ -62,6 +62,7 @@ function normalizeRole(role: string): TenantRoleName {
     'dispatcher': 'Dispatcher',
     'technician': 'Technician',
     'tech': 'Technician',
+    'tecnico': 'Technician',
   };
   return roleMap[role.toLowerCase()] ?? 'Administrator';
 }

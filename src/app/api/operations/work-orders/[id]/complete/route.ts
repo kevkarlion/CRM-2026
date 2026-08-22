@@ -7,6 +7,7 @@ import { WorkReportService } from '@/operations/services/work-report.service';
 import { logActivity } from '@/audit/activity-logger';
 import { eventBus } from '@/infrastructure/events/event-bus';
 import { DOMAIN_EVENTS, WorkOrderCompletedPayload } from '@/infrastructure/events/event.types';
+import { broadcastWorkReportCompleted } from '@/lib/sse-broadcast';
 import mongoose from 'mongoose';
 
 const VALID_STATUSES = ['in_progress'] as const;
@@ -188,6 +189,24 @@ export async function POST(
     // Commit transaction
     await session.commitTransaction();
 
+    // Broadcast SSE event to connected admin clients (real-time toast)
+    const techName = technician ? 
+      `${(technician as any).firstName || ''} ${(technician as any).lastName || ''}`.trim() || (technician as any).name || 'Técnico' 
+      : 'Técnico';
+
+    try {
+      broadcastWorkReportCompleted({
+        workOrderId: workOrderId.toString(),
+        workReportId: workReport._id.toString(),
+        workOrderNumber: workOrder.workOrderNumber,
+        technicianName: techName,
+        clientId: (workOrder as any).clientId?.toString(),
+        title: workOrder.title,
+      });
+    } catch (broadcastError) {
+      console.error('[WorkOrder Complete] Failed to broadcast SSE:', broadcastError);
+    }
+
     // Publish WORK_ORDER_COMPLETED event for timeline
     try {
       await eventBus.publish({
@@ -199,7 +218,9 @@ export async function POST(
         timestamp: now,
         payload: {
           workOrderId: workOrderId.toString(),
+          workReportId: workReport._id.toString(),
           number: workOrder.workOrderNumber,
+          technicianName: techName,
         } as WorkOrderCompletedPayload,
       });
     } catch (eventError) {
@@ -207,10 +228,6 @@ export async function POST(
     }
 
     // Log activities (outside transaction - best effort)
-    const techName = technician ? 
-      `${(technician as any).firstName || ''} ${(technician as any).lastName || ''}`.trim() || (technician as any).name || 'Técnico' 
-      : 'Técnico';
-
     try {
       await logActivity({
         tenantId: new mongoose.Types.ObjectId(tenantId),

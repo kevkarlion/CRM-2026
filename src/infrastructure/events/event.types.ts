@@ -220,8 +220,10 @@ export interface WorkOrderStartedPayload {
 
 export interface WorkOrderCompletedPayload {
   workOrderId: string;
+  workReportId?: string;
   number?: string;
   clientId?: string | null;
+  technicianName?: string;
 }
 
 export interface VisitCreatedPayload {

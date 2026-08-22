@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { Suspense, useEffect, useState, useMemo } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { api, unwrapData } from '@/lib/api-client';
 import { SearchInput } from '@/components/ui/SearchInput';
 
@@ -37,7 +38,10 @@ type SortOrder = 'asc' | 'desc';
 
 const PAGE_SIZE = 50;
 
-export default function InformesPage() {
+function InformesPageContent() {
+  const searchParams = useSearchParams();
+  const workOrderIdFromUrl = searchParams.get('workOrderId');
+  
   const [reports, setReports] = useState<WorkReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -48,6 +52,29 @@ export default function InformesPage() {
   const [filterType, setFilterType] = useState<string>('');
   const [filterTechnician, setFilterTechnician] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [viewedIds, setViewedIds] = useState<string[]>([]);
+
+  // Load viewed IDs from sessionStorage on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const stored = sessionStorage.getItem('work-reports-viewed');
+      if (stored) {
+        setViewedIds(JSON.parse(stored));
+      }
+    }
+  }, []);
+
+  // Mark as viewed when drawer opens
+  const handleView = (report: WorkReport) => {
+    setSelectedReport(report);
+    setShowDrawer(true);
+    // Mark as viewed
+    if (!viewedIds.includes(report._id)) {
+      const newViewed = [...viewedIds, report._id];
+      setViewedIds(newViewed);
+      sessionStorage.setItem('work-reports-viewed', JSON.stringify(newViewed));
+    }
+  };
 
   // Get unique technicians for dropdown
   const uniqueTechnicians = useMemo(() => {
@@ -64,6 +91,16 @@ export default function InformesPage() {
   useEffect(() => {
     loadReports();
   }, [search]);
+
+  // Auto-open drawer when workOrderId is in URL
+  useEffect(() => {
+    if (workOrderIdFromUrl && reports.length > 0) {
+      const report = reports.find(r => r.workOrderId === workOrderIdFromUrl);
+      if (report) {
+        handleView(report);
+      }
+    }
+  }, [reports, workOrderIdFromUrl]);
 
   async function loadReports() {
     setLoading(true);
@@ -132,11 +169,6 @@ export default function InformesPage() {
       setSortField(field);
       setSortOrder('desc');
     }
-  }
-
-  function handleView(report: WorkReport) {
-    setSelectedReport(report);
-    setShowDrawer(true);
   }
 
   function formatDate(dateStr: string) {
@@ -303,7 +335,14 @@ export default function InformesPage() {
                       {getClientName(report)}
                     </td>
                     <td className="px-3 py-2 text-xs text-gray-700 max-w-[150px] truncate">
-                      {report.result}
+                      <div className="flex items-center gap-1">
+                        <span className="truncate max-w-[120px]">{report.result}</span>
+                        {!viewedIds.includes(report._id) && (
+                          <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-brand-100 text-brand-700">
+                            Nuevo
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-3 py-2 text-xs text-gray-600 max-w-[100px] truncate">
                       {report.technicianName || report.technicianEmail || '-'}
@@ -391,7 +430,14 @@ export default function InformesPage() {
               {/* Info row */}
               <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
                 <span>{formatDate(report.finishedAt)}</span>
-                <span className="truncate max-w-[150px]">{report.result}</span>
+                <div className="flex items-center gap-1">
+                  <span className="truncate max-w-[150px]">{report.result}</span>
+                  {!viewedIds.includes(report._id) && (
+                    <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-brand-100 text-brand-700">
+                      Nuevo
+                    </span>
+                  )}
+                </div>
                 {report.durationMinutes && (
                   <span>
                     {report.durationMinutes >= 60
@@ -635,5 +681,13 @@ export default function InformesPage() {
         }
       `}</style>
     </div>
+  );
+}
+
+export default function InformesPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-gray-500">Cargando...</div>}>
+      <InformesPageContent />
+    </Suspense>
   );
 }
