@@ -7,6 +7,8 @@ import { logActivity } from '../../audit/activity-logger';
 import ActivityModel from '../../crm/models/activity';
 import ClientModel from '../../crm/models/client';
 import ContactModel from '../../crm/models/contact';
+import ConversationModel from '../../conversation/models/conversation';
+import WhatsAppMessageModel from '../../crm/models/whatsapp-message';
 import { cursorPage } from '../../crm/helpers/cursor-pagination';
 import type { ILead, LeadStatus, CreateLeadInput, UpdateLeadInput, LostReason } from '../types/lead';
 import type { IPipeline, IPipelineStage } from '../types/pipeline';
@@ -655,6 +657,37 @@ export class LeadService {
       if (!updatedLead) {
         throw new ConflictError('Lead was already converted by another user');
       }
+
+      // Migrar conversación de lead a cliente
+      await ConversationModel.updateMany(
+        {
+          leadId: lead._id,
+          conversationType: 'lead',
+        },
+        {
+          $set: {
+            clientId: client._id,
+            conversationType: 'customer',
+            lifecycleState: 'ACTIVE_CLIENT',
+            'engineData.isCustomer': true,
+            'engineData.clientId': String(client._id),
+          },
+        },
+        { session }
+      );
+
+      // Migrar mensajes de WhatsApp del lead al cliente (agregar clientId)
+      await WhatsAppMessageModel.updateMany(
+        {
+          leadId: lead._id,
+        },
+        {
+          $set: {
+            clientId: client._id,
+          },
+        },
+        { session }
+      );
 
       await session.commitTransaction();
 

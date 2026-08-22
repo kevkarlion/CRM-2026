@@ -8,6 +8,7 @@ export interface IWhatsAppMessage extends Document {
   _id: Types.ObjectId;
   tenantId: Types.ObjectId;
   leadId?: Types.ObjectId;
+  clientId?: Types.ObjectId;
   phone: string;
   messageId: string;
   direction: WhatsAppMessageDirection;

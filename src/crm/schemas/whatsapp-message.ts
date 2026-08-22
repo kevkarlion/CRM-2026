@@ -5,6 +5,7 @@ export const whatsappMessageSchema = new Schema<IWhatsAppMessage>(
   {
     tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
     leadId: { type: Schema.Types.ObjectId, ref: 'Lead', index: true },
+    clientId: { type: Schema.Types.ObjectId, ref: 'Client', index: true },
     phone: { type: String, required: true },
     messageId: { type: String, required: true, unique: true },
     direction: {
