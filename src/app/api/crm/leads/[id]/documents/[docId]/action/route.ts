@@ -185,6 +185,15 @@ export async function POST(
       );
       console.log('[document-action] Conversaciones migradas:', convResult.modifiedCount);
 
+      // Agregar phoneNumber a la conversación para poder buscar por teléfono
+      if (leadData?.phone) {
+        const phoneNumberUpdate = await ConversationModel.updateMany(
+          { leadId: new mongoose.Types.ObjectId(leadId), phoneNumber: { $exists: false } },
+          { $set: { phoneNumber: leadData.phone } }
+        );
+        console.log('[document-action] phoneNumber agregado a conversaciones:', phoneNumberUpdate.modifiedCount);
+      }
+
       // Migrar mensajes de WhatsApp del lead al cliente
       console.log('[document-action] Migrando mensajes - leadId:', leadId, 'clientId:', client._id);
       const msgResult = await WhatsAppMessageModel.updateMany(

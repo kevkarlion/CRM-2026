@@ -138,10 +138,25 @@ export async function processWhatsAppWebhookMessage(
     const normalizedPhone = normalizePhone(phone);
     console.log('[WebhookIntegration] Buscando conversación por teléfono:', normalizedPhone);
 
+    // Extraer los últimos 10 dígitos para búsqueda flexible (ignora código de país)
+    // ej: 5492984252859 -> 2984252859
+    const last10Digits = normalizedPhone.replace(/^\d{2,3}/, ''); //去除前2-3位（国家代码）
+    console.log('[WebhookIntegration] Búsqueda por últimos 10 dígitos:', last10Digits);
+
+    // Estrategia de búsqueda:
+    // 1. Exact match (caso ya normalizado igual)
+    // 2. Regex por últimos 10 dígitos (ignora código de país)
+    const phoneQuery = {
+      tenantId: new Types.ObjectId(tenantId),
+      $or: [
+        { phoneNumber: normalizedPhone },
+        { phoneNumber: { $regex: `${last10Digits}$`, $options: '' } }, // ends with
+      ],
+    };
+
     // Buscar conversación activa por teléfono
     conversation = await ConversationModel.findOne({
-      tenantId: new Types.ObjectId(tenantId),
-      phoneNumber: normalizedPhone,
+      ...phoneQuery,
       state: { $nin: ['closed', 'timeout'] },
     }).sort({ lastMessageAt: -1 });
 
@@ -155,17 +170,16 @@ export async function processWhatsAppWebhookMessage(
         leadId: conversation.leadId,
         owner: conversation.owner,
         state: conversation.state,
+        phoneNumber: conversation.phoneNumber,
       });
     } else {
       // Si no hay activa, buscar cualquier conversación por teléfono (para verificar si operador la tenía)
-      conversation = await ConversationModel.findOne({
-        tenantId: new Types.ObjectId(tenantId),
-        phoneNumber: normalizedPhone,
-      }).sort({ lastMessageAt: -1 });
+      conversation = await ConversationModel.findOne(phoneQuery).sort({ lastMessageAt: -1 });
 
       if (conversation) {
         conversationFoundBy = 'phone-any';
         console.log('[WebhookIntegration] Conversación (cualquier estado) encontrada por teléfono:', {
+          conversationId: conversation._id,
           conversationId: conversation._id,
           conversationType: conversation.conversationType,
           lifecycleState: conversation.lifecycleState,

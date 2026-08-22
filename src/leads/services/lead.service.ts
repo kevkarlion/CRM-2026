@@ -679,6 +679,23 @@ export class LeadService {
       );
       console.log('[LeadService] Conversaciones migradas:', convResult.modifiedCount);
 
+      // También agregar phoneNumber a la conversación (si no existe) para poder buscar por teléfono
+      if (lead.phone) {
+        const phoneNumberUpdate = await ConversationModel.updateMany(
+          {
+            leadId: lead._id,
+            phoneNumber: { $exists: false },
+          },
+          {
+            $set: {
+              phoneNumber: lead.phone,
+            },
+          },
+          { session }
+        );
+        console.log('[LeadService] phoneNumber agregado a conversaciones:', phoneNumberUpdate.modifiedCount);
+      }
+
       // Migrar mensajes de WhatsApp del lead al cliente (agregar clientId)
       console.log('[LeadService] Migrando mensajes - leadId:', lead._id, 'clientId:', client._id);
       const msgResult = await WhatsAppMessageModel.updateMany(

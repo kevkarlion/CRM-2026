@@ -146,6 +146,15 @@ export async function POST(
     );
     console.log('[confirm-sale-pdf] Conversaciones migradas:', convResult.modifiedCount);
 
+    // 2.1.1 Agregar phoneNumber a la conversación para poder buscar por teléfono
+    if (lead.phone) {
+      const phoneNumberUpdate = await ConversationModel.updateMany(
+        { leadId: lead._id, phoneNumber: { $exists: false } },
+        { $set: { phoneNumber: lead.phone } }
+      );
+      console.log('[confirm-sale-pdf] phoneNumber agregado a conversaciones:', phoneNumberUpdate.modifiedCount);
+    }
+
     // 2.2 Migrar mensajes de WhatsApp del lead al cliente
     console.log('[confirm-sale-pdf] Migrando mensajes - leadId:', lead._id, 'clientId:', client._id);
     const msgResult = await WhatsAppMessageModel.updateMany(
