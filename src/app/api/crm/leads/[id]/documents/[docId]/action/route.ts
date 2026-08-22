@@ -97,7 +97,10 @@ export async function POST(
       // This ensures single source of truth for client/OT creation
       const LeadModel = (await import('@/leads/models/lead')).default;
       const ClientModel = (await import('@/crm/models/client')).default;
+      const ContactModel = (await import('@/crm/models/contact')).default;
       const WorkOrderModel = (await import('@/operations/models/work-order')).default;
+      const ConversationModel = (await import('@/conversation/models/conversation')).default;
+      const WhatsAppMessageModel = (await import('@/crm/models/whatsapp-message')).default;
       const { getNextWorkOrderNumber } = await import('@/operations/helpers/counter');
       
       const leadData = await LeadModel.findOne({
@@ -126,6 +129,7 @@ export async function POST(
         customerType: (leadData as any).customerType || 'residential',
         fullName: (leadData as any).name,
         companyName: (leadData as any).companyName,
+        profileName: (leadData as any).profileName || (leadData as any).companyName,
         email: (leadData as any).email,
         phone: (leadData as any).phone,
         status: 'active',
@@ -134,6 +138,23 @@ export async function POST(
         locality: (leadData as any).locality,
         province: (leadData as any).province,
         notes: 'Cliente creado desde documento PDF',
+        createdBy: userId ? new mongoose.Types.ObjectId(userId) : new mongoose.Types.ObjectId(),
+        updatedBy: userId ? new mongoose.Types.ObjectId(userId) : new mongoose.Types.ObjectId(),
+      }]);
+      
+      // Crear contacto primario desde el lead
+      const nameParts = (leadData as any).name.split(' ');
+      const firstName = nameParts[0];
+      const lastName = nameParts.slice(1).join(' ') || firstName;
+
+      await ContactModel.create([{
+        tenantId: new mongoose.Types.ObjectId(tenantId),
+        clientId: client._id,
+        firstName,
+        lastName,
+        email: (leadData as any).email || undefined,
+        phone: (leadData as any).phone || undefined,
+        isPrimary: true,
         createdBy: userId ? new mongoose.Types.ObjectId(userId) : new mongoose.Types.ObjectId(),
         updatedBy: userId ? new mongoose.Types.ObjectId(userId) : new mongoose.Types.ObjectId(),
       }]);
@@ -147,6 +168,30 @@ export async function POST(
           updatedBy: userId || 'admin-action',
         },
       });
+      
+      // Migrar conversación de lead a cliente
+      console.log('[document-action] Migrando conversación - leadId:', leadId, 'clientId:', client._id);
+      const convResult = await ConversationModel.updateMany(
+        { leadId: new mongoose.Types.ObjectId(leadId), conversationType: 'lead' },
+        {
+          $set: {
+            clientId: client._id,
+            conversationType: 'customer',
+            lifecycleState: 'ACTIVE_CLIENT',
+            'engineData.isCustomer': true,
+            'engineData.clientId': String(client._id),
+          },
+        }
+      );
+      console.log('[document-action] Conversaciones migradas:', convResult.modifiedCount);
+
+      // Migrar mensajes de WhatsApp del lead al cliente
+      console.log('[document-action] Migrando mensajes - leadId:', leadId, 'clientId:', client._id);
+      const msgResult = await WhatsAppMessageModel.updateMany(
+        { leadId: new mongoose.Types.ObjectId(leadId) },
+        { $set: { clientId: client._id } }
+      );
+      console.log('[document-action] Mensajes migrados:', msgResult.modifiedCount);
       
       // NOTE: No se crea Gestion aquí. Se crea cuando el usuario hace click en "Resuelto"
       
