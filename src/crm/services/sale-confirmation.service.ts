@@ -3,6 +3,8 @@ import LeadModel from '@/leads/models/lead';
 import ClientModel from '@/crm/models/client';
 import QuoteModel from '@/quotes/models/quote';
 import QuoteVersionModel from '@/quotes/models/quote-version';
+import ConversationModel from '@/conversation/models/conversation';
+import WhatsAppMessageModel from '@/crm/models/whatsapp-message';
 import { getNextQuoteNumber } from '@/quotes/helpers/counter';
 import WorkOrderModel from '@/operations/models/work-order';
 import { getNextWorkOrderNumber } from '@/operations/helpers/counter';
@@ -474,6 +476,37 @@ export class SaleConfirmationService {
           clientId,
         });
       }
+
+      // Migrar conversación de lead a cliente
+      await ConversationModel.updateMany(
+        {
+          leadId: lead._id,
+          conversationType: 'lead',
+        },
+        {
+          $set: {
+            clientId: clientId,
+            conversationType: 'customer',
+            lifecycleState: 'ACTIVE_CLIENT',
+            'engineData.isCustomer': true,
+            'engineData.clientId': String(clientId),
+          },
+        },
+        { session }
+      );
+
+      // Migrar mensajes de WhatsApp del lead al cliente
+      await WhatsAppMessageModel.updateMany(
+        {
+          leadId: lead._id,
+        },
+        {
+          $set: {
+            clientId: clientId,
+          },
+        },
+        { session }
+      );
     }
 
     return clientId;
