@@ -1,5 +1,6 @@
 import { Types } from 'mongoose';
 import LeadModel from '@/leads/models/lead';
+import ContactModel from '@/crm/models/contact';
 import ConversationModel from '../models/conversation';
 import WhatsAppMessageModel from '@/crm/models/whatsapp-message';
 import { BotMessageHandler } from './bot-message-handler';
@@ -24,45 +25,90 @@ export interface WebhookProcessResult {
   success: boolean;
   actions: BotAction[];
   leadId: string;
+  clientId?: string;
+  entityType: 'client' | 'lead';
   conversationId?: string;
   replyContent?: string;
 }
 
 /**
- * Finds or creates a lead by phone number for a given tenant.
+ * Finds or creates a lead or client by phone number for a given tenant.
+ * Priority: client (via contacts) > lead > new lead
  */
-async function findOrCreateLead(
+async function findOrCreateEntity(
   tenantId: string,
   phone: string,
   pushName?: string,
   messageContent?: string
-): Promise<{ leadId: string; isNew: boolean }> {
+): Promise<{ 
+  leadId?: string; 
+  clientId?: string; 
+  entityType: 'client' | 'lead' | 'new';
+  isNew: boolean 
+}> {
   const normalizedPhone = normalizePhone(phone);
 
-  const existing = await LeadModel.findOne({
-    tenantId: new Types.ObjectId(tenantId),
-    phone: phoneMatchQuery(normalizedPhone),
-    deletedAt: null,
-  });
+  try {
+    // 1. First, search in contacts for a client (highest priority)
+    const contact = await ContactModel.findOne({
+      tenantId: new Types.ObjectId(tenantId),
+      phone: phoneMatchQuery(normalizedPhone),
+      deletedAt: null,
+    }).lean();
 
-  if (existing) {
-    // Si el lead estaba resuelto/descalificado, reactivarlo
-    if (existing.status === 'disqualified') {
-      await LeadModel.findByIdAndUpdate(existing._id, {
-        $set: {
-          status: 'contacted',
-          qualificationStatus: 'pending',
-          updatedBy: 'whatsapp-bot',
-        },
-      });
+    if (contact?.clientId) {
+      console.log('[findOrCreateEntity] Found client via contact - clientId:', contact.clientId);
+      return { 
+        clientId: String(contact.clientId), 
+        entityType: 'client', 
+        isNew: false 
+      };
     }
-    return { leadId: String(existing._id), isNew: false };
+  } catch (error) {
+    console.error('[findOrCreateEntity] Error searching contact:', error);
+    // Continue with lead search
   }
 
+  // 2. If no client, search in leads
+  try {
+    const existing = await LeadModel.findOne({
+      tenantId: new Types.ObjectId(tenantId),
+      phone: phoneMatchQuery(normalizedPhone),
+      deletedAt: null,
+    });
+
+    if (existing) {
+      console.log('[findOrCreateEntity] Found lead - leadId:', existing._id, 'status:', existing.status, 'convertedToClient:', existing.convertedToClient);
+      
+      // If lead was disqualified, reactivate it
+      if (existing.status === 'disqualified') {
+        await LeadModel.findByIdAndUpdate(existing._id, {
+          $set: {
+            status: 'contacted',
+            qualificationStatus: 'pending',
+            updatedBy: 'whatsapp-bot',
+          },
+        });
+      }
+      
+      return { 
+        leadId: String(existing._id), 
+        entityType: 'lead', 
+        isNew: false 
+      };
+    }
+  } catch (error) {
+    console.error('[findOrCreateEntity] Error searching lead:', error);
+    // Continue to create new lead
+  }
+
+  // 3. If no client or lead, create new lead
+  console.log('[findOrCreateEntity] Creating new lead for phone:', normalizedPhone);
+  
   const newLead = await LeadModel.create({
     tenantId: new Types.ObjectId(tenantId),
     name: pushName || `Lead WhatsApp ${normalizedPhone.slice(-4)}`,
-    profileName: pushName, // Guardar el nombre de perfil de WhatsApp
+    profileName: pushName,
     phone: normalizedPhone,
     source: 'whatsapp',
     status: 'new',
@@ -71,7 +117,11 @@ async function findOrCreateLead(
     updatedBy: 'whatsapp-bot',
   });
 
-  return { leadId: String(newLead._id), isNew: true };
+  return { 
+    leadId: String(newLead._id), 
+    entityType: 'new', 
+    isNew: true 
+  };
 }
 
 /**
@@ -120,12 +170,15 @@ export async function processWhatsAppWebhookMessage(
 ): Promise<WebhookProcessResult> {
   const { tenantId, phone, messageContent, pushName, messageId, messageType, mediaId, caption, filename } = input;
 
-  // 1. Find or create lead
-  const { leadId, isNew } = await findOrCreateLead(tenantId, phone, pushName, messageContent);
-  console.log('[WebhookIntegration] findOrCreateLead result - leadId:', leadId, '| isNew:', isNew);
+  // 1. Find or create entity (client priority > lead > new lead)
+  const entity = await findOrCreateEntity(tenantId, phone, pushName, messageContent);
+  const { leadId, clientId, entityType, isNew } = entity;
+  
+  console.log('[WebhookIntegration] findOrCreateEntity result - entityType:', entityType, '| clientId:', clientId, '| leadId:', leadId, '| isNew:', isNew);
 
-  // 2. Save inbound message
-  await saveInboundMessage(tenantId, phone, messageContent, leadId, messageId, messageType, mediaId, caption, filename);
+  // 2. Save inbound message with clientId if available
+  const messageLeadId = leadId || (clientId ? 'unknown' : 'new');
+  await saveInboundMessage(tenantId, phone, messageContent, messageLeadId, messageId, messageType, mediaId, caption, filename);
 
   // 2.1. Buscar conversación por teléfono (método seguro y robusto)
   // Primero intentamos por teléfono, que es el identificador natural de WhatsApp
@@ -339,7 +392,9 @@ export async function processWhatsAppWebhookMessage(
   return {
     success: true,
     actions,
-    leadId,
+    leadId: leadId || '',
+    clientId,
+    entityType: entityType as 'client' | 'lead',
     conversationId,
     replyContent: replyAction?.content,
   };

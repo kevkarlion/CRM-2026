@@ -17,10 +17,10 @@ export class AddressConfirmState implements IConversationState {
     const trimmed = input.trim().toLowerCase().replace(/[,.]/g, '')
     const normalized = trimmed.replace(/[^0-9]/g, '')
 
-    // Get existing address from context
-    const existingAddress = context.get<string>('address')
-    const existingLocality = context.get<string>('locality')
-    const existingProvince = context.get<string>('province')
+    // Get existing address from context (check both with and without customer prefix)
+    const existingAddress = context.get<string>('customerAddress') || context.get<string>('address')
+    const existingLocality = context.get<string>('customerLocality') || context.get<string>('locality')
+    const existingProvince = context.get<string>('customerProvince') || context.get<string>('province')
 
     // Build full address
     let fullAddress = existingAddress || ''
@@ -135,9 +135,10 @@ export class AddressConfirmState implements IConversationState {
   }
 
   getMessage(context: ConversationContext): string {
-    const existingAddress = context.get<string>('address')
-    const existingLocality = context.get<string>('locality')
-    const existingProvince = context.get<string>('province')
+    // Get customer address from context (with customer prefix)
+    const existingAddress = context.get<string>('customerAddress') || context.get<string>('address')
+    const existingLocality = context.get<string>('customerLocality') || context.get<string>('locality')
+    const existingProvince = context.get<string>('customerProvince') || context.get<string>('province')
 
     // Build full address display
     let fullAddress = existingAddress || ''
@@ -149,9 +150,12 @@ export class AddressConfirmState implements IConversationState {
     }
 
     if (fullAddress) {
-      return `📍 ¿Confirmás esta dirección?
+      return `📍 ¿La dirección donde vamos a trabajar es la misma que tenés registrada?
 
-${fullAddress}`
+📍 *${fullAddress}*
+
+1️⃣ Sí, es esa dirección
+2️⃣ Voy a dar otra dirección`
     }
 
     // No existing address - ask for it
@@ -161,7 +165,7 @@ ${fullAddress}`
   }
 
   getOptions(context: ConversationContext): string[] | undefined {
-    const existingAddress = context.get<string>('address')
+    const existingAddress = context.get<string>('customerAddress') || context.get<string>('address')
     const askingNewAddress = context.get<boolean>('askingNewAddress')
 
     // If we're asking for a new address (user chose "2"), don't show options
@@ -171,8 +175,8 @@ ${fullAddress}`
 
     if (existingAddress) {
       return [
-        '1️⃣ Sí, confirmar',
-        '2️⃣ Ingresar otra dirección',
+        '1️⃣ Sí, es esa dirección',
+        '2️⃣ Voy a dar otra dirección',
       ]
     }
 

@@ -807,6 +807,30 @@ export class ConversationResolver {
     } catch (e) {
       leadIdObj = new Types.ObjectId();
     }
+
+    // If clientId provided, load client data for context
+    let clientData: { fullName?: string; address?: string; locality?: string; province?: string } | null = null;
+    if (clientId) {
+      try {
+        clientData = await ClientModel.findById(clientId).lean() as typeof clientData;
+        console.log('[Resolver] Loaded client data for conversation context:', clientData?.fullName);
+      } catch (e) {
+        console.error('[Resolver] Error loading client data:', e);
+      }
+    }
+
+    // Build context - include client data if available
+    const conversationContext = {
+      hasEmergencyKeywords: false,
+      hasProjectKeywords: false,
+      messageContainsData: false,
+      userAskedForHuman: false,
+      ...(clientData?.fullName && { customerName: clientData.fullName }),
+      ...(clientData?.address && { customerAddress: clientData.address }),
+      ...(clientData?.locality && { customerLocality: clientData.locality }),
+      ...(clientData?.province && { customerProvince: clientData.province }),
+      ...(clientId && { isCustomer: true, clientId }),
+    };
     
     const conversation = await ConversationModel.create({
       tenantId: new Types.ObjectId(tenantId),
@@ -814,12 +838,7 @@ export class ConversationResolver {
       phoneNumber,
       lifecycleState,
       state: 'idle',
-      context: {
-        hasEmergencyKeywords: false,
-        hasProjectKeywords: false,
-        messageContainsData: false,
-        userAskedForHuman: false,
-      },
+      context: conversationContext,
       step: 0,
       lastActivityAt: now,
       lastMessageAt: now,
@@ -831,7 +850,7 @@ export class ConversationResolver {
       conversationType, // lead o customer - separates conversations completamente
     });
     
-    console.log('[Resolver] Created new ACTIVE conversation:', conversation._id, 'clientId:', clientId, 'gestionId:', gestionId);
+    console.log('[Resolver] Created new ACTIVE conversation:', conversation._id, 'clientId:', clientId, 'gestionId:', gestionId, 'context:', JSON.stringify(conversationContext));
     
     return {
       conversation: {

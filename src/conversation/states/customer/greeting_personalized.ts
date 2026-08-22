@@ -126,7 +126,12 @@ export class GreetingPersonalizedState implements IConversationState {
 
     const customerName = context.get<string>('customerName')
     
-    return `${greeting}! Bienvenid@ a Rolo Climatización. ❄️🔥
+    // Personalized greeting with customer name if available
+    const personalizedGreeting = customerName 
+      ? `${greeting}, ${customerName}!` 
+      : `${greeting}! Bienvenid@`;
+    
+    return `${personalizedGreeting} a Rolo Climatización. ❄️🔥
 
 Soy *Rolito*, tu asistente virtual.
 
