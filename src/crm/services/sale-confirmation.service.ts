@@ -1,6 +1,7 @@
 import { Types, ClientSession } from 'mongoose';
 import LeadModel from '@/leads/models/lead';
 import ClientModel from '@/crm/models/client';
+import ContactModel from '@/crm/models/contact';
 import QuoteModel from '@/quotes/models/quote';
 import QuoteVersionModel from '@/quotes/models/quote-version';
 import ConversationModel from '@/conversation/models/conversation';
@@ -457,6 +458,23 @@ export class SaleConfirmationService {
         { session }
       );
       clientId = client._id;
+
+      // Crear contacto primario desde el lead
+      const nameParts = lead.name.split(' ');
+      const firstName = nameParts[0];
+      const lastName = nameParts.slice(1).join(' ') || firstName;
+
+      await ContactModel.create([{
+        tenantId: new Types.ObjectId(tenantId),
+        clientId: clientId,
+        firstName,
+        lastName,
+        email: lead.email || undefined,
+        phone: lead.phone || undefined,
+        isPrimary: true,
+        createdBy: new Types.ObjectId(userId),
+        updatedBy: new Types.ObjectId(userId),
+      }], { session });
 
       const leadUpdate = await LeadModel.updateOne(
         { _id: lead._id, tenantId: new Types.ObjectId(tenantId) },

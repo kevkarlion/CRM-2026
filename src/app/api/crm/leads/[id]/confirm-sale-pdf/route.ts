@@ -3,6 +3,8 @@ import { connectDB } from '@/core/db';
 import LeadModel from '@/leads/models/lead';
 import ClientModel from '@/crm/models/client';
 import WorkOrderModel from '@/operations/models/work-order';
+import ConversationModel from '@/conversation/models/conversation';
+import WhatsAppMessageModel from '@/crm/models/whatsapp-message';
 import { Types } from 'mongoose';
 import { getNextWorkOrderNumber } from '@/operations/helpers/counter';
 import { eventBus } from '@/infrastructure/events/event-bus';
@@ -84,6 +86,7 @@ export async function POST(
         customerType: lead.customerType || 'residential',
         fullName: lead.name,
         companyName: lead.companyName,
+        profileName: (lead as any).profileName || lead.companyName,
         email: lead.email,
         phone: lead.phone,
         status: 'active',
@@ -97,6 +100,24 @@ export async function POST(
       },
     ]);
 
+    // 1.1 Crear contacto primario desde el lead
+    const ContactModel = (await import('@/crm/models/contact')).default;
+    const nameParts = lead.name.split(' ');
+    const firstName = nameParts[0];
+    const lastName = nameParts.slice(1).join(' ') || firstName;
+
+    await ContactModel.create([{
+      tenantId: new Types.ObjectId(tenantId),
+      clientId: client._id,
+      firstName,
+      lastName,
+      email: lead.email || undefined,
+      phone: lead.phone || undefined,
+      isPrimary: true,
+      createdBy: userId ? new Types.ObjectId(userId) : new Types.ObjectId(),
+      updatedBy: userId ? new Types.ObjectId(userId) : new Types.ObjectId(),
+    }]);
+
     console.log('[confirm-sale-pdf] Cliente creado:', client._id);
 
     // 2. Actualizar lead: estado = won, convertedToClient = client._id, convertedAt = now
@@ -108,6 +129,30 @@ export async function POST(
         updatedBy: userId || 'admin-action',
       },
     });
+
+    // 2.1 Migrar conversación de lead a cliente
+    console.log('[confirm-sale-pdf] Migrando conversación - leadId:', lead._id, 'clientId:', client._id);
+    const convResult = await ConversationModel.updateMany(
+      { leadId: lead._id, conversationType: 'lead' },
+      {
+        $set: {
+          clientId: client._id,
+          conversationType: 'customer',
+          lifecycleState: 'ACTIVE_CLIENT',
+          'engineData.isCustomer': true,
+          'engineData.clientId': String(client._id),
+        },
+      }
+    );
+    console.log('[confirm-sale-pdf] Conversaciones migradas:', convResult.modifiedCount);
+
+    // 2.2 Migrar mensajes de WhatsApp del lead al cliente
+    console.log('[confirm-sale-pdf] Migrando mensajes - leadId:', lead._id, 'clientId:', client._id);
+    const msgResult = await WhatsAppMessageModel.updateMany(
+      { leadId: lead._id },
+      { $set: { clientId: client._id } }
+    );
+    console.log('[confirm-sale-pdf] Mensajes migrados:', msgResult.modifiedCount);
 
     // 3. Crear OT en estado pending_assignment (borrador)
     const tenantPrefix = tenantId.toString().slice(-6);
