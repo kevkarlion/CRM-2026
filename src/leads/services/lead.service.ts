@@ -671,6 +671,8 @@ export class LeadService {
             clientId: client._id,
             conversationType: 'customer',
             lifecycleState: 'ACTIVE_CLIENT',
+            state: 'idle', // Reabrir conversación para cliente
+            closedAt: null,
             'engineData.isCustomer': true,
             'engineData.clientId': String(client._id),
           },
