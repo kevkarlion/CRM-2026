@@ -127,24 +127,111 @@ export async function processWhatsAppWebhookMessage(
   // 2. Save inbound message
   await saveInboundMessage(tenantId, phone, messageContent, leadId, messageId, messageType, mediaId, caption, filename);
 
-  // 2.1. Check if conversation is controlled by OPERATOR - if so, skip bot
-  // Primero buscar conversación activa
-  console.log('[WebhookIntegration] Searching conversation for leadId:', leadId);
-  let conversation = await ConversationModel.findOne({
-    tenantId: new Types.ObjectId(tenantId),
-    leadId: new Types.ObjectId(leadId),
-    state: { $nin: ['closed', 'timeout'] },
-  }).sort({ lastMessageAt: -1 });
+  // 2.1. Buscar conversación por teléfono (método seguro y robusto)
+  // Primero intentamos por teléfono, que es el identificador natural de WhatsApp
+  // Esto encuentra tanto conversaciones de leads como de clientes (ya migradas)
+  let conversation = null;
+  let conversationFoundBy = '';
 
-  // Si no hay activa, buscar la última aunque esté cerrada (para verificar si operador la tenía)
-  if (!conversation) {
+  try {
+    // Normalizar teléfono para búsqueda
+    const normalizedPhone = normalizePhone(phone);
+    console.log('[WebhookIntegration] Buscando conversación por teléfono:', normalizedPhone);
+
+    // Buscar conversación activa por teléfono
     conversation = await ConversationModel.findOne({
       tenantId: new Types.ObjectId(tenantId),
-      leadId: new Types.ObjectId(leadId),
+      phoneNumber: normalizedPhone,
+      state: { $nin: ['closed', 'timeout'] },
     }).sort({ lastMessageAt: -1 });
+
+    if (conversation) {
+      conversationFoundBy = 'phone-active';
+      console.log('[WebhookIntegration] Conversación activa encontrada por teléfono:', {
+        conversationId: conversation._id,
+        conversationType: conversation.conversationType,
+        lifecycleState: conversation.lifecycleState,
+        clientId: conversation.clientId,
+        leadId: conversation.leadId,
+        owner: conversation.owner,
+        state: conversation.state,
+      });
+    } else {
+      // Si no hay activa, buscar cualquier conversación por teléfono (para verificar si operador la tenía)
+      conversation = await ConversationModel.findOne({
+        tenantId: new Types.ObjectId(tenantId),
+        phoneNumber: normalizedPhone,
+      }).sort({ lastMessageAt: -1 });
+
+      if (conversation) {
+        conversationFoundBy = 'phone-any';
+        console.log('[WebhookIntegration] Conversación (cualquier estado) encontrada por teléfono:', {
+          conversationId: conversation._id,
+          conversationType: conversation.conversationType,
+          lifecycleState: conversation.lifecycleState,
+          clientId: conversation.clientId,
+          leadId: conversation.leadId,
+          owner: conversation.owner,
+          state: conversation.state,
+          closedAt: conversation.closedAt,
+        });
+      } else {
+        console.log('[WebhookIntegration] No se encontró conversación por teléfono:', normalizedPhone);
+      }
+    }
+  } catch (error) {
+    console.error('[WebhookIntegration] Error buscando conversación por teléfono:', error);
+    // No lanzamos el error, continuamos con búsqueda por leadId como fallback
   }
 
-  console.log('[WebhookIntegration] Found conversation for leadId:', conversation?._id, '| owner:', conversation?.owner, '| state:', conversation?.state, '| closedAt:', conversation?.closedAt);
+  // Fallback: si no se encontró por teléfono, buscar por leadId (lógica original)
+  if (!conversation) {
+    try {
+      console.log('[WebhookIntegration] Buscando conversación por leadId (fallback):', leadId);
+      
+      conversation = await ConversationModel.findOne({
+        tenantId: new Types.ObjectId(tenantId),
+        leadId: new Types.ObjectId(leadId),
+        state: { $nin: ['closed', 'timeout'] },
+      }).sort({ lastMessageAt: -1 });
+
+      if (conversation) {
+        conversationFoundBy = 'leadId-active';
+        console.log('[WebhookIntegration] Conversación activa encontrada por leadId:', {
+          conversationId: conversation._id,
+          conversationType: conversation.conversationType,
+          lifecycleState: conversation.lifecycleState,
+          leadId: conversation.leadId,
+        });
+      } else {
+        // Buscar la última aunque esté cerrada
+        conversation = await ConversationModel.findOne({
+          tenantId: new Types.ObjectId(tenantId),
+          leadId: new Types.ObjectId(leadId),
+        }).sort({ lastMessageAt: -1 });
+
+        if (conversation) {
+          conversationFoundBy = 'leadId-any';
+          console.log('[WebhookIntegration] Conversación (cualquier estado) encontrada por leadId:', {
+            conversationId: conversation._id,
+            conversationType: conversation.conversationType,
+            state: conversation.state,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('[WebhookIntegration] Error buscando conversación por leadId:', error);
+    }
+  }
+
+  console.log('[WebhookIntegration] Conversación final:', {
+    foundBy: conversationFoundBy,
+    conversationId: conversation?._id,
+    conversationType: conversation?.conversationType,
+    lifecycleState: conversation?.lifecycleState,
+    owner: conversation?.owner,
+    state: conversation?.state,
+  });
 
   // Si el operador tiene el control O si fue atendida por operador recientemente, skip bot
   if (conversation && conversation.owner === 'OPERATOR') {
