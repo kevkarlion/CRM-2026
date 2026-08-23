@@ -148,6 +148,10 @@ Soy *Rolito*, tu asistente virtual.
     content: '¿En qué zona o dirección se encuentra el equipo? 📍',
   }),
 
+  location_captured: () => ({
+    content: 'Perfecto. ¿A nombre de quién agendamos la visita?',
+  }),
+
   equipment_asked: () => ({
     content: '¿Qué tipo de equipo necesitas? Por ejemplo:\n\n❄️ Aire acondicionado\n🔥 Calefacción\n🌀 Ventilación\n🔧 Refrigeración',
     options: ['Aire acondicionado', 'Calefacción', 'Ventilación', 'Refrigeración'],
