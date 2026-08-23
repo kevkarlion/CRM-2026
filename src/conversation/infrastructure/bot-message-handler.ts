@@ -67,6 +67,7 @@ export class BotMessageHandler {
   async handleIncoming(
     tenantId: string,
     leadId: string,
+    clientId: string,
     phone: string,
     messageContent: string,
     profileName?: string
@@ -75,6 +76,7 @@ export class BotMessageHandler {
       const actions = await this.useCase.execute({
         tenantId,
         leadId,
+        clientId,
         phone,
         messageContent,
         profileName,

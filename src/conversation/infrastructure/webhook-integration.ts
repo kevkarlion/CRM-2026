@@ -317,6 +317,7 @@ export async function processWhatsAppWebhookMessage(
   const { actions, conversationId } = await handler.handleIncoming(
     tenantId,
     leadId,
+    clientId,
     phone,
     messageContent,
     pushName

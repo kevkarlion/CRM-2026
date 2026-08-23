@@ -12,7 +12,8 @@ import type { Conversation, BotAction, UpdateConversationInput } from './types';
 
 export interface HandleIncomingMessageInput {
   tenantId: string;
-  leadId: string;
+  leadId?: string;
+  clientId?: string;
   phone: string;
   messageContent: string;
   profileName?: string;

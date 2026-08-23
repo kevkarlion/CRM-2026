@@ -54,7 +54,9 @@ export interface Conversation {
 
 export interface CreateConversationInput {
   tenantId: string;
-  leadId: string;
+  leadId?: string;
+  clientId?: string;
+  phone?: string;
 }
 
 export interface UpdateConversationInput {

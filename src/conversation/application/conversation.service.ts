@@ -19,24 +19,60 @@ export class ConversationService {
     * Retorna la conversación y un flag indicando si es nueva
     */
   async findOrCreate(input: CreateConversationInput): Promise<FindOrCreateResult> {
+    const { tenantId, leadId, clientId, phone } = input;
+    
+    // Construir query de búsqueda según qué datos tengamos
+    let searchQuery: any = { tenantId: new Types.ObjectId(tenantId) };
+    
+    // Si es cliente (tiene clientId o phone), buscar por phone/cliente
+    // Si es lead (tiene leadId), buscar por leadId
+    let conversationType: 'lead' | 'customer' = 'lead';
+    let lifecycleState = 'ACTIVE_LEAD';
+    
+    if (clientId || (phone && !leadId)) {
+      // Es cliente - buscar por teléfono
+      conversationType = 'customer';
+      lifecycleState = 'ACTIVE_CLIENT';
+      
+      if (phone) {
+        // Buscar por teléfono normalizado
+        const normalizedPhone = phone.replace(/\D/g, '');
+        const last9 = normalizedPhone.slice(-9);
+        searchQuery = {
+          tenantId: new Types.ObjectId(tenantId),
+          phoneNumber: { $regex: `(549)?${last9}$` },
+          conversationType: 'customer',
+        };
+      } else if (clientId) {
+        // Buscar por clientId en el contexto o como leadId
+        searchQuery = {
+          tenantId: new Types.ObjectId(tenantId),
+          $or: [
+            { leadId: new Types.ObjectId(clientId) },
+            { 'context.clientId': clientId },
+          ],
+          conversationType: 'customer',
+        };
+      }
+    } else if (leadId) {
+      // Es lead - buscar por leadId
+      searchQuery.leadId = new Types.ObjectId(leadId);
+    }
+    
     // Primero buscar si existe una conversación activa (no cerrada)
     const existing = await ConversationModel.findOne({
-      tenantId: new Types.ObjectId(input.tenantId),
-      leadId: new Types.ObjectId(input.leadId),
+      ...searchQuery,
       state: { $nin: ['closed', 'human_assigned'] },
     }).sort({ lastMessageAt: -1 });
 
     // Si existe y no está cerrada, retornarla
     if (existing) {
-      console.log('[ConversationService] Found existing active conversation:', existing.state);
+      console.log('[ConversationService] Found existing active conversation:', existing.state, '| type:', existing.conversationType);
       return { conversation: this.toConversation(existing), isNew: false };
     }
 
     // Buscar la última conversación aunque esté cerrada (para no crear nueva si ya cerró)
-    const lastConversation = await ConversationModel.findOne({
-      tenantId: new Types.ObjectId(input.tenantId),
-      leadId: new Types.ObjectId(input.leadId),
-    }).sort({ lastMessageAt: -1 });
+    const lastConversation = await ConversationModel.findOne(searchQuery).sort({ lastMessageAt: -1 });
 
     // Si ya existe pero está cerrada, retornarla (el caller la ignorará)
     if (lastConversation && (lastConversation.state === 'closed' || lastConversation.state === 'human_assigned')) {
@@ -46,10 +82,11 @@ export class ConversationService {
 
     // Si no existe, crear nueva desde greeting_personalized
     const now = new Date();
-    const conversation = new ConversationModel({
-      tenantId: new Types.ObjectId(input.tenantId),
-      leadId: new Types.ObjectId(input.leadId),
-      state: 'greeting_personalized', // Siempre empezar con el nuevo flow
+    
+    // Construir el objeto de conversación
+    const conversationData: any = {
+      tenantId: new Types.ObjectId(tenantId),
+      state: 'greeting_personalized',
       context: {
         hasEmergencyKeywords: false,
         hasProjectKeywords: false,
@@ -63,10 +100,28 @@ export class ConversationService {
       lastMessageAt: now,
       lastActivityAt: now,
       startedAt: now,
-      lifecycleState: 'ACTIVE_LEAD',
-      conversationType: 'lead',
+      conversationType,
+      lifecycleState,
       owner: 'BOT',
-    });
+    };
+    
+    // Agregar leadId si existe (para clientes puede estar vacío)
+    if (leadId) {
+      conversationData.leadId = new Types.ObjectId(leadId);
+    }
+    
+    // Agregar phoneNumber si existe
+    if (phone) {
+      conversationData.phoneNumber = phone;
+    }
+    
+    // Si es cliente, agregar clientId al context
+    if (clientId) {
+      conversationData.context.clientId = clientId;
+      conversationData.context.isCustomer = true;
+    }
+
+    const conversation = new ConversationModel(conversationData);
 
     await conversation.save();
     console.log('[ConversationService] Created new conversation:', conversation.state);
