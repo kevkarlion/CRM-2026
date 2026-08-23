@@ -290,6 +290,8 @@ export const gestionSyncHandler = {
 
       // 2. Buscar o crear cliente si no existe
       let finalClientId = clientId;
+      let createdNewClient = false;
+      
       if (!finalClientId) {
         // Buscar cliente por teléfono
         const existingClient = await ClientModel.findOne({
@@ -318,35 +320,47 @@ export const gestionSyncHandler = {
             updatedBy: new Types.ObjectId(resolvedBy),
           });
           finalClientId = String(newClient._id);
+          createdNewClient = true;
           console.log(`[GestionSync] LEAD_RESOLVED: Client created from lead: ${finalClientId}`);
         }
-
-        // Actualizar lead con clientId
-        await LeadModel.updateOne(
-          { _id: lead._id },
-          { $set: { clientId: new Types.ObjectId(finalClientId) } }
-        );
       }
 
-      // 3. Close the Lead
+      // 3. Actualizar lead con convertedToClient (SIEMPRE, aunque ya tenga clientId)
       await LeadModel.updateOne(
         { _id: lead._id },
-        { $set: { status: 'closed', updatedBy: resolvedBy } }
+        { 
+          $set: { 
+            status: 'closed', 
+            convertedToClient: new Types.ObjectId(finalClientId),
+            convertedAt: new Date(),
+            clientId: new Types.ObjectId(finalClientId),
+            updatedBy: resolvedBy 
+          } 
+        }
       );
-      console.log(`[GestionSync] LEAD_RESOLVED: Lead ${leadId} marked as closed`);
+      console.log(`[GestionSync] LEAD_RESOLVED: Lead ${leadId} marked as closed, linked to client ${finalClientId}`);
 
-      // 4. Close any active lead conversation
+      // 4. Migrar conversación de lead a cliente (NO cerrar, convertir)
       const ConversationModel = (await import('@/conversation/models/conversation')).default;
       const phone = (lead as any)?.phone;
       if (phone) {
-        const leadConversation = await ConversationModel.findOneAndUpdate(
-          { phoneNumber: phone, lifecycleState: { $in: ['ACTIVE_LEAD', 'WAITING_LEAD'] } },
-          { $set: { lifecycleState: 'RESOLVED', state: 'resolved' } },
-          { new: true }
+        // Migrar conversación de lead a cliente
+        const convResult = await ConversationModel.updateMany(
+          { phoneNumber: phone, conversationType: 'lead' },
+          {
+            $set: {
+              clientId: new Types.ObjectId(finalClientId),
+              leadId: new Types.ObjectId(leadId),
+              conversationType: 'customer',
+              lifecycleState: 'ACTIVE_CLIENT',
+              state: 'greeting_personalized',
+              closedAt: null,
+              'engineData.isCustomer': true,
+              'engineData.clientId': finalClientId,
+            },
+          }
         );
-        if (leadConversation) {
-          console.log(`[GestionSync] LEAD_RESOLVED: Lead conversation ${leadConversation._id} closed`);
-        }
+        console.log(`[GestionSync] LEAD_RESOLVED: Migrated ${convResult.modifiedCount} conversation(s) to customer`);
       }
 
       // 5. Create first Gestion (new) for this client
