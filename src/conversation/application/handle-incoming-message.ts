@@ -553,12 +553,16 @@ export class HandleIncomingMessageUseCase {
 
     console.log('[HandleIncoming] Composing reply for state:', finalState, '| newState was:', newState, '| context:', JSON.stringify(finalContext));
 
-    // FIX: Si el contexto ya tiene los datos, usar composeForConfirmation o skip
-    // Para address_confirm: si ya tiene location/address, confirmar en lugar de pedir
-    if (finalState === 'address_confirm') {
+    // SOLO para CLIENTES: Si el contexto ya tiene los datos, confirmar en lugar de pedir
+    // Para LEADS: siempre preguntar (son carga inicial)
+    const isCustomer = conversation.conversationType === 'customer';
+    const isLead = conversation.conversationType === 'lead';
+
+    // Para address_confirm: solo para clientes, confirmar dirección existente
+    if (isCustomer && finalState === 'address_confirm') {
       const existingAddress = (finalContext as any).location || (finalContext as any).customerAddress || (finalContext as any).address;
       if (existingAddress) {
-        // Ya tiene dirección - usar composeForConfirmation
+        // Cliente tiene dirección - confirmar en lugar de pedir
         const reply = replyComposer.composeForConfirmation(finalContext);
         if (reply.content) {
           actions.push({ type: 'send_message', content: reply.content });
@@ -567,19 +571,21 @@ export class HandleIncomingMessageUseCase {
       }
     }
 
-    // Para name: si ya tiene userName/customerName, skip
-    if (finalState === 'name') {
+    // Para name: solo para clientes con nombre existente, hacer skip
+    if (isCustomer && finalState === 'name') {
       const existingName = (finalContext as any).userName || (finalContext as any).customerName;
       if (existingName) {
-        console.log('[HandleIncoming] Name already exists in context:', existingName, '- skipping to next state');
-        // Skip name - ir directo a summary o próximo estado
-        // Por ahora, cerrar la conversación como si hubiera completado
+        console.log('[HandleIncoming] Customer name already exists:', existingName, '- skipping to next state');
+        // Cliente tiene nombre - hacer skip y cerrar
         actions.push({ type: 'close_conversation', conversationId: conversation._id });
         const summaryReply = replyComposer.compose('summary', finalContext);
         actions.push({ type: 'send_message', content: summaryReply.content });
         return actions;
       }
     }
+
+    // Para leads: siempre preguntar (no hacer skip aunque tenga profileName)
+    // El lead es carga inicial - necesita nombre y dirección reales
 
     const reply = replyComposer.compose(finalState, finalContext);
     actions.push({ type: 'send_message', content: reply.content });
