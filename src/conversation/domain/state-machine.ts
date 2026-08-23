@@ -1,44 +1,38 @@
 import type { ConversationState, ConversationContext } from './conversation';
 
-// Transitiones válidas del state machine.
-// Cada key es el estado actual, el value es el siguiente estado válido.
+// FSM SIMPLE Y DETERMINISTA - Basado en spec del usuario
+// Scoring sí va, handoff NO - solo pasos lineales
 const TRANSITIONS: Record<ConversationState, ConversationState[]> = {
-  idle: ['greeting_personalized'], // Cliente siempre va a greeting_personalized
-  greeting: ['need_type_asked'],
-  greeting_personalized: ['greeting_personalized', 'urgency', 'quote_work', 'spare_part', 'general_query', 'suppliers_info', 'evaluate'],
-  need_type_asked: ['need_type_captured', 'detail_asked', 'urgency_asked', 'evaluate'],
-  need_type_captured: ['detail_asked', 'urgency_asked', 'location_asked', 'evaluate'],
-  detail_asked: ['detail_captured', 'urgency_asked', 'location_asked', 'evaluate'],
-  detail_captured: ['urgency_asked', 'location_asked', 'equipment_asked', 'evaluate'],
-  customer_type_asked: ['customer_type_captured', 'urgency_asked'],
-  customer_type_captured: ['urgency_asked', 'location_asked', 'equipment_asked', 'evaluate'],
-  urgency_asked: ['urgency_captured', 'location_asked', 'equipment_asked', 'evaluate'],
-  urgency_captured: ['location_asked', 'equipment_asked', 'evaluate'],
-  location_asked: ['location_captured', 'equipment_asked', 'name'],
-  location_captured: ['equipment_asked', 'name'],
-  equipment_asked: ['equipment_captured', 'evaluate'],
-  equipment_captured: ['evaluate'],
-  evaluate: ['scored', 'closed'], // Eliminado handoff_pending
-  scored: ['closed'], // Eliminado handoff_pending
-  handoff_pending: ['closed'], // Simplificado
-  human_assigned: ['closed'],
-  closed: [],
-  timeout: ['closed'], // Eliminado handoff_pending
-  fallback: ['greeting', 'greeting_personalized', 'need_type_asked'], // Eliminado handoff_pending
+  // Estado inicial
+  idle: ['greeting_personalized'],
   
-  // Nuevos estados del flow de 7 ramas
-  urgency: ['urgency', 'detail', 'address_confirm', 'name', 'evaluate'],
-  detail: ['address_confirm', 'name', 'evaluate'],
-  description: ['evaluate'],
-  name: ['summary', 'evaluate'],
-  address_confirm: ['name', 'evaluate'],
-  priority: ['priority', 'description', 'evaluate'],
-  quote_work: ['quote_work', 'name', 'evaluate'],
-  spare_part: ['spare_part', 'summary'],
-  general_query: ['general_query', 'name', 'evaluate'],
-  suppliers_info: ['suppliers_info', 'summary'],
+  // Menu principal → ramas
+  greeting_personalized: ['urgency', 'quote_work', 'spare_part', 'general_query', 'suppliers_info'],
+  
+  // Rama Servicios (opciones 1, 2, 3)
+  urgency: ['detail'],
+  detail: ['location_asked'],
+  location_asked: ['name'],
+  name: ['scored'],
+  
+  // Rama Cotización (opción 4)
+  quote_work: ['scored'],
+  
+  // Rama Repuestos (opción 5)
+  spare_part: ['scored'],
+  
+  // Rama Otra consulta (opción 6)
+  general_query: ['scored'],
+  
+  // Rama Proveedores (opción 7) - directo a cierre
+  suppliers_info: ['summary'],
+  
+  // Scoring
+  scored: ['summary'],
+  
+  // Estados de cierre
   summary: ['closed'],
-  waiting_operator: ['closed'],
+  closed: [],
 };
 
 // Estados que representan que se hizo una pregunta al usuario

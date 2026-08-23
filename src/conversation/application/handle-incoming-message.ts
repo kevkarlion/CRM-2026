@@ -141,15 +141,20 @@ export class HandleIncomingMessageUseCase {
       return actions;
     }
 
-    // 2. Extraer intent del mensaje
-    const intent = intentExtractor.extractAll(input.messageContent);
-
-    console.log('[HandleIncoming] Intent extracted:', JSON.stringify({
-      needType: intent.needType,
-      urgency: intent.urgency,
-      location: intent.location,
-      hasAnyData: intent.hasAnyData,
-    }));
+    // 2. NO extraer intent - flow determinista por opciones
+    // El usuario debe responder exactamente lo que se pregunta
+    const intent = {
+      needType: null,
+      urgency: null,
+      location: null,
+      customerType: null,
+      equipmentType: null,
+      hasEmergencyKeywords: false,
+      hasProjectKeywords: false,
+      userAskedForHuman: false,
+      hasAnyData: false,
+      shouldRestart: false,
+    };
 
     // 2.1. Si está en greeting_personalized y dice algo simple ("hola", "buenas", etc)
     // → reenviar el menú de 7 opciones
@@ -444,6 +449,12 @@ export class HandleIncomingMessageUseCase {
     if (isLead && newState === 'evaluate' && conversation.state === 'location_asked') {
       console.log('[HandleIncoming] LEAD in location_asked - changing evaluate to name');
       newState = 'name';
+    }
+    
+    // FIX: Para leads, después de name ir a summary directamente
+    if (isLead && newState === 'equipment_asked') {
+      console.log('[HandleIncoming] LEAD - skipping equipment_asked, going to summary');
+      newState = 'summary';
     }
 
     console.log('[HandleIncoming] transition.nextState:', transition.nextState, '| isValid:', transition.isValid, '| conversation.state:', conversation.state);
