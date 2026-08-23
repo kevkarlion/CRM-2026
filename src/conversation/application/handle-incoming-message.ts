@@ -411,13 +411,19 @@ export class HandleIncomingMessageUseCase {
 
     if (!transition.isValid) {
       // Estado terminal o transición inválida
-      // Si hay contexto con datos, mostrar mensaje de confirmación
-      if (updatedContext.needType || updatedContext.location) {
+      // SOLO para clientes con datos reales de dirección, mostrar confirmación
+      // Para leads: nunca confirmar (siempre pedir dirección nueva)
+      const isCustomer = conversation.conversationType === 'customer';
+      const hasCustomerAddress = isCustomer && (updatedContext as any).customerAddress;
+      
+      if (hasCustomerAddress) {
+        console.log('[HandleIncoming] Invalid transition but CUSTOMER has customerAddress - confirm');
         const reply = replyComposer.composeForConfirmation(updatedContext);
         if (reply.content) {
           actions.push({ type: 'send_message', content: reply.content });
         }
       }
+      // Para leads o clientes sin address: el flow normal continúa
       return actions;
     }
 
