@@ -66,8 +66,8 @@ export class BotMessageHandler {
    */
   async handleIncoming(
     tenantId: string,
-    leadId: string,
-    clientId: string,
+    leadId: string | undefined,
+    clientId: string | undefined,
     phone: string,
     messageContent: string,
     profileName?: string
@@ -75,25 +75,31 @@ export class BotMessageHandler {
     try {
       const actions = await this.useCase.execute({
         tenantId,
-        leadId,
-        clientId,
+        leadId: leadId || '',
+        clientId: clientId || '',
         phone,
         messageContent,
         profileName,
       });
 
       // Check if this is a converted client and add update_client action if needed
-      const isClient = await this.isClient(leadId);
-      const clientId = await this.getClientId(leadId);
+      // Only check if we have a valid leadId
+      let isClient = false;
+      let existingClientId: string | null = null;
+      
+      if (leadId) {
+        isClient = await this.isClient(leadId);
+        existingClientId = await this.getClientId(leadId);
+      }
 
       // If it's a client and there's a scoring action for lead, also update client
-      if (isClient && clientId) {
+      if ((isClient || clientId) && existingClientId) {
         const leadUpdateAction = actions.find(a => a.type === 'update_lead');
         if (leadUpdateAction && leadUpdateAction.type === 'update_lead') {
           // Add update_client action with same scoring data
           actions.push({
             type: 'update_client',
-            clientId: clientId,
+            clientId: clientId || existingClientId,
             updates: {
               score: leadUpdateAction.updates.score,
               temperature: leadUpdateAction.updates.temperature,
