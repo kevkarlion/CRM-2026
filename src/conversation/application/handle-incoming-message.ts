@@ -11,11 +11,12 @@ import type { Conversation, BotAction, UpdateConversationInput } from './types';
  * Mapa de opciones válidas por estado.
  * GUARD CLAUSE: Si el usuario envía una opción que no está en esta lista,
  * se devuelve error y se permanece en el mismo estado.
+ * 
+ * NOTA: address_confirm NO está aquí - el estado maneja sus propias opciones (1=sí, 2=no)
  */
 const STATE_VALID_OPTIONS: Record<string, string[]> = {
   greeting_personalized: ['1', '2', '3', '4', '5', '6', '7'],
   urgency: ['1', '2', '3'],
-  address_confirm: ['1', '2'],
   priority: ['1', '2', '3'],
   quote_work: ['1', '2'],
   spare_part: ['1', '2'],
@@ -160,8 +161,11 @@ export class HandleIncomingMessageUseCase {
       // Si no es greeting simple ni opción válida 1-7, reenviar menú
       if (!isSimpleGreeting && !isValidOption) {
         console.log('[HandleIncoming] Invalid option in greeting_personalized - resending menu');
-        // Usar el nombre del cliente del context, o el profileName de WhatsApp como fallback
-        const customerName = conversation.context?.customerName || input.profileName;
+        // Prioridad: userName (del flow) > customerName (de DB) > profileName (WhatsApp)
+        const customerName = 
+          conversation.context?.userName || 
+          conversation.context?.customerName || 
+          input.profileName;
         const reply = replyComposer.compose('greeting_personalized', {
           userName: customerName,
           profileName: customerName,
@@ -179,7 +183,11 @@ export class HandleIncomingMessageUseCase {
       
       if (isSimpleGreeting) {
         console.log('[HandleIncoming] Simple greeting detected in greeting_personalized - resending menu');
-        const customerName = conversation.context?.customerName || input.profileName;
+        // Prioridad: userName (del flow) > customerName (de DB) > profileName (WhatsApp)
+        const customerName = 
+          conversation.context?.userName || 
+          conversation.context?.customerName || 
+          input.profileName;
         const reply = replyComposer.compose('greeting_personalized', {
           userName: customerName,
           profileName: customerName,
