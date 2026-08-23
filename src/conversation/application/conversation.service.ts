@@ -80,13 +80,13 @@ export class ConversationService {
       return { conversation: this.toConversation(lastConversation), isNew: false };
     }
 
-    // Si no existe, crear nueva desde greeting_personalized
+    // Si no existe, crear nueva desde greeting_personalized (no más idle)
     const now = new Date();
     
     // Construir el objeto de conversación
     const conversationData: any = {
       tenantId: new Types.ObjectId(tenantId),
-      state: 'greeting_personalized',
+      state: 'greeting_personalized', // Siempre iniciar en greeting_personalized
       context: {
         hasEmergencyKeywords: false,
         hasProjectKeywords: false,
@@ -244,6 +244,7 @@ export class ConversationService {
       previousState: doc.previousState,
       context: doc.context,
       step: doc.step,
+      conversationType: (doc as any).conversationType || 'lead',
       fallbackCount: doc.fallbackCount,
       timeoutCount: doc.timeoutCount,
       exchangesInSameState: (doc as unknown as { exchangesInSameState?: number }).exchangesInSameState ?? 0,

@@ -3,7 +3,7 @@ import type { ConversationState, ConversationContext } from './conversation';
 // Transitiones válidas del state machine.
 // Cada key es el estado actual, el value es el siguiente estado válido.
 const TRANSITIONS: Record<ConversationState, ConversationState[]> = {
-  idle: ['greeting', 'greeting_personalized'],
+  idle: ['greeting_personalized'], // Cliente siempre va a greeting_personalized
   greeting: ['need_type_asked'],
   greeting_personalized: ['greeting_personalized', 'urgency', 'quote_work', 'spare_part', 'general_query', 'suppliers_info', 'evaluate'],
   need_type_asked: ['need_type_captured', 'detail_asked', 'urgency_asked', 'evaluate'],
@@ -125,6 +125,11 @@ export class ConversationStateMachine {
     // Si estamos en un terminal, no avanzar
     if (TERMINAL_STATES.includes(current)) {
       return { nextState: current, skippedStates: [], isValid: false };
+    }
+
+    // Si está en idle, siempre ir a greeting_personalized (nuevo flow de cliente)
+    if (current === 'idle') {
+      return { nextState: 'greeting_personalized', skippedStates: [], isValid: true };
     }
 
     // Si el usuario pide humano, ir directo a handoff

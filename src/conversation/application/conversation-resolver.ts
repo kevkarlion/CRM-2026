@@ -832,8 +832,8 @@ export class ConversationResolver {
       ...(clientId && { isCustomer: true, clientId }),
     };
     
-    // Para clientes, iniciar directamente en greeting_personalized (no en idle)
-    const initialState = conversationType === 'customer' ? 'greeting_personalized' : 'idle';
+    // Para cliente Y lead, iniciar directamente en greeting_personalized (no en idle)
+    const initialState = 'greeting_personalized';
     
     const conversation = await ConversationModel.create({
       tenantId: new Types.ObjectId(tenantId),
