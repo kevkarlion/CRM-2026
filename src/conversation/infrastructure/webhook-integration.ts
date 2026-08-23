@@ -131,7 +131,7 @@ async function saveInboundMessage(
   tenantId: string,
   phone: string,
   content: string,
-  leadId: string,
+  leadId: string | undefined,
   messageId?: string,
   messageType?: string,
   mediaId?: string,
@@ -139,6 +139,13 @@ async function saveInboundMessage(
   filename?: string
 ): Promise<void> {
   try {
+    // Only save if we have a valid leadId
+    // For clients (where leadId is undefined), we skip saving the message to lead
+    if (!leadId) {
+      console.log('[WebhookIntegration] Skipping message save - no leadId (client conversation)');
+      return;
+    }
+    
     await WhatsAppMessageModel.create({
       tenantId: new Types.ObjectId(tenantId),
       phone,

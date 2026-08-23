@@ -832,12 +832,15 @@ export class ConversationResolver {
       ...(clientId && { isCustomer: true, clientId }),
     };
     
+    // Para clientes, iniciar directamente en greeting_personalized (no en idle)
+    const initialState = conversationType === 'customer' ? 'greeting_personalized' : 'idle';
+    
     const conversation = await ConversationModel.create({
       tenantId: new Types.ObjectId(tenantId),
       leadId: leadIdObj,
       phoneNumber,
       lifecycleState,
-      state: 'idle',
+      state: initialState,
       context: conversationContext,
       step: 0,
       lastActivityAt: now,

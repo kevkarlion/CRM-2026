@@ -317,7 +317,15 @@ export class HandleIncomingMessageUseCase {
       ? { ...updatedContext, userAskedForHuman: false }
       : updatedContext;
     
-    const transition = stateMachine.advanceState(conversation.state, contextForStateMachine, input.messageContent);
+    // FIX: Si es cliente (customer) y está en idle, forzar a greeting_personalized
+    // El state machine elegiría 'greeting' (legacy) pero necesitamos el nuevo flow de cliente
+    let transition;
+    if (conversation.conversationType === 'customer' && conversation.state === 'idle') {
+      console.log('[HandleIncoming] Customer in idle - forcing greeting_personalized');
+      transition = { nextState: 'greeting_personalized', isValid: true, skippedStates: [] };
+    } else {
+      transition = stateMachine.advanceState(conversation.state, contextForStateMachine, input.messageContent);
+    }
 
     if (!transition.isValid) {
       // Estado terminal o transición inválida
