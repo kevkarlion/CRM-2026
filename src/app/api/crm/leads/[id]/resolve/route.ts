@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { eventBus } from '@/infrastructure/events/event-bus';
 import { DOMAIN_EVENTS } from '@/infrastructure/events/event.types';
 import LeadModel from '@/leads/models/lead';
+import ClientModel from '@/crm/models/client';
 import { Types } from 'mongoose';
+import { GestionService } from '@/gestion/services/gestion.service';
 
 export async function POST(
   request: NextRequest,
@@ -17,20 +19,66 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Get the lead to find associated client
+    // Get the lead
     const lead = await LeadModel.findOne({
       _id: new Types.ObjectId(leadId),
       tenantId: new Types.ObjectId(tenantId),
-    }).lean();
+    });
 
     if (!lead) {
       return NextResponse.json({ error: 'Lead no encontrado' }, { status: 404 });
     }
 
-    // Get clientId from the lead (it could be clientId or convertedToClient)
-    const clientId = (lead as any).clientId || (lead as any).convertedToClient;
+    // Buscar o crear cliente desde el lead
+    let clientId = (lead as any).clientId || (lead as any).convertedToClient;
+
     if (!clientId) {
-      return NextResponse.json({ error: 'Lead no tiene cliente asociado' }, { status: 400 });
+      // Buscar si ya existe cliente con ese teléfono
+      const existingClient = await ClientModel.findOne({
+        tenantId: new Types.ObjectId(tenantId),
+        phone: lead.phone,
+        deletedAt: null,
+      }).lean();
+
+      if (existingClient) {
+        clientId = String(existingClient._id);
+      } else {
+        // Crear cliente desde el lead
+        const newClient = await ClientModel.create({
+          tenantId: new Types.ObjectId(tenantId),
+          fullName: lead.name,
+          companyName: lead.companyName,
+          phone: lead.phone,
+          email: lead.email,
+          address: lead.address,
+          locality: lead.locality,
+          province: lead.province,
+          source: lead.source,
+          status: 'active',
+          operationStatus: 'none',
+          createdBy: new Types.ObjectId(userId),
+          updatedBy: new Types.ObjectId(userId),
+        });
+        clientId = String(newClient._id);
+      }
+
+      // Actualizar lead con el clientId
+      await LeadModel.updateOne(
+        { _id: lead._id },
+        { $set: { clientId: new Types.ObjectId(clientId) } }
+      );
+    }
+
+    // Crear gestión si no existe
+    const gestionService = new GestionService();
+    const existingGestion = await gestionService.getActiveGestionByClient(clientId, tenantId);
+
+    if (!existingGestion) {
+      await gestionService.createGestion({
+        clientId,
+        name: 'Gestión inicial',
+        source: lead.source || 'whatsapp',
+      }, userId, tenantId);
     }
 
     // Publish LEAD_RESOLVED event

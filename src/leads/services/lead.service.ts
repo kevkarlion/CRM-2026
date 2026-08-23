@@ -493,58 +493,8 @@ export class LeadService {
       throw new ConflictError('Cannot change status, concurrent modification');
     }
 
-    // Si el lead pasa a "won", crear Cliente y Gestión automáticamente
-    if (newStatus === 'won') {
-      try {
-        console.log('[LeadService] Lead won - creating Client and Gestion automatically');
-        
-        // Buscar si ya existe Cliente con ese teléfono
-        const existingClient = await (await import('@/crm/models/client')).default.findOne({
-          tenantId: new Types.ObjectId(tenantId),
-          phone: lead.phone,
-          deletedAt: null,
-        }).lean();
-
-        let clientId: string;
-        
-        if (existingClient) {
-          clientId = String(existingClient._id);
-          console.log('[LeadService] Client already exists:', clientId);
-        } else {
-          // Crear Cliente desde el Lead
-          const newClient = await (await import('@/crm/models/client')).default.create({
-            tenantId: new Types.ObjectId(tenantId),
-            fullName: lead.name,
-            companyName: lead.companyName,
-            phone: lead.phone,
-            email: lead.email,
-            address: lead.address,
-            locality: lead.locality,
-            province: lead.province,
-            source: lead.source,
-            status: 'active',
-            operationStatus: 'none',
-            createdBy: userId,
-            updatedBy: userId,
-          });
-          clientId = String(newClient._id);
-          console.log('[LeadService] Created Client:', clientId);
-        }
-
-        // Crear Gestión
-        const gestionService = new (await import('@/gestion/services/gestion.service')).GestionService();
-        const newGestion = await gestionService.createGestion({
-          clientId,
-          name: 'Gestión inicial',
-          source: lead.source || 'whatsapp',
-        }, userId, tenantId);
-        console.log('[LeadService] Created Gestion:', String(newGestion._id));
-
-      } catch (conversionError) {
-        console.error('[LeadService] Error creating Client/Gestion from won lead:', conversionError);
-        // No lanzar error - el Lead ya se marcó como won
-      }
-    }
+    // NOTA: La creación de Cliente y Gestión se hace en el evento "Resuelto" del pipeline
+    // No aquí cuando el lead pasa a won. Solo se cambia el status.
 
     try {
       await eventBus.publish({

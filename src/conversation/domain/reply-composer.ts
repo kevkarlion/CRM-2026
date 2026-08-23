@@ -227,4 +227,23 @@ export class BotReplyComposer {
     };
     return STATE_REPLIES.fallback(emptyCtx);
   }
+
+  /**
+   * Confirma datos existentes del cliente (dirección)
+   */
+  composeForConfirmation(ctx: ConversationContext): BotReply {
+    const location = (ctx as any).location || (ctx as any).customerAddress || '';
+    const userName = (ctx as any).userName || (ctx as any).customerName || '';
+    
+    if (!location) {
+      return { content: '' };
+    }
+
+    return {
+      content: `Gracias ${userName || ''}.Tenemos registrado: *${location}*. ¿Confirmás esta dirección?
+
+1️⃣ Sí, confirmar
+2️⃣ No, ingresar otra`,
+    };
+  }
 }
