@@ -368,8 +368,14 @@ export class HandleIncomingMessageUseCase {
     // ===== FIN GUARD CLAUSE =====
 
     // ===== SPECIAL HANDLING: address_confirm con "2" = pedir nueva dirección =====
-    if (currentState === 'address_confirm' && userOption === '2') {
-      console.log('[HandleIncoming] User chose option 2 in address_confirm - asking for new address');
+    // SOLO para clientes (conversationType === 'customer')
+    // Para leads, siempre pide dirección nueva (no hay datos previos)
+    if (
+      conversation.conversationType === 'customer' && 
+      currentState === 'address_confirm' && 
+      userOption === '2'
+    ) {
+      console.log('[HandleIncoming] Customer chose option 2 in address_confirm - asking for new address');
       
       // Pedir nueva dirección (quedarse en el mismo estado)
       const reply = replyComposer.compose('address_confirm', {
