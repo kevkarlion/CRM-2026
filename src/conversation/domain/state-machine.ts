@@ -18,13 +18,13 @@ const TRANSITIONS: Record<ConversationState, ConversationState[]> = {
   location_captured: ['equipment_asked', 'evaluate'],
   equipment_asked: ['equipment_captured', 'evaluate'],
   equipment_captured: ['evaluate'],
-  evaluate: ['scored', 'handoff_pending'],
-  scored: ['handoff_pending', 'closed'],
-  handoff_pending: ['human_assigned', 'closed'],
+  evaluate: ['scored', 'closed'], // Eliminado handoff_pending
+  scored: ['closed'], // Eliminado handoff_pending
+  handoff_pending: ['closed'], // Simplificado
   human_assigned: ['closed'],
   closed: [],
-  timeout: ['handoff_pending', 'closed'],
-  fallback: ['greeting', 'greeting_personalized', 'need_type_asked', 'handoff_pending'],
+  timeout: ['closed'], // Eliminado handoff_pending
+  fallback: ['greeting', 'greeting_personalized', 'need_type_asked'], // Eliminado handoff_pending
   
   // Nuevos estados del flow de 7 ramas
   urgency: ['urgency', 'detail', 'address_confirm', 'name', 'evaluate'],
@@ -81,7 +81,7 @@ const CAPTURED_STATES: ConversationState[] = [
 ];
 
 // Estado final de la conversación
-const TERMINAL_STATES: ConversationState[] = ['closed', 'handoff_pending', 'human_assigned', 'summary', 'waiting_operator'];
+const TERMINAL_STATES: ConversationState[] = ['closed', 'summary', 'waiting_operator']; // Eliminado handoff_pending, human_assigned
 
 export interface StateTransitionResult {
   nextState: ConversationState;
@@ -132,14 +132,15 @@ export class ConversationStateMachine {
       return { nextState: 'greeting_personalized', skippedStates: [], isValid: true };
     }
 
-    // Si el usuario pide humano, ir directo a handoff
-    if (context.userAskedForHuman) {
-      return {
-        nextState: 'handoff_pending',
-        skippedStates: [],
-        isValid: true,
-      };
-    }
+    // ELIMINADO: Si el usuario pide humano, ir directo a handoff
+    // No hay handoff - el flow continúa normalmente
+    // if (context.userAskedForHuman) {
+    //   return {
+    //     nextState: 'handoff_pending',
+    //     skippedStates: [],
+    //     isValid: true,
+    //   };
+    // }
 
     // Calcular el siguiente estado ideal, saltando los que ya tienen data
     let next = this.getNextIdealState(current, context, skipped, message);
