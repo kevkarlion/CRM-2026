@@ -366,7 +366,31 @@ export class HandleIncomingMessageUseCase {
       }
     }
     // ===== FIN GUARD CLAUSE =====
-    
+
+    // ===== SPECIAL HANDLING: address_confirm con "2" = pedir nueva dirección =====
+    if (currentState === 'address_confirm' && userOption === '2') {
+      console.log('[HandleIncoming] User chose option 2 in address_confirm - asking for new address');
+      
+      // Pedir nueva dirección (quedarse en el mismo estado)
+      const reply = replyComposer.compose('address_confirm', {
+        ...updatedContext,
+        askingNewAddress: true,
+      });
+      
+      // Actualizar contexto para indicar que estamos pidiendo nueva dirección
+      updatedContext.askingNewAddress = true;
+      
+      await conversationService.update(conversation._id, {
+        context: updatedContext,
+        exchangesInSameState: conversation.exchangesInSameState + 1,
+        lastMessageAt: new Date(),
+      });
+      
+      actions.push({ type: 'send_message', content: reply.content });
+      return actions;
+    }
+    // ===== FIN SPECIAL HANDLING =====
+
     // FIX: Si es cliente (customer) y está en idle, forzar a greeting_personalized
     // El state machine elegiría 'greeting' (legacy) pero necesitamos el nuevo flow de cliente
     let transition;
@@ -562,16 +586,20 @@ export class HandleIncomingMessageUseCase {
       // Update client with new address if provided and different from existing
       const newAddress = (updatedContext as any).address;
       const existingCustomerAddress = (updatedContext as any).customerAddress;
+      
+      // Get clientId from engineData (the schema uses engineData, not direct clientId field)
+      const convEngineData = conversation.engineData as Record<string, unknown> || {};
+      const clientIdFromConversation = convEngineData.clientId as string | undefined;
 
-      // Only update if: is customer AND has clientId AND has new address different from existing
-      if (input.clientId && newAddress && newAddress !== existingCustomerAddress) {
+      // Only update if: has clientId AND has new address different from existing
+      if (clientIdFromConversation && newAddress && newAddress !== existingCustomerAddress) {
         console.log('[HandleIncoming] Updating client address:', {
-          clientId: input.clientId,
+          clientId: clientIdFromConversation,
           address: newAddress,
         });
         actions.push({
           type: 'update_client',
-          clientId: input.clientId,
+          clientId: clientIdFromConversation,
           updates: {
             address: newAddress,
           },

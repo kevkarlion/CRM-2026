@@ -95,9 +95,22 @@ Soy *Rolito*, tu asistente virtual.
     content: '📝 Describí brevemente el problema o servicio que necesitás:',
   }),
 
-  address_confirm: () => ({
-    content: '📍 ¿En qué dirección o zona se encuentra el equipo?',
-  }),
+  address_confirm: (ctx) => {
+    // Si askingNewAddress es true, pedir nueva dirección
+    if ((ctx as any).askingNewAddress) {
+      return {
+        content: '📝 Ingresá la nueva dirección (calle, localidad, provincia):',
+      };
+    }
+    // Mensaje por defecto (confirmar dirección existente)
+    const location = (ctx as any).location || (ctx as any).customerAddress || '';
+    return {
+      content: `Tenemos registrado: *${location}*. ¿Confirmás esta dirección?
+
+1️⃣ Sí, confirmar
+2️⃣ No, ingresar otra`,
+    };
+  },
 
   priority: () => ({
     content: '⚡ ¿Cuál es la prioridad del servicio?\n\n1️⃣ Normal\n2️⃣ Alta\n3️⃣ Urgente',
