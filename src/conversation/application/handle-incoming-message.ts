@@ -669,12 +669,13 @@ export class HandleIncomingMessageUseCase {
     console.log('[HandleIncoming] Composing reply for state:', finalState, '| newState was:', newState, '| context:', JSON.stringify(finalContext));
 
     // SOLO para CLIENTES: Si el contexto ya tiene los datos, confirmar en lugar de pedir
-    // Para address_confirm: solo para clientes CON datos previos, confirmar
-    // Para leads: siempre pedir dirección nueva (son carga inicial)
+    // Para address_confirm: solo para CLIENTES con datos previos, confirmar
+    // Para LEADS: siempre pedir dirección nueva (son carga inicial - no hay opción de confirmar)
     const isCustomer = conversation.conversationType === 'customer';
+    const isLead = conversation.conversationType === 'lead';
     
     if (isCustomer && finalState === 'address_confirm') {
-      const existingAddress = (finalContext as any).location || (finalContext as any).customerAddress || (finalContext as any).address;
+      const existingAddress = (finalContext as any).customerAddress || (finalContext as any).address;
       console.log('[HandleIncoming] address_confirm for CUSTOMER - existingAddress:', existingAddress);
       if (existingAddress) {
         console.log('[HandleIncoming] CUSTOMER has existing address - sending confirmation');
@@ -686,12 +687,11 @@ export class HandleIncomingMessageUseCase {
         return actions;
       }
       console.log('[HandleIncoming] CUSTOMER but NO existing address - will ask normally');
-    } else if (finalState === 'address_confirm') {
-      console.log('[HandleIncoming] address_confirm for LEAD - will ask for new address');
+    } else if (isLead && finalState === 'address_confirm') {
+      console.log('[HandleIncoming] LEAD in address_confirm - NO confirmation, ask for new address');
     }
 
-    // Para leads en address_confirm: el flow normal pide la dirección
-    // (no hay confirmación porque no hay datos previos)
+    // Para leads en address_confirm: el flow normal pide la dirección sin opciones
 
     // Para name: solo para clientes con nombre existente, hacer skip
     if (isCustomer && finalState === 'name') {
