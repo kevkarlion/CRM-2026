@@ -222,8 +222,12 @@ export class HandleIncomingMessageUseCase {
       console.log('[HandleIncoming] Detail captured:', userInput);
     }
     
-    // Location: capturar dirección
-    if (conversation.state === 'location_asked' && userInput.length > 0) {
+    // Location: capturar dirección (location_asked o address_confirm con askingNewAddress)
+    if (
+      (conversation.state === 'location_asked' || 
+       (conversation.state === 'address_confirm' && (updatedContext as any).askingNewAddress)) && 
+      userInput.length > 0
+    ) {
       updatedContext.location = userInput;
       console.log('[HandleIncoming] Location captured:', userInput);
     }
@@ -645,7 +649,7 @@ export class HandleIncomingMessageUseCase {
       });
 
       // Update client with new address if provided and different from existing
-      const newAddress = (updatedContext as any).address;
+      const newAddress = (updatedContext as any).location || (updatedContext as any).address;
       const existingCustomerAddress = (updatedContext as any).customerAddress;
       const convEngineData = conversation.engineData as Record<string, unknown> || {};
       const clientIdFromConversation = convEngineData.clientId as string | undefined;
@@ -705,6 +709,12 @@ export class HandleIncomingMessageUseCase {
         state: 'closed',
         closedAt: new Date(),
       });
+
+      // Enviar mensaje de cierre (summary)
+      const summaryReply = replyComposer.compose('summary', updatedContext);
+      if (summaryReply.content) {
+        actions.push({ type: 'send_message', content: summaryReply.content });
+      }
 
       actions.push({
         type: 'close_conversation',
