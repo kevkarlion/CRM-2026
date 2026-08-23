@@ -205,7 +205,30 @@ export class HandleIncomingMessageUseCase {
     // 3. Actualizar contexto con los datos extraídos
     const updatedContext = this.mergeContext(conversation.context, intent, input.messageContent, input.profileName);
 
-    // 3.1. Si estamos en estado 'name' y el usuario respondió algo, usar ese texto como nombre
+    // 3.1. Capturar datos del flow determinista
+    const userInput = input.messageContent.trim();
+    
+    // Urgencia: 1=high, 2=medium, 3=low
+    if (conversation.state === 'urgency' && /^[1-3]$/.test(userInput)) {
+      const urgencyMap: Record<string, string> = { '1': 'high', '2': 'medium', '3': 'low' };
+      updatedContext.urgency = urgencyMap[userInput] as any;
+      console.log('[HandleIncoming] Urgency captured:', updatedContext.urgency);
+    }
+    
+    // Detail: capturar como needType
+    if (conversation.state === 'detail' && userInput.length > 0) {
+      updatedContext.needType = 'repair' as any; // Default - el detalle está en el texto
+      updatedContext.detail = userInput;
+      console.log('[HandleIncoming] Detail captured:', userInput);
+    }
+    
+    // Location: capturar dirección
+    if (conversation.state === 'location_asked' && userInput.length > 0) {
+      updatedContext.location = userInput;
+      console.log('[HandleIncoming] Location captured:', userInput);
+    }
+
+    // 3.2. Si estamos en estado 'name' y el usuario respondió algo, usar ese texto como nombre
     // (sobrescribir el nombre del perfil si el usuario da otro nombre explícitamente)
     if (conversation.state === 'name' && input.messageContent.trim().length > 0) {
       const providedName = input.messageContent.trim();
@@ -435,12 +458,14 @@ export class HandleIncomingMessageUseCase {
 
     let newState = transition.nextState;
 
-    // FIX: Para leads, skip address_confirm - ir directo a location_asked
-    // address_confirm solo tiene sentido para clientes con datos previos
+    // Flow diferenciado: clientes con datos → address_confirm | leads o clientes sin datos → location_asked
     const isCustomer = conversation.conversationType === 'customer';
     const isLead = conversation.conversationType === 'lead';
+    
+    // Para clientes: si va a address_confirm, mantenerlo
+    // Para leads: cambiar address_confirm → location_asked
     if (isLead && newState === 'address_confirm') {
-      console.log('[HandleIncoming] LEAD detected - changing address_confirm to location_asked');
+      console.log('[HandleIncoming] LEAD - changing address_confirm to location_asked');
       newState = 'location_asked';
     }
     

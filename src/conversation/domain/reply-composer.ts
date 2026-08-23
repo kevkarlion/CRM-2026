@@ -124,6 +124,11 @@ Soy *Rolito*, tu asistente virtual.
     content: '👤 Para una mejor atención, decinos tu nombre:',
   }),
 
+  // Scored: hace el scoring en background y avanza a summary
+  scored: () => ({
+    content: '',  // Scoring silencioso, no muestra mensaje
+  }),
+
   summary: () => ({
     content: '🙌 ¡Perfecto! Tu solicitud fue registrada.\n\nUn asesor te contactará a la brevedad.\n\n📅 Horario de atención:\n• Lun a Vie: 9am a 18hs\n• Sáb: 9am a 13hs\n\n¡Gracias por comunicarte con Rolo Climatización! 👨‍🔧',
   }),

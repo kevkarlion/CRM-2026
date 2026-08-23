@@ -10,8 +10,11 @@ const TRANSITIONS: Record<ConversationState, ConversationState[]> = {
   greeting_personalized: ['urgency', 'quote_work', 'spare_part', 'general_query', 'suppliers_info'],
   
   // Rama Servicios (opciones 1, 2, 3)
+  // Para clientes: detail → address_confirm (confirma dirección)
+  // Para leads: detail → location_asked (pide dirección)
   urgency: ['detail'],
-  detail: ['location_asked'],
+  detail: ['address_confirm', 'location_asked'],
+  address_confirm: ['name'],
   location_asked: ['name'],
   name: ['scored'],
   
