@@ -375,7 +375,7 @@ export class HandleIncomingMessageUseCase {
       currentState === 'address_confirm' && 
       userOption === '2'
     ) {
-      console.log('[HandleIncoming] Customer chose option 2 in address_confirm - asking for new address');
+      console.log('[HandleIncoming] ✅ Customer chose option 2 in address_confirm - asking for new address');
       
       // Pedir nueva dirección (quedarse en el mismo estado)
       const reply = replyComposer.compose('address_confirm', {
@@ -394,6 +394,8 @@ export class HandleIncomingMessageUseCase {
       
       actions.push({ type: 'send_message', content: reply.content });
       return actions;
+    } else if (currentState === 'address_confirm' && userOption === '2') {
+      console.log('[HandleIncoming] Lead chose option 2 in address_confirm - will ask for new address normally');
     }
     // ===== FIN SPECIAL HANDLING =====
 
@@ -592,14 +594,19 @@ export class HandleIncomingMessageUseCase {
       // Update client with new address if provided and different from existing
       const newAddress = (updatedContext as any).address;
       const existingCustomerAddress = (updatedContext as any).customerAddress;
-      
-      // Get clientId from engineData (the schema uses engineData, not direct clientId field)
       const convEngineData = conversation.engineData as Record<string, unknown> || {};
       const clientIdFromConversation = convEngineData.clientId as string | undefined;
+      
+      console.log('[HandleIncoming] Checking if need to update client address:', {
+        newAddress,
+        existingCustomerAddress,
+        clientIdFromConversation,
+        conversationType: conversation.conversationType,
+      });
 
       // Only update if: has clientId AND has new address different from existing
       if (clientIdFromConversation && newAddress && newAddress !== existingCustomerAddress) {
-        console.log('[HandleIncoming] Updating client address:', {
+        console.log('[HandleIncoming] ✅ Updating client address:', {
           clientId: clientIdFromConversation,
           address: newAddress,
         });
@@ -609,6 +616,13 @@ export class HandleIncomingMessageUseCase {
           updates: {
             address: newAddress,
           },
+        });
+      } else {
+        console.log('[HandleIncoming] ❌ NOT updating client address:', {
+          reason: !clientIdFromConversation ? 'no clientId' : !newAddress ? 'no newAddress' : 'same as existing',
+          clientIdFromConversation,
+          newAddress,
+          existingCustomerAddress,
         });
       }
 
@@ -655,14 +669,15 @@ export class HandleIncomingMessageUseCase {
     console.log('[HandleIncoming] Composing reply for state:', finalState, '| newState was:', newState, '| context:', JSON.stringify(finalContext));
 
     // SOLO para CLIENTES: Si el contexto ya tiene los datos, confirmar en lugar de pedir
-    // Para LEADS: siempre preguntar (son carga inicial)
+    // Para address_confirm: solo para clientes CON datos previos, confirmar
+    // Para leads: siempre pedir dirección nueva (son carga inicial)
     const isCustomer = conversation.conversationType === 'customer';
-    const isLead = conversation.conversationType === 'lead';
-
-    // Para address_confirm: solo para clientes, confirmar dirección existente
+    
     if (isCustomer && finalState === 'address_confirm') {
       const existingAddress = (finalContext as any).location || (finalContext as any).customerAddress || (finalContext as any).address;
+      console.log('[HandleIncoming] address_confirm for CUSTOMER - existingAddress:', existingAddress);
       if (existingAddress) {
+        console.log('[HandleIncoming] CUSTOMER has existing address - sending confirmation');
         // Cliente tiene dirección - confirmar en lugar de pedir
         const reply = replyComposer.composeForConfirmation(finalContext);
         if (reply.content) {
@@ -670,7 +685,13 @@ export class HandleIncomingMessageUseCase {
         }
         return actions;
       }
+      console.log('[HandleIncoming] CUSTOMER but NO existing address - will ask normally');
+    } else if (finalState === 'address_confirm') {
+      console.log('[HandleIncoming] address_confirm for LEAD - will ask for new address');
     }
+
+    // Para leads en address_confirm: el flow normal pide la dirección
+    // (no hay confirmación porque no hay datos previos)
 
     // Para name: solo para clientes con nombre existente, hacer skip
     if (isCustomer && finalState === 'name') {
