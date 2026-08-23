@@ -312,21 +312,47 @@ export async function processWhatsAppWebhookMessage(
   });
 
   // Si es cliente y la conversación no tiene clientId, actualizarlo
-  if (conversation && clientId && !conversation.clientId) {
+  // También cargar datos del cliente (dirección) si no están en el contexto
+  if (conversation && clientId) {
+    // Import ClientModel here to avoid circular deps
+    const { default: ClientModel } = await import('@/crm/models/client');
+    
+    // Cargar datos del cliente
+    let clientData: { fullName?: string; address?: string; locality?: string; province?: string } | null = null;
     try {
-      await ConversationModel.updateOne(
-        { _id: conversation._id },
-        { 
-          $set: { 
-            clientId: new Types.ObjectId(clientId),
-            'context.clientId': clientId,
-            'context.isCustomer': true
-          } 
-        }
-      );
-      console.log('[WebhookIntegration] Updated conversation with clientId:', clientId);
+      clientData = await ClientModel.findById(clientId).lean() as typeof clientData;
     } catch (e) {
-      console.error('[WebhookIntegration] Error updating conversation clientId:', e);
+      console.error('[WebhookIntegration] Error loading client data:', e);
+    }
+
+    const updates: any = {};
+    if (!conversation.clientId) {
+      updates.clientId = new Types.ObjectId(clientId);
+      updates['context.clientId'] = clientId;
+      updates['context.isCustomer'] = true;
+    }
+
+    // Agregar datos del cliente al contexto si no están
+    if (clientData?.fullName && !conversation.context?.customerName) {
+      updates['context.customerName'] = clientData.fullName;
+    }
+    if (clientData?.address && !conversation.context?.customerAddress) {
+      updates['context.customerAddress'] = clientData.address;
+    }
+    if (clientData?.locality && !conversation.context?.customerLocality) {
+      updates['context.customerLocality'] = clientData.locality;
+    }
+    if (clientData?.province && !conversation.context?.customerProvince) {
+      updates['context.customerProvince'] = clientData.province;
+    }
+
+    if (Object.keys(updates).length > 0) {
+      try {
+        await ConversationModel.updateOne({ _id: conversation._id }, { $set: updates });
+        console.log('[WebhookIntegration] Updated conversation with client data:', Object.keys(updates));
+      } catch (e) {
+        console.error('[WebhookIntegration] Error updating conversation:', e);
+      }
     }
   }
 

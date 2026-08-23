@@ -18,7 +18,7 @@ export class AddressConfirmState implements IConversationState {
     const normalized = trimmed.replace(/[^0-9]/g, '')
 
     // Get existing address from context (check both with and without customer prefix)
-    const existingAddress = context.get<string>('customerAddress') || context.get<string>('address')
+    const existingAddress = context.get<string>('customerAddress') || context.get<string>('address') || context.get<string>('location')
     const existingLocality = context.get<string>('customerLocality') || context.get<string>('locality')
     const existingProvince = context.get<string>('customerProvince') || context.get<string>('province')
 
@@ -74,8 +74,14 @@ export class AddressConfirmState implements IConversationState {
 
     if (existingAddress && (isConfirm || normalized === '')) {
       // User confirmed existing address - proceed to priority (when needed)
+      // Also save the address to context so it can be saved to lead/client
       const intent: StateIntent = {
         nextState: 'priority', // FIXED: was 'description'
+        data: {
+          address: existingAddress,
+          locality: existingLocality,
+          province: existingProvince,
+        },
       }
 
       return {

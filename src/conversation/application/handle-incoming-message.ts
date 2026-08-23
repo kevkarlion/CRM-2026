@@ -486,7 +486,7 @@ export class HandleIncomingMessageUseCase {
           inquiryReason: updatedContext.needType ?? undefined,
           customerType: updatedContext.customerType ?? undefined,
           status: 'contacted',
-          address: (updatedContext as any).address ?? (updatedContext as any).customerAddress ?? undefined,
+          address: (updatedContext as any).address ?? (updatedContext as any).customerAddress ?? (updatedContext as any).location ?? undefined,
           locality: (updatedContext as any).locality ?? (updatedContext as any).customerLocality ?? undefined,
           province: (updatedContext as any).province ?? (updatedContext as any).customerProvince ?? undefined,
           scoringBreakdown: {

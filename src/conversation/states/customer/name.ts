@@ -17,6 +17,19 @@ export class NameState implements IConversationState {
     
     console.log('[NameState] process called with input:', trimmed);
 
+    // FIX: If we already have customerName in context, skip this state
+    const existingName = context.get<string>('customerName') || context.get<string>('userName')
+    if (existingName) {
+      console.log('[NameState] Customer name already exists in context:', existingName, '- skipping to next state');
+      const intent: StateIntent = {
+        nextState: 'priority',
+      }
+      return {
+        intent,
+        isValid: true,
+      }
+    }
+
     // Check for "corregir" or "corregir nombre" - go back to previous step
     const lowerInput = trimmed.toLowerCase()
     if (lowerInput === 'corregir' || lowerInput === 'corregir nombre' || lowerInput === '0') {
