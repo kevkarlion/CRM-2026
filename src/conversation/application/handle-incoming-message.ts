@@ -413,7 +413,7 @@ export class HandleIncomingMessageUseCase {
       // Estado terminal o transición inválida
       // SOLO para clientes con datos reales de dirección, mostrar confirmación
       // Para leads: nunca confirmar (siempre pedir dirección nueva)
-      const isCustomer = conversation.conversationType === 'customer';
+      // (isCustomer e isLead ya definidos más arriba)
       const hasCustomerAddress = isCustomer && (updatedContext as any).customerAddress;
       
       if (hasCustomerAddress) {
@@ -427,10 +427,19 @@ export class HandleIncomingMessageUseCase {
       return actions;
     }
 
-    const newState = transition.nextState;
+    let newState = transition.nextState;
+
+    // FIX: Para leads, skip address_confirm - ir directo a location_asked
+    // address_confirm solo tiene sentido para clientes con datos previos
+    const isCustomer = conversation.conversationType === 'customer';
+    const isLead = conversation.conversationType === 'lead';
+    if (isLead && newState === 'address_confirm') {
+      console.log('[HandleIncoming] LEAD detected - changing address_confirm to location_asked');
+      newState = 'location_asked';
+    }
 
     console.log('[HandleIncoming] transition.nextState:', transition.nextState, '| isValid:', transition.isValid, '| conversation.state:', conversation.state);
-    console.log('[HandleIncoming] newState after advanceState:', newState);
+    console.log('[HandleIncoming] FINAL newState:', newState, '| isLead:', isLead);
 
     // 6.1. Si sigue en estados de pregunta del nuevo flow (el usuario no eligió opción válida), reenviar mensaje
     const isGreetingWithInvalidOption = conversation.state === 'greeting_personalized' && newState === 'greeting_personalized';
@@ -677,8 +686,7 @@ export class HandleIncomingMessageUseCase {
     // SOLO para CLIENTES: Si el contexto ya tiene los datos, confirmar en lugar de pedir
     // Para address_confirm: solo para CLIENTES con datos previos, confirmar
     // Para LEADS: siempre pedir dirección nueva (son carga inicial - no hay opción de confirmar)
-    const isCustomer = conversation.conversationType === 'customer';
-    const isLead = conversation.conversationType === 'lead';
+    // (isCustomer e isLead ya definidos más arriba)
     
     if (isCustomer && finalState === 'address_confirm') {
       const existingAddress = (finalContext as any).customerAddress || (finalContext as any).address;
