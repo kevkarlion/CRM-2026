@@ -282,6 +282,7 @@ export class HandleIncomingMessageUseCase {
     if (false && !isNewFlowQuestionState && !intent.hasAnyData && !intent.userAskedForHuman && this.isQuestionState(conversation.state) && !isNameStateWithInput) {
       const newFallbackCount = conversation.fallbackCount + 1;
       const fallbackResult = stateMachine.handleFallback(conversation.state, newFallbackCount);
+      const isLead = conversation.conversationType === 'lead';
 
       if (fallbackResult.shouldHandoff) {
         const handoffResult = handoffPolicy.shouldHandoff({
@@ -437,6 +438,13 @@ export class HandleIncomingMessageUseCase {
       console.log('[HandleIncoming] LEAD detected - changing address_confirm to location_asked');
       newState = 'location_asked';
     }
+    
+    // FIX: Para leads, después de location_asked ir a name, no a evaluate
+    // El flow de lead es: detail → location_asked → name → summary
+    if (isLead && newState === 'evaluate' && conversation.state === 'location_asked') {
+      console.log('[HandleIncoming] LEAD in location_asked - changing evaluate to name');
+      newState = 'name';
+    }
 
     console.log('[HandleIncoming] transition.nextState:', transition.nextState, '| isValid:', transition.isValid, '| conversation.state:', conversation.state);
     console.log('[HandleIncoming] FINAL newState:', newState, '| isLead:', isLead);
@@ -553,14 +561,8 @@ export class HandleIncomingMessageUseCase {
        
       const scoringResult = scoringService.calculateScore(scoringContext as ConversationContext);
 
-      // NO handoff para nuevos flow states - solo cerrar conversación
-      const isNewFlowState =
-        newState === 'summary' || 
-        conversation.state === 'greeting_personalized' || 
-        conversation.state === 'urgency' ||
-        conversation.state === 'spare_part' ||
-        conversation.state === 'quote_work' ||
-        conversation.state === 'general_query';
+      // NO handoff - siempre cierran sin derivar a asesor
+      const isNewFlowState = true; // Deshabilitado - no hay handoff
 
       const handoffResult = handoffPolicy.shouldHandoff({
         score: scoringResult.score,

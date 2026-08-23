@@ -14,8 +14,8 @@ const TRANSITIONS: Record<ConversationState, ConversationState[]> = {
   customer_type_captured: ['urgency_asked', 'location_asked', 'equipment_asked', 'evaluate'],
   urgency_asked: ['urgency_captured', 'location_asked', 'equipment_asked', 'evaluate'],
   urgency_captured: ['location_asked', 'equipment_asked', 'evaluate'],
-  location_asked: ['location_captured', 'equipment_asked', 'evaluate'],
-  location_captured: ['equipment_asked', 'evaluate'],
+  location_asked: ['location_captured', 'equipment_asked', 'name'],
+  location_captured: ['equipment_asked', 'name'],
   equipment_asked: ['equipment_captured', 'evaluate'],
   equipment_captured: ['evaluate'],
   evaluate: ['scored', 'closed'], // Eliminado handoff_pending
