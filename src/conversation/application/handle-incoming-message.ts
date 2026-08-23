@@ -1,7 +1,4 @@
-import type {
-  ConversationState,
-  ConversationContext,
-} from '../domain/conversation';
+import type { ConversationState, ConversationContext } from '../domain/conversation';
 import { ConversationStateMachine } from '../domain/state-machine';
 import { IntentExtractor } from '../domain/intent-extractor';
 import { ConversationLeadScoringService } from '../domain/lead-scoring';
@@ -9,6 +6,22 @@ import { HandoffPolicy } from '../domain/handoff-policy';
 import { BotReplyComposer } from '../domain/reply-composer';
 import { ConversationService } from './conversation.service';
 import type { Conversation, BotAction, UpdateConversationInput } from './types';
+
+/**
+ * Mapa de opciones válidas por estado.
+ * GUARD CLAUSE: Si el usuario envía una opción que no está en esta lista,
+ * se devuelve error y se permanece en el mismo estado.
+ */
+const STATE_VALID_OPTIONS: Record<string, string[]> = {
+  greeting_personalized: ['1', '2', '3', '4', '5', '6', '7'],
+  urgency: ['1', '2', '3'],
+  address_confirm: ['1', '2'],
+  priority: ['1', '2', '3'],
+  quote_work: ['1', '2'],
+  spare_part: ['1', '2'],
+  general_query: ['1', '2'],
+  suppliers_info: ['1', '2'],
+};
 
 export interface HandleIncomingMessageInput {
   tenantId: string;
@@ -319,6 +332,33 @@ export class HandleIncomingMessageUseCase {
       ? { ...updatedContext, userAskedForHuman: false }
       : updatedContext;
     
+    // ===== GUARD CLAUSE: Validar opción contra opciones válidas del estado actual =====
+    const currentState = conversation.state;
+    const userOption = input.messageContent.trim();
+    const validOptions = STATE_VALID_OPTIONS[currentState];
+    
+    // Si el estado actual tiene opciones válidas definidas Y el input es un número
+    if (validOptions && /^\d+$/.test(userOption)) {
+      if (!validOptions.includes(userOption)) {
+        // EARLY EXIT: Opción inválida para este estado
+        console.log('[HandleIncoming] Invalid option for state', currentState, '- option:', userOption, '- valid:', validOptions);
+        
+        // Reenviar la pregunta del estado actual con mensaje de error
+        const errorReply = replyComposer.compose(currentState, updatedContext);
+        const errorMessage = `⚠️ Opción inválida. Por favor elegí una de las opciones válidas: ${validOptions.join(', ')}\n\n${errorReply.content}`;
+        
+        // Actualizar contador de intentos
+        await conversationService.update(conversation._id, {
+          exchangesInSameState: conversation.exchangesInSameState + 1,
+          lastMessageAt: new Date(),
+        });
+        
+        actions.push({ type: 'send_message', content: errorMessage });
+        return actions;
+      }
+    }
+    // ===== FIN GUARD CLAUSE =====
+    
     // FIX: Si es cliente (customer) y está en idle, forzar a greeting_personalized
     // El state machine elegiría 'greeting' (legacy) pero necesitamos el nuevo flow de cliente
     let transition;
@@ -510,6 +550,25 @@ export class HandleIncomingMessageUseCase {
           inquiryReason: updatedContext.needType ?? undefined,
         },
       });
+
+      // Update client with new address if provided and different from existing
+      const newAddress = (updatedContext as any).address;
+      const existingCustomerAddress = (updatedContext as any).customerAddress;
+
+      // Only update if: is customer AND has clientId AND has new address different from existing
+      if (input.clientId && newAddress && newAddress !== existingCustomerAddress) {
+        console.log('[HandleIncoming] Updating client address:', {
+          clientId: input.clientId,
+          address: newAddress,
+        });
+        actions.push({
+          type: 'update_client',
+          clientId: input.clientId,
+          updates: {
+            address: newAddress,
+          },
+        });
+      }
 
       // Para nuevo flow, NO hacer handoff - solo cerrar
       if (handoffResult.shouldHandoff && !isNewFlowState) {

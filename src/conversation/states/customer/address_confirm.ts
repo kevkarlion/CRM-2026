@@ -90,37 +90,17 @@ export class AddressConfirmState implements IConversationState {
       }
     }
 
-    // User entered new address (valid text) - parse and process it
+    // User entered new address (valid text) - save as-is, no parsing
+    // Store as single text field (address only, no locality/province separated)
     if (isNewAddress) {
-      // User wants to enter new address - parse it
-      const addressInput = isNewAddress ? trimmed : input.trim()
+      const addressInput = input.trim();
 
-      // Try to parse address components (separated by commas)
-      const parts = addressInput.split(',').map(p => p.trim()).filter(p => p.length > 0)
-
-      let street = addressInput
-      let locality = ''
-      let province = ''
-
-      if (parts.length >= 3) {
-        street = parts[0]
-        locality = parts[1]
-        province = parts[2]
-      } else if (parts.length === 2) {
-        street = parts[0]
-        locality = parts[1]
-      }
-
-      // NEW: Ask priority (when do you need the service)
+      // Save as free text - NO parsing
       const intent: StateIntent = {
         data: {
-          address: street,
-          locality,
-          province,
-          fullAddress: addressInput,
-          askingNewAddress: false, // Clear the flag
+          address: addressInput,  // Guardar todo junto como texto libre
         },
-        nextState: 'priority', // FIXED: was 'description'
+        nextState: 'priority',
       }
 
       return {
