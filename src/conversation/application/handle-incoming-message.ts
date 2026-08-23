@@ -239,7 +239,15 @@ export class HandleIncomingMessageUseCase {
       conversation.state === 'service' ||
       conversation.state === 'address' ||
       conversation.state === 'priority' ||
-      conversation.state === 'description';
+      conversation.state === 'description' ||
+      // Estados que pueden venir del flow de cliente (por migración o detección errónea)
+      conversation.state === 'detail' ||
+      conversation.state === 'urgency' ||
+      conversation.state === 'address_confirm' ||
+      conversation.state === 'quote_work' ||
+      conversation.state === 'spare_part' ||
+      conversation.state === 'general_query' ||
+      conversation.state === 'suppliers_info';
     
     // Para conversaciones de cliente, NUNCA usamos fallback - los estados manejan sus propios errores
     // Para leads, solo permittedimos fallback en estados específicos

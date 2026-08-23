@@ -60,6 +60,11 @@ async function cleanup() {
   console.log(`🗑️  Deleted ${leadsResult.deletedCount} leads`);
   total += leadsResult.deletedCount;
 
+  // 4.1 Delete Contacts
+  const contactsResult = await db.collection('contacts').deleteMany(phoneQuery);
+  console.log(`🗑️  Deleted ${contactsResult.deletedCount} contacts`);
+  total += contactsResult.deletedCount;
+
   // 5. Delete Gestions (by phone or clientId)
   const gestionsQuery = clientIds.length > 0 
     ? { $or: [phoneQuery, { clientId: { $in: clientIds } }] }
