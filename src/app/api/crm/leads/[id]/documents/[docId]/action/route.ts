@@ -2,11 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import { connectDB } from '@/core/db';
 import { QuoteService, ValidationError } from '@/quotes/services/quote.service';
-import { LeadService, ConflictError } from '@/leads/services/lead.service';
 import DocumentModel from '@/documents/models/document';
 
 const quoteService = new QuoteService();
-const leadService = new LeadService();
 
 type DocumentAction = 'quote_sent' | 'won';
 
@@ -52,24 +50,20 @@ export async function POST(
       );
     }
 
-    // Determine new lead status based on action
-    const newLeadStatus = action === 'quote_sent' ? 'quote_sent' : 'won';
-    
-    // Get current lead status (just for logging purposes now)
+    // Get current lead status
     const LeadModel = (await import('@/leads/models/lead')).default;
     const currentLead = await LeadModel.findById(leadId).select('status').lean();
     const currentStatus = currentLead?.status;
     
-    console.log('[document-action] Current status:', currentStatus, '-> new status will be:', newLeadStatus);
+    console.log('[document-action] Current status:', currentStatus, '-> action:', action);
 
     // Create quote with sourceDocumentId reference
-    // Use the document title as the quote title, add placeholder item for now
     const quoteInput = {
       leadId,
       sourceDocumentId: documentId,
       title: document.title || `Presupuesto desde documento`,
       description: `Documento de origen: ${document.title || document.filename}`,
-      validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days
+      validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       items: [
         {
           description: 'Item generado automáticamente desde documento',
@@ -81,189 +75,33 @@ export async function POST(
     };
 
     const quoteResult = await quoteService.createQuote(quoteInput, userId, tenantId);
-    
     const quoteId = String(quoteResult.quote._id);
     
     // Handle quote status based on action
     if (action === 'quote_sent') {
       // Send the quote (draft -> sent)
-      // sendQuote automatically updates lead status to 'quote_sent' when first quote is sent
       await quoteService.sendQuote(quoteId, userId, tenantId);
     } else if (action === 'won') {
       // Mark as direct sale (draft -> direct_sale)
       await quoteService.markAsDirectSale(quoteId, userId, tenantId);
       
-      // Now call the existing confirm-sale-pdf logic to create client + OT + update lead
-      // This ensures single source of truth for client/OT creation
-      const LeadModel = (await import('@/leads/models/lead')).default;
-      const ClientModel = (await import('@/crm/models/client')).default;
-      const ContactModel = (await import('@/crm/models/contact')).default;
-      const WorkOrderModel = (await import('@/operations/models/work-order')).default;
-      const ConversationModel = (await import('@/conversation/models/conversation')).default;
-      const WhatsAppMessageModel = (await import('@/crm/models/whatsapp-message')).default;
-      const { getNextWorkOrderNumber } = await import('@/operations/helpers/counter');
-      
-      const leadData = await LeadModel.findOne({
-        _id: new mongoose.Types.ObjectId(leadId),
-        tenantId: new mongoose.Types.ObjectId(tenantId),
-      }).lean();
-      
-      if (!leadData) {
-        throw new Error('Lead no encontrado');
-      }
-      
-      // Check if already converted (avoid duplicate)
-      if ((leadData as any).convertedToClient) {
-        return NextResponse.json({
-          success: true,
-          quoteId,
-          leadId,
-          newStatus: 'won',
-          alreadyConverted: true,
-        });
-      }
-      
-      // Create client from lead
-      const [client] = await ClientModel.create([{
-        tenantId: new mongoose.Types.ObjectId(tenantId),
-        customerType: (leadData as any).customerType || 'residential',
-        fullName: (leadData as any).name,
-        companyName: (leadData as any).companyName,
-        profileName: (leadData as any).profileName || (leadData as any).companyName,
-        email: (leadData as any).email,
-        phone: (leadData as any).phone,
-        status: 'active',
-        source: (leadData as any).source,
-        address: (leadData as any).address,
-        locality: (leadData as any).locality,
-        province: (leadData as any).province,
-        notes: 'Cliente creado desde documento PDF',
-        createdBy: userId ? new mongoose.Types.ObjectId(userId) : new mongoose.Types.ObjectId(),
-        updatedBy: userId ? new mongoose.Types.ObjectId(userId) : new mongoose.Types.ObjectId(),
-      }]);
-      
-      // Crear contacto primario desde el lead
-      const nameParts = (leadData as any).name.split(' ');
-      const firstName = nameParts[0];
-      const lastName = nameParts.slice(1).join(' ') || firstName;
-
-      await ContactModel.create([{
-        tenantId: new mongoose.Types.ObjectId(tenantId),
-        clientId: client._id,
-        firstName,
-        lastName,
-        email: (leadData as any).email || undefined,
-        phone: (leadData as any).phone || undefined,
-        isPrimary: true,
-        createdBy: userId ? new mongoose.Types.ObjectId(userId) : new mongoose.Types.ObjectId(),
-        updatedBy: userId ? new mongoose.Types.ObjectId(userId) : new mongoose.Types.ObjectId(),
-      }]);
-      
-      // Update lead: won + converted to client
+      // Solo cambiar lead a won
+      // La creación de cliente, gestión y OT se hace en "Resolver"
       await LeadModel.findByIdAndUpdate(leadId, {
         $set: {
           status: 'won',
-          convertedToClient: client._id,
-          convertedAt: new Date(),
           updatedBy: userId || 'admin-action',
         },
       });
       
-      // Migrar conversación de lead a cliente
-      console.log('[document-action] Migrando conversación - leadId:', leadId, 'clientId:', client._id);
-      const convResult = await ConversationModel.updateMany(
-        { leadId: new mongoose.Types.ObjectId(leadId), conversationType: 'lead' },
-        {
-          $set: {
-            clientId: client._id,
-            conversationType: 'customer',
-            lifecycleState: 'ACTIVE_CLIENT',
-            state: 'idle', // Reabrir conversación para cliente
-            closedAt: null,
-            'engineData.isCustomer': true,
-            'engineData.clientId': String(client._id),
-          },
-        }
-      );
-      console.log('[document-action] Conversaciones migradas:', convResult.modifiedCount);
-
-      // Agregar phoneNumber a la conversación para poder buscar por teléfono
-      if (leadData?.phone) {
-        const phoneNumberUpdate = await ConversationModel.updateMany(
-          { leadId: new mongoose.Types.ObjectId(leadId), phoneNumber: { $exists: false } },
-          { $set: { phoneNumber: leadData.phone } }
-        );
-        console.log('[document-action] phoneNumber agregado a conversaciones:', phoneNumberUpdate.modifiedCount);
-      }
-
-      // Migrar mensajes de WhatsApp del lead al cliente
-      console.log('[document-action] Migrando mensajes - leadId:', leadId, 'clientId:', client._id);
-      const msgResult = await WhatsAppMessageModel.updateMany(
-        { leadId: new mongoose.Types.ObjectId(leadId) },
-        { $set: { clientId: client._id } }
-      );
-      console.log('[document-action] Mensajes migrados:', msgResult.modifiedCount);
-      
-      // NOTE: No se crea Gestion aquí. Se crea cuando el usuario hace click en "Resuelto"
-      
-      // Get client name for work order
-      const clientName = (leadData as any).companyName || (leadData as any).name || 'Cliente';
-      
-      // Create work order in draft status
-      const tenantPrefix = tenantId.slice(-6);
-      const workOrderNumber = await getNextWorkOrderNumber(tenantPrefix);
-      
-      const [workOrder] = await WorkOrderModel.create([{
-        tenantId: new mongoose.Types.ObjectId(tenantId),
-        clientId: client._id,
-        leadId: new mongoose.Types.ObjectId(leadId),
-        quoteId: new mongoose.Types.ObjectId(quoteId),
-        clientSnapshot: {
-          name: clientName,
-          email: (leadData as any).email,
-          phone: (leadData as any).phone,
-          companyName: (leadData as any).companyName || '',
-          customerType: (leadData as any).customerType || 'residential',
-          status: 'active',
-        },
-        locationSnapshot: {
-          name: clientName,
-          address: (leadData as any).address || '',
-        },
-        source: 'direct_sale',
-        category: 'installation',
-        workOrderNumber,
-        title: `Venta: ${clientName}`,
-        description: `Venta generada desde documento PDF`,
-        status: 'draft',
-        priority: 'normal',
-        createdBy: userId ? new mongoose.Types.ObjectId(userId) : new mongoose.Types.ObjectId(),
-        updatedBy: userId ? new mongoose.Types.ObjectId(userId) : new mongoose.Types.ObjectId(),
-      }]);
-      
-      // Link the work order to the quote so decision engine knows it exists
-      const QuoteModel = (await import('@/quotes/models/quote')).default;
-      await QuoteModel.updateOne(
-        { _id: new mongoose.Types.ObjectId(quoteId) },
-        { $set: { convertedToWorkOrder: workOrder._id } }
-      );
-      
-      return NextResponse.json({
-        success: true,
-        quoteId,
-        leadId,
-        newStatus: 'won',
-        client: { _id: String(client._id) },
-        workOrder: { _id: String(workOrder._id), workOrderNumber, status: 'draft' },
-      });
+      console.log('[document-action] Lead marcado como won:', leadId);
     }
     
-    // For quote_sent: status is updated automatically by sendQuote
     return NextResponse.json({
       success: true,
       quoteId,
       leadId,
-      newStatus: 'quote_sent',
+      newStatus: action === 'quote_sent' ? 'quote_sent' : 'won',
     });
   } catch (error) {
     if (error instanceof ValidationError) {
