@@ -410,12 +410,13 @@ export class HandleIncomingMessageUseCase {
     // 7.1. Si el flujo de 7 ramas se completó (summary o waiting_operator), emitir LeadFlowCompleted
     // EXCEPTO para suppliers_info (opción 7) - no es un lead, solo información de contacto
     const isSuppliersFlow = conversation.state === 'suppliers_info';
+    const isClientFlow = conversation.conversationType === 'customer';
     
     if (newState === 'summary' || newState === 'waiting_operator') {
-      console.log('[HandleIncoming] Flow completed, closing conversation', isSuppliersFlow ? '(suppliers - no lead)' : '');
+      console.log('[HandleIncoming] Flow completed, closing conversation', isSuppliersFlow ? '(suppliers - no lead)' : '', isClientFlow ? '(client - no lead)' : '');
       
-      if (!isSuppliersFlow) {
-        // Solo crear lead si NO es suppliers (opción 7)
+      // Solo emitir LeadFlowCompleted si hay leadId Y no es flow de cliente
+      if (!isSuppliersFlow && !isClientFlow && input.leadId) {
         actions.push({
           type: 'emit_domain_event',
           event: {
@@ -551,6 +552,34 @@ export class HandleIncomingMessageUseCase {
     const finalState = newState;
 
     console.log('[HandleIncoming] Composing reply for state:', finalState, '| newState was:', newState, '| context:', JSON.stringify(finalContext));
+
+    // FIX: Si el contexto ya tiene los datos, usar composeForConfirmation o skip
+    // Para address_confirm: si ya tiene location/address, confirmar en lugar de pedir
+    if (finalState === 'address_confirm') {
+      const existingAddress = (finalContext as any).location || (finalContext as any).customerAddress || (finalContext as any).address;
+      if (existingAddress) {
+        // Ya tiene dirección - usar composeForConfirmation
+        const reply = replyComposer.composeForConfirmation(finalContext);
+        if (reply.content) {
+          actions.push({ type: 'send_message', content: reply.content });
+        }
+        return actions;
+      }
+    }
+
+    // Para name: si ya tiene userName/customerName, skip
+    if (finalState === 'name') {
+      const existingName = (finalContext as any).userName || (finalContext as any).customerName;
+      if (existingName) {
+        console.log('[HandleIncoming] Name already exists in context:', existingName, '- skipping to next state');
+        // Skip name - ir directo a summary o próximo estado
+        // Por ahora, cerrar la conversación como si hubiera completado
+        actions.push({ type: 'close_conversation', conversationId: conversation._id });
+        const summaryReply = replyComposer.compose('summary', finalContext);
+        actions.push({ type: 'send_message', content: summaryReply.content });
+        return actions;
+      }
+    }
 
     const reply = replyComposer.compose(finalState, finalContext);
     actions.push({ type: 'send_message', content: reply.content });
