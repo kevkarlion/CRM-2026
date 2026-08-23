@@ -4,7 +4,6 @@ import { DOMAIN_EVENTS } from '@/infrastructure/events/event.types';
 import LeadModel from '@/leads/models/lead';
 import ClientModel from '@/crm/models/client';
 import { Types } from 'mongoose';
-import { GestionService } from '@/gestion/services/gestion.service';
 
 export async function POST(
   request: NextRequest,
@@ -69,19 +68,7 @@ export async function POST(
       );
     }
 
-    // Crear gestión si no existe
-    const gestionService = new GestionService();
-    const existingGestion = await gestionService.getActiveGestionByClient(clientId, tenantId);
-
-    if (!existingGestion) {
-      await gestionService.createGestion({
-        clientId,
-        name: 'Gestión inicial',
-        source: lead.source || 'whatsapp',
-      }, userId, tenantId);
-    }
-
-    // Publish LEAD_RESOLVED event
+    // Publish LEAD_RESOLVED event (handler crea gestión)
     await eventBus.publish({
       type: DOMAIN_EVENTS.LEAD_RESOLVED,
       tenantId,

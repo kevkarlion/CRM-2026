@@ -262,35 +262,80 @@ export const gestionSyncHandler = {
    * Cuando se hace click en "Resuelto" desde un LEAD:
    * - Lead -> closed
    * - Conversación lead -> resolved
+   * - Crear cliente si no existe (desde datos del lead)
    * - Crear primera Gestion status new
    */
   async onLeadResolved(event: DomainEvent<LeadResolvedPayload>): Promise<void> {
     const { leadId, clientId, resolvedBy } = event.payload;
     const tenantId = event.tenantId;
 
-    if (!clientId || !leadId) {
-      console.log('[GestionSync] LEAD_RESOLVED: missing leadId or clientId, skipping');
+    if (!leadId) {
+      console.log('[GestionSync] LEAD_RESOLVED: missing leadId, skipping');
       return;
     }
 
     try {
       console.log(`[GestionSync] LEAD_RESOLVED: resolving lead ${leadId} / client ${clientId}`);
 
-      // 1. Close the Lead
+      // 1. Get the Lead
       const lead = await LeadModel.findOne({
         _id: new Types.ObjectId(leadId),
         tenantId: new Types.ObjectId(tenantId),
       });
 
-      if (lead) {
-        await LeadModel.updateOne(
-          { _id: lead._id },
-          { $set: { status: 'closed', updatedBy: resolvedBy } }
-        );
-        console.log(`[GestionSync] LEAD_RESOLVED: Lead ${leadId} marked as closed`);
+      if (!lead) {
+        console.log('[GestionSync] LEAD_RESOLVED: lead not found, skipping');
+        return;
       }
 
-      // 2. Close any active lead conversation
+      // 2. Buscar o crear cliente si no existe
+      let finalClientId = clientId;
+      if (!finalClientId) {
+        // Buscar cliente por teléfono
+        const existingClient = await ClientModel.findOne({
+          phone: lead.phone,
+          tenantId: new Types.ObjectId(tenantId),
+          deletedAt: null,
+        }).lean();
+
+        if (existingClient) {
+          finalClientId = String(existingClient._id);
+        } else {
+          // Crear cliente desde el lead
+          const newClient = await ClientModel.create({
+            tenantId: new Types.ObjectId(tenantId),
+            fullName: lead.name,
+            companyName: lead.companyName,
+            phone: lead.phone,
+            email: lead.email,
+            address: lead.address,
+            locality: lead.locality,
+            province: lead.province,
+            source: lead.source,
+            status: 'active',
+            operationStatus: 'none',
+            createdBy: new Types.ObjectId(resolvedBy),
+            updatedBy: new Types.ObjectId(resolvedBy),
+          });
+          finalClientId = String(newClient._id);
+          console.log(`[GestionSync] LEAD_RESOLVED: Client created from lead: ${finalClientId}`);
+        }
+
+        // Actualizar lead con clientId
+        await LeadModel.updateOne(
+          { _id: lead._id },
+          { $set: { clientId: new Types.ObjectId(finalClientId) } }
+        );
+      }
+
+      // 3. Close the Lead
+      await LeadModel.updateOne(
+        { _id: lead._id },
+        { $set: { status: 'closed', updatedBy: resolvedBy } }
+      );
+      console.log(`[GestionSync] LEAD_RESOLVED: Lead ${leadId} marked as closed`);
+
+      // 4. Close any active lead conversation
       const ConversationModel = (await import('@/conversation/models/conversation')).default;
       const phone = (lead as any)?.phone;
       if (phone) {
@@ -304,21 +349,21 @@ export const gestionSyncHandler = {
         }
       }
 
-      // 3. Create first Gestion (new) for this client
+      // 5. Create first Gestion (new) for this client
       const existingAnyGestion = await GestionModel.findOne({
-        clientId: new Types.ObjectId(clientId),
+        clientId: new Types.ObjectId(finalClientId),
         tenantId: new Types.ObjectId(tenantId),
         status: { $nin: ['won', 'lost', 'closed'] },
       });
 
       if (existingAnyGestion) {
-        console.log(`[GestionSync] LEAD_RESOLVED: active Gestion already exists for client ${clientId}`);
+        console.log(`[GestionSync] LEAD_RESOLVED: active Gestion already exists for client ${finalClientId}`);
       } else {
         const newGestion = await GestionModel.create({
-          clientId: new Types.ObjectId(clientId),
+          clientId: new Types.ObjectId(finalClientId),
           tenantId: new Types.ObjectId(tenantId),
           name: 'Nueva gestión',
-          source: 'whatsapp',
+          source: lead.source || 'whatsapp',
           status: 'new',
           qualificationStatus: 'pending',
           createdBy: resolvedBy,
