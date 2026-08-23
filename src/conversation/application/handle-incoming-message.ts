@@ -249,14 +249,13 @@ export class HandleIncomingMessageUseCase {
       conversation.state === 'general_query' ||
       conversation.state === 'suppliers_info';
     
-    // Para conversaciones de cliente, NUNCA usamos fallback - los estados manejan sus propios errores
-    // Para leads, solo permittedimos fallback en estados específicos
-    const isNewFlowQuestionState = 
-      conversation.conversationType === 'customer' 
-        ? isCustomerFlowQuestionState 
-        : isLeadFlowQuestionState;
+    // NUNCA usamos fallback - los estados manejan sus propios errores
+    const isNewFlowQuestionState = true;
     
-    if (!isNewFlowQuestionState && !intent.hasAnyData && !intent.userAskedForHuman && this.isQuestionState(conversation.state) && !isNameStateWithInput) {
+    // FALLBACK ELIMINADO - No hay fallback bajo ninguna circunstancia
+    // Si el usuario escribe algo inválido, el estado se reenvía el prompt
+    
+    if (false && !isNewFlowQuestionState && !intent.hasAnyData && !intent.userAskedForHuman && this.isQuestionState(conversation.state) && !isNameStateWithInput) {
       const newFallbackCount = conversation.fallbackCount + 1;
       const fallbackResult = stateMachine.handleFallback(conversation.state, newFallbackCount);
 
