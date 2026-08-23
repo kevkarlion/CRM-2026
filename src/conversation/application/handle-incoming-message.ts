@@ -60,6 +60,8 @@ export class HandleIncomingMessageUseCase {
     const { conversation: foundConversation, isNew } = await conversationService.findOrCreate({
       tenantId: input.tenantId,
       leadId: input.leadId,
+      clientId: input.clientId,
+      phone: input.phone,
     });
     let conversation = foundConversation;
 
@@ -474,7 +476,7 @@ export class HandleIncomingMessageUseCase {
         currentState: newState,
       });
 
-      // Actualizar lead con score
+      // Actualizar lead con score y datos de contacto (incluyendo dirección)
       actions.push({
         type: 'update_lead',
         leadId: input.leadId,
@@ -484,6 +486,9 @@ export class HandleIncomingMessageUseCase {
           inquiryReason: updatedContext.needType ?? undefined,
           customerType: updatedContext.customerType ?? undefined,
           status: 'contacted',
+          address: (updatedContext as any).address ?? (updatedContext as any).customerAddress ?? undefined,
+          locality: (updatedContext as any).locality ?? (updatedContext as any).customerLocality ?? undefined,
+          province: (updatedContext as any).province ?? (updatedContext as any).customerProvince ?? undefined,
           scoringBreakdown: {
             buttons: scoringResult.breakdown.urgency + scoringResult.breakdown.needClarity,
             property: scoringResult.breakdown.customerType,

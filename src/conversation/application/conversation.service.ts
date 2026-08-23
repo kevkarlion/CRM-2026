@@ -5,6 +5,7 @@ import type {
   IConversation,
 } from '../domain/conversation';
 import ConversationModel from '../models/conversation';
+import ClientModel from '@/crm/models/client';
 import type { Conversation, CreateConversationInput, UpdateConversationInput } from './types';
 
 export interface FindOrCreateResult {
@@ -82,6 +83,16 @@ export class ConversationService {
 
     // Si no existe, crear nueva desde greeting_personalized (no más idle)
     const now = new Date();
+
+    // Cargar datos del cliente si tenemos clientId (para obtener dirección, etc.)
+    let clientData: { fullName?: string; address?: string; locality?: string; province?: string } | null = null;
+    if (clientId) {
+      try {
+        clientData = await ClientModel.findById(clientId).lean() as typeof clientData;
+      } catch (e) {
+        console.error('[ConversationService] Error loading client data:', e);
+      }
+    }
     
     // Construir el objeto de conversación
     const conversationData: any = {
@@ -92,6 +103,11 @@ export class ConversationService {
         hasProjectKeywords: false,
         messageContainsData: false,
         userAskedForHuman: false,
+        // Agregar datos del cliente al contexto
+        ...(clientData?.fullName && { customerName: clientData.fullName }),
+        ...(clientData?.address && { customerAddress: clientData.address }),
+        ...(clientData?.locality && { customerLocality: clientData.locality }),
+        ...(clientData?.province && { customerProvince: clientData.province }),
       },
       step: 0,
       fallbackCount: 0,
@@ -115,8 +131,9 @@ export class ConversationService {
       conversationData.phoneNumber = phone;
     }
     
-    // Si es cliente, agregar clientId al context
+    // Si es cliente, agregar clientId como campo directo Y en context
     if (clientId) {
+      conversationData.clientId = new Types.ObjectId(clientId);
       conversationData.context.clientId = clientId;
       conversationData.context.isCustomer = true;
     }

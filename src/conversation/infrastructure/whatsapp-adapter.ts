@@ -97,6 +97,9 @@ export class WhatsAppBotAdapter {
       if (updates.scoringBreakdown !== undefined) setFields.scoringBreakdown = updates.scoringBreakdown;
       if (updates.notes !== undefined) setFields.notes = updates.notes;
       if (updates.status !== undefined) setFields.status = updates.status;
+      if (updates.address !== undefined) setFields.address = updates.address;
+      if (updates.locality !== undefined) setFields.locality = updates.locality;
+      if (updates.province !== undefined) setFields.province = updates.province;
 
       await LeadModel.findByIdAndUpdate(
         new Types.ObjectId(leadId),
@@ -120,6 +123,9 @@ export class WhatsAppBotAdapter {
       if (updates.temperature !== undefined) setFields.temperature = updates.temperature;
       if (updates.operationStatus !== undefined) setFields.operationStatus = updates.operationStatus;
       if (updates.priority !== undefined) setFields.priority = updates.priority;
+      if (updates.address !== undefined) setFields.address = updates.address;
+      if (updates.locality !== undefined) setFields.locality = updates.locality;
+      if (updates.province !== undefined) setFields.province = updates.province;
 
       await ClientModel.findByIdAndUpdate(
         new Types.ObjectId(clientId),

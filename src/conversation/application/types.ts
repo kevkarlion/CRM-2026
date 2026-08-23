@@ -95,6 +95,9 @@ export interface LeadUpdate {
   scoringBreakdown?: ScoringBreakdown;
   notes?: string;
   status?: 'new' | 'contacted';
+  address?: string;
+  locality?: string;
+  province?: string;
 }
 
 // Campos del Cliente que el bot puede actualizar
@@ -103,6 +106,9 @@ export interface ClientUpdate {
   score?: number;
   operationStatus?: 'none' | 'quote_pending' | 'visit_scheduled' | 'sale_confirmed';
   priority?: 'high' | 'medium' | 'low';
+  address?: string;
+  locality?: string;
+  province?: string;
 }
 
 // Campos de la Gestion que el bot puede actualizar

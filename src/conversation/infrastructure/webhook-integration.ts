@@ -183,9 +183,13 @@ export async function processWhatsAppWebhookMessage(
   
   console.log('[WebhookIntegration] findOrCreateEntity result - entityType:', entityType, '| clientId:', clientId, '| leadId:', leadId, '| isNew:', isNew);
 
-  // 2. Save inbound message with clientId if available
-  const messageLeadId = leadId || (clientId ? 'unknown' : 'new');
-  await saveInboundMessage(tenantId, phone, messageContent, messageLeadId, messageId, messageType, mediaId, caption, filename);
+  // 2. Save inbound message - solo para leads, no para clientes
+  // Para clientes (clientId definido), no guardamos en WhatsAppMessage
+  if (leadId) {
+    await saveInboundMessage(tenantId, phone, messageContent, leadId, messageId, messageType, mediaId, caption, filename);
+  } else {
+    console.log('[WebhookIntegration] Skipping message save - client or new entity');
+  }
 
   // 2.1. Buscar conversación por teléfono (método seguro y robusto)
   // Primero intentamos por teléfono, que es el identificador natural de WhatsApp
@@ -306,6 +310,25 @@ export async function processWhatsAppWebhookMessage(
     owner: conversation?.owner,
     state: conversation?.state,
   });
+
+  // Si es cliente y la conversación no tiene clientId, actualizarlo
+  if (conversation && clientId && !conversation.clientId) {
+    try {
+      await ConversationModel.updateOne(
+        { _id: conversation._id },
+        { 
+          $set: { 
+            clientId: new Types.ObjectId(clientId),
+            'context.clientId': clientId,
+            'context.isCustomer': true
+          } 
+        }
+      );
+      console.log('[WebhookIntegration] Updated conversation with clientId:', clientId);
+    } catch (e) {
+      console.error('[WebhookIntegration] Error updating conversation clientId:', e);
+    }
+  }
 
   // Si el operador tiene el control O si fue atendida por operador recientemente, skip bot
   if (conversation && conversation.owner === 'OPERATOR') {
