@@ -212,8 +212,10 @@ export default function ClientDetailPage() {
   const handleResolveClient = useCallback(async () => {
     if (!id) return;
     
+    console.log('[Ciclo terminado] 🔵 Botón presionado', { id });
     setResolvingClient(true);
     try {
+      console.log('[Ciclo terminado] 📤 Llamando API /resolve');
       const res = await fetch(`/api/crm/clients/${id}/resolve`, {
         method: 'POST',
         headers: {
@@ -221,20 +223,28 @@ export default function ClientDetailPage() {
         },
       });
       
+      console.log('[Ciclo terminado] 📥 Respuesta:', { status: res.status, ok: res.ok });
+      
       if (res.ok) {
+        const data = await res.json();
+        console.log('[Ciclo terminado] ✅ Success:', data);
         // Clear operation status locally (no full re-render needed)
         setOperationStatus(null);
+        // Refresh client to get new gestion with history
+        await loadClient();
+        console.log('[Ciclo terminado] 🔄 Cliente refreshado');
       } else {
         const data = await res.json();
+        console.log('[Ciclo terminado] ❌ Error response:', data);
         setActionError(data.error || 'Error al resolver');
       }
     } catch (error) {
-      console.error('[Resolve client] Error:', error);
+      console.error('[Ciclo terminado] ❌ Exception:', error);
       setActionError('Error al resolver cliente');
     } finally {
       setResolvingClient(false);
     }
-  }, [id]);
+  }, [id, loadClient]);
 
   async function refreshClient() {
     try {
@@ -441,14 +451,14 @@ export default function ClientDetailPage() {
                 {GESTION_STATUS_LABELS[client.activeGestion.status] || client.activeGestion.status}
               </span>
             )}
-            {/* Botón Resuelto - solo cuando hay operationStatus de venta */}
+            {/* Botón Ciclo terminado - solo cuando hay operationStatus de venta */}
             {operationStatus === 'sale_confirmed' && (
               <button
                 onClick={handleResolveClient}
                 disabled={resolvingClient}
                 className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-sm font-medium bg-emerald-100 text-emerald-800 hover:bg-emerald-200 transition-colors disabled:opacity-50"
               >
-                {resolvingClient ? 'Resolviendo...' : '✓ Resuelto'}
+                {resolvingClient ? 'Finalizando...' : '✓ Ciclo terminado'}
               </button>
             )}
           </>
@@ -472,6 +482,7 @@ export default function ClientDetailPage() {
             aria-label="Detalle del cliente"
           >
             <EntityTab id="resumen" label="Resumen" />
+            <EntityTab id="ciclos" label="Ciclos" />
             <EntityTab id="presupuestos" label="Presupuestos" count={quotes.length} />
             <EntityTab id="ordenes" label="Órdenes de trabajo" />
             <EntityTab id="visitas" label="Visitas técnicas" />
@@ -557,6 +568,142 @@ export default function ClientDetailPage() {
                     />
                   </div>
                 </div>
+              </div>
+            </EntityTabPanel>
+
+            <EntityTabPanel id="ciclos">
+              <div className="p-6">
+                {(client as any).gestions && (client as any).gestions.length > 0 ? (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Historial de ciclos ({((client as any).gestions || []).length})</h3>
+                    <div className="space-y-3">
+                      {((client as any).gestions || []).map((gestion: any) => (
+                        <div key={gestion._id} className="bg-white p-4 rounded-lg border border-gray-200">
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex items-center gap-2">
+                              <span className={`px-2 py-1 rounded text-xs font-medium ${
+                                gestion.status === 'new' ? 'bg-blue-100 text-blue-800' :
+                                gestion.status === 'contacted' ? 'bg-cyan-100 text-cyan-800' :
+                                gestion.status === 'qualified' ? 'bg-yellow-100 text-yellow-800' :
+                                gestion.status === 'proposal' ? 'bg-orange-100 text-orange-800' :
+                                gestion.status === 'negotiation' ? 'bg-purple-100 text-purple-800' :
+                                gestion.status === 'won' ? 'bg-green-100 text-green-800' :
+                                gestion.status === 'lost' ? 'bg-red-100 text-red-800' :
+                                gestion.status === 'closed' ? 'bg-gray-100 text-gray-800' :
+                                'bg-gray-100 text-gray-800'
+                              }`}>
+                                {gestion.status === 'new' ? 'Nueva' :
+                                 gestion.status === 'contacted' ? 'Contactado' :
+                                 gestion.status === 'qualified' ? 'Calificado' :
+                                 gestion.status === 'proposal' ? 'Presupuesto' :
+                                 gestion.status === 'negotiation' ? 'Negociación' :
+                                 gestion.status === 'won' ? 'Ganado' :
+                                 gestion.status === 'lost' ? 'Perdido' :
+                                 gestion.status === 'closed' ? 'Cerrado' :
+                                 gestion.status}
+                              </span>
+                              <span className="text-sm text-gray-500">
+                                #{gestion._id?.slice(-4)}
+                              </span>
+                            </div>
+                            <span className="text-sm text-gray-500">
+                              {gestion.createdAt ? new Date(gestion.createdAt).toLocaleDateString('es-AR') : ''}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
+                            {gestion.score > 0 && (
+                              <div>
+                                <span className="font-medium">Score:</span> {gestion.score} ({gestion.temperature || 'N/A'})
+                              </div>
+                            )}
+                            {gestion.inquiryReason && (
+                              <div>
+                                <span className="font-medium">Tipo:</span> {gestion.inquiryReason}
+                              </div>
+                            )}
+                            {gestion.estimatedValue && (
+                              <div>
+                                <span className="font-medium">Valor estimado:</span> ${gestion.estimatedValue.toLocaleString('es-AR')}
+                              </div>
+                            )}
+                            {gestion.source && (
+                              <div>
+                                <span className="font-medium">Fuente:</span> {gestion.source}
+                              </div>
+                            )}
+                          </div>
+                          {gestion.notes && (
+                            <div className="mt-3 pt-3 border-t border-gray-100">
+                              <span className="font-medium text-sm text-gray-700">Notas:</span>
+                              <p className="text-sm text-gray-600 mt-1">{gestion.notes}</p>
+                            </div>
+                          )}
+                          {/* Mostrar eventos de esta gestión */}
+                          {gestion.events && gestion.events.length > 0 && (
+                            <div className="mt-3 pt-3 border-t border-gray-100">
+                              <span className="font-medium text-sm text-gray-700">Línea de tiempo:</span>
+                              <div className="mt-2 space-y-2">
+                                {gestion.events.map((event: any, idx: number) => (
+                                  <div key={idx} className="flex items-start gap-2 text-xs">
+                                    <span className={`w-2 h-2 mt-1 rounded-full flex-shrink-0 ${
+                                      event.type === 'SALE_CONFIRMED' ? 'bg-green-500' :
+                                      event.type === 'QUOTE_SENT' ? 'bg-blue-500' :
+                                      event.type === 'STATUS_CHANGED' ? 'bg-yellow-500' :
+                                      event.type === 'GESTION_CREATED' ? 'bg-gray-500' :
+                                      'bg-gray-400'
+                                    }`} />
+                                    <div>
+                                      <span className="font-medium text-gray-700">
+                                        {event.type === 'SALE_CONFIRMED' ? '💰 Venta confirmada' :
+                                         event.type === 'QUOTE_SENT' ? '📄 Presupuesto enviado' :
+                                         event.type === 'STATUS_CHANGED' ? '🔄 Estado cambiado' :
+                                         event.type === 'GESTION_CREATED' ? '✨ Gestión creada' :
+                                         event.type}
+                                      </span>
+                                      <span className="text-gray-500 ml-2">
+                                        {event.timestamp ? new Date(event.timestamp).toLocaleString('es-AR') : ''}
+                                      </span>
+                                      {event.data?.amount && (
+                                        <span className="ml-2 text-green-600">${event.data.amount.toLocaleString('es-AR')}</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {/* Mostrar historial de ciclos anteriores dentro de esta gestión */}
+                          {gestion.history && gestion.history.length > 0 && (
+                            <div className="mt-3 pt-3 border-t border-gray-100">
+                              <span className="font-medium text-sm text-gray-700">Ciclos anteriores ({gestion.history.length}):</span>
+                              <div className="mt-2 space-y-2">
+                                {gestion.history.map((cycle: any, idx: number) => (
+                                  <div key={idx} className="bg-gray-50 p-2 rounded text-xs">
+                                    <span className="font-medium">
+                                      {cycle.finalStatus === 'won' ? '✅ Ganado' : 
+                                       cycle.finalStatus === 'lost' ? '❌ Perdido' : 
+                                       cycle.finalStatus === 'closed' ? '🔒 Cerrado' : cycle.finalStatus}
+                                    </span>
+                                    <span className="text-gray-500 ml-2">
+                                      {cycle.closedAt ? new Date(cycle.closedAt).toLocaleDateString('es-AR') : ''}
+                                    </span>
+                                    {cycle.score > 0 && (
+                                      <span className="ml-2">Score: {cycle.score}</span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-12 text-gray-500">
+                    <p>No hay ciclos registrados</p>
+                  </div>
+                )}
               </div>
             </EntityTabPanel>
 

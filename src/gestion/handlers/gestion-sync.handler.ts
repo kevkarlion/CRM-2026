@@ -14,6 +14,7 @@ import GestionModel from '../models/gestion';
 import LeadModel from '@/leads/models/lead';
 import ClientModel from '@/crm/models/client';
 import { Types } from 'mongoose';
+import { addEvent, copyEventsToHistory } from '../utils/gestion-events';
 
 export const gestionSyncHandler = {
   register(): void {
@@ -104,7 +105,7 @@ export const gestionSyncHandler = {
    * Payload has clientId - find active Gestion and update to quote_sent
    */
   async onQuoteSent(event: DomainEvent<QuoteSentPayload>): Promise<void> {
-    const { clientId } = event.payload;
+    const { clientId, quoteId, number: quoteNumber, total } = event.payload;
     const tenantId = event.tenantId;
 
     if (!clientId) {
@@ -120,6 +121,15 @@ export const gestionSyncHandler = {
       }
 
       await gestionSyncHandler.updateGestionStatus(String(gestion._id), tenantId, 'quote_sent');
+      
+      // Record QUOTE_SENT event
+      await addEvent(
+        String(gestion._id),
+        tenantId,
+        'QUOTE_SENT',
+        { quoteId, quoteNumber, total },
+        event.userId
+      );
     } catch (error) {
       console.error('[GestionSync] Error in onQuoteSent:', error);
     }
@@ -172,7 +182,7 @@ export const gestionSyncHandler = {
    * NEW: La nueva Gestion se crea cuando el usuario hace click en "Resuelto"
    */
   async onSaleConfirmed(event: DomainEvent<SaleConfirmedPayload>): Promise<void> {
-    const { clientId } = event.payload;
+    const { clientId, amount } = event.payload;
     const tenantId = event.tenantId;
     const userId = event.userId || 'system';
 
@@ -191,6 +201,15 @@ export const gestionSyncHandler = {
       // Update current gestion to won (card will stay visible in "Ganado" until resolved)
       await gestionSyncHandler.updateGestionStatus(String(gestion._id), tenantId, 'won');
       console.log(`[GestionSync] SALE_CONFIRMED: Gestion ${gestion._id} marked as won`);
+
+      // Record SALE_CONFIRMED event
+      await addEvent(
+        String(gestion._id),
+        tenantId,
+        'SALE_CONFIRMED',
+        { amount },
+        userId
+      );
     } catch (error) {
       console.error('[GestionSync] Error in onSaleConfirmed:', error);
     }
@@ -392,41 +411,176 @@ export const gestionSyncHandler = {
 
   /**
    * Handle CLIENT_RESOLVED
-   * Cuando se hace click en "Resuelto" desde un CLIENTE/GESTION:
-   * - Gestion actual won -> closed
+   * Cuando se hace click en "Ciclo terminado" desde un CLIENTE/GESTION:
+   * - Gestion actual: cerrar, guardar en historial, crear nueva
    * - Crear nueva Gestion status new
    */
   async onClientResolved(event: DomainEvent<ClientResolvedPayload>): Promise<void> {
     const { clientId, resolvedBy } = event.payload;
     const tenantId = event.tenantId;
 
+    console.log('[CLIENT_RESOLVED] 🚀 START', { clientId, resolvedBy, tenantId });
+
     if (!clientId) {
-      console.log('[GestionSync] CLIENT_RESOLVED: missing clientId, skipping');
+      console.log('[CLIENT_RESOLVED] ❌ missing clientId, skipping');
       return;
     }
 
     try {
-      console.log(`[GestionSync] CLIENT_RESOLVED: resolving client ${clientId}`);
+      console.log(`[CLIENT_RESOLVED] 🔍 Looking for gestion for client ${clientId} tenant ${tenantId}`);
 
-      // 1. Close any existing Gestion (put it back to 'new' for new cycle)
+      // 1. Buscar cualquier gestión (sin filtro de status)
       const activeGestion = await GestionModel.findOne({
         clientId: new Types.ObjectId(clientId),
         tenantId: new Types.ObjectId(tenantId),
-        status: { $nin: ['closed', 'lost'] },
-      });
+      }).sort({ createdAt: -1 });
 
-      if (activeGestion) {
-        // Just reset to 'new' - don't create a new one
+      console.log('[CLIENT_RESOLVED] 🔍 Gestion found:', activeGestion ? {
+        _id: activeGestion._id,
+        status: activeGestion.status,
+        clientId: activeGestion.clientId,
+        tenantId: activeGestion.tenantId,
+      } : 'NONE');
+
+      // Verificar si es elegible para cerrar (no closed ni lost)
+      const isEligible = activeGestion && !['closed', 'lost'].includes(activeGestion.status);
+      console.log('[CLIENT_RESOLVED] 🔍 Is eligible for close:', isEligible, 'status:', activeGestion?.status);
+
+      // Obtener datos del cliente
+      console.log('[CLIENT_RESOLVED] 🔍 Fetching client data...');
+      const client = await ClientModel.findOne({
+        _id: new Types.ObjectId(clientId),
+        tenantId: new Types.ObjectId(tenantId),
+      }).lean();
+
+      console.log('[CLIENT_RESOLVED] 🔍 Client data:', client ? {
+        _id: client._id,
+        fullName: client.fullName,
+        phone: client.phone,
+      } : 'NOT FOUND');
+
+      // Determinar el source y history a usar
+      const source = activeGestion?.source || 'whatsapp';
+      const existingHistory = activeGestion?.history || [];
+
+      let historyToSave = [...existingHistory];
+
+      if (activeGestion && isEligible) {
+        // Copy events to history before closing the gestion
+        await copyEventsToHistory(String(activeGestion._id), tenantId);
+
+        // 2. Cerrar gestión actual - guardar en historial
+        const historyEntry = {
+          closedAt: new Date(),
+          finalStatus: activeGestion.status,
+          score: activeGestion.score || 0,
+          temperature: activeGestion.temperature,
+          inquiryReason: activeGestion.inquiryReason,
+          estimatedValue: activeGestion.estimatedValue,
+          notes: activeGestion.notes,
+          adminNotes: activeGestion.adminNotes,
+        };
+
+        console.log('[CLIENT_RESOLVED] 📝 Saving history entry:', historyEntry);
+
         await GestionModel.updateOne(
           { _id: activeGestion._id },
-          { $set: { status: 'new', updatedBy: resolvedBy } }
+          { 
+            $set: { 
+              status: 'closed', 
+              updatedBy: resolvedBy,
+            },
+            $push: { history: historyEntry }
+          }
         );
-        console.log(`[GestionSync] CLIENT_RESOLVED: Gestion ${activeGestion._id} reset to 'new' for new cycle`);
+        
+        // Agregar el nuevo entry al historial a copiar
+        historyToSave = [...existingHistory, historyEntry];
+        console.log(`[CLIENT_RESOLVED] ✅ Gestion ${activeGestion._id} closed, history saved. Total history:`, historyToSave);
+      } else if (activeGestion) {
+        console.log(`[CLIENT_RESOLVED] ⚠️ Gestion already closed/lost (${activeGestion.status}), just creating new one`);
       } else {
-        console.log(`[GestionSync] CLIENT_RESOLVED: No active Gestion found for client ${clientId}`);
+        console.log(`[CLIENT_RESOLVED] ⚠️ No Gestion found, creating first one`);
       }
-    } catch (error) {
-      console.error('[GestionSync] Error in onClientResolved:', error);
+
+      // 3. Crear nueva gestión para el nuevo ciclo
+      // Siempre crear nueva gestión cuando se hace click en "Ciclo terminado"
+      // El status de la gestión anterior no importa
+      
+      console.log('[CLIENT_RESOLVED] 🔍 Creating new gestion with history:', historyToSave);
+
+      try {
+        const newGestion = await GestionModel.create({
+          clientId: new Types.ObjectId(clientId),
+          tenantId: new Types.ObjectId(tenantId),
+          name: 'Nueva gestión',
+          source,
+          phone: client?.phone,
+          address: client?.address,
+          locality: client?.locality,
+          province: client?.province,
+          status: 'new',
+          qualificationStatus: 'pending',
+          history: historyToSave,
+          createdBy: resolvedBy,
+          updatedBy: resolvedBy,
+        });
+        console.log(`[CLIENT_RESOLVED] ✅ New Gestion created: ${newGestion._id} with history:`, newGestion.history);
+
+        // 4. Resetear el flujo del bot para el cliente (nuevo ciclo)
+        // Esto hace que el bot arrancque fresco sin esperar 48hs
+        if (client?.phone) {
+          try {
+            const ConversationModel = (await import('@/conversation/models/conversation')).default;
+            const resetResult = await ConversationModel.updateMany(
+              { 
+                phoneNumber: client.phone,
+                tenantId: new Types.ObjectId(tenantId),
+                conversationType: 'customer',
+              },
+              {
+                $set: {
+                  state: 'greeting_personalized',
+                  lifecycleState: 'ACTIVE_CLIENT',
+                  'context.hasEmergencyKeywords': false,
+                  'context.hasProjectKeywords': false,
+                  'context.messageContainsData': false,
+                  'context.userAskedForHuman': false,
+                  'context.userName': client.fullName,
+                  'context.customerName': client.fullName,
+                  'context.customerAddress': client.address,
+                  'context.customerLocality': client.locality,
+                  'context.customerProvince': client.province,
+                  'engineData.isCustomer': true,
+                  'engineData.clientId': String(client._id),
+                  'engineData.customerName': client.fullName,
+                  step: 0,
+                  fallbackCount: 0,
+                  exchangesInSameState: 0,
+                },
+                $unset: {
+                  closedAt: '',
+                  'context.location': '',
+                  'context.detail': '',
+                  'context.needType': '',
+                  'context.urgency': '',
+                }
+              }
+            );
+            console.log(`[CLIENT_RESOLVED] 🔄 Bot flow reset for ${client.phone}: ${resetResult.modifiedCount} conversation(s) - context cleaned, client data added`);
+          } catch (convError: any) {
+            console.error('[CLIENT_RESOLVED] ❌ Error resetting bot flow:', convError?.message);
+          }
+        }
+      } catch (createError: any) {
+        if (createError.code === 11000) {
+          console.log(`[CLIENT_RESOLVED] ⚠️ Duplicate key error (index), gestion may already exist`);
+        } else {
+          throw createError;
+        }
+      }
+    } catch (error: any) {
+      console.error('[CLIENT_RESOLVED] ❌ Error:', error?.message || error, error?.stack);
     }
   },
 };

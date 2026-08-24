@@ -37,7 +37,13 @@ export async function GET(
       tenantId: new Types.ObjectId(tenantId),
     }).sort({ createdAt: -1 }).lean();
 
-    // Return client with latest Gestion info
+    // Get ALL gestions for this client (for history/cycles tab)
+    const allGestions = await GestionModel.find({
+      clientId: new Types.ObjectId(id),
+      tenantId: new Types.ObjectId(tenantId),
+    }).sort({ createdAt: -1 }).lean();
+
+    // Return client with latest Gestion info + all gestions for history
     return NextResponse.json({
       ...client,
       activeGestion: latestGestion ? {
@@ -45,7 +51,31 @@ export async function GET(
         status: latestGestion.status,
         name: latestGestion.name,
         createdAt: latestGestion.createdAt,
+        score: latestGestion.score,
+        temperature: latestGestion.temperature,
+        inquiryReason: latestGestion.inquiryReason,
+        estimatedValue: latestGestion.estimatedValue,
+        notes: latestGestion.notes,
+        adminNotes: latestGestion.adminNotes,
+        events: (latestGestion.events || []).sort(
+          (a: any, b: any) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+        ),
       } : null,
+      gestions: allGestions.map(g => ({
+        _id: String(g._id),
+        status: g.status,
+        name: g.name,
+        source: g.source,
+        createdAt: g.createdAt,
+        score: g.score,
+        temperature: g.temperature,
+        inquiryReason: g.inquiryReason,
+        estimatedValue: g.estimatedValue,
+        notes: g.notes,
+        adminNotes: g.adminNotes,
+        events: g.events || [],
+        history: g.history || [],
+      })),
     });
   } catch (error: any) {
     console.error('[clients] GET error:', error?.message || error);

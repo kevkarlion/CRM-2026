@@ -62,6 +62,16 @@ export const gestionSchema = new Schema<IGestion>(
       min: 0,
       default: 0,
     },
+    events: [{
+      type: {
+        type: String,
+        enum: ['GESTION_CREATED', 'STATUS_CHANGED', 'QUOTE_SENT', 'SALE_CONFIRMED', 'WORK_ORDER_CREATED', 'NOTE_ADDED'],
+        required: true,
+      },
+      timestamp: { type: Date, default: Date.now },
+      data: { type: Schema.Types.Mixed },
+      userId: { type: String },
+    }],
     isB2B: {
       type: Boolean,
       default: false,
@@ -72,6 +82,17 @@ export const gestionSchema = new Schema<IGestion>(
       keywords: { type: Number, default: 0 },
       b2b: { type: Number, default: 0 },
     },
+    history: [{
+      closedAt: { type: Date, required: true },
+      finalStatus: { type: String, required: true },
+      score: { type: Number, default: 0 },
+      temperature: { type: String },
+      inquiryReason: { type: String },
+      estimatedValue: { type: Number },
+      notes: { type: String },
+      adminNotes: { type: String },
+      events: { type: Schema.Types.Mixed },
+    }],
     createdBy: { type: String, required: true },
     updatedBy: { type: String, required: true },
     deletedAt: { type: Date, default: null },
@@ -82,7 +103,8 @@ export const gestionSchema = new Schema<IGestion>(
 
 // Allow multiple Gestions per client - the "active" one is determined by status
 // Only non-terminal Gestions (not won/lost) are considered active
-gestionSchema.index({ tenantId: 1, clientId: 1 }, { unique: false });
+// Note: legacy unique index may exist in DB, use idx_tenant_client for new queries
+gestionSchema.index({ tenantId: 1, clientId: 1 }, { unique: false, name: 'idx_tenant_client' });
 gestionSchema.index({ tenantId: 1, status: 1, createdAt: -1 });
 gestionSchema.index({ tenantId: 1, assignedTo: 1, status: 1 });
 gestionSchema.index({ tenantId: 1, email: 1 });

@@ -649,25 +649,30 @@ export class HandleIncomingMessageUseCase {
       });
 
       // Also update Gestion if exists (for clients whose lead was won)
-      actions.push({
-        type: 'update_gestion_for_client',
-        leadId: input.leadId,
-        updates: {
-          status: 'contacted',
-          score: scoringResult.score,
-          temperature: scoringResult.temperature,
-          inquiryReason: updatedContext.needType ?? undefined,
-        },
-      });
+      // REMOVIDO - la gestión se crea cuando usuario hace click en "Resuelto"
+      // actions.push({
+      //   type: 'update_gestion_for_client',
+      //   leadId: input.leadId,
+      //   updates: {
+      //     status: 'contacted',
+      //     score: scoringResult.score,
+      //     temperature: scoringResult.temperature,
+      //     inquiryReason: updatedContext.needType ?? undefined,
+      //   },
+      // });
 
       // Update client with new address if provided and different from existing
       const newAddress = (updatedContext as any).location || (updatedContext as any).address;
+      const newLocality = (updatedContext as any).locality;
+      const newProvince = (updatedContext as any).province;
       const existingCustomerAddress = (updatedContext as any).customerAddress;
       const convEngineData = conversation.engineData as Record<string, unknown> || {};
       const clientIdFromConversation = convEngineData.clientId as string | undefined;
       
       console.log('[HandleIncoming] Checking if need to update client address:', {
         newAddress,
+        newLocality,
+        newProvince,
         existingCustomerAddress,
         clientIdFromConversation,
         conversationType: conversation.conversationType,
@@ -678,12 +683,16 @@ export class HandleIncomingMessageUseCase {
         console.log('[HandleIncoming] ✅ Updating client address:', {
           clientId: clientIdFromConversation,
           address: newAddress,
+          locality: newLocality,
+          province: newProvince,
         });
         actions.push({
           type: 'update_client',
           clientId: clientIdFromConversation,
           updates: {
             address: newAddress,
+            locality: newLocality,
+            province: newProvince,
           },
         });
       } else {

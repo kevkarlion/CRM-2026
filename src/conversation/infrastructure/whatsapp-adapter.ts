@@ -39,9 +39,9 @@ export class WhatsAppBotAdapter {
         case 'update_client':
           await this.updateClient(action.clientId, action.updates);
           break;
-        case 'update_gestion_for_client':
-          await this.updateGestionForClient(action.leadId, action.updates);
-          break;
+        // case 'update_gestion_for_client': // REMOVIDO - la gestión se crea cuando usuario hace click en "Resuelto"
+        //   await this.updateGestionForClient(action.leadId, action.updates);
+        //   break;
         case 'update_conversation':
           await this.updateConversation(action.conversationId, action.updates);
           break;

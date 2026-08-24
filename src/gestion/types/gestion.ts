@@ -7,12 +7,20 @@ export type LostReason = 'price' | 'competitor' | 'budget' | 'not_interested' | 
 export type InquiryReason = 'repair' | 'maintenance' | 'installation' | 'budget' | 'other' | 'spare_parts';
 export type CustomerType = 'residential' | 'commercial';
 export type Temperature = 'hot' | 'warm' | 'cold';
+export type GestionEventType = 'GESTION_CREATED' | 'STATUS_CHANGED' | 'QUOTE_SENT' | 'SALE_CONFIRMED' | 'WORK_ORDER_CREATED' | 'NOTE_ADDED';
 
 export interface ScoringBreakdown {
   buttons: number;
   property: number;
   keywords: number;
   b2b: number;
+}
+
+export interface IGestionEvent {
+  type: GestionEventType;
+  timestamp: Date;
+  data?: Record<string, unknown>;
+  userId?: string;
 }
 
 export interface IGestion extends Document {
@@ -44,12 +52,26 @@ export interface IGestion extends Document {
   score?: number;
   isB2B?: boolean;
   scoringBreakdown?: ScoringBreakdown;
+  events?: IGestionEvent[];
+  history?: IGestionHistory[]; // Historial de ciclos anteriores
   createdBy: string;
   updatedBy: string;
   deletedAt: Date | null;
   deletedBy: string | null;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface IGestionHistory {
+  closedAt: Date;
+  finalStatus: GestionStatus;
+  score: number;
+  temperature?: Temperature;
+  inquiryReason?: string;
+  estimatedValue?: number;
+  notes?: string;
+  adminNotes?: string;
+  events?: IGestionEvent[];
 }
 
 export interface CreateGestionInput {
