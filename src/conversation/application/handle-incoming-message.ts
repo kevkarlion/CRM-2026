@@ -464,9 +464,16 @@ export class HandleIncomingMessageUseCase {
 
     let newState = transition.nextState;
 
-    // Flow diferenciado: clientes con datos → address_confirm | leads o clientes sin datos → location_asked
+    // FIX: Para clientes, quote_work, spare_part, general_query van directo a summary (cierre)
+    // Para leads siguen el flujo normal (scored)
     const isCustomer = conversation.conversationType === 'customer';
     const isLead = conversation.conversationType === 'lead';
+    const isQuickBranch = conversation.state === 'quote_work' || conversation.state === 'spare_part' || conversation.state === 'general_query';
+    
+    if (isCustomer && isQuickBranch && (newState === 'scored' || newState === 'evaluate')) {
+      console.log('[HandleIncoming] CUSTOMER in quick branch - going to summary for closure');
+      newState = 'summary';
+    }
     
     // Para clientes: si va a address_confirm, mantenerlo
     // Para leads: cambiar address_confirm → location_asked
