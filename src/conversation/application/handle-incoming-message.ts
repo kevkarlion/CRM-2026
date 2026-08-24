@@ -661,49 +661,6 @@ export class HandleIncomingMessageUseCase {
       //   },
       // });
 
-      // Update client with new address if provided and different from existing
-      const newAddress = (updatedContext as any).location || (updatedContext as any).address;
-      const newLocality = (updatedContext as any).locality;
-      const newProvince = (updatedContext as any).province;
-      const existingCustomerAddress = (updatedContext as any).customerAddress;
-      const convEngineData = conversation.engineData as Record<string, unknown> || {};
-      const clientIdFromConversation = convEngineData.clientId as string | undefined;
-      
-      console.log('[HandleIncoming] Checking if need to update client address:', {
-        newAddress,
-        newLocality,
-        newProvince,
-        existingCustomerAddress,
-        clientIdFromConversation,
-        conversationType: conversation.conversationType,
-      });
-
-      // Only update if: has clientId AND has new address different from existing
-      if (clientIdFromConversation && newAddress && newAddress !== existingCustomerAddress) {
-        console.log('[HandleIncoming] ✅ Updating client address:', {
-          clientId: clientIdFromConversation,
-          address: newAddress,
-          locality: newLocality,
-          province: newProvince,
-        });
-        actions.push({
-          type: 'update_client',
-          clientId: clientIdFromConversation,
-          updates: {
-            address: newAddress,
-            locality: newLocality,
-            province: newProvince,
-          },
-        });
-      } else {
-        console.log('[HandleIncoming] ❌ NOT updating client address:', {
-          reason: !clientIdFromConversation ? 'no clientId' : !newAddress ? 'no newAddress' : 'same as existing',
-          clientIdFromConversation,
-          newAddress,
-          existingCustomerAddress,
-        });
-      }
-
       // Para nuevo flow, NO hacer handoff - solo cerrar
       if (handoffResult.shouldHandoff && !isNewFlowState) {
         const reply = replyComposer.composeForHandoff(handoffResult.reason);
@@ -742,41 +699,34 @@ export class HandleIncomingMessageUseCase {
         conversationId: conversation._id,
       });
 
-      return actions;
-    }
+      // Guardar dirección al final del flow (lead o cliente)
+      const newAddress = (updatedContext as any).location || (updatedContext as any).address;
+      const clientIdFromConversation = conversation.clientId as string | undefined;
+      const leadIdFromConversation = conversation.leadId as string | undefined;
 
-    // Update client/lead with new address - solo cuando el flow termina
-    const newAddress = (updatedContext as any).location || (updatedContext as any).address;
-    const clientIdFromConversation = conversation.clientId as string | undefined;
-    const leadIdFromConversation = conversation.leadId as string | undefined;
-
-    // Solo guardar dirección al final del flow
-    if ((newState === 'summary' || newState === 'waiting_operator') && newAddress) {
       console.log('[HandleIncoming] 💾 Flow completed - saving address:', newAddress, '| clientId:', clientIdFromConversation, '| leadId:', leadIdFromConversation);
 
       // Guardar dirección en cliente si existe
-      if (clientIdFromConversation) {
+      if (clientIdFromConversation && newAddress) {
         console.log('[HandleIncoming] 💾 Saving address to CLIENT:', clientIdFromConversation, 'address:', newAddress);
         actions.push({
           type: 'update_client',
           clientId: clientIdFromConversation,
-          updates: {
-            address: newAddress,
-          },
+          updates: { address: newAddress },
         });
       }
 
       // Guardar dirección en lead si existe
-      if (leadIdFromConversation) {
+      if (leadIdFromConversation && newAddress) {
         console.log('[HandleIncoming] 💾 Saving address to LEAD:', leadIdFromConversation, 'address:', newAddress);
         actions.push({
           type: 'update_lead',
           leadId: leadIdFromConversation,
-          updates: {
-            address: newAddress,
-          },
+          updates: { address: newAddress },
         });
       }
+
+      return actions;
     }
 
     // 9. Compone y retorna la respuesta para el estado actual
