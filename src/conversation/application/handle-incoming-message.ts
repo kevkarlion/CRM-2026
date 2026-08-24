@@ -475,13 +475,14 @@ export class HandleIncomingMessageUseCase {
     
     // FIX: Cliente SIN dirección en DB → pedir nueva (no confirmar)
     // Cliente CON dirección en DB → confirmar
+    // Buscar en customerAddress (del cliente en DB) O location (del flow actual)
     if (isCustomer && newState === 'address_confirm') {
-      const clienteTieneDireccion = (updatedContext as any).customerAddress;
+      const clienteTieneDireccion = (updatedContext as any).customerAddress || (updatedContext as any).location;
       if (!clienteTieneDireccion) {
         console.log('[HandleIncoming] CUSTOMER has NO address - changing to location_asked');
         newState = 'location_asked';
       } else {
-        console.log('[HandleIncoming] CUSTOMER has address - confirming');
+        console.log('[HandleIncoming] CUSTOMER has address - confirming:', clienteTieneDireccion);
       }
     }
     
