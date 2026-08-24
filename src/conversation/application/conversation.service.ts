@@ -297,6 +297,8 @@ export class ConversationService {
    * Actualiza una conversación por ID
    */
   async update(conversationId: string, updates: UpdateConversationInput): Promise<Conversation> {
+    console.log('[ConversationService.update] CALLED with:', { conversationId, updates });
+    
     // Separar context del resto para usar dot notation (Mongoose $set + subdocument bug)
     const { context, ...rest } = updates;
     const setOps: Record<string, unknown> = { ...rest };
@@ -309,6 +311,8 @@ export class ConversationService {
       }
     }
 
+    console.log('[ConversationService.update] setOps:', setOps);
+    
     const doc = await ConversationModel.findByIdAndUpdate(
       new Types.ObjectId(conversationId),
       { $set: setOps },

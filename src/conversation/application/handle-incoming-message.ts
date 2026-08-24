@@ -785,13 +785,25 @@ export class HandleIncomingMessageUseCase {
     if (isCustomer && finalState === 'name') {
       const existingName = (finalContext as any).userName || (finalContext as any).customerName;
       if (existingName) {
-        console.log('[HandleIncoming] Customer name already exists:', existingName, '- skipping to next state');
-        // Cliente tiene nombre - hacer skip y cerrar
-        // GUARDAR estado en DB antes de retornar
-        await conversationService.update(conversation._id, {
-          state: 'closed',
-          closedAt: new Date(),
-        });
+        console.log('[HandleIncoming] Customer name already exists:', existingName, '- closing conversation');
+        // GUARDAR estado en DB antes de retornar - CON LOGS
+        console.log('[HandleIncoming] >>>>> CLOSING CONVERSATION NOW >>>>>');
+        console.log('[HandleIncoming] conversation._id:', conversation._id);
+        console.log('[HandleIncoming] conversation.state BEFORE:', conversation.state);
+        console.log('[HandleIncoming] calling conversationService.update with state: closed');
+        
+        try {
+          const updateResult = await conversationService.update(conversation._id, {
+            state: 'closed',
+            closedAt: new Date(),
+          });
+          console.log('[HandleIncoming] updateResult:', updateResult);
+        } catch (err) {
+          console.log('[HandleIncoming] ERROR closing conversation:', err);
+        }
+        
+        console.log('[HandleIncoming] <<<<< CONVERSATION CLOSED <<<<<');
+        
         actions.push({ type: 'close_conversation', conversationId: conversation._id });
         const summaryReply = replyComposer.compose('summary', finalContext);
         actions.push({ type: 'send_message', content: summaryReply.content });
