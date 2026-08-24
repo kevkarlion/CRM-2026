@@ -749,11 +749,28 @@ export class HandleIncomingMessageUseCase {
     const newAddress = (updatedContext as any).location || (updatedContext as any).address;
     const convEngineData = conversation.engineData as Record<string, unknown> || {};
     const clientIdFromConversation = convEngineData.clientId as string | undefined;
+    const leadIdFromConversation = convEngineData.leadId as string | undefined;
 
+    console.log('[HandleIncoming] 💾 Save address - newAddress:', newAddress, '| clientId:', clientIdFromConversation, '| leadId:', leadIdFromConversation);
+
+    // Guardar dirección en cliente si existe
     if (clientIdFromConversation && newAddress) {
+      console.log('[HandleIncoming] 💾 Saving address to CLIENT:', clientIdFromConversation, 'address:', newAddress);
       actions.push({
         type: 'update_client',
         clientId: clientIdFromConversation,
+        updates: {
+          address: newAddress,
+        },
+      });
+    }
+
+    // Guardar dirección en lead si existe
+    if (leadIdFromConversation && newAddress) {
+      console.log('[HandleIncoming] 💾 Saving address to LEAD:', leadIdFromConversation, 'address:', newAddress);
+      actions.push({
+        type: 'update_lead',
+        leadId: leadIdFromConversation,
         updates: {
           address: newAddress,
         },
