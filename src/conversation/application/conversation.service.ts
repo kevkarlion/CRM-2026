@@ -55,7 +55,12 @@ export class ConversationService {
         };
         console.log('[ConversationService] DEBUG updates to apply:', JSON.stringify(updates));
         
-        await ConversationModel.updateOne({ _id: activeConversation._id }, { $set: updates });
+        const updateResult = await ConversationModel.updateOne({ _id: activeConversation._id }, { $set: updates });
+        console.log('[ConversationService] DEBUG updateOne result:', JSON.stringify({
+          matchedCount: updateResult.matchedCount,
+          modifiedCount: updateResult.modifiedCount,
+          acknowledged: updateResult.acknowledged,
+        }));
         
         // Recargar y devolver
         const updated = await ConversationModel.findById(activeConversation._id).lean();
