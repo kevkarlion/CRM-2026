@@ -34,6 +34,7 @@ export class ConversationService {
         tenantId: new Types.ObjectId(tenantId),
         $or: [
           { 'context.clientId': clientId },
+          { 'engineData.clientId': clientId },
           { leadId: new Types.ObjectId(clientId) }
         ],
       }).sort({ lastMessageAt: -1 });
@@ -79,19 +80,6 @@ export class ConversationService {
         conversation: this.toConversation(latestConversation!), 
         isNew: false 
       };
-    }
-    
-    // ============================================================
-    // Para LEADS: buscar conversación previa (comportamiento normal)
-    // ============================================================
-      console.log('[ConversationService] Created new conversation for client with fresh data:', {
-        conversationId: newConversation._id,
-        clientId,
-        hasAddress: !!clientData?.address,
-        address: clientData?.address
-      });
-      
-      return { conversation: this.toConversation(newConversation), isNew: true };
     }
     
     // ============================================================
