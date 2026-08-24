@@ -17,18 +17,64 @@ export class ConversationService {
 /**
     * Busca una conversación existente o crea una nueva
     * (el flow nuevo de 7 ramas)
-    * Retorna la conversación y un flag indicando si es nueva
-    */
+* Retorna la conversación y un flag indicando si es nueva
+   */
   async findOrCreate(input: CreateConversationInput): Promise<FindOrCreateResult> {
     const { tenantId, leadId, clientId, phone } = input;
     
-    // Construir query de búsqueda según qué datos tengamos
-    let searchQuery: any = { tenantId: new Types.ObjectId(tenantId) };
+    // ============================================================
+    // SOLO para CLIENTE: NO buscar conversación previa
+    // Siempre crear nueva con datos frescos del cliente desde DB
+    // ============================================================
+    if (clientId) {
+      console.log('[ConversationService] CLIENT FLOW - creating new conversation with fresh client data');
+      
+      const clientData = await ClientModel.findById(clientId).lean();
+      
+      const now = new Date();
+      const conversationData: any = {
+        tenantId: new Types.ObjectId(tenantId),
+        state: 'greeting_personalized',
+        conversationType: 'customer',
+        lifecycleState: 'ACTIVE_CLIENT',
+        phoneNumber: phone,
+        context: {
+          hasEmergencyKeywords: false,
+          hasProjectKeywords: false,
+          messageContainsData: false,
+          userAskedForHuman: false,
+          userName: clientData?.fullName,
+          address: clientData?.address,
+        },
+        step: 0,
+        fallbackCount: 0,
+        timeoutCount: 0,
+        exchangesInSameState: 0,
+        lastMessageAt: now,
+        lastActivityAt: now,
+        startedAt: now,
+        owner: 'BOT',
+      };
+      
+      // Agregar leadId si existe (aunque sea cliente puede tener leadId del lead original)
+      if (leadId) {
+        conversationData.leadId = new Types.ObjectId(leadId);
+      }
+      
+      const newConversation = await ConversationModel.create(conversationData);
+      console.log('[ConversationService] Created new conversation for client with fresh data:', {
+        conversationId: newConversation._id,
+        clientId,
+        hasAddress: !!clientData?.address,
+        address: clientData?.address
+      });
+      
+      return { conversation: this.toConversation(newConversation), isNew: true };
+    }
     
-    // Si es cliente (tiene clientId o phone), buscar por phone/cliente
-    // Si es lead (tiene leadId), buscar por leadId
-    let conversationType: 'lead' | 'customer' = 'lead';
-    let lifecycleState = 'ACTIVE_LEAD';
+    // ============================================================
+    // Para LEADS: buscar conversación previa (comportamiento normal)
+    // ============================================================
     
     if (clientId || (phone && !leadId)) {
       // Es cliente - buscar por teléfono
