@@ -745,6 +745,21 @@ export class HandleIncomingMessageUseCase {
       return actions;
     }
 
+    // Update client with new address - se ejecuta siempre, después del scoring
+    const newAddress = (updatedContext as any).location || (updatedContext as any).address;
+    const convEngineData = conversation.engineData as Record<string, unknown> || {};
+    const clientIdFromConversation = convEngineData.clientId as string | undefined;
+
+    if (clientIdFromConversation && newAddress) {
+      actions.push({
+        type: 'update_client',
+        clientId: clientIdFromConversation,
+        updates: {
+          address: newAddress,
+        },
+      });
+    }
+
     // 9. Compone y retorna la respuesta para el estado actual
     // IMPORTANTE: usar newState, NO updatedConversation.state porque ya fue cerrado
     const finalContext = updatedContext;
