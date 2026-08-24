@@ -43,7 +43,7 @@ export class ConversationService {
         const clientData = await ClientModel.findById(clientId).lean();
         const updates: any = {
           'context.userName': clientData?.fullName,
-          'context.address': clientData?.address,
+          'context.customerAddress': clientData?.address,
         };
         await ConversationModel.updateOne({ _id: activeConversation._id }, { $set: updates });
         
@@ -70,7 +70,7 @@ export class ConversationService {
           messageContainsData: false,
           userAskedForHuman: false,
           userName: clientData?.fullName,
-          address: clientData?.address,
+          customerAddress: clientData?.address,
         },
         step: 0,
         fallbackCount: 0,
