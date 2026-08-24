@@ -787,6 +787,11 @@ export class HandleIncomingMessageUseCase {
       if (existingName) {
         console.log('[HandleIncoming] Customer name already exists:', existingName, '- skipping to next state');
         // Cliente tiene nombre - hacer skip y cerrar
+        // GUARDAR estado en DB antes de retornar
+        await conversationService.update(conversation._id, {
+          state: 'closed',
+          closedAt: new Date(),
+        });
         actions.push({ type: 'close_conversation', conversationId: conversation._id });
         const summaryReply = replyComposer.compose('summary', finalContext);
         actions.push({ type: 'send_message', content: summaryReply.content });
