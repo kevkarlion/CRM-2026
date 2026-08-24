@@ -70,10 +70,11 @@ export class ConversationService {
     if (existing) {
       console.log('[ConversationService] Found existing active conversation:', existing.state, '| type:', existing.conversationType);
       
-      // Si es cliente y no tiene datos en el contexto, actualizar
-      // Usar existing.conversationType en vez del parámetro
-      if (clientId && existing.conversationType === 'customer') {
-        const clientData = await ClientModel.findById(clientId).lean();
+      // Si es cliente (conversación existente es de tipo customer) y no tiene datos en el contexto, actualizar
+      // Buscar clientId: puede venir como parámetro O estar en engineData
+      const effectiveClientId = clientId || (existing.engineData as any)?.clientId;
+      if (effectiveClientId && existing.conversationType === 'customer') {
+        const clientData = await ClientModel.findById(effectiveClientId).lean();
         if (clientData) {
           const updates: any = {};
           if (clientData.fullName && !existing.context?.customerName) {

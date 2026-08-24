@@ -91,6 +91,16 @@ async function findOrCreateEntity(
         });
       }
       
+      // Si el lead ya fue convertido a cliente, devolver el cliente
+      if (existing.convertedToClient) {
+        console.log('[findOrCreateEntity] Lead was converted to client - returning client:', existing.convertedToClient);
+        return { 
+          clientId: String(existing.convertedToClient), 
+          entityType: 'client', 
+          isNew: false 
+        };
+      }
+      
       return { 
         leadId: String(existing._id), 
         entityType: 'lead', 
