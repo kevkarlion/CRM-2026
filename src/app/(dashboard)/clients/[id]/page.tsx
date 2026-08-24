@@ -69,12 +69,12 @@ export default function ClientDetailPage() {
   // Resolve client flow
   const [resolvingClient, setResolvingClient] = useState(false);
   
-  // Operation status - for reactive updates from documentation tab
+  // Gestion status - always show from activeGestion
+  const gestionStatus = client?.activeGestion?.status || null;
+  
+  // Sync operationStatus with client when it loads (for reactive updates from documentation tab)
   const [operationStatus, setOperationStatus] = useState<string | null>(null);
-
-  // Sync operationStatus with client when it loads
   useEffect(() => {
-    // Use client's operationStatus field (not activeGestion which is from Gestion table)
     setOperationStatus((client as any)?.operationStatus || null);
   }, [client]);
 
@@ -228,11 +228,12 @@ export default function ClientDetailPage() {
       if (res.ok) {
         const data = await res.json();
         console.log('[Ciclo terminado] ✅ Success:', data);
-        // Clear operation status locally (no full re-render needed)
-        setOperationStatus(null);
-        // Refresh client to get new gestion with history
+        // Refresh client to get new gestion (status will change to 'contactado')
         await loadClient();
         console.log('[Ciclo terminado] 🔄 Cliente refreshado');
+        
+        // Force full page reload to get fresh data
+        window.location.reload();
       } else {
         const data = await res.json();
         console.log('[Ciclo terminado] ❌ Error response:', data);
@@ -419,44 +420,23 @@ export default function ClientDetailPage() {
             <span className="inline-flex items-center px-3 py-1 rounded-lg text-sm font-medium border bg-gray-50 border-gray-200 text-gray-600">
               {CUSTOMER_TYPE_LABEL[client.customerType] || client.customerType}
             </span>
-            {/* Operation status - from client.operationStatus field - shows immediate feedback */}
-            {/* Only show activeGestion if operationStatus is not set (avoid duplicate status badges) */}
-            {(operationStatus && operationStatus !== 'none') ? (
+            {/* Gestion status - always show from activeGestion */}
+            {gestionStatus && (
               <span
                 className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-sm font-medium border ${
-                  operationStatus === 'sale_confirmed' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' :
-                  operationStatus === 'quote_pending' ? 'bg-blue-50 border-blue-200 text-blue-700' :
-                  operationStatus === 'quote_approved' ? 'bg-purple-50 border-purple-200 text-purple-700' :
-                  'bg-gray-50 border-gray-200 text-gray-500'
+                  GESTION_STATUS_VARIANT[gestionStatus] || 'bg-gray-50 border-gray-200 text-gray-500'
                 }`}
               >
-                <span className={`w-2 h-2 rounded-full ${
-                  operationStatus === 'sale_confirmed' ? 'bg-emerald-500' :
-                  operationStatus === 'quote_pending' ? 'bg-blue-500' :
-                  operationStatus === 'quote_approved' ? 'bg-purple-500' :
-                  'bg-gray-400'
-                }`} />
-                {operationStatus === 'sale_confirmed' ? 'Venta ganada' :
-                 operationStatus === 'quote_pending' ? 'Presupuesto enviado' :
-                 operationStatus === 'quote_approved' ? 'Presupuesto aprobado' :
-                 operationStatus}
-              </span>
-            ) : client.activeGestion && (
-              <span
-                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-sm font-medium border ${
-                  GESTION_STATUS_VARIANT[client.activeGestion.status] || 'bg-gray-50 border-gray-200 text-gray-500'
-                }`}
-              >
-                <span className={`w-2 h-2 rounded-full ${GESTION_STATUS_DOT_COLOR[client.activeGestion.status] || 'bg-gray-400'}`} />
-                {GESTION_STATUS_LABELS[client.activeGestion.status] || client.activeGestion.status}
+                <span className={`w-2 h-2 rounded-full ${GESTION_STATUS_DOT_COLOR[gestionStatus] || 'bg-gray-400'}`} />
+                {GESTION_STATUS_LABELS[gestionStatus] || gestionStatus}
               </span>
             )}
-            {/* Botón Ciclo terminado - solo cuando hay operationStatus de venta */}
-            {operationStatus === 'sale_confirmed' && (
+            {/* Botón Ciclo terminado - solo cuando la gestión está en estado "won" */}
+            {(gestionStatus === 'won') && (
               <button
                 onClick={handleResolveClient}
                 disabled={resolvingClient}
-                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-sm font-medium bg-emerald-100 text-emerald-800 hover:bg-emerald-200 transition-colors disabled:opacity-50"
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-sm font-medium bg-emerald-100 text-emerald-800 hover:bg-emerald-200 transition-colors"
               >
                 {resolvingClient ? 'Finalizando...' : '✓ Ciclo terminado'}
               </button>
@@ -587,20 +567,19 @@ export default function ClientDetailPage() {
                                 gestion.status === 'qualified' ? 'bg-yellow-100 text-yellow-800' :
                                 gestion.status === 'proposal' ? 'bg-orange-100 text-orange-800' :
                                 gestion.status === 'negotiation' ? 'bg-purple-100 text-purple-800' :
-                                gestion.status === 'won' ? 'bg-green-100 text-green-800' :
+gestion.status === 'won' ? 'bg-green-100 text-green-800' :
                                 gestion.status === 'lost' ? 'bg-red-100 text-red-800' :
-                                gestion.status === 'closed' ? 'bg-gray-100 text-gray-800' :
                                 'bg-gray-100 text-gray-800'
                               }`}>
-                                {gestion.status === 'new' ? 'Nueva' :
-                                 gestion.status === 'contacted' ? 'Contactado' :
-                                 gestion.status === 'qualified' ? 'Calificado' :
-                                 gestion.status === 'proposal' ? 'Presupuesto' :
-                                 gestion.status === 'negotiation' ? 'Negociación' :
-                                 gestion.status === 'won' ? 'Ganado' :
-                                 gestion.status === 'lost' ? 'Perdido' :
-                                 gestion.status === 'closed' ? 'Cerrado' :
-                                 gestion.status}
+                              {gestion.status === 'new' ? 'Nueva' :
+                               gestion.status === 'contacted' ? 'Contactado' :
+                               gestion.status === 'quote_sent' ? 'Presupuesto enviado' :
+                               gestion.status === 'technical_visit' ? 'Visita técnica' :
+                               gestion.status === 'qualified' ? 'Calificado' :
+                               gestion.status === 'negotiation' ? 'Negociación' :
+                               gestion.status === 'won' ? 'Ganado' :
+                               gestion.status === 'lost' ? 'Perdido' :
+                               gestion.status}
                               </span>
                               <span className="text-sm text-gray-500">
                                 #{gestion._id?.slice(-4)}
@@ -682,10 +661,10 @@ export default function ClientDetailPage() {
                                     <span className="font-medium">
                                       {cycle.finalStatus === 'won' ? '✅ Ganado' : 
                                        cycle.finalStatus === 'lost' ? '❌ Perdido' : 
-                                       cycle.finalStatus === 'closed' ? '🔒 Cerrado' : cycle.finalStatus}
+                                       cycle.finalStatus}
                                     </span>
                                     <span className="text-gray-500 ml-2">
-                                      {cycle.closedAt ? new Date(cycle.closedAt).toLocaleDateString('es-AR') : ''}
+                                      {cycle.finalizedAt ? new Date(cycle.finalizedAt).toLocaleDateString('es-AR') : ''}
                                     </span>
                                     {cycle.score > 0 && (
                                       <span className="ml-2">Score: {cycle.score}</span>
@@ -720,7 +699,10 @@ export default function ClientDetailPage() {
             </EntityTabPanel>
 
             <EntityTabPanel id="documentacion">
-              <ClientDocumentationTab clientId={id} clientPhone={client.phone} onStatusChange={(newStatus) => setOperationStatus(newStatus)} />
+              <ClientDocumentationTab clientId={id} clientPhone={client.phone} onStatusChange={async (newStatus) => {
+                setOperationStatus(newStatus);
+                await loadClient();
+              }} />
             </EntityTabPanel>
 
             <EntityTabPanel id="actividad">

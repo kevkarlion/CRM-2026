@@ -113,7 +113,11 @@ export class ConversationService {
       }
     } else if (leadId) {
       // Es lead - buscar por leadId
-      searchQuery.leadId = new Types.ObjectId(leadId);
+      searchQuery = {
+        tenantId: new Types.ObjectId(tenantId),
+        leadId: new Types.ObjectId(leadId),
+        conversationType: 'lead',
+      };
     }
     
     // Primero buscar si existe una conversación activa (no cerrada)

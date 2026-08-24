@@ -4,6 +4,7 @@ import { connectDB } from '@/core/db';
 import { QuoteService, ValidationError } from '@/quotes/services/quote.service';
 import DocumentModel from '@/documents/models/document';
 import ClientModel from '@/crm/models/client';
+import GestionModel from '@/gestion/models/gestion';
 import WorkOrderModel from '@/operations/models/work-order';
 import { getNextWorkOrderNumber } from '@/operations/helpers/counter';
 import { eventBus } from '@/infrastructure/events/event-bus';
@@ -106,6 +107,21 @@ export async function POST(
           }
         }
       );
+
+      // Also update the active Gestion status to quote_sent (any gestion)
+      await GestionModel.findOneAndUpdate(
+        { 
+          clientId: new mongoose.Types.ObjectId(clientId),
+          tenantId: new mongoose.Types.ObjectId(tenantId),
+          status: { $nin: ['won', 'lost'] }
+        },
+        { 
+          $set: { 
+            status: 'quote_sent',
+            updatedAt: new Date()
+          }
+        }
+      );
       
       return NextResponse.json({
         success: true,
@@ -136,6 +152,23 @@ export async function POST(
           }
         }
       );
+
+      // Also update the ACTIVE Gestion status to won (not lost, the one we're working on)
+      console.log('[document action] Looking for active gestion to update to won, clientId:', clientId);
+      const gestionUpdate = await GestionModel.findOneAndUpdate(
+        { 
+          clientId: new mongoose.Types.ObjectId(clientId),
+          tenantId: new mongoose.Types.ObjectId(tenantId),
+          status: { $nin: ['won', 'lost'] }
+        },
+        { 
+          $set: { 
+            status: 'won',
+            updatedAt: new Date()
+          }
+        }
+      );
+      console.log('[document action] Gestion updated to won:', gestionUpdate ? { _id: gestionUpdate._id, status: gestionUpdate.status } : 'NOT FOUND');
 
       // Only create WorkOrder for service sales (default behavior)
       if (!isProductSale) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
 import ClientModel from '@/crm/models/client';
+import GestionModel from '@/gestion/models/gestion';
 import WorkOrderModel from '@/operations/models/work-order';
 import { Types } from 'mongoose';
 import { getNextWorkOrderNumber } from '@/operations/helpers/counter';
@@ -45,6 +46,22 @@ export async function POST(
         status: 'active',
       },
     });
+
+    // Also update the active Gestion status to won
+    const gestionUpdate = await GestionModel.findOneAndUpdate(
+      { 
+        clientId: new Types.ObjectId(id),
+        tenantId: new Types.ObjectId(tenantId),
+        status: { $nin: ['won', 'lost'] }
+      },
+      { 
+        $set: { 
+          status: 'won',
+          updatedAt: new Date()
+        }
+      }
+    );
+    console.log('[confirm-sale-pdf] Gestion updated to won:', gestionUpdate ? { _id: gestionUpdate._id, status: gestionUpdate.status } : 'NOT FOUND');
 
     console.log('[confirm-sale-pdf] Cliente actualizado:', id, 'operationStatus: sale_confirmed');
 

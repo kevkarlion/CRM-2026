@@ -30,12 +30,14 @@ export async function GET(
       return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 });
     }
 
-    // Get latest Gestion for this client (active or closed)
-    // Show the most recent one so user always sees current status
+    // Get the ACTIVE Gestion for this client (the one not marked as lost - there should only be ONE)
     const latestGestion = await GestionModel.findOne({
       clientId: new Types.ObjectId(id),
       tenantId: new Types.ObjectId(tenantId),
-    }).sort({ createdAt: -1 }).lean();
+      status: { $ne: 'lost' }
+    }).lean();
+
+    console.log('[client route] Latest gestion:', latestGestion ? { _id: latestGestion._id, status: latestGestion.status, createdAt: latestGestion.createdAt } : 'NONE');
 
     // Get ALL gestions for this client (for history/cycles tab)
     const allGestions = await GestionModel.find({

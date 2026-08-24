@@ -6,6 +6,7 @@ import QuoteModel from '@/quotes/models/quote';
 import QuoteVersionModel from '@/quotes/models/quote-version';
 import ConversationModel from '@/conversation/models/conversation';
 import WhatsAppMessageModel from '@/crm/models/whatsapp-message';
+import GestionModel from '@/gestion/models/gestion';
 import { getNextQuoteNumber } from '@/quotes/helpers/counter';
 import WorkOrderModel from '@/operations/models/work-order';
 import { getNextWorkOrderNumber } from '@/operations/helpers/counter';
@@ -231,6 +232,32 @@ export class SaleConfirmationService {
             tenantId,
           });
         }
+      }
+
+      // 3b. Actualizar estado de Gestion del cliente a ganado (solo para clientes)
+      if (entityType === 'client' && clientId) {
+        const gestionUpdate = await GestionModel.findOneAndUpdate(
+          { 
+            clientId: new Types.ObjectId(clientId),
+            tenantId: new Types.ObjectId(tenantId),
+            status: { $nin: ['won', 'lost'] }
+          },
+          {
+            $set: {
+              status: 'won',
+              updatedAt: new Date(),
+            },
+          },
+          { session }
+        );
+        console.log('[ConfirmSale] Gestion updated to won:', gestionUpdate ? { _id: gestionUpdate._id, status: gestionUpdate.status } : 'NOT FOUND');
+
+        // Also update client's operationStatus
+        await ClientModel.updateOne(
+          { _id: new Types.ObjectId(clientId) },
+          { $set: { operationStatus: 'sale_confirmed', operationStatusUpdatedAt: new Date() } },
+          { session }
+        );
       }
 
       // 4. Crear la orden de trabajo (draft) para la venta confirmada

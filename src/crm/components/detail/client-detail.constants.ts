@@ -72,6 +72,7 @@ export const GESTION_STATUS_LABELS: Record<string, string> = {
   negotiation: 'Negociación',
   won: 'Ganado',
   lost: 'Perdido',
+  closed: 'Perdido', // Legacy fallback
   disqualified: 'Descalificado',
 };
 
@@ -83,6 +84,7 @@ export const GESTION_STATUS_VARIANT: Record<string, string> = {
   negotiation: 'bg-yellow-50 text-yellow-700',
   won: 'bg-success-50 text-success-700',
   lost: 'bg-danger-50 text-danger-700',
+  closed: 'bg-danger-50 text-danger-700', // Legacy fallback
   disqualified: 'bg-gray-100 text-gray-500',
 };
 
@@ -94,6 +96,7 @@ export const GESTION_STATUS_DOT_COLOR: Record<string, string> = {
   negotiation: 'bg-yellow-500',
   won: 'bg-success-500',
   lost: 'bg-danger-500',
+  closed: 'bg-danger-500', // Legacy fallback
   disqualified: 'bg-gray-400',
 };
 

@@ -248,7 +248,7 @@ export const gestionSyncHandler = {
         gestion = await GestionModel.findOne({
           clientId: new Types.ObjectId(clientId),
           tenantId: new Types.ObjectId(tenantId),
-          status: { $nin: ['won', 'lost', 'closed'] },
+          status: { $nin: ['won', 'lost'] },
         }).lean();
       }
 
@@ -349,7 +349,7 @@ export const gestionSyncHandler = {
         { _id: lead._id },
         { 
           $set: { 
-            status: 'closed', 
+            status: 'converted', 
             convertedToClient: new Types.ObjectId(finalClientId),
             convertedAt: new Date(),
             clientId: new Types.ObjectId(finalClientId),
@@ -357,7 +357,7 @@ export const gestionSyncHandler = {
           } 
         }
       );
-      console.log(`[GestionSync] LEAD_RESOLVED: Lead ${leadId} marked as closed, linked to client ${finalClientId}`);
+      console.log(`[GestionSync] LEAD_RESOLVED: Lead ${leadId} marked as converted, linked to client ${finalClientId}`);
 
       // 4. Migrar conversación de lead a cliente (NO cerrar, convertir)
       const ConversationModel = (await import('@/conversation/models/conversation')).default;
@@ -386,7 +386,7 @@ export const gestionSyncHandler = {
       const existingAnyGestion = await GestionModel.findOne({
         clientId: new Types.ObjectId(finalClientId),
         tenantId: new Types.ObjectId(tenantId),
-        status: { $nin: ['won', 'lost', 'closed'] },
+        status: { $nin: ['won', 'lost'] },
       });
 
       if (existingAnyGestion) {
@@ -429,10 +429,11 @@ export const gestionSyncHandler = {
     try {
       console.log(`[CLIENT_RESOLVED] 🔍 Looking for gestion for client ${clientId} tenant ${tenantId}`);
 
-      // 1. Buscar cualquier gestión (sin filtro de status)
+      // 1. Buscar la gestión ACTIVA (la que NO está lost) - debe haber solo 1
       const activeGestion = await GestionModel.findOne({
         clientId: new Types.ObjectId(clientId),
         tenantId: new Types.ObjectId(tenantId),
+        status: { $ne: 'lost' }
       }).sort({ createdAt: -1 });
 
       console.log('[CLIENT_RESOLVED] 🔍 Gestion found:', activeGestion ? {
@@ -442,8 +443,8 @@ export const gestionSyncHandler = {
         tenantId: activeGestion.tenantId,
       } : 'NONE');
 
-      // Verificar si es elegible para cerrar (no closed ni lost)
-      const isEligible = activeGestion && !['closed', 'lost'].includes(activeGestion.status);
+      // Verificar si es elegible para cerrar (no lost)
+      const isEligible = activeGestion && !['lost'].includes(activeGestion.status);
       console.log('[CLIENT_RESOLVED] 🔍 Is eligible for close:', isEligible, 'status:', activeGestion?.status);
 
       // Obtener datos del cliente
@@ -487,7 +488,7 @@ export const gestionSyncHandler = {
           { _id: activeGestion._id },
           { 
             $set: { 
-              status: 'closed', 
+              status: 'lost', 
               updatedBy: resolvedBy,
             },
             $push: { history: historyEntry }
@@ -496,7 +497,7 @@ export const gestionSyncHandler = {
         
         // Agregar el nuevo entry al historial a copiar
         historyToSave = [...existingHistory, historyEntry];
-        console.log(`[CLIENT_RESOLVED] ✅ Gestion ${activeGestion._id} closed, history saved. Total history:`, historyToSave);
+        console.log(`[CLIENT_RESOLVED] ✅ Gestion ${activeGestion._id} marked as lost, history saved. Total history:`, historyToSave);
       } else if (activeGestion) {
         console.log(`[CLIENT_RESOLVED] ⚠️ Gestion already closed/lost (${activeGestion.status}), just creating new one`);
       } else {
@@ -519,13 +520,18 @@ export const gestionSyncHandler = {
           address: client?.address,
           locality: client?.locality,
           province: client?.province,
-          status: 'new',
+          status: 'contacted', // Nueva gestión siempre empieza en contacted
           qualificationStatus: 'pending',
           history: historyToSave,
           createdBy: resolvedBy,
           updatedBy: resolvedBy,
+          createdAt: new Date(), // Ensure it's the most recent
         });
-        console.log(`[CLIENT_RESOLVED] ✅ New Gestion created: ${newGestion._id} with history:`, newGestion.history);
+        console.log(`[CLIENT_RESOLVED] ✅ New Gestion created: ${newGestion._id} status=${newGestion.status} createdAt=${newGestion.createdAt}`);
+        
+        // Verify it was created
+        const verify = await GestionModel.findById(newGestion._id);
+        console.log('[CLIENT_RESOLVED] 🔍 Verify new gestion:', verify ? { _id: verify._id, status: verify.status } : 'NOT FOUND');
 
         // 4. Resetear el flujo del bot para el cliente (nuevo ciclo)
         // Esto hace que el bot arrancque fresco sin esperar 48hs
