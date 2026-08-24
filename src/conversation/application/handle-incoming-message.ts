@@ -570,6 +570,8 @@ export class HandleIncomingMessageUseCase {
     const isClientFlow = conversation.conversationType === 'customer';
     const isTerminal = newState === 'summary' || newState === 'waiting_operator' || newState === null;
     
+    console.log('[HandleIncoming] DEBUG isTerminal check:', { newState, isTerminal, currentState: conversation.state });
+    
     if (isTerminal) {
       console.log('[HandleIncoming] Flow completed (terminal), closing conversation', isSuppliersFlow ? '(suppliers - no lead)' : '', isClientFlow ? '(client)' : '');
       
