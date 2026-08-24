@@ -15,10 +15,10 @@ export interface FindOrCreateResult {
 
 export class ConversationService {
 /**
-    * Busca una conversación existente o crea una nueva
-    * (el flow nuevo de 7 ramas)
-* Retorna la conversación y un flag indicando si es nueva
-   */
+ * Busca una conversación existente o crea una nueva
+ * (el flow nuevo de 7 ramas)
+ * Retorna la conversación y un flag indicando si es nueva
+ */
   async findOrCreate(input: CreateConversationInput): Promise<FindOrCreateResult> {
     const { tenantId, leadId, clientId, phone } = input;
     
