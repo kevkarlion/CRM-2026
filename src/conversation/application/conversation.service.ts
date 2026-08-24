@@ -69,6 +69,38 @@ export class ConversationService {
     // Si existe y no está cerrada, retornarla
     if (existing) {
       console.log('[ConversationService] Found existing active conversation:', existing.state, '| type:', existing.conversationType);
+      
+      // Si es cliente y no tiene datos en el contexto, actualizar
+      // Usar existing.conversationType en vez del parámetro
+      if (clientId && existing.conversationType === 'customer') {
+        const clientData = await ClientModel.findById(clientId).lean();
+        if (clientData) {
+          const updates: any = {};
+          if (clientData.fullName && !existing.context?.customerName) {
+            updates['context.customerName'] = clientData.fullName;
+          }
+          if (clientData.address && !existing.context?.customerAddress) {
+            updates['context.customerAddress'] = clientData.address;
+          }
+          if (clientData.locality && !existing.context?.customerLocality) {
+            updates['context.customerLocality'] = clientData.locality;
+          }
+          if (clientData.province && !existing.context?.customerProvince) {
+            updates['context.customerProvince'] = clientData.province;
+          }
+          
+          if (Object.keys(updates).length > 0) {
+            await ConversationModel.updateOne({ _id: existing._id }, { $set: updates });
+            console.log('[ConversationService] Updated existing conversation with client data:', Object.keys(updates));
+            // Recargar para devolver datos frescos
+            const updated = await ConversationModel.findById(existing._id).lean();
+            if (updated) {
+              return { conversation: this.toConversation(updated), isNew: false };
+            }
+          }
+        }
+      }
+      
       return { conversation: this.toConversation(existing), isNew: false };
     }
 

@@ -352,6 +352,9 @@ export async function processWhatsAppWebhookMessage(
       try {
         await ConversationModel.updateOne({ _id: conversation._id }, { $set: updates });
         console.log('[WebhookIntegration] Updated conversation with client data:', Object.keys(updates));
+        
+        // Recargar conversación para que tenga los datos frescos
+        conversation = await ConversationModel.findById(conversation._id).lean();
       } catch (e) {
         console.error('[WebhookIntegration] Error updating conversation:', e);
       }
