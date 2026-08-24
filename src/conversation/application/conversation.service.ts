@@ -15,76 +15,20 @@ export interface FindOrCreateResult {
 
 export class ConversationService {
 /**
- * Busca una conversación existente o crea una nueva
- * (el flow nuevo de 7 ramas)
- * Retorna la conversación y un flag indicando si es nueva
- */
+    * Busca una conversación existente o crea una nueva
+    * (el flow nuevo de 7 ramas)
+    * Retorna la conversación y un flag indicando si es nueva
+    */
   async findOrCreate(input: CreateConversationInput): Promise<FindOrCreateResult> {
     const { tenantId, leadId, clientId, phone } = input;
     
-    // ============================================================
-    // SOLO para CLIENTE: buscar por clientId directamente
-    // Si hay conversación activa, usarla. Si no, crear nueva.
-    // ============================================================
-    if (clientId) {
-      console.log('[ConversationService] CLIENT FLOW - checking by clientId:', clientId);
-      
-      // Buscar SIEMPRE la más reciente (sin importar estado) y verificar si está activa
-      const latestConversation = await ConversationModel.findOne({
-        tenantId: new Types.ObjectId(tenantId),
-        $or: [
-          { 'context.clientId': clientId },
-          { 'engineData.clientId': clientId },
-          { leadId: new Types.ObjectId(clientId) }
-        ],
-      }).sort({ lastMessageAt: -1 });
-      
-      console.log('[ConversationService] DEBUG latest conversation:', {
-        id: latestConversation?._id,
-        state: latestConversation?.state,
-        closedAt: latestConversation?.closedAt
-      });
-      
-// Si hay conversación y está ABIERTA, usarla
-      if (latestConversation && !['closed', 'human_assigned'].includes(latestConversation.state)) {
-        console.log('[ConversationService] CLIENT - using active conversation:', latestConversation._id, 'state:', latestConversation.state);
-        
-        // Obtener datos frescos del cliente (NO guardar en conversación, usar directamente)
-        const clientData = await ClientModel.findById(clientId).lean();
-        console.log('[ConversationService] DEBUG clientData:', { fullName: clientData?.fullName, address: clientData?.address });
-        
-        // Actualizar solo userName (para mostrar en respuestas)
-        await ConversationModel.updateOne(
-          { _id: latestConversation._id }, 
-          { $set: { 'context.userName': clientData?.fullName } }
-        );
-        
-        // Pasar customerAddress en el contexto para que HandleIncoming lo use
-        const contextWithAddress = {
-          ...latestConversation.context,
-          userName: clientData?.fullName,
-          customerAddress: clientData?.address,
-        };
-        
-        const updated = await ConversationModel.findById(latestConversation._id).lean();
-        return { 
-          conversation: { ...this.toConversation(updated!), context: contextWithAddress }, 
-          isNew: false 
-        };
-      }
-      
-      // La última conversación está CERRADA o no hay
-      // Devolver la conversación cerrada para que HandleIncoming decidа qué hacer
-      console.log('[ConversationService] CLIENT - last conversation is closed or not found');
-      return { 
-        conversation: this.toConversation(latestConversation!), 
-        isNew: false 
-      };
-    }
+    // Construir query de búsqueda según qué datos tengamos
+    let searchQuery: any = { tenantId: new Types.ObjectId(tenantId) };
     
-    // ============================================================
-    // Para LEADS: buscar conversación previa (comportamiento normal)
-    // ============================================================
+    // Si es cliente (tiene clientId o phone), buscar por phone/cliente
+    // Si es lead (tiene leadId), buscar por leadId
+    let conversationType: 'lead' | 'customer' = 'lead';
+    let lifecycleState = 'ACTIVE_LEAD';
     
     if (clientId || (phone && !leadId)) {
       // Es cliente - buscar por teléfono
@@ -113,11 +57,7 @@ export class ConversationService {
       }
     } else if (leadId) {
       // Es lead - buscar por leadId
-      searchQuery = {
-        tenantId: new Types.ObjectId(tenantId),
-        leadId: new Types.ObjectId(leadId),
-        conversationType: 'lead',
-      };
+      searchQuery.leadId = new Types.ObjectId(leadId);
     }
     
     // Primero buscar si existe una conversación activa (no cerrada)
@@ -129,39 +69,6 @@ export class ConversationService {
     // Si existe y no está cerrada, retornarla
     if (existing) {
       console.log('[ConversationService] Found existing active conversation:', existing.state, '| type:', existing.conversationType);
-      
-      // Si es cliente (conversación existente es de tipo customer) y no tiene datos en el contexto, actualizar
-      // Buscar clientId: puede venir como parámetro O estar en engineData
-      const effectiveClientId = clientId || (existing.engineData as any)?.clientId;
-      if (effectiveClientId && existing.conversationType === 'customer') {
-        const clientData = await ClientModel.findById(effectiveClientId).lean();
-        if (clientData) {
-          const updates: any = {};
-          if (clientData.fullName && !existing.context?.customerName) {
-            updates['context.customerName'] = clientData.fullName;
-          }
-          if (clientData.address && !existing.context?.customerAddress) {
-            updates['context.customerAddress'] = clientData.address;
-          }
-          if (clientData.locality && !existing.context?.customerLocality) {
-            updates['context.customerLocality'] = clientData.locality;
-          }
-          if (clientData.province && !existing.context?.customerProvince) {
-            updates['context.customerProvince'] = clientData.province;
-          }
-          
-          if (Object.keys(updates).length > 0) {
-            await ConversationModel.updateOne({ _id: existing._id }, { $set: updates });
-            console.log('[ConversationService] Updated existing conversation with client data:', Object.keys(updates));
-            // Recargar para devolver datos frescos
-            const updated = await ConversationModel.findById(existing._id).lean();
-            if (updated) {
-              return { conversation: this.toConversation(updated), isNew: false };
-            }
-          }
-        }
-      }
-      
       return { conversation: this.toConversation(existing), isNew: false };
     }
 
@@ -272,8 +179,6 @@ export class ConversationService {
    * Actualiza una conversación por ID
    */
   async update(conversationId: string, updates: UpdateConversationInput): Promise<Conversation> {
-    console.log('[ConversationService.update] CALLED with:', { conversationId, updates });
-    
     // Separar context del resto para usar dot notation (Mongoose $set + subdocument bug)
     const { context, ...rest } = updates;
     const setOps: Record<string, unknown> = { ...rest };
@@ -286,8 +191,6 @@ export class ConversationService {
       }
     }
 
-    console.log('[ConversationService.update] setOps:', setOps);
-    
     const doc = await ConversationModel.findByIdAndUpdate(
       new Types.ObjectId(conversationId),
       { $set: setOps },
