@@ -745,36 +745,38 @@ export class HandleIncomingMessageUseCase {
       return actions;
     }
 
-    // Update client with new address - se ejecuta siempre, después del scoring
+    // Update client/lead with new address - solo cuando el flow termina
     const newAddress = (updatedContext as any).location || (updatedContext as any).address;
-    const convEngineData = conversation.engineData as Record<string, unknown> || {};
-    const clientIdFromConversation = convEngineData.clientId as string | undefined;
-    const leadIdFromConversation = convEngineData.leadId as string | undefined;
+    const clientIdFromConversation = conversation.clientId as string | undefined;
+    const leadIdFromConversation = conversation.leadId as string | undefined;
 
-    console.log('[HandleIncoming] 💾 Save address - newAddress:', newAddress, '| clientId:', clientIdFromConversation, '| leadId:', leadIdFromConversation);
+    // Solo guardar dirección al final del flow
+    if ((newState === 'summary' || newState === 'waiting_operator') && newAddress) {
+      console.log('[HandleIncoming] 💾 Flow completed - saving address:', newAddress, '| clientId:', clientIdFromConversation, '| leadId:', leadIdFromConversation);
 
-    // Guardar dirección en cliente si existe
-    if (clientIdFromConversation && newAddress) {
-      console.log('[HandleIncoming] 💾 Saving address to CLIENT:', clientIdFromConversation, 'address:', newAddress);
-      actions.push({
-        type: 'update_client',
-        clientId: clientIdFromConversation,
-        updates: {
-          address: newAddress,
-        },
-      });
-    }
+      // Guardar dirección en cliente si existe
+      if (clientIdFromConversation) {
+        console.log('[HandleIncoming] 💾 Saving address to CLIENT:', clientIdFromConversation, 'address:', newAddress);
+        actions.push({
+          type: 'update_client',
+          clientId: clientIdFromConversation,
+          updates: {
+            address: newAddress,
+          },
+        });
+      }
 
-    // Guardar dirección en lead si existe
-    if (leadIdFromConversation && newAddress) {
-      console.log('[HandleIncoming] 💾 Saving address to LEAD:', leadIdFromConversation, 'address:', newAddress);
-      actions.push({
-        type: 'update_lead',
-        leadId: leadIdFromConversation,
-        updates: {
-          address: newAddress,
-        },
-      });
+      // Guardar dirección en lead si existe
+      if (leadIdFromConversation) {
+        console.log('[HandleIncoming] 💾 Saving address to LEAD:', leadIdFromConversation, 'address:', newAddress);
+        actions.push({
+          type: 'update_lead',
+          leadId: leadIdFromConversation,
+          updates: {
+            address: newAddress,
+          },
+        });
+      }
     }
 
     // 9. Compone y retorna la respuesta para el estado actual
