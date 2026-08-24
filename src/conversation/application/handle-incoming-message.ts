@@ -594,6 +594,19 @@ export class HandleIncomingMessageUseCase {
         type: 'close_conversation',
         conversationId: conversation._id,
       });
+
+      // Guardar dirección al final del flow (cliente)
+      const clientNewAddress = (updatedContext as any).location || (updatedContext as any).address;
+      const clientIdFromConversation = conversation.clientId as string | undefined;
+
+      if (clientIdFromConversation && clientNewAddress) {
+        console.log('[HandleIncoming] 💾 Saving address to CLIENT:', clientIdFromConversation, 'address:', clientNewAddress);
+        actions.push({
+          type: 'update_client',
+          clientId: clientIdFromConversation,
+          updates: { address: clientNewAddress },
+        });
+      }
     }
 
     // 8. Si llegamos a evaluate, calcular score

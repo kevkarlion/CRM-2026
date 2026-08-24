@@ -313,22 +313,24 @@ export async function processWhatsAppWebhookMessage(
 
   // Si es cliente y la conversación no tiene clientId, actualizarlo
   // También cargar datos del cliente (dirección) si no están en el contexto
-  if (conversation && clientId) {
+  // Usar engineData.clientId como fallback porque puede estar ahí pero no en el campo principal
+  const effectiveClientId = clientId || (conversation?.engineData as any)?.clientId;
+  if (conversation && effectiveClientId) {
     // Import ClientModel here to avoid circular deps
     const { default: ClientModel } = await import('@/crm/models/client');
     
     // Cargar datos del cliente
     let clientData: { fullName?: string; address?: string; locality?: string; province?: string } | null = null;
     try {
-      clientData = await ClientModel.findById(clientId).lean() as typeof clientData;
+      clientData = await ClientModel.findById(effectiveClientId).lean() as typeof clientData;
     } catch (e) {
       console.error('[WebhookIntegration] Error loading client data:', e);
     }
 
     const updates: any = {};
     if (!conversation.clientId) {
-      updates.clientId = new Types.ObjectId(clientId);
-      updates['context.clientId'] = clientId;
+      updates.clientId = new Types.ObjectId(effectiveClientId);
+      updates['context.clientId'] = effectiveClientId;
       updates['context.isCustomer'] = true;
     }
 
