@@ -23,11 +23,37 @@ export class ConversationService {
     const { tenantId, leadId, clientId, phone } = input;
     
     // ============================================================
-    // SOLO para CLIENTE: NO buscar conversación previa
-    // Siempre crear nueva con datos frescos del cliente desde DB
+    // SOLO para CLIENTE: verificar si hay conversación activa
+    // Si hay, usarla (actualizar datos). Si no, crear nueva.
     // ============================================================
     if (clientId) {
-      console.log('[ConversationService] CLIENT FLOW - creating new conversation with fresh client data');
+      console.log('[ConversationService] CLIENT FLOW - checking for active conversation');
+      
+      // Buscar si hay conversación activa para este cliente
+      const activeConversation = await ConversationModel.findOne({
+        tenantId: new Types.ObjectId(tenantId),
+        phoneNumber: { $regex: `(549)?${phone.replace(/\D/g, '').slice(-9)}$` },
+        conversationType: 'customer',
+        state: { $nin: ['closed', 'human_assigned'] },
+      }).sort({ lastMessageAt: -1 });
+      
+      if (activeConversation) {
+        console.log('[ConversationService] CLIENT - found active conversation, using it:', activeConversation._id);
+        // Actualizar datos del cliente en la conversación existente
+        const clientData = await ClientModel.findById(clientId).lean();
+        const updates: any = {
+          'context.userName': clientData?.fullName,
+          'context.address': clientData?.address,
+        };
+        await ConversationModel.updateOne({ _id: activeConversation._id }, { $set: updates });
+        
+        // Recargar y devolver
+        const updated = await ConversationModel.findById(activeConversation._id).lean();
+        return { conversation: this.toConversation(updated!), isNew: false };
+      }
+      
+      // No hay conversación activa - crear nueva con datos frescos
+      console.log('[ConversationService] CLIENT - no active conversation, creating new one');
       
       const clientData = await ClientModel.findById(clientId).lean();
       
