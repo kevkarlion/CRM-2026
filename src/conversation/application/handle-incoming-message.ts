@@ -793,11 +793,27 @@ export class HandleIncomingMessageUseCase {
         console.log('[HandleIncoming] calling conversationService.update with state: closed');
         
         try {
+          // Cerrar la conversación actual
           const updateResult = await conversationService.update(conversation._id, {
             state: 'closed',
             closedAt: new Date(),
           });
           console.log('[HandleIncoming] updateResult:', updateResult);
+          
+          // CERRAR TODAS las demás conversaciones de este teléfono que estén abiertas
+          console.log('[HandleIncoming] Closing all other conversations for phone:', conversation.phoneNumber);
+          await ConversationModel.updateMany(
+            { 
+              phoneNumber: conversation.phoneNumber,
+              _id: { $ne: conversation._id },
+              state: { $nin: ['closed', 'human_assigned'] }
+            },
+            { 
+              state: 'closed',
+              closedAt: new Date()
+            }
+          );
+          console.log('[HandleIncoming] All other conversations closed');
         } catch (err) {
           console.log('[HandleIncoming] ERROR closing conversation:', err);
         }
