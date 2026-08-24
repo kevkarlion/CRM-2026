@@ -555,8 +555,11 @@ export class HandleIncomingMessageUseCase {
       ? conversation.exchangesInSameState + 1
       : 0;
 
+    // Actualizar estado - si es terminal (null), usar 'closed'
+    const stateToSave = (newState === null) ? 'closed' : newState;
+    
     await conversationService.update(conversation._id, {
-      state: newState,
+      state: stateToSave,
       previousState: conversation.state,
       context: updatedContext,
       fallbackCount: newFallbackCount,
