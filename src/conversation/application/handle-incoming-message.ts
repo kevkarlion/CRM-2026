@@ -473,6 +473,18 @@ export class HandleIncomingMessageUseCase {
       newState = 'location_asked';
     }
     
+    // FIX: Cliente SIN dirección en DB → pedir nueva (no confirmar)
+    // Cliente CON dirección en DB → confirmar
+    if (isCustomer && newState === 'address_confirm') {
+      const clienteTieneDireccion = (updatedContext as any).customerAddress;
+      if (!clienteTieneDireccion) {
+        console.log('[HandleIncoming] CUSTOMER has NO address - changing to location_asked');
+        newState = 'location_asked';
+      } else {
+        console.log('[HandleIncoming] CUSTOMER has address - confirming');
+      }
+    }
+    
     // FIX: Para leads, después de location_asked ir a name, no a evaluate
     // El flow de lead es: detail → location_asked → name → summary
     if (isLead && newState === 'evaluate' && conversation.state === 'location_asked') {
