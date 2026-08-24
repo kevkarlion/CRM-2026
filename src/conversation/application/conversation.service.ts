@@ -40,32 +40,29 @@ export class ConversationService {
       
       if (activeConversation) {
         console.log('[ConversationService] CLIENT - found active conversation:', activeConversation._id);
-        console.log('[ConversationService] DEBUG conversation.context BEFORE update:', JSON.stringify(activeConversation.context));
         
-        // Actualizar datos del cliente en la conversación existente
+        // Obtener datos frescos del cliente (NO guardar en conversación, usar directamente)
         const clientData = await ClientModel.findById(clientId).lean();
-        console.log('[ConversationService] DEBUG clientData from DB:', JSON.stringify({
-          fullName: clientData?.fullName,
-          address: clientData?.address,
-        }));
+        console.log('[ConversationService] DEBUG clientData:', { fullName: clientData?.fullName, address: clientData?.address });
         
-        const updates: any = {
-          'context.userName': clientData?.fullName,
-          'context.customerAddress': clientData?.address,
+        // Actualizar solo userName (para mostrar en respuestas)
+        await ConversationModel.updateOne(
+          { _id: activeConversation._id }, 
+          { $set: { 'context.userName': clientData?.fullName } }
+        );
+        
+        // Pasar customerAddress en el contexto para que HandleIncoming lo use
+        const contextWithAddress = {
+          ...activeConversation.context,
+          userName: clientData?.fullName,
+          customerAddress: clientData?.address,
         };
-        console.log('[ConversationService] DEBUG updates to apply:', JSON.stringify(updates));
         
-        const updateResult = await ConversationModel.updateOne({ _id: activeConversation._id }, { $set: updates });
-        console.log('[ConversationService] DEBUG updateOne result:', JSON.stringify({
-          matchedCount: updateResult.matchedCount,
-          modifiedCount: updateResult.modifiedCount,
-          acknowledged: updateResult.acknowledged,
-        }));
-        
-        // Recargar y devolver
         const updated = await ConversationModel.findById(activeConversation._id).lean();
-        console.log('[ConversationService] DEBUG conversation.context AFTER update:', JSON.stringify(updated?.context));
-        return { conversation: this.toConversation(updated!), isNew: false };
+        return { 
+          conversation: { ...this.toConversation(updated!), context: contextWithAddress }, 
+          isNew: false 
+        };
       }
       
       // No hay conversación activa - crear nueva con datos frescos
