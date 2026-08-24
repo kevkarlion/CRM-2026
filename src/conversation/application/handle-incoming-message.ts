@@ -565,13 +565,13 @@ export class HandleIncomingMessageUseCase {
       step: conversation.step + 1,
     });
 
-    // 7.1. Si el flujo de 7 ramas se completó (summary o waiting_operator), emitir LeadFlowCompleted
-    // EXCEPTO para suppliers_info (opción 7) - no es un lead, solo información de contacto
+    // Cerrar conversación - también cuando newState es null (terminal)
     const isSuppliersFlow = conversation.state === 'suppliers_info';
     const isClientFlow = conversation.conversationType === 'customer';
+    const isTerminal = newState === 'summary' || newState === 'waiting_operator' || newState === null;
     
-    if (newState === 'summary' || newState === 'waiting_operator') {
-      console.log('[HandleIncoming] Flow completed, closing conversation', isSuppliersFlow ? '(suppliers - no lead)' : '', isClientFlow ? '(client - no lead)' : '');
+    if (isTerminal) {
+      console.log('[HandleIncoming] Flow completed (terminal), closing conversation', isSuppliersFlow ? '(suppliers - no lead)' : '', isClientFlow ? '(client)' : '');
       
       // Solo emitir LeadFlowCompleted si hay leadId Y no es flow de cliente
       if (!isSuppliersFlow && !isClientFlow && input.leadId) {
