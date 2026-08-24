@@ -98,8 +98,10 @@ export class HandleIncomingMessageUseCase {
       const closedAt = conversation.closedAt ? new Date(conversation.closedAt).getTime() : 0;
       const fortyEightHoursAgo = Date.now() - (48 * 60 * 60 * 1000);
       
-      // Si pasaron más de 48hs, reiniciar el flujo
-      if (closedAt < fortyEightHoursAgo) {
+      console.log('[HandleIncoming] DEBUG closed state - closedAt:', closedAt, '| 48hs ago:', fortyEightHoursAgo);
+      
+      // Solo reiniciar si closedAt es válido Y pasaron más de 48hs
+      if (closedAt > 0 && closedAt < fortyEightHoursAgo) {
         console.log('[HandleIncoming] 48h passed since closure, restarting flow');
         
         // Reiniciar conversación a greeting_personalized
