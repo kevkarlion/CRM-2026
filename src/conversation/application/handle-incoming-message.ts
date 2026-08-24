@@ -802,7 +802,7 @@ export class HandleIncomingMessageUseCase {
           
           // CERRAR TODAS las demás conversaciones de este teléfono que estén abiertas
           console.log('[HandleIncoming] Closing all other conversations for phone:', conversation.phoneNumber);
-          await ConversationModel.updateMany(
+          await conversationService.updateMany(
             { 
               phoneNumber: conversation.phoneNumber,
               _id: { $ne: conversation._id },

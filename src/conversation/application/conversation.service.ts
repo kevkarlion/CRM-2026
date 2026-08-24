@@ -23,23 +23,30 @@ export class ConversationService {
     const { tenantId, leadId, clientId, phone } = input;
     
     // ============================================================
-    // SOLO para CLIENTE: verificar si hay conversación activa
-    // Si hay, usarla (actualizar datos). Si no, crear nueva.
+    // SOLO para CLIENTE: buscar por clientId directamente
+    // Si hay conversación activa, usarla. Si no, crear nueva.
     // ============================================================
     if (clientId) {
-      console.log('[ConversationService] CLIENT FLOW - checking for active conversation');
-      console.log('[ConversationService] DEBUG clientId:', clientId);
+      console.log('[ConversationService] CLIENT FLOW - checking by clientId:', clientId);
       
-      // Buscar si hay conversación activa para este cliente
-      const activeConversation = await ConversationModel.findOne({
+      // Buscar SIEMPRE la más reciente (sin importar estado) y verificar si está activa
+      const latestConversation = await ConversationModel.findOne({
         tenantId: new Types.ObjectId(tenantId),
-        phoneNumber: { $regex: `(549)?${phone.replace(/\D/g, '').slice(-9)}$` },
-        conversationType: 'customer',
-        state: { $nin: ['closed', 'human_assigned'] },
+        $or: [
+          { 'context.clientId': clientId },
+          { leadId: new Types.ObjectId(clientId) }
+        ],
       }).sort({ lastMessageAt: -1 });
       
-      if (activeConversation) {
-        console.log('[ConversationService] CLIENT - found active conversation:', activeConversation._id);
+      console.log('[ConversationService] DEBUG latest conversation:', {
+        id: latestConversation?._id,
+        state: latestConversation?.state,
+        closedAt: latestConversation?.closedAt
+      });
+      
+// Si hay conversación y está ABIERTA, usarla
+      if (latestConversation && !['closed', 'human_assigned'].includes(latestConversation.state)) {
+        console.log('[ConversationService] CLIENT - using active conversation:', latestConversation._id, 'state:', latestConversation.state);
         
         // Obtener datos frescos del cliente (NO guardar en conversación, usar directamente)
         const clientData = await ClientModel.findById(clientId).lean();
@@ -47,60 +54,36 @@ export class ConversationService {
         
         // Actualizar solo userName (para mostrar en respuestas)
         await ConversationModel.updateOne(
-          { _id: activeConversation._id }, 
+          { _id: latestConversation._id }, 
           { $set: { 'context.userName': clientData?.fullName } }
         );
         
         // Pasar customerAddress en el contexto para que HandleIncoming lo use
         const contextWithAddress = {
-          ...activeConversation.context,
+          ...latestConversation.context,
           userName: clientData?.fullName,
           customerAddress: clientData?.address,
         };
         
-        const updated = await ConversationModel.findById(activeConversation._id).lean();
+        const updated = await ConversationModel.findById(latestConversation._id).lean();
         return { 
           conversation: { ...this.toConversation(updated!), context: contextWithAddress }, 
           isNew: false 
         };
       }
       
-      // No hay conversación activa - crear nueva con datos frescos
-      console.log('[ConversationService] CLIENT - no active conversation, creating new one');
-      
-      const clientData = await ClientModel.findById(clientId).lean();
-      
-      const now = new Date();
-      const conversationData: any = {
-        tenantId: new Types.ObjectId(tenantId),
-        state: 'greeting_personalized',
-        conversationType: 'customer',
-        lifecycleState: 'ACTIVE_CLIENT',
-        phoneNumber: phone,
-        context: {
-          hasEmergencyKeywords: false,
-          hasProjectKeywords: false,
-          messageContainsData: false,
-          userAskedForHuman: false,
-          userName: clientData?.fullName,
-          customerAddress: clientData?.address,
-        },
-        step: 0,
-        fallbackCount: 0,
-        timeoutCount: 0,
-        exchangesInSameState: 0,
-        lastMessageAt: now,
-        lastActivityAt: now,
-        startedAt: now,
-        owner: 'BOT',
+      // La última conversación está CERRADA o no hay
+      // Devolver la conversación cerrada para que HandleIncoming decidа qué hacer
+      console.log('[ConversationService] CLIENT - last conversation is closed or not found');
+      return { 
+        conversation: this.toConversation(latestConversation!), 
+        isNew: false 
       };
-      
-      // Agregar leadId si existe (aunque sea cliente puede tener leadId del lead original)
-      if (leadId) {
-        conversationData.leadId = new Types.ObjectId(leadId);
-      }
-      
-      const newConversation = await ConversationModel.create(conversationData);
+    }
+    
+    // ============================================================
+    // Para LEADS: buscar conversación previa (comportamiento normal)
+    // ============================================================
       console.log('[ConversationService] Created new conversation for client with fresh data:', {
         conversationId: newConversation._id,
         clientId,
