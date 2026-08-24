@@ -28,6 +28,7 @@ export class ConversationService {
     // ============================================================
     if (clientId) {
       console.log('[ConversationService] CLIENT FLOW - checking for active conversation');
+      console.log('[ConversationService] DEBUG clientId:', clientId);
       
       // Buscar si hay conversación activa para este cliente
       const activeConversation = await ConversationModel.findOne({
@@ -38,17 +39,27 @@ export class ConversationService {
       }).sort({ lastMessageAt: -1 });
       
       if (activeConversation) {
-        console.log('[ConversationService] CLIENT - found active conversation, using it:', activeConversation._id);
+        console.log('[ConversationService] CLIENT - found active conversation:', activeConversation._id);
+        console.log('[ConversationService] DEBUG conversation.context BEFORE update:', JSON.stringify(activeConversation.context));
+        
         // Actualizar datos del cliente en la conversación existente
         const clientData = await ClientModel.findById(clientId).lean();
+        console.log('[ConversationService] DEBUG clientData from DB:', JSON.stringify({
+          fullName: clientData?.fullName,
+          address: clientData?.address,
+        }));
+        
         const updates: any = {
           'context.userName': clientData?.fullName,
           'context.customerAddress': clientData?.address,
         };
+        console.log('[ConversationService] DEBUG updates to apply:', JSON.stringify(updates));
+        
         await ConversationModel.updateOne({ _id: activeConversation._id }, { $set: updates });
         
         // Recargar y devolver
         const updated = await ConversationModel.findById(activeConversation._id).lean();
+        console.log('[ConversationService] DEBUG conversation.context AFTER update:', JSON.stringify(updated?.context));
         return { conversation: this.toConversation(updated!), isNew: false };
       }
       
