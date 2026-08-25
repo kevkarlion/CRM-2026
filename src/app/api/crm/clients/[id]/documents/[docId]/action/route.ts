@@ -170,45 +170,54 @@ export async function POST(
       );
       console.log('[document action] Gestion updated to won:', gestionUpdate ? { _id: gestionUpdate._id, status: gestionUpdate.status } : 'NOT FOUND');
 
+      // Declare variables for workOrder outside the if block
+      let workOrder: any = undefined;
+      let workOrderNumber: string | undefined = undefined;
+
       // Only create WorkOrder for service sales (default behavior)
       if (!isProductSale) {
         // Create work order in draft status
         const tenantPrefix = tenantId.slice(-6);
-        const workOrderNumber = await getNextWorkOrderNumber(tenantPrefix);
+        workOrderNumber = await getNextWorkOrderNumber(tenantPrefix);
 
-        const [workOrder] = await WorkOrderModel.create([{
-          tenantId: new mongoose.Types.ObjectId(tenantId),
-          clientId: client._id,
-          quoteId: new mongoose.Types.ObjectId(quoteId),
-          clientSnapshot: {
-            name: clientName,
-            email: client.email,
-            phone: client.phone,
-            companyName: client.companyName || '',
-            customerType: client.customerType || 'residential',
-            status: 'active',
-          },
-          locationSnapshot: {
-            name: clientName,
-            address: client.address || '',
-          },
-          source: 'direct_sale',
-          category: 'installation',
-          workOrderNumber,
-          title: `Venta: ${clientName}`,
-          description: `Venta generada desde documento PDF para cliente #${client._id}`,
-          status: 'draft',
-          priority: 'normal',
-          createdBy: userId ? new mongoose.Types.ObjectId(userId) : new mongoose.Types.ObjectId(),
-          updatedBy: userId ? new mongoose.Types.ObjectId(userId) : new mongoose.Types.ObjectId(),
-        }]);
+        try {
+          [workOrder] = await WorkOrderModel.create([{
+            tenantId: new mongoose.Types.ObjectId(tenantId),
+            clientId: client._id,
+            quoteId: new mongoose.Types.ObjectId(quoteId),
+            clientSnapshot: {
+              name: clientName,
+              email: client.email,
+              phone: client.phone,
+              companyName: client.companyName || '',
+              customerType: client.customerType || 'residential',
+              status: 'active',
+            },
+            locationSnapshot: {
+              name: clientName,
+              address: client.address || '',
+            },
+            source: 'direct_sale',
+            category: 'installation',
+            workOrderNumber,
+            title: `Venta: ${clientName}`,
+            description: `Venta generada desde documento PDF para cliente #${client._id}`,
+            status: 'draft',
+            priority: 'normal',
+            createdBy: userId ? new mongoose.Types.ObjectId(userId) : new mongoose.Types.ObjectId(),
+            updatedBy: userId ? new mongoose.Types.ObjectId(userId) : new mongoose.Types.ObjectId(),
+          }]);
 
-        // Link the work order to the quote
-        const QuoteModel = (await import('@/quotes/models/quote')).default;
-        await QuoteModel.updateOne(
-          { _id: new mongoose.Types.ObjectId(quoteId) },
-          { $set: { convertedToWorkOrder: workOrder._id } }
-        );
+          // Link the work order to the quote
+          const QuoteModel = (await import('@/quotes/models/quote')).default;
+          await QuoteModel.updateOne(
+            { _id: new mongoose.Types.ObjectId(quoteId) },
+            { $set: { convertedToWorkOrder: workOrder._id } }
+          );
+        } catch (woError) {
+          console.error('[client-document-action] WorkOrder creation failed:', woError);
+          throw woError;
+        }
       }
 
       // Always publish SALE_CONFIRMED event (for Activity tab)
