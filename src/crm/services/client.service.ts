@@ -1,5 +1,5 @@
 import { Types } from 'mongoose';
-import { ClientModel, ContactModel, LocationModel, EquipmentModel, TaskModel } from '../models';
+import { ClientModel, ContactModel, LocationModel, EquipmentModel, TaskModel, GestionModel } from '../models';
 import { cursorPage } from '../helpers/cursor-pagination';
 import { IClient, ClientStatus, CustomerType, CreateClientInput, UpdateClientInput } from '../types/client';
 import { eventBus } from '@/infrastructure/events/event-bus';
@@ -125,6 +125,18 @@ export class ClientService {
       updatedBy: userId,
     });
     const doc = client.toObject();
+
+    // Crear gestión inicial para el nuevo cliente
+    await GestionModel.create({
+      clientId: doc._id,
+      tenantId: new Types.ObjectId(tenantId),
+      name: 'Nueva gestión',
+      source: doc.source || 'manual',
+      status: 'contacted',
+      qualificationStatus: 'pending',
+      createdBy: new Types.ObjectId(userId),
+      updatedBy: new Types.ObjectId(userId),
+    });
 
     try {
       await eventBus.publish({
