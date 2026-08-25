@@ -142,6 +142,7 @@ async function saveInboundMessage(
   phone: string,
   content: string,
   leadId: string | undefined,
+  clientId: string | undefined,
   messageId?: string,
   messageType?: string,
   mediaId?: string,
@@ -149,10 +150,9 @@ async function saveInboundMessage(
   filename?: string
 ): Promise<void> {
   try {
-    // Only save if we have a valid leadId
-    // For clients (where leadId is undefined), we skip saving the message to lead
-    if (!leadId) {
-      console.log('[WebhookIntegration] Skipping message save - no leadId (client conversation)');
+    // Save if we have either leadId OR clientId
+    if (!leadId && !clientId) {
+      console.log('[WebhookIntegration] Skipping message save - no leadId nor clientId');
       return;
     }
     
@@ -164,7 +164,8 @@ async function saveInboundMessage(
       type: messageType || 'text',
       content,
       status: 'delivered',
-      leadId: new Types.ObjectId(leadId),
+      leadId: leadId ? new Types.ObjectId(leadId) : undefined,
+      clientId: clientId ? new Types.ObjectId(clientId) : undefined,
       metadata: mediaId ? { mediaId, caption, filename } : undefined,
     });
   } catch (error) {
@@ -193,12 +194,11 @@ export async function processWhatsAppWebhookMessage(
   
   console.log('[WebhookIntegration] findOrCreateEntity result - entityType:', entityType, '| clientId:', clientId, '| leadId:', leadId, '| isNew:', isNew);
 
-  // 2. Save inbound message - solo para leads, no para clientes
-  // Para clientes (clientId definido), no guardamos en WhatsAppMessage
-  if (leadId) {
-    await saveInboundMessage(tenantId, phone, messageContent, leadId, messageId, messageType, mediaId, caption, filename);
+  // 2. Save inbound message - para leads Y clientes
+  if (leadId || clientId) {
+    await saveInboundMessage(tenantId, phone, messageContent, leadId, clientId, messageId, messageType, mediaId, caption, filename);
   } else {
-    console.log('[WebhookIntegration] Skipping message save - client or new entity');
+    console.log('[WebhookIntegration] Skipping message save - no entity');
   }
 
   // 2.1. Buscar conversación por teléfono (método seguro y robusto)
