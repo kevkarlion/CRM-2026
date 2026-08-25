@@ -75,16 +75,6 @@ export class AddressConfirmState implements IConversationState {
     if (existingAddress && (isConfirm || normalized === '')) {
       // User confirmed existing address - proceed to priority (when needed)
       // Also save the address to context so it can be saved to lead/client
-      
-      // Save address to CLIENT in database (if not already saved) - fire and forget
-      const clientId = context.get<string>('clientId');
-      const tenantId = context.get<string>('tenantId');
-      if (clientId && tenantId && existingAddress) {
-        context.updateClientAddress(clientId, tenantId, existingAddress, existingLocality, existingProvince)
-          .then(() => console.log('[AddressConfirm] Confirmed address saved to client:', clientId))
-          .catch(err => console.error('[AddressConfirm] Failed to save address:', err));
-      }
-      
       const intent: StateIntent = {
         nextState: 'priority', // FIXED: was 'description'
         data: {
@@ -104,15 +94,6 @@ export class AddressConfirmState implements IConversationState {
     // Store as single text field (address only, no locality/province separated)
     if (isNewAddress) {
       const addressInput = input.trim();
-
-      // Save address to CLIENT in database - fire and forget
-      const clientId = context.get<string>('clientId');
-      const tenantId = context.get<string>('tenantId');
-      if (clientId && tenantId) {
-        context.updateClientAddress(clientId, tenantId, addressInput)
-          .then(() => console.log('[AddressConfirm] Address saved to client:', clientId))
-          .catch(err => console.error('[AddressConfirm] Failed to save address:', err));
-      }
 
       // Save as free text - NO parsing
       const intent: StateIntent = {

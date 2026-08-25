@@ -18,9 +18,9 @@ export const gestionSchema = new Schema<IGestion>(
     },
     status: {
       type: String,
-      enum: ['contacted', 'quote_sent', 'technical_visit', 'qualified', 'negotiation', 'won'] satisfies GestionStatus[],
+      enum: ['new', 'contacted', 'quote_sent', 'technical_visit', 'qualified', 'negotiation', 'won', 'lost'] satisfies GestionStatus[],
       required: true,
-      default: 'contacted',
+      default: 'new',
     },
     qualificationStatus: {
       type: String,
