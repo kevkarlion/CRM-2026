@@ -3,6 +3,8 @@ import mongoose from 'mongoose';
 import { connectDB } from '@/core/db';
 import { QuoteService, ValidationError } from '@/quotes/services/quote.service';
 import DocumentModel from '@/documents/models/document';
+import WorkOrderModel from '@/operations/models/work-order';
+import { getNextWorkOrderNumber } from '@/operations/helpers/counter';
 
 const quoteService = new QuoteService();
 
@@ -50,12 +52,12 @@ export async function POST(
       );
     }
 
-    // Get current lead status
+    // Get lead data
     const LeadModel = (await import('@/leads/models/lead')).default;
-    const currentLead = await LeadModel.findById(leadId).select('status').lean();
-    const currentStatus = currentLead?.status;
-    
-    console.log('[document-action] Current status:', currentStatus, '-> action:', action);
+    const lead = await LeadModel.findById(leadId);
+    const leadName = lead?.name || lead?.companyName || 'Lead';
+
+    console.log('[document-action] Lead:', leadName, '-> action:', action);
 
     // Create quote with sourceDocumentId reference
     const quoteInput = {
@@ -76,32 +78,85 @@ export async function POST(
 
     const quoteResult = await quoteService.createQuote(quoteInput, userId, tenantId);
     const quoteId = String(quoteResult.quote._id);
-    
+
     // Handle quote status based on action
     if (action === 'quote_sent') {
       // Send the quote (draft -> sent)
       await quoteService.sendQuote(quoteId, userId, tenantId);
-    } else if (action === 'won') {
-      // Mark as direct sale (draft -> direct_sale)
-      await quoteService.markAsDirectSale(quoteId, userId, tenantId);
-      
-      // Solo cambiar lead a won
-      // La creación de cliente, gestión y OT se hace en "Resolver"
-      await LeadModel.findByIdAndUpdate(leadId, {
-        $set: {
-          status: 'won',
-          updatedBy: userId || 'admin-action',
-        },
+
+      return NextResponse.json({
+        success: true,
+        quoteId,
+        leadId,
+        newStatus: 'quote_sent',
       });
-      
-      console.log('[document-action] Lead marcado como won:', leadId);
     }
-    
+
+    // action === 'won'
+    // Mark as direct sale (draft -> direct_sale)
+    await quoteService.markAsDirectSale(quoteId, userId, tenantId);
+
+    // Change lead to won
+    await LeadModel.findByIdAndUpdate(leadId, {
+      $set: {
+        status: 'won',
+        updatedBy: userId || 'admin-action',
+      },
+    });
+
+    console.log('[document-action] Lead marked as won:', leadId);
+
+    // Create Work Order in draft status
+    const tenantPrefix = tenantId.slice(-6);
+    const workOrderNumber = await getNextWorkOrderNumber(tenantPrefix);
+
+    const [workOrder] = await WorkOrderModel.create([{
+      tenantId: new mongoose.Types.ObjectId(tenantId),
+      clientId: null,
+      leadId: new mongoose.Types.ObjectId(leadId),
+      quoteId: new mongoose.Types.ObjectId(quoteId),
+      clientSnapshot: {
+        name: leadName,
+        email: lead?.email || '',
+        phone: lead?.phone || '',
+        companyName: lead?.companyName || '',
+        customerType: lead?.customerType || 'residential',
+        status: 'active',
+      },
+      locationSnapshot: {
+        name: leadName,
+        address: lead?.address || '',
+      },
+      source: 'direct_sale',
+      category: 'installation',
+      workOrderNumber,
+      title: `Venta: ${leadName}`,
+      description: `Venta generada desde documento PDF para lead #${leadId}`,
+      status: 'draft',
+      priority: 'normal',
+      createdBy: userId ? new mongoose.Types.ObjectId(userId) : new mongoose.Types.ObjectId(),
+      updatedBy: userId ? new mongoose.Types.ObjectId(userId) : new mongoose.Types.ObjectId(),
+    }]);
+
+    console.log('[document-action] WorkOrder created:', workOrder._id, 'workOrderNumber:', workOrderNumber);
+
+    // Link work order to quote
+    const QuoteModel = (await import('@/quotes/models/quote')).default;
+    await QuoteModel.updateOne(
+      { _id: new mongoose.Types.ObjectId(quoteId) },
+      { $set: { convertedToWorkOrder: workOrder._id } }
+    );
+
     return NextResponse.json({
       success: true,
       quoteId,
       leadId,
-      newStatus: action === 'quote_sent' ? 'quote_sent' : 'won',
+      newStatus: 'won',
+      workOrder: {
+        _id: String(workOrder._id),
+        workOrderNumber,
+        status: 'draft',
+      },
     });
   } catch (error) {
     if (error instanceof ValidationError) {

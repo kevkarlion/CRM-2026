@@ -300,7 +300,7 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
         if (res.newStatus === 'won') {
           setNotification({ 
             type: 'success', 
-            message: `Venta confirmada. Cliente creado. OT: ${res.workOrder?.workOrderNumber || '—'} (borrador)` 
+            message: `Venta confirmada. OT: ${res.workOrder?.workOrderNumber || '—'} (borrador)` 
           });
         } else {
           setNotification({ type: 'success', message: 'Presupuesto enviado correctamente' });

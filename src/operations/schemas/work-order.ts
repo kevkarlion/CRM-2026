@@ -70,7 +70,7 @@ const contractSnapshotSchema = new Schema({
 export const workOrderSchema = new Schema<IWorkOrder>(
   {
     tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true, index: true },
-    clientId: { type: Schema.Types.ObjectId, ref: 'Client', required: true },
+    clientId: { type: Schema.Types.ObjectId, ref: 'Client', required: false },
     locationId: { type: Schema.Types.ObjectId, ref: 'Location', required: false },
     leadId: { type: Schema.Types.ObjectId, ref: 'Lead', default: null },
     equipmentId: { type: Schema.Types.ObjectId, ref: 'Equipment', default: null },
