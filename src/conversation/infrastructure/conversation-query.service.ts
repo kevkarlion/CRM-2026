@@ -96,8 +96,8 @@ export class ConversationQueryService {
 
     if (conversations.length === 0) return [];
 
-    // Batch fetch leads
-    const leadIds = [...new Set(conversations.map(c => String(c.leadId)))];
+    // Batch fetch leads (filter out undefined/null leadIds)
+    const leadIds = [...new Set(conversations.map(c => c.leadId ? String(c.leadId) : null).filter(Boolean))];
     const leads = await LeadModel.find({ _id: { $in: leadIds.map(id => new Types.ObjectId(id)) } })
       .select('_id name phone status temperature score inquiryReason customerType')
       .lean();
