@@ -127,6 +127,8 @@ export class ClientService {
       updatedBy: userId,
     });
     const doc = client.toObject();
+    
+    console.log('[ClientService] Client created - phone:', doc.phone, '| fullName:', doc.fullName);
 
     // Crear gestión inicial para el nuevo cliente
     await GestionModel.create({
@@ -142,17 +144,20 @@ export class ClientService {
 
     // Crear conversación vacía para WhatsApp (si tiene teléfono)
     if (doc.phone) {
+      // Normalizar teléfono para WhatsApp
+      const phoneForWhatsApp = doc.phone.startsWith('549') ? doc.phone : '549' + doc.phone;
+      
       // Verificar si ya existe conversación por teléfono
       const existingConversation = await ConversationModel.findOne({
         tenantId: new Types.ObjectId(tenantId),
-        phoneNumber: doc.phone,
+        phoneNumber: phoneForWhatsApp,
       });
 
       if (!existingConversation) {
         await ConversationModel.create({
           tenantId: new Types.ObjectId(tenantId),
           clientId: doc._id,
-          phoneNumber: doc.phone,
+          phoneNumber: phoneForWhatsApp,
           lifecycleState: 'ACTIVE_CLIENT',
           state: 'idle',
           conversationType: 'customer',
@@ -177,16 +182,22 @@ export class ClientService {
 
       // Agregar a ContactModel para que WhatsApp reconozca al cliente
       if (doc.phone) {
+        console.log('[ClientService] Creating contact for client:', doc._id, 'phone:', doc.phone);
+        
+        // Normalizar teléfono para que coincida con WhatsApp (agregar 549 si no tiene)
+        const phoneForWhatsApp = doc.phone.startsWith('549') ? doc.phone : '549' + doc.phone;
+        console.log('[ClientService] Phone for WhatsApp:', phoneForWhatsApp);
+        
         const firstName = doc.fullName?.split(' ')[0] || 'Cliente';
         const lastName = doc.fullName?.split(' ').slice(1).join(' ') || '';
         
-        await ContactModel.findOneAndUpdate(
-          { tenantId: new Types.ObjectId(tenantId), phone: doc.phone },
+        const contactResult = await ContactModel.findOneAndUpdate(
+          { tenantId: new Types.ObjectId(tenantId), phone: phoneForWhatsApp },
           {
             $setOnInsert: {
               tenantId: new Types.ObjectId(tenantId),
               clientId: doc._id,
-              phone: doc.phone,
+              phone: phoneForWhatsApp,
               firstName,
               lastName,
               source: doc.source || 'manual',
@@ -196,6 +207,10 @@ export class ClientService {
           },
           { upsert: true, new: true }
         );
+        
+        console.log('[ClientService] Contact created/updated:', contactResult?._id);
+      } else {
+        console.log('[ClientService] No phone - skipping contact creation');
       }
     }
 
