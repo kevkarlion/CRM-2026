@@ -397,7 +397,7 @@ export const gestionSyncHandler = {
           tenantId: new Types.ObjectId(tenantId),
           name: 'Nueva gestión',
           source: lead.source || 'whatsapp',
-          status: 'new',
+          status: 'contacted',
           qualificationStatus: 'pending',
           createdBy: resolvedBy,
           updatedBy: resolvedBy,
