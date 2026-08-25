@@ -174,6 +174,23 @@ export class ClientService {
           flowType: 'customer-service',
         });
       }
+
+      // Agregar a ContactModel para que WhatsApp reconozca al cliente
+      if (doc.phone) {
+        await ContactModel.findOneAndUpdate(
+          { tenantId: new Types.ObjectId(tenantId), phone: doc.phone },
+          {
+            $setOnInsert: {
+              tenantId: new Types.ObjectId(tenantId),
+              clientId: doc._id,
+              phone: doc.phone,
+              source: doc.source || 'manual',
+              createdAt: new Date(),
+            }
+          },
+          { upsert: true, new: true }
+        );
+      }
     }
 
     try {
