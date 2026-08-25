@@ -488,7 +488,7 @@ export const gestionSyncHandler = {
           { _id: activeGestion._id },
           { 
             $set: { 
-              status: 'lost', 
+              status: 'won', 
               updatedBy: resolvedBy,
             },
             $push: { history: historyEntry }

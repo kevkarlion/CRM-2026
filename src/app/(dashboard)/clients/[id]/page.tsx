@@ -561,24 +561,20 @@ export default function ClientDetailPage() {
                         <div key={gestion._id} className="bg-white p-4 rounded-lg border border-gray-200">
                           <div className="flex justify-between items-start mb-3">
                             <div className="flex items-center gap-2">
-                              <span className={`px-2 py-1 rounded text-xs font-medium ${
-                                gestion.status === 'new' ? 'bg-blue-100 text-blue-800' :
+<span className={`px-2 py-1 rounded text-xs font-medium ${
                                 gestion.status === 'contacted' ? 'bg-cyan-100 text-cyan-800' :
                                 gestion.status === 'qualified' ? 'bg-yellow-100 text-yellow-800' :
                                 gestion.status === 'proposal' ? 'bg-orange-100 text-orange-800' :
                                 gestion.status === 'negotiation' ? 'bg-purple-100 text-purple-800' :
-gestion.status === 'won' ? 'bg-green-100 text-green-800' :
-                                gestion.status === 'lost' ? 'bg-red-100 text-red-800' :
+                                gestion.status === 'won' ? 'bg-green-100 text-green-800' :
                                 'bg-gray-100 text-gray-800'
                               }`}>
-                              {gestion.status === 'new' ? 'Nueva' :
-                               gestion.status === 'contacted' ? 'Contactado' :
+                              {gestion.status === 'contacted' ? 'Contactado' :
                                gestion.status === 'quote_sent' ? 'Presupuesto enviado' :
                                gestion.status === 'technical_visit' ? 'Visita técnica' :
                                gestion.status === 'qualified' ? 'Calificado' :
                                gestion.status === 'negotiation' ? 'Negociación' :
                                gestion.status === 'won' ? 'Ganado' :
-                               gestion.status === 'lost' ? 'Perdido' :
                                gestion.status}
                               </span>
                               <span className="text-sm text-gray-500">
@@ -651,23 +647,52 @@ gestion.status === 'won' ? 'bg-green-100 text-green-800' :
                               </div>
                             </div>
                           )}
-                          {/* Mostrar historial de ciclos anteriores dentro de esta gestión */}
+                          {/* Mostrar historial de ciclos anteriores - con línea de tiempo de eventos */}
                           {gestion.history && gestion.history.length > 0 && (
                             <div className="mt-3 pt-3 border-t border-gray-100">
                               <span className="font-medium text-sm text-gray-700">Ciclos anteriores ({gestion.history.length}):</span>
-                              <div className="mt-2 space-y-2">
+                              <div className="mt-2 space-y-3">
                                 {gestion.history.map((cycle: any, idx: number) => (
-                                  <div key={idx} className="bg-gray-50 p-2 rounded text-xs">
-                                    <span className="font-medium">
-                                      {cycle.finalStatus === 'won' ? '✅ Ganado' : 
-                                       cycle.finalStatus === 'lost' ? '❌ Perdido' : 
-                                       cycle.finalStatus}
-                                    </span>
-                                    <span className="text-gray-500 ml-2">
-                                      {cycle.finalizedAt ? new Date(cycle.finalizedAt).toLocaleDateString('es-AR') : ''}
-                                    </span>
-                                    {cycle.score > 0 && (
-                                      <span className="ml-2">Score: {cycle.score}</span>
+                                  <div key={idx} className="bg-gray-50 p-3 rounded text-xs">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                        cycle.finalStatus === 'won' ? 'bg-green-100 text-green-800' :
+                                        'bg-gray-100 text-gray-800'
+                                      }`}>
+                                        {cycle.finalStatus === 'won' ? '✅ Ganado' : cycle.finalStatus}
+                                      </span>
+                                      <span className="text-gray-500">
+                                        {cycle.closedAt ? new Date(cycle.closedAt).toLocaleDateString('es-AR') : ''}
+                                      </span>
+                                      {cycle.score > 0 && (
+                                        <span className="ml-2 text-gray-500">Score: {cycle.score}</span>
+                                      )}
+                                    </div>
+                                    {/* Mostrar eventos del ciclo como línea de tiempo */}
+                                    {cycle.events && cycle.events.length > 0 && (
+                                      <div className="ml-2 pl-2 border-l-2 border-gray-200 space-y-1">
+                                        {cycle.events.map((event: any, eventIdx: number) => (
+                                          <div key={eventIdx} className="flex items-start gap-2">
+                                            <span className={`w-1.5 h-1.5 mt-1 rounded-full flex-shrink-0 ${
+                                              event.type === 'SALE_CONFIRMED' ? 'bg-green-500' :
+                                              event.type === 'QUOTE_SENT' ? 'bg-blue-500' :
+                                              event.type === 'STATUS_CHANGED' ? 'bg-yellow-500' :
+                                              event.type === 'GESTION_CREATED' ? 'bg-gray-500' :
+                                              'bg-gray-400'
+                                            }`} />
+                                            <span className="text-gray-600">
+                                              {event.type === 'SALE_CONFIRMED' ? '💰 Venta confirmada' :
+                                               event.type === 'QUOTE_SENT' ? '📄 Presupuesto enviado' :
+                                               event.type === 'STATUS_CHANGED' ? `🔄 ${event.data?.newStatus || 'Estado cambiado'}` :
+                                               event.type === 'GESTION_CREATED' ? '✨ Gestión creada' :
+                                               event.type}
+                                            </span>
+                                            <span className="text-gray-400 text-[10px]">
+                                              {event.timestamp ? new Date(event.timestamp).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }) : ''}
+                                            </span>
+                                          </div>
+                                        ))}
+                                      </div>
                                     )}
                                   </div>
                                 ))}
