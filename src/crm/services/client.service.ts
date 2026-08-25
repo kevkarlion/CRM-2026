@@ -1,5 +1,7 @@
 import { Types } from 'mongoose';
-import { ClientModel, ContactModel, LocationModel, EquipmentModel, TaskModel, GestionModel } from '../models';
+import { ClientModel, ContactModel, LocationModel, EquipmentModel, TaskModel } from '../models';
+import GestionModel from '@/gestion/models/gestion';
+import ConversationModel from '@/conversation/models/conversation';
 import { cursorPage } from '../helpers/cursor-pagination';
 import { IClient, ClientStatus, CustomerType, CreateClientInput, UpdateClientInput } from '../types/client';
 import { eventBus } from '@/infrastructure/events/event-bus';
@@ -137,6 +139,34 @@ export class ClientService {
       createdBy: new Types.ObjectId(userId),
       updatedBy: new Types.ObjectId(userId),
     });
+
+    // Crear conversación vacía para WhatsApp (si tiene teléfono)
+    if (doc.phone) {
+      // Verificar si ya existe conversación por teléfono
+      const existingConversation = await ConversationModel.findOne({
+        tenantId: new Types.ObjectId(tenantId),
+        phoneNumber: doc.phone,
+      });
+
+      if (!existingConversation) {
+        await ConversationModel.create({
+          tenantId: new Types.ObjectId(tenantId),
+          clientId: doc._id,
+          phoneNumber: doc.phone,
+          lifecycleState: 'ACTIVE_CLIENT',
+          state: 'idle',
+          conversationType: 'customer',
+          step: 0,
+          lastActivityAt: new Date(),
+          lastMessageAt: new Date(),
+          startedAt: new Date(),
+          expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+          waitingMessageCount: 0,
+          waitingPriority: 'normal',
+          flowType: 'customer-service',
+        });
+      }
+    }
 
     try {
       await eventBus.publish({
