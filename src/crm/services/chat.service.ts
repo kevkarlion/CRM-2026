@@ -115,12 +115,17 @@ export class ChatService {
   ): Promise<IWhatsAppMessage[]> {
     const { limit = 50, before, after } = options;
     const normalizedPhone = this.normalizePhone(phone);
+    const last10Digits = normalizedPhone.replace(/^\d{2,3}/, ''); // últimos 10 dígitos sin prefijo
     
     // console.log('[ChatService] getConversationMessages - phone:', phone, 'normalized:', normalizedPhone);
     
+    // Buscar por teléfono exacto O por últimos 10 dígitos (más flexible)
     const query: Record<string, unknown> = {
       tenantId: new Types.ObjectId(tenantId),
-      phone: normalizedPhone, // Direct match on normalized phone
+      $or: [
+        { phone: normalizedPhone },
+        { phone: { $regex: `${last10Digits}$` } }
+      ]
     };
 
     if (before) {

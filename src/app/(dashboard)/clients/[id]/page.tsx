@@ -143,9 +143,12 @@ export default function ClientDetailPage() {
     const fetchConversation = async () => {
       setLoadingConversation(true);
       try {
+        // Normalizar teléfono para WhatsApp (agregar 549 si no tiene)
+        const phoneForWhatsApp = phone.startsWith('549') ? phone : '549' + phone;
+        
         // For clients, we need a different endpoint or use the general one
         const res = await api.get<{ conversation: any }>(
-          `/api/crm/conversations/by-phone/${phone}`,
+          `/api/crm/conversations/by-phone/${phoneForWhatsApp}`,
         );
         setConversation(res.conversation);
       } catch (conversationError) {
