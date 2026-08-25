@@ -177,6 +177,9 @@ export class ClientService {
 
       // Agregar a ContactModel para que WhatsApp reconozca al cliente
       if (doc.phone) {
+        const firstName = doc.fullName?.split(' ')[0] || 'Cliente';
+        const lastName = doc.fullName?.split(' ').slice(1).join(' ') || '';
+        
         await ContactModel.findOneAndUpdate(
           { tenantId: new Types.ObjectId(tenantId), phone: doc.phone },
           {
@@ -184,8 +187,11 @@ export class ClientService {
               tenantId: new Types.ObjectId(tenantId),
               clientId: doc._id,
               phone: doc.phone,
+              firstName,
+              lastName,
               source: doc.source || 'manual',
-              createdAt: new Date(),
+              createdBy: new Types.ObjectId(userId),
+              updatedBy: new Types.ObjectId(userId),
             }
           },
           { upsert: true, new: true }
