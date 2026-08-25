@@ -1,5 +1,6 @@
 import { Types } from 'mongoose';
-import { ClientModel, ContactModel, LocationModel, EquipmentModel, TaskModel, GestionModel } from '../models';
+import { ClientModel, ContactModel, LocationModel, EquipmentModel, TaskModel } from '../models';
+import GestionModel from '@/gestion/models/gestion';
 import { cursorPage } from '../helpers/cursor-pagination';
 import { IClient, ClientStatus, CustomerType, CreateClientInput, UpdateClientInput } from '../types/client';
 import { eventBus } from '@/infrastructure/events/event-bus';
