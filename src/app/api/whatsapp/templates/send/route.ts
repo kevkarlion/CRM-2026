@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
 import { whatsappTemplateService } from '@/crm/services/whatsapp-template.service';
 import whatsappService from '@/crm/services/whatsapp.service';
-import { normalizePhone } from '@/lib/phone';
+import { normalizePhoneForWhatsApp } from '@/lib/phone';
 import ClientModel from '@/crm/models/client';
 import LeadModel from '@/leads/models/lead';
 import { Types } from 'mongoose';
@@ -99,8 +99,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Normalize phone number
-    const normalizedPhone = normalizePhone(client.phone);
+    // Normalize phone number (without the '9' for Argentine mobiles to fix delivery issues)
+    const normalizedPhone = normalizePhoneForWhatsApp(client.phone);
 
     // Send the template message
     const result = await whatsappService.sendTemplateMessage({

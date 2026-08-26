@@ -47,6 +47,25 @@ export function normalizePhone(phone: string): string {
   return cleaned;
 }
 
+/**
+ * Normalize Argentine phone for WhatsApp API - removes the '9' for mobile numbers
+ * Some Argentine mobile numbers fail with the '9' prefix in Meta's API
+ * Format: 54 + code area + number (without the 9)
+ * Example: 5492981234567 -> 542981234567
+ */
+export function normalizePhoneForWhatsApp(phone: string): string {
+  // First normalize normally
+  const normalized = normalizePhone(phone);
+  
+  // If it's an Argentine mobile number with 549 prefix, remove the 9
+  if (normalized.startsWith('549') && normalized.length === 12) {
+    // 549 + rest -> 54 + rest (remove the 9)
+    return '54' + normalized.substring(3);
+  }
+  
+  return normalized;
+}
+
 export function phoneMatchQuery(normalized: string): { $regex: RegExp } {
   if (!normalized) {
     return { $regex: /(?!)/ };
