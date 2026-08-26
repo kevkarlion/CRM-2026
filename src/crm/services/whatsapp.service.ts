@@ -20,7 +20,7 @@ import { whatsappTemplateService } from './whatsapp-template.service';
 import type { ILead, InquiryReason, CustomerType } from '../../leads/types/lead';
 import { calculateLeadScore } from '@/leads/services/lead-score.service';
 import { calculateClientScore } from '@/clients/services/client-score.service';
-import { normalizePhone, phoneMatchQuery } from '@/lib/phone';
+import { normalizePhone, normalizePhoneForWhatsApp, phoneMatchQuery } from '@/lib/phone';
 import { eventBus } from '@/infrastructure/events/event-bus';
 import { DOMAIN_EVENTS } from '@/infrastructure/events/event.types';
 
@@ -374,7 +374,7 @@ export class WhatsAppService {
     }
 
     const { tenantId, to, templateName, language = 'es', variables } = params;
-    const normalizedTo = this.normalizePhone(to);
+    const normalizedTo = normalizePhoneForWhatsApp(to);
 
     console.log('=== WhatsApp Template Send ===');
     console.log({
