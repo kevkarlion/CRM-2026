@@ -39,6 +39,7 @@ import { useConversationStatus } from '@/leads/pipeline-board/hooks/useConversat
 import { useChatMessages } from '@/whatsapp/hooks/useChatMessages';
 import { useChatPolling } from '@/whatsapp/hooks/useChatPolling';
 import { useWhatsAppSend } from '@/whatsapp/hooks/useWhatsAppSend';
+import { WhatsAppTemplateSelector } from '@/components/whatsapp/WhatsAppTemplateSelector';
 
 type DetailTabId = 'resumen' | 'presupuestos' | 'ordenes' | 'visitas' | 'documentacion' | 'actividad';
 
@@ -65,6 +66,7 @@ export default function LeadDetailPage() {
   const [showQuoteDetail, setShowQuoteDetail] = useState(false);
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null);
   const [showQuickSaleDrawer, setShowQuickSaleDrawer] = useState(false);
+  const [showWhatsAppTemplateDrawer, setShowWhatsAppTemplateDrawer] = useState(false);
 
   // Quote sending state
   const [sendingQuoteId, setSendingQuoteId] = useState<string | null>(null);
@@ -471,6 +473,18 @@ const handleCedeControl = async () => {
                     onTakeControl={handleTakeControl}
                     onCedeControl={handleCedeControl}
                   />
+                  {/* WhatsApp Template Selector Button */}
+                  {lead?.phone && (
+                    <button
+                      onClick={() => setShowWhatsAppTemplateDrawer(true)}
+                      className="w-full mt-3 inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                      </svg>
+                      Enviar plantilla WhatsApp
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
@@ -552,6 +566,16 @@ const handleCedeControl = async () => {
         leadPhone={lead.phone}
         leadCompany={lead.companyName}
         onSuccess={refreshLeadAndTimeline}
+      />
+
+      <WhatsAppTemplateSelector
+        isOpen={showWhatsAppTemplateDrawer}
+        onClose={() => setShowWhatsAppTemplateDrawer(false)}
+        clientId={id}
+        clientName={lead?.name || ''}
+        onSuccess={() => {
+          refreshLeadAndTimeline();
+        }}
       />
     </EntityDetailLayout>
   );

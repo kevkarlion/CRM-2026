@@ -7,3 +7,4 @@ export { default as ActivityModel } from './activity';
 export { default as TaskModel } from './task';
 export { default as AttachmentModel } from './attachment';
 export { default as WhatsAppMessageModel } from './whatsapp-message';
+export { default as WhatsAppTemplateModel } from './whatsapp-template';

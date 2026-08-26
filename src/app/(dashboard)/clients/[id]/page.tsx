@@ -31,6 +31,7 @@ import { LeadCommercialActionsCard, LeadBotControlCard } from '@/leads/component
 import { CreateQuoteDrawer } from '@/leads/components/CreateQuoteDrawer';
 import { CreateVisitDrawer } from '@/leads/components/CreateVisitDrawer';
 import { ChatPanel } from '@/whatsapp/components/ChatPanel';
+import { WhatsAppTemplateSelector } from '@/components/whatsapp/WhatsAppTemplateSelector';
 import { useChatMessages } from '@/whatsapp/hooks/useChatMessages';
 import { useChatPolling } from '@/whatsapp/hooks/useChatPolling';
 import { useWhatsAppSend } from '@/whatsapp/hooks/useWhatsAppSend';
@@ -82,6 +83,7 @@ export default function ClientDetailPage() {
   const [showQuoteDrawer, setShowQuoteDrawer] = useState(false);
   const [showVisitDrawer, setShowVisitDrawer] = useState(false);
   const [showConfirmSaleDrawer, setShowConfirmSaleDrawer] = useState(false);
+  const [showWhatsAppTemplateDrawer, setShowWhatsAppTemplateDrawer] = useState(false);
 
   // Chat state
   const [activeDetailTab, setActiveDetailTab] = useState<'chat' | 'timeline'>('chat');
@@ -549,6 +551,17 @@ export default function ClientDetailPage() {
                       onSendQuotePdf={refreshClient}
                       onConfirmSalePdf={refreshClient}
                     />
+                    {/* WhatsApp Template Selector Button */}
+                    <button
+                      onClick={() => setShowWhatsAppTemplateDrawer(true)}
+                      disabled={client.status === 'blocked' || !client.phone}
+                      className="w-full mt-3 inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                      </svg>
+                      Enviar plantilla WhatsApp
+                    </button>
                   </div>
                 </div>
               </div>
@@ -828,6 +841,16 @@ gestion.status === 'won' ? 'bg-green-100 text-green-800' :
         clientId={id}
         clientName={name}
         onSuccess={refreshClient}
+      />
+
+      <WhatsAppTemplateSelector
+        isOpen={showWhatsAppTemplateDrawer}
+        onClose={() => setShowWhatsAppTemplateDrawer(false)}
+        clientId={id}
+        clientName={name}
+        onSuccess={() => {
+          refetchChat();
+        }}
       />
     </>
   );

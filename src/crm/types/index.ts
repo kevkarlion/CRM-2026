@@ -17,3 +17,12 @@ export type {
   WhatsAppMessageStatus,
   WhatsAppConversation,
 } from './whatsapp-message';
+export type {
+  IWhatsAppTemplate,
+  IWhatsAppTemplateVariable,
+  WhatsAppTemplateCategory,
+  CreateWhatsAppTemplateInput,
+  UpdateWhatsAppTemplateInput,
+  SendTemplateMessageParams,
+  SendTemplateResult,
+} from './whatsapp-template';

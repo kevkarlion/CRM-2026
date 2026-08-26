@@ -15,6 +15,8 @@ import type {
   WhatsAppMessageDirection,
   WhatsAppMessageType 
 } from '../types/whatsapp-message';
+import type { SendTemplateMessageParams, SendTemplateResult } from '../types/whatsapp-template';
+import { whatsappTemplateService } from './whatsapp-template.service';
 import type { ILead, InquiryReason, CustomerType } from '../../leads/types/lead';
 import { calculateLeadScore } from '@/leads/services/lead-score.service';
 import { calculateClientScore } from '@/clients/services/client-score.service';
@@ -359,6 +361,115 @@ export class WhatsAppService {
     });
 
     return { message, metaResponse };
+  }
+
+  /**
+   * Send a WhatsApp template message through Meta's API
+   */
+  async sendTemplateMessage(
+    params: SendTemplateMessageParams
+  ): Promise<SendTemplateResult> {
+    if (!WHATSAPP_ACCESS_TOKEN || !WHATSAPP_PHONE_NUMBER_ID) {
+      throw new Error('WHATSAPP_ACCESS_TOKEN o WHATSAPP_PHONE_NUMBER_ID no configurados');
+    }
+
+    const { tenantId, to, templateName, language = 'es', variables } = params;
+    const normalizedTo = this.normalizePhone(to);
+
+    console.log('=== WhatsApp Template Send ===');
+    console.log({
+      phoneNumberId: WHATSAPP_PHONE_NUMBER_ID,
+      to: normalizedTo,
+      templateName,
+      language,
+      variables,
+    });
+
+    // Build the template payload according to Meta Graph API format
+    const components = [];
+    
+    // Add body variables if present
+    // Meta API expects: { "type": "text", "text": "value" }
+    const bodyVariables = Object.entries(variables).map(([, value]) => ({
+      type: 'text' as const,
+      text: value,
+    }));
+
+    if (bodyVariables.length > 0) {
+      components.push({
+        type: 'body' as const,
+        parameters: bodyVariables,
+      });
+    }
+
+    const requestBody = {
+      messaging_product: 'whatsapp',
+      to: normalizedTo,
+      type: 'template',
+      template: {
+        name: templateName,
+        language: { code: language },
+        ...(components.length > 0 && { components }),
+      },
+    };
+
+    console.log('Request body:', JSON.stringify(requestBody, null, 2));
+
+    const response = await fetch(
+      `https://graph.facebook.com/v25.0/${WHATSAPP_PHONE_NUMBER_ID}/messages`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${WHATSAPP_ACCESS_TOKEN}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody),
+      }
+    );
+
+    const metaResponse = await response.json();
+
+    let waMessageId: string;
+    let messageStatus: 'sent' | 'failed' = 'sent';
+    let errorMessage: string | undefined;
+
+    if (!response.ok) {
+      console.error('[WhatsApp] Error enviando template:', metaResponse);
+      messageStatus = 'failed';
+      errorMessage = metaResponse.error?.message || 'Error enviando template message';
+      waMessageId = `failed_${Date.now()}`;
+    } else {
+      waMessageId = metaResponse.messages?.[0]?.id || '';
+    }
+
+    // Build template preview content for the message record
+    const templatePreview = this.buildTemplatePreview(templateName, variables);
+
+    // Always save message, even if WhatsApp API failed
+    const message = await this.saveMessage({
+      tenantId: new Types.ObjectId(tenantId),
+      phone: normalizedTo,
+      messageId: waMessageId,
+      direction: 'outbound',
+      type: 'text', // Templates are rendered as text in the message log
+      content: templatePreview,
+      status: messageStatus,
+      errorMessage,
+    });
+
+    return { message, metaResponse };
+  }
+
+  /**
+   * Build a human-readable preview of the template message
+   */
+  private buildTemplatePreview(templateName: string, variables: Record<number, string>): string {
+    const varValues = Object.entries(variables)
+      .sort(([a], [b]) => Number(a) - Number(b))
+      .map(([_, value]) => value)
+      .join(' | ');
+
+    return `[Template: ${templateName}] ${varValues}`;
   }
 
   /**
