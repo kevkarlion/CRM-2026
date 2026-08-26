@@ -21,6 +21,7 @@ import {
   ClipboardCheck,
   Contact,
   Menu,
+  X,
   Map,
   MessageSquare,
   type LucideIcon,
@@ -160,7 +161,10 @@ export function Sidebar() {
 
       {/* Mobile overlay */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-30 bg-black/20 lg:hidden" onClick={() => setMobileOpen(false)} />
+        <div 
+          className="fixed inset-0 z-30 bg-black/20 lg:hidden" 
+          onClick={() => setMobileOpen(false)} 
+        />
       )}
     </>
   );
