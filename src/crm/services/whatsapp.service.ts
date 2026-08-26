@@ -375,6 +375,8 @@ export class WhatsAppService {
 
     const { tenantId, to, templateName, language = 'es', variables } = params;
     const normalizedTo = normalizePhoneForWhatsApp(to);
+    
+    console.log('[DEBUG] normalizePhoneForWhatsApp:', { input: to, output: normalizedTo });
 
     console.log('=== WhatsApp Template Send ===');
     console.log({
