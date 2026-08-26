@@ -404,6 +404,7 @@ export class WhatsAppService {
 
     const requestBody = {
       messaging_product: 'whatsapp',
+      recipient_type: 'individual',
       to: normalizedTo,
       type: 'template',
       template: {
