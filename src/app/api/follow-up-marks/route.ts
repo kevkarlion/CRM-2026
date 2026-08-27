@@ -136,6 +136,9 @@ export async function POST(request: NextRequest) {
       console.error('[follow-up-marks] Error getting target name:', err);
     }
 
+    // DEBUG: Log what we're broadcasting
+    console.log('[follow-up-marks] Broadcasting:', { assignedTo, markId: mark._id });
+
     // Broadcast to all connected clients
     broadcastAttentionMarkAdded({
       userEmail: assignedTo,

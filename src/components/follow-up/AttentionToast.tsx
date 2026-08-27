@@ -83,9 +83,14 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
   const showToastForMark = useCallback((mark: FollowUpMarkResponse) => {
     if (isAlreadySeen(mark._id)) return;
 
-    // Only show if it's for current user
-    const currentUserEmail = userEmailRef.current || getUserEmail();
-    if (mark.assignedTo !== currentUserEmail) return;
+    // Only show if it's for current user (case-insensitive)
+    const currentUserEmail = (userEmailRef.current || getUserEmail() || '').toLowerCase();
+    const markAssignedTo = (mark.assignedTo || '').toLowerCase();
+    
+    if (markAssignedTo !== currentUserEmail) {
+      console.log(`[AttentionToast] Skipping mark - mark for ${mark.assignedTo}, current user is ${currentUserEmail}`);
+      return;
+    }
 
     // Extract target info
     let targetId = '';
@@ -191,9 +196,12 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
         return;
       }
 
-      // Only show toast if it's for the current user
-      const currentUserEmail = userEmailRef.current || getUserEmail();
-      if (data.userEmail !== currentUserEmail) {
+      // Only show toast if it's for the current user (case-insensitive)
+      const currentUserEmail = (userEmailRef.current || getUserEmail() || '').toLowerCase();
+      const eventEmail = (data.userEmail || '').toLowerCase();
+      
+      if (eventEmail !== currentUserEmail) {
+        console.log(`[AttentionToast] Skipping - event for ${data.userEmail}, current user is ${currentUserEmail}`);
         return;
       }
 
