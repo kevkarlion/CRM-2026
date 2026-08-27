@@ -16,12 +16,25 @@ interface ToastItem {
   markedAt: string;
 }
 
+interface FollowUpMarkResponse {
+  _id: string;
+  leadId?: { _id: string; name?: string; profileName?: string };
+  clientId?: { _id: string; fullName?: string; profileName?: string; companyName?: string };
+  markedBy: string;
+  assignedTo: string;
+  markedAt: string;
+  note?: string;
+}
+
 /**
- * AttentionToast - Real-time toast notifications for follow-up marks
+ * AttentionToast - Toast notifications for follow-up marks
  * 
- * Uses SSE (Server-Sent Events) via EventSource for real-time updates.
- * No polling, no intervals - events are pushed instantly when a user
- * is marked for follow-up attention.
+ * Hybrid approach:
+ * 1. SSE for real-time updates (primary)
+ * 2. Polling as fallback when SSE fails or for cross-Lambda reliability
+ * 
+ * Polling is more reliable in serverless environments (Vercel) where
+ * SSE connections may land on different Lambda instances than the POST request.
  */
 export function AttentionToast({ className = '' }: AttentionToastProps) {
   const router = useRouter();
@@ -29,6 +42,8 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
   const eventSourceRef = useRef<EventSource | null>(null);
   const isConnectedRef = useRef(false);
   const userEmailRef = useRef<string | null>(null);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastPolledRef = useRef<number>(0);
 
   // Get current user email
   const getUserEmail = useCallback(() => {
@@ -55,6 +70,116 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
     }
   }, [getUserEmail]);
 
+  // Check if already seen
+  const isAlreadySeen = useCallback((markId: string): boolean => {
+    const userEmail = getUserEmail();
+    if (!userEmail) return true;
+    const seenKey = `atencion_seen_${userEmail}`;
+    const seenIds: string[] = JSON.parse(localStorage.getItem(seenKey) || '[]');
+    return seenIds.includes(markId);
+  }, [getUserEmail]);
+
+  // Show toast for a mark
+  const showToastForMark = useCallback((mark: FollowUpMarkResponse) => {
+    if (isAlreadySeen(mark._id)) return;
+
+    // Only show if it's for current user
+    const currentUserEmail = userEmailRef.current || getUserEmail();
+    if (mark.assignedTo !== currentUserEmail) return;
+
+    // Extract target info
+    let targetId = '';
+    let targetName = 'Elemento sin nombre';
+    let targetType: 'lead' | 'client' = 'lead';
+
+    if (mark.leadId) {
+      targetId = typeof mark.leadId === 'object' ? (mark.leadId as any)._id : mark.leadId;
+      const lead = mark.leadId as any;
+      targetName = lead.profileName || lead.name || 'Lead sin nombre';
+      targetType = 'lead';
+    } else if (mark.clientId) {
+      targetId = typeof mark.clientId === 'object' ? (mark.clientId as any)._id : mark.clientId;
+      const client = mark.clientId as any;
+      targetName = client.profileName || client.fullName || client.companyName || 'Cliente sin nombre';
+      targetType = 'client';
+    }
+
+    const toastItem: ToastItem = {
+      _id: mark._id,
+      id: targetId,
+      name: targetName,
+      type: targetType,
+      markedBy: mark.markedBy,
+      markedAt: mark.markedAt,
+    };
+
+    setToasts((prev) => [...prev, toastItem]);
+  }, [isAlreadySeen, getUserEmail]);
+
+  // Polling fetch - fallback when SSE doesn't work (Lambda mismatch)
+  const fetchNewMarks = useCallback(async () => {
+    const userEmail = userEmailRef.current || getUserEmail();
+    if (!userEmail) return;
+
+    // Don't poll if we already polled recently (within 10 seconds)
+    const now = Date.now();
+    if (now - lastPolledRef.current < 10000) return;
+    lastPolledRef.current = now;
+
+    try {
+      const encodedEmail = encodeURIComponent(userEmail);
+      const response = await fetch(`/api/follow-up-marks?userEmail=${encodedEmail}`);
+      
+      if (!response.ok) {
+        console.warn('[AttentionToast] Polling failed:', response.status);
+        return;
+      }
+
+      const marks: FollowUpMarkResponse[] = await response.json();
+      
+      if (!Array.isArray(marks) || marks.length === 0) return;
+
+      // Check each mark - show toast for unseen ones
+      for (const mark of marks) {
+        const markDate = new Date(mark.markedAt).getTime();
+        
+        // Only consider marks from the last 2 minutes (to avoid showing old marks)
+        const twoMinutesAgo = Date.now() - 2 * 60 * 1000;
+        if (markDate > twoMinutesAgo) {
+          showToastForMark(mark);
+        }
+      }
+    } catch (error) {
+      console.error('[AttentionToast] Polling error:', error);
+    }
+  }, [getUserEmail, showToastForMark]);
+
+  // Start polling fallback
+  const startPolling = useCallback(() => {
+    if (pollingIntervalRef.current) return;
+    
+    console.log('[AttentionToast] Starting polling fallback');
+    
+    // Initial fetch
+    fetchNewMarks();
+    
+    // Poll every 30 seconds as backup
+    pollingIntervalRef.current = setInterval(() => {
+      if (!isConnectedRef.current) {
+        fetchNewMarks();
+      }
+    }, 30000);
+  }, [fetchNewMarks]);
+
+  // Stop polling
+  const stopPolling = useCallback(() => {
+    if (pollingIntervalRef.current) {
+      clearInterval(pollingIntervalRef.current);
+      pollingIntervalRef.current = null;
+      console.log('[AttentionToast] Stopped polling');
+    }
+  }, []);
+
   // Handle incoming SSE event
   const handleSSEEvent = useCallback((event: MessageEvent) => {
     try {
@@ -67,15 +192,13 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
       }
 
       // Only show toast if it's for the current user
-      const currentUserEmail = getUserEmail();
+      const currentUserEmail = userEmailRef.current || getUserEmail();
       if (data.userEmail !== currentUserEmail) {
         return;
       }
 
       // Check if already seen
-      const seenKey = `atencion_seen_${currentUserEmail}`;
-      const seenIds: string[] = JSON.parse(localStorage.getItem(seenKey) || '[]');
-      if (seenIds.includes(data.markId)) {
+      if (isAlreadySeen(data.markId)) {
         return;
       }
 
@@ -93,7 +216,7 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
     } catch (error) {
       console.error('[AttentionToast] Failed to parse SSE event:', error);
     }
-  }, [getUserEmail]);
+  }, [getUserEmail, isAlreadySeen]);
 
   // Set up SSE connection on mount
   useEffect(() => {
@@ -117,12 +240,15 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
         eventSource.onmessage = handleSSEEvent;
 
         eventSource.onerror = (error) => {
-          console.error('[AttentionToast] SSE connection error:', error);
+          console.warn('[AttentionToast] SSE connection error, starting polling fallback');
           eventSource.close();
           eventSourceRef.current = null;
           isConnectedRef.current = false;
+          
+          // Start polling as fallback when SSE fails
+          startPolling();
 
-          // Reconnect after 5 seconds
+          // Try to reconnect after 5 seconds
           setTimeout(() => {
             if (!isConnectedRef.current) {
               connectSSE();
@@ -133,13 +259,24 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
         eventSource.onopen = () => {
           console.log('[AttentionToast] SSE connection opened');
           isConnectedRef.current = true;
+          // Stop polling when SSE is connected
+          stopPolling();
         };
       } catch (error) {
         console.error('[AttentionToast] Failed to connect SSE:', error);
+        // Start polling as fallback
+        startPolling();
       }
     };
 
     connectSSE();
+
+    // Also start polling initially as backup (in case SSE never connects)
+    const initialPollingTimeout = setTimeout(() => {
+      if (!isConnectedRef.current) {
+        startPolling();
+      }
+    }, 5000);
 
     // Cleanup on unmount
     return () => {
@@ -148,8 +285,10 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
         eventSourceRef.current = null;
         isConnectedRef.current = false;
       }
+      stopPolling();
+      clearTimeout(initialPollingTimeout);
     };
-  }, [getUserEmail, handleSSEEvent]);
+  }, [getUserEmail, handleSSEEvent, startPolling, stopPolling]);
 
   const handleToastClick = useCallback((toast: ToastItem) => {
     markAsSeen(toast._id);
