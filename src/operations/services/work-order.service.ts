@@ -270,6 +270,38 @@ export class WorkOrderService {
       query.assignedTechnicians = { $exists: true, $ne: [], $not: { $size: 0 } };
     }
 
+    // Check if we should apply default technician active filter
+    const techActive = (filters as any).techActive;
+    
+    // Filter: órdenes activas para técnicos (no borrador, no vencidas, no cerradas)
+    // Se aplica SOLO con techActive='true' explícito (ya que los defaults están en el endpoint /technician)
+    if (techActive === 'true') {
+      const now = new Date();
+      
+      // query.$and con condiciones simples
+      query.$and = [
+        // Condición 1: Excluir statuses no deseados
+        { status: { $nin: ['draft', 'closed', 'cancelled'] } },
+        // Condición 2: Excluir vencidas - scheduledDate en el pasado sin ser in_progress
+        {
+          $or: [
+            { scheduledDate: { $exists: false } },
+            { scheduledDate: null },
+            { scheduledDate: { $gte: now } },
+            { status: 'in_progress' },
+          ],
+        },
+        // Condición 3: Excluir workStatus de negocio que significan inactivas
+        {
+          $or: [
+            { workStatus: { $exists: false } },
+            { workStatus: null },
+            { workStatus: 'active' },
+          ],
+        },
+      ];
+    }
+
     if (filters.clientId) {
       query.clientId = new Types.ObjectId(filters.clientId);
     }
@@ -293,6 +325,12 @@ export class WorkOrderService {
         { title: searchRegex },
         { 'clientSnapshot.name': searchRegex },
       ];
+    }
+    
+    // Search by technician name (passed as separate filter from API route)
+    if ((filters as any).techSearch) {
+      query.$and = query.$and || [];
+      query.$and.push((filters as any).techSearch);
     }
 
     const total = await WorkOrderModel.countDocuments(query);

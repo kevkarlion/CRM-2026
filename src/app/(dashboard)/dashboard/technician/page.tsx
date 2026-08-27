@@ -61,16 +61,24 @@ function TechnicianDashboardContent() {
   const today = new Date();
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
-  // Calcular los contadores para las tarjetas
-  // Asignadas para hoy
-  // Asignadas: scheduled, assigned (con técnico asignado)
+  // Todas las tareas asignadas (para mostrar en lista)
+  const allAssignedItems = dashboard?.workOrders ?? [];
+
+  // Calcular órdenes para hoy vs total (futuro)
+  const totalAssigned = allAssignedItems.filter((wo: TechnicianWorkOrder) => wo.scheduledDate).length;
+  const assignedToday = allAssignedItems.filter((wo: TechnicianWorkOrder) => {
+    if (!wo.scheduledDate) return false;
+    return wo.scheduledDate === todayStr;
+  }).length;
+  const assignedFuture = totalAssigned - assignedToday;
+  
+  // Contadores del dashboard
   const assignedWO = dashboard?.assignedBreakdown?.workOrders ?? 0;
   const assignedVT = dashboard?.assignedBreakdown?.visits ?? 0;
-  const totalAssigned = assignedWO + assignedVT;
   
   // Carga del técnico
   const maxLoad = dashboard?.maxDailyLoad || 8;
-  const loadPercentage = Math.round((totalAssigned / maxLoad) * 100);
+  const loadPercentage = Math.round(((assignedWO + assignedVT) / maxLoad) * 100);
   
   // Cerradas (completadas hoy)
   const resolved = dashboard?.closedToday ?? 0;
@@ -82,9 +90,6 @@ function TechnicianDashboardContent() {
   const expiredWO = dashboard?.myStats?.expiredOrders ?? 0;
   const expiredVT = dashboard?.myStats?.expiredVisits ?? 0;
   const totalExpired = expiredWO + expiredVT;
-
-  // Todas las tareas asignadas (para mostrar en lista)
-  const allAssignedItems = dashboard?.workOrders ?? [];
 
   // Skeleton component
   if (loading) {
@@ -211,7 +216,7 @@ function TechnicianDashboardContent() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {/* 1. ASIGNADAS */}
           <Link
-            href={`/work-orders?tab=mine&status=scheduled,assigned&startDate=${todayStr}&endDate=${todayStr}`}
+            href="/work-orders"
             className="group bg-white border border-slate-200 rounded-2xl p-5 hover:border-blue-400 hover:shadow-xl hover:-translate-y-1 transition-all relative overflow-hidden"
           >
             <div className="absolute top-0 right-0 w-20 h-20 bg-blue-50 rounded-full -mr-10 -mt-10 opacity-50" />
@@ -221,13 +226,15 @@ function TechnicianDashboardContent() {
                   <ClipboardList className="w-6 h-6 text-blue-600" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Asignadas para Hoy</p>
+                  <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Mis Órdenes</p>
                 </div>
               </div>
               <div className="text-4xl font-bold text-slate-900 mb-1">{loading ? '...' : totalAssigned}</div>
               <div className="flex items-center gap-2 text-xs text-slate-500">
-                <Briefcase className="w-3 h-3" />
-                <span>{assignedWO} OT · {assignedVT} VT</span>
+                <span className="text-blue-700 font-medium">Hoy: {assignedToday}</span>
+                {assignedFuture > 0 && (
+                  <span>· Futuro: {assignedFuture}</span>
+                )}
               </div>
             </div>
           </Link>

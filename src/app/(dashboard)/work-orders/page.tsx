@@ -8,7 +8,7 @@ import { api, unwrapData } from '@/lib/api-client';
 import { useRole } from '@/dashboard/context/role-context';
 import { SelfAssignmentDrawer } from '@/operations/components/SelfAssignmentDrawer';
 import { formatDateShort as formatDate } from '@/operations/helpers/date-utils';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ArrowLeft } from 'lucide-react';
 import { WORK_ORDER_STATUS_LABELS } from '@/operations/constants/status-labels';
 import { SearchInput } from '@/components/ui/SearchInput';
 
@@ -183,11 +183,23 @@ export default function WorkOrdersPage() {
 function WorkOrdersContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isAdmin, isTechnician, user } = useRole();
-  const [activeTab, setActiveTab] = useState<Tab>(searchParams.get('tab') as Tab || 'all');
+  const { isAdmin, isTechnician, user, loading: roleLoading } = useRole();
   const [orders, setOrders] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Default to 'mine' - never auto-switch based on role
+  const [activeTab, setActiveTab] = useState<Tab>('mine');
+
+  // Show loading while role is being determined
+  if (roleLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="w-8 h-8 animate-spin text-brand-600" />
+      </div>
+    );
+  }
+
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState(
     searchParams.get('expired') === 'true' ? 'expired' : (searchParams.get('status') || '')
@@ -298,8 +310,8 @@ const fetchOrders = useCallback(async () => {
       params.limit = String(limit);
 
       // Use different endpoint based on tab
-      const endpoint = activeTab === 'mine' && isTechnician
-        ? '/api/operations/work-orders/technician'
+      const endpoint = activeTab === 'mine'
+        ? '/api/operations/work-orders/my-orders'
         : '/api/operations/work-orders';
 
       const result = await api.get<ListResponse>(endpoint, params);
@@ -314,6 +326,9 @@ const fetchOrders = useCallback(async () => {
 
   // Initial load + filter changes (debounced search)
   useEffect(() => {
+    // Don't fetch while role is loading
+    if (roleLoading) return;
+    
     if (!mountedRef.current) {
       mountedRef.current = true;
       fetchOrders();
@@ -324,7 +339,7 @@ const fetchOrders = useCallback(async () => {
       fetchOrders();
     }, search ? 400 : 0);
     return () => clearTimeout(timer);
-  }, [search, statusFilter, priorityFilter, fromDate, toDate, technicianFilter, activeTab, page]);
+  }, [search, statusFilter, priorityFilter, fromDate, toDate, technicianFilter, activeTab, page, roleLoading, isTechnician]);
 
   async function loadTechnicians() {
     try {
@@ -387,11 +402,21 @@ const fetchOrders = useCallback(async () => {
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Órdenes de Trabajo</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            {total > 0 ? `${total} órdenes encontradas` : 'Gestiona tus órdenes de trabajo'}
-          </p>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => router.back()}
+            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5 text-gray-600" />
+          </button>
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+              {isTechnician ? (activeTab === 'mine' ? 'Mis Órdenes' : 'Todas las Órdenes') : 'Órdenes de Trabajo'}
+            </h1>
+            <p className="text-sm text-gray-500 mt-1">
+              {total > 0 ? `${total} órdenes encontradas` : 'Gestiona tus órdenes de trabajo'}
+            </p>
+          </div>
         </div>
         <div className="flex items-center gap-3">
           <a
@@ -414,118 +439,10 @@ const fetchOrders = useCallback(async () => {
               Nueva OT
             </button>
           )}
-        </div>
+</div>
       </div>
 
-      {/* Tabs - Only show for technicians */}
-      {isTechnician && (
-        <div className="bg-white border border-gray-200 rounded-xl p-1 inline-flex">
-          <button
-            onClick={() => setActiveTab('all')}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-              activeTab === 'all'
-                ? 'bg-brand-100 text-brand-700'
-                : 'text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            Todas las OT
-          </button>
-          <button
-            onClick={() => setActiveTab('mine')}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-              activeTab === 'mine'
-                ? 'bg-brand-100 text-brand-700'
-                : 'text-gray-600 hover:bg-gray-50'
-            }`}
-          >
-            MIS OT ★
-          </button>
-        </div>
-      )}
-
-      {activeTab === 'mine' ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Filtrar por Estado:</label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter((e.target as any).value)}
-              className="w-full relative z-10 rounded-lg border border-gray-200 px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
-            >
-              {CANONICAL_STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Filtrar por Búsqueda:</label>
-            <SearchInput
-              value={search}
-              onChange={setSearch}
-              placeholder="Buscar por título o cliente..."
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Filtrar por Técnico:</label>
-            <select
-              value={technicianFilter}
-              onChange={(e) => setTechnicianFilter((e.target as any).value)}
-              className="w-full relative z-10 rounded-lg border border-gray-200 px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
-            >
-              <option value="">Todos los técnicos</option>
-              {technicians.map((tech) => (
-                <option key={tech._id} value={tech._id}>{tech.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Filtrar por Estado:</label>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter((e.target as any).value)}
-              className="w-full relative z-10 rounded-lg border border-gray-200 px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
-            >
-              {CANONICAL_STATUS_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Filtrar por Prioridad:</label>
-            <select
-              value={priorityFilter}
-              onChange={(e) => setPriorityFilter((e.target as any).value)}
-              className="w-full relative z-10 rounded-lg border border-gray-200 px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
-            >
-              {PRIORITY_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-gray-500 mb-1">Filtrar por Fecha:</label>
-            <div className="flex gap-2">
-              <input
-                type="date"
-                value={fromDate}
-                onChange={(e) => setFromDate((e.target as any).value)}
-                className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
-                title="Desde"
-              />
-              <input
-                type="date"
-                value={toDate}
-                onChange={(e) => setToDate((e.target as any).value)}
-                className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
-                title="Hasta"
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      {/* No filters - just show the orders list */}
 
       {error && (
         <div className="rounded-lg bg-danger-50 px-4 py-3 text-sm text-danger-700">{error}</div>

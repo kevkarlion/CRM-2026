@@ -46,7 +46,7 @@ const iconMap: Record<string, LucideIcon> = {
   'Centro Operativo Comercial': FileText,
   'Centro Operativo Técnico': ClipboardCheck,
   Clientes: Contact,
-  'Órdenes de Trabajo': Wrench,
+  'Mis Órdenes': Wrench,
   'Mi Calendario': Calendar,
   'Visitas Técnicas': ClipboardCheck,
   Mapa: Map,
@@ -54,7 +54,7 @@ const iconMap: Record<string, LucideIcon> = {
 };
 
 const navItems: NavItem[] = [
-  { label: 'Resumen', href: '/dashboard', icon: iconMap['Resumen'], roles: ['Owner', 'Administrator', 'Supervisor', 'Sales', 'Accounting', 'Dispatcher'] },
+  { label: 'Resumen', href: '/dashboard', icon: iconMap['Resumen'], roles: ['Owner', 'Administrator', 'Supervisor', 'Technician', 'Sales', 'Accounting', 'Dispatcher'] },
   { label: 'Mi Panel', href: '/dashboard/technician', icon: iconMap['Mi Panel'], roles: ['Technician'] },
   { label: 'Operaciones', href: '/dashboard/supervisor', icon: iconMap['Operaciones'], roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher'] },
   { label: 'Comercial', href: '/dashboard/commercial', icon: iconMap['Comercial'], roles: ['Owner', 'Administrator', 'Sales', 'Supervisor'] },
@@ -63,11 +63,12 @@ const navItems: NavItem[] = [
   { label: 'Admin', href: '/dashboard/admin', icon: iconMap['Admin'], roles: ['Owner', 'Administrator'] },
   { label: 'Plantillas WhatsApp', href: '/admin/whatsapp-templates', icon: iconMap['Plantillas WhatsApp'], roles: ['Owner', 'Administrator'] },
   { label: 'Leads', href: '/leads', icon: iconMap['Leads'], roles: ['Sales', 'Administrator', 'Owner', 'Supervisor'] },
-  { label: 'Clientes', href: '/clients', icon: iconMap['Clientes'], roles: ['Owner', 'Administrator', 'Supervisor', 'Sales', 'Accounting'] },
+  { label: 'Clientes', href: '/clients', icon: iconMap['Clientes'], roles: ['Owner', 'Administrator', 'Supervisor', 'Technician', 'Sales', 'Accounting'] },
   { label: 'Centro Operativo Comercial', href: '/quotes', icon: iconMap['Centro Operativo Comercial'], roles: ['Sales', 'Administrator', 'Owner', 'Supervisor'] },
   // Order for technicians/operations
   { label: 'Centro Operativo Técnico', href: '/centro-operativo', icon: iconMap['Centro Operativo Técnico'], roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Technician'] },
-  { label: 'Órdenes de Trabajo', href: '/work-orders', icon: iconMap['Órdenes de Trabajo'], roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Technician', 'Sales', 'Accounting'] },
+  { label: 'Mis Órdenes', href: '/work-orders', icon: iconMap['Mis Órdenes'], roles: ['Technician'] },
+  { label: 'Todas las Órdenes', href: '/work-orders/all', icon: iconMap['Mis Órdenes'], roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Technician'] },
   { label: 'Visitas Técnicas', href: '/technical-visits', icon: iconMap['Visitas Técnicas'], roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Sales', 'Technician'] },
   { label: 'Mi Calendario', href: '/work-orders/calendar', icon: iconMap['Mi Calendario'], roles: ['Technician', 'Supervisor', 'Dispatcher', 'Owner', 'Administrator'] },
   { label: 'Mapa Operativo', href: '/mapa', icon: iconMap['Mapa'], roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Technician'] },

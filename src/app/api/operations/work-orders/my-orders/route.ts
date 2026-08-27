@@ -4,6 +4,12 @@ import WorkOrderModel from '@/operations/models/work-order';
 import { TechnicianModel } from '@/operations/models/technician';
 import { Types } from 'mongoose';
 
+/**
+ * GET /api/operations/work-orders/my-orders
+ * Devuelve SOLO las órdenes de trabajo del técnico logueado.
+ * Por defecto filtra: no draft, no vencidas, no cerradas.
+ * Solo devuelve OTs con scheduledDate >= hoy, o sin fecha, o en ejecución.
+ */
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
@@ -20,6 +26,7 @@ export async function GET(request: NextRequest) {
     const tenantObjectId = new Types.ObjectId(tenantId);
     const userObjectId = new Types.ObjectId(userId);
 
+    // Buscar el técnico asociado al usuario
     const technician = await TechnicianModel.findOne({
       userId: userObjectId,
       tenantId: tenantObjectId,
@@ -33,37 +40,25 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const { searchParams } = new URL(request.url);
-    const startDateParam = searchParams.get('startDate');
-    const endDateParam = searchParams.get('endDate');
-    const status = searchParams.get('status') || undefined;
-    const priority = searchParams.get('priority') || undefined;
-    const search = searchParams.get('search') || undefined;
-    const workStatus = searchParams.get('workStatus') || undefined;
-    const expired = searchParams.get('expired');
-
     // Calcular "hoy" en timezone Argentina (UTC-3)
     const now = new Date();
     const argentinaOffset = -3 * 60;
     const localNow = new Date(now.getTime() + (now.getTimezoneOffset() + argentinaOffset) * 60000);
-    const todayStr = localNow.toISOString().split('T')[0];
+    
+    // Formatear fecha en formato YYYY-MM-DD en hora local Argentina
+    const year = localNow.getFullYear();
+    const month = String(localNow.getMonth() + 1).padStart(2, '0');
+    const day = String(localNow.getDate()).padStart(2, '0');
+    const todayStr = `${year}-${month}-${day}`;
 
-    const dateFilter: Record<string, unknown> = {};
-    if (startDateParam) {
-      dateFilter.$gte = startDateParam;
-    }
-    if (endDateParam) {
-      dateFilter.$lte = endDateParam;
-    }
-
-    // BASE QUERY: solo órdenes del técnico, activas (no draft/closed/cancelled, no vencidas)
-    const query: Record<string, unknown> = {
+    // Query filtrado: solo órdenes activas del técnico
+    const query = {
       tenantId: tenantObjectId,
       assignedTechnicians: technician._id,
       deletedAt: null,
-      // SIEMPRE excluir draft, closed, cancelled
+      // Excluir: draft, closed, cancelled
       status: { $nin: ['draft', 'closed', 'cancelled'] },
-      // SIEMPRE excluir vencidas
+      // Excluir vencidas
       $and: [
         {
           $or: [
@@ -83,59 +78,12 @@ export async function GET(request: NextRequest) {
       ],
     };
 
-    // Support multiple statuses separated by comma (e.g., "scheduled,assigned,confirmed")
-    if (status) {
-      const statusList = status.split(',').map(s => s.trim()).filter(Boolean);
-      if (statusList.length === 1) {
-        query.status = statusList[0];
-      } else if (statusList.length > 1) {
-        query.status = { $in: statusList };
-      }
-    }
-
-    // Support expired filter (scheduledDate <= today, last 30 days, excluding today)
-    if (expired === 'true') {
-      // Last 30 days but BEFORE today
-      const thirtyDaysAgo = new Date(localNow);
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
-
-      query.scheduledDate = { $gte: thirtyDaysAgoStr, $lt: todayStr };
-      // Allow showing completed/cancelled for expired view
-      delete query.status;
-    }
-
-    if (priority) {
-      query.priority = priority;
-    }
-
-    // Filter by workStatus (negocio)
-    if (workStatus) {
-      // Remove the workStatus $or from $and when filtering by specific workStatus
-      query.workStatus = workStatus;
-    }
-
-    if (search) {
-      const searchRegex = new RegExp(search, 'i');
-      query.$and = query.$and || [];
-      query.$and.push({
-        $or: [
-          { title: searchRegex },
-          { 'clientSnapshot.name': searchRegex },
-        ],
-      });
-    }
-
-    if (Object.keys(dateFilter).length > 0) {
-      query.scheduledDate = dateFilter;
-    }
-
     const workOrders = await WorkOrderModel.find(query)
       .populate('assignedTechnicians', 'name email phone')
       .sort({ scheduledDate: 1, scheduledStart: 1 })
       .lean();
 
-    const events = workOrders.map((wo) => ({
+    const data = workOrders.map((wo) => ({
       _id: String(wo._id),
       workOrderNumber: wo.workOrderNumber,
       title: wo.title,
@@ -156,7 +104,7 @@ export async function GET(request: NextRequest) {
       })) || [],
     }));
 
-    return NextResponse.json({ data: events, technicianId: String(technician._id) });
+    return NextResponse.json({ data, total: data.length });
   } catch (error) {
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Internal server error' },

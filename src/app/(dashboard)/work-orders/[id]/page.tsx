@@ -517,24 +517,28 @@ export default function WorkOrderDetailPage() {
   const isTerminal = ['completed', 'cancelled', 'closed'].includes(workOrder.status);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <button onClick={() => router.push('/work-orders')} className="text-gray-400 hover:text-gray-600 transition-colors">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <button onClick={() => router.push('/work-orders')} className="p-2 -ml-2 text-gray-400 hover:text-gray-600 transition-colors">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">ORDEN DE TRABAJO</h1>
-            <p className="text-sm text-gray-500">{workOrder.title} • #{shortWO(workOrder.workOrderNumber)}</p>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl sm:text-4xl font-extrabold text-gray-900 truncate">{workOrder.title}</h1>
+            <p className="text-base text-gray-500 mt-1">#{shortWO(workOrder.workOrderNumber)}</p>
           </div>
-          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[workOrder.status]}`}>
+        </div>
+        
+        {/* Badges compactos */}
+        <div className="flex flex-wrap gap-2 ml-10">
+          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_VARIANT[workOrder.status]}`}>
             {STATUS_OPTIONS[workOrder.status] || workOrder.status}
           </span>
-          {/* Badge de estado de negocio (workStatus) */}
           {(workOrder.workStatus === 'paused' || workOrder.workStatus === 'cancelled' || workOrder.workStatus === 'active' || workOrder.workStatus === 'completed') && (
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
               workOrder.workStatus === 'active' ? 'bg-green-100 text-green-800' :
               workOrder.workStatus === 'paused' ? 'bg-amber-100 text-amber-800' :
               workOrder.workStatus === 'completed' ? 'bg-blue-100 text-blue-800' :
@@ -546,7 +550,7 @@ export default function WorkOrderDetailPage() {
                'Cancelada'}
             </span>
           )}
-          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${PRIORITY_VARIANT[workOrder.priority]}`}>
+          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${PRIORITY_VARIANT[workOrder.priority]}`}>
             {PRIORITY_LABELS[workOrder.priority] || workOrder.priority}
           </span>
         </div>
@@ -556,33 +560,33 @@ export default function WorkOrderDetailPage() {
         <div className="rounded-lg bg-danger-50 px-4 py-3 text-sm text-danger-700">{error}</div>
       )}
 
-      {/* Tabs para navegación rápida */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-4">
+      {/* Tabs para navegación - scrollable en mobile */}
+      <div className="border-b border-gray-200 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+        <nav className="flex min-w-max space-x-1">
           <button
             onClick={() => setActiveTab('tecnico')}
-            className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+            className={`py-3 px-4 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${
               activeTab === 'tecnico'
                 ? 'border-brand-500 text-brand-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
-            🔧 Información del Técnico
+            🔧 Info
           </button>
           <button
             onClick={() => setActiveTab('cliente')}
-            className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+            className={`py-3 px-4 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${
               activeTab === 'cliente'
                 ? 'border-brand-500 text-brand-600'
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
-            👤 Cliente y Ubicación
+            👤 Cliente
           </button>
           {isAdmin && (
             <button
               onClick={() => setActiveTab('registro')}
-              className={`py-3 px-1 border-b-2 font-medium text-sm transition-colors ${
+              className={`py-3 px-4 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${
                 activeTab === 'registro'
                   ? 'border-brand-500 text-brand-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -599,41 +603,93 @@ export default function WorkOrderDetailPage() {
           {/* Pestaña: Información del Técnico */}
           {activeTab === 'tecnico' && (
             <>
-              {/* Programación - DESTACADA */}
-              <div className="bg-gradient-to-br from-brand-50 to-brand-100 border-2 border-brand-200 rounded-xl p-6">
-                <h2 className="text-lg font-bold text-brand-900 mb-4 flex items-center gap-2">
+              {/* Programación - DESTACADA y prominente para técnicos */}
+              <div className="bg-gradient-to-br from-brand-500 to-brand-600 rounded-xl p-5 text-white shadow-lg">
+                <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                   </svg>
                   Cuándo ir
                 </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <span className="text-brand-600 text-sm font-medium">Fecha</span>
-                    <p className="text-3xl font-bold text-brand-900 mt-1">{formatDate(workOrder.scheduledDate)}</p>
+                    <span className="text-brand-100 text-sm font-medium">Fecha</span>
+                    <p className="text-2xl font-bold mt-1">{formatDate(workOrder.scheduledDate)}</p>
                   </div>
                   <div>
-                    <span className="text-brand-600 text-sm font-medium">Horario</span>
-                    <p className="text-2xl font-bold text-brand-900 mt-1">
+                    <span className="text-brand-100 text-sm font-medium">Horario</span>
+                    <p className="text-xl font-bold mt-1">
                       {formatTime(workOrder.scheduledStart)} - {formatTime(workOrder.scheduledEnd)}
                     </p>
                   </div>
                   <div>
-                    <span className="text-brand-600 text-sm font-medium">Duración est.</span>
-                    <p className="text-xl font-semibold text-brand-800 mt-1">{workOrder.estimatedDuration ? `${workOrder.estimatedDuration} min` : '—'}</p>
+                    <span className="text-brand-100 text-sm font-medium">Duración</span>
+                    <p className="text-lg font-semibold mt-1">{workOrder.estimatedDuration ? `${workOrder.estimatedDuration} min` : '—'}</p>
                   </div>
                   <div>
-                    <span className="text-brand-600 text-sm font-medium">Prioridad</span>
-                    <p className="text-xl font-semibold text-brand-800 mt-1">{PRIORITY_LABELS[workOrder.priority] || workOrder.priority}</p>
+                    <span className="text-brand-100 text-sm font-medium">Prioridad</span>
+                    <p className="text-lg font-semibold mt-1">{PRIORITY_LABELS[workOrder.priority] || workOrder.priority}</p>
                   </div>
                 </div>
               </div>
 
+              {/* Botones de acción prominentes para técnicos - visible siempre */}
+              {isCurrentUserTheAssignedTech() && !isTerminal && (
+                <div className="space-y-3">
+                  {(workOrder.status === 'draft' || workOrder.status === 'scheduled' || workOrder.status === 'assigned') && (
+                    <>
+                      {startingWorkError && (
+                        <div className="rounded-lg bg-danger-50 px-4 py-3 text-sm text-danger-700">
+                          {startingWorkError}
+                        </div>
+                      )}
+                      <button
+                        onClick={handleStartWorkClick}
+                        disabled={startingWork}
+                        className="w-full rounded-xl bg-green-600 px-6 py-4 text-lg font-bold text-white hover:bg-green-700 disabled:opacity-50 transition-colors shadow-lg flex items-center justify-center gap-3"
+                      >
+                        {startingWork ? (
+                          <>
+                            <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                            Iniciando...
+                          </>
+                        ) : (
+                          <>
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            ▶ INICIAR TRABAJO
+                          </>
+                        )}
+                      </button>
+                    </>
+                  )}
+
+                  {workOrder.status === 'in_progress' && (
+                    <button
+                      onClick={handleCompleteWorkClick}
+                      className="w-full rounded-xl bg-amber-600 px-6 py-4 text-lg font-bold text-white hover:bg-amber-700 transition-colors shadow-lg flex items-center justify-center gap-3"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      ✓ FINALIZAR SERVICIO
+                    </button>
+                  )}
+                </div>
+              )}
+
               {/* Descripción del trabajo */}
               {workOrder.description && (
-                <div className="bg-white border border-gray-200 rounded-xl p-4">
-                  <h2 className="text-sm font-semibold text-gray-900 mb-2">📋 Descripción del Trabajo</h2>
-                  <p className="text-sm text-gray-700">{workOrder.description}</p>
+                <div className="bg-white border-2 border-gray-200 rounded-xl p-5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-2xl">
+                      📋
+                    </div>
+                    <h2 className="text-lg font-bold text-gray-900">Descripción del Trabajo</h2>
+                  </div>
+                  <p className="text-lg text-gray-700 leading-relaxed">{workOrder.description}</p>
                 </div>
               )}
 
@@ -641,7 +697,7 @@ export default function WorkOrderDetailPage() {
               {(workOrder.technicianNotes?.materials || workOrder.technicianNotes?.tools || workOrder.technicianNotes?.additionalNotes) && (
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                   <h2 className="text-sm font-semibold text-blue-900 mb-3">📋 Lo que necesitás saber</h2>
-                  <dl className="space-y-2">
+                  <dl className="space-y-3">
                     {workOrder.technicianNotes.materials && (
                       <div className="flex flex-col">
                         <dt className="text-xs font-medium text-blue-700">🎒 Materiales</dt>
@@ -671,17 +727,31 @@ export default function WorkOrderDetailPage() {
             <>
               {/* Cliente */}
               {(workOrder.clientSnapshot?.name || workOrder.clientSnapshot?.phone) && (
-                <div className="bg-white border border-gray-200 rounded-xl p-4">
-                  <h2 className="text-sm font-semibold text-gray-900 mb-3">👤 Cliente</h2>
-                  <dl className="space-y-2 text-sm">
+                <div className="bg-white border-2 border-gray-200 rounded-xl p-5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-full bg-brand-100 flex items-center justify-center text-2xl">
+                      👤
+                    </div>
+                    <h2 className="text-lg font-bold text-gray-900">Cliente</h2>
+                  </div>
+                  <dl className="space-y-4">
                     {workOrder.clientSnapshot?.name && (
-                      <div><dt className="text-xs text-gray-500">Nombre</dt><dd className="font-medium">{workOrder.clientSnapshot.name}</dd></div>
+                      <div className="flex flex-col">
+                        <dt className="text-sm font-medium text-gray-500">Nombre</dt>
+                        <dd className="text-xl font-bold text-gray-900">{workOrder.clientSnapshot.name}</dd>
+                      </div>
                     )}
                     {workOrder.clientSnapshot?.phone && (
-                      <div><dt className="text-xs text-gray-500">Teléfono</dt><dd className="font-medium">{workOrder.clientSnapshot.phone}</dd></div>
+                      <div className="flex flex-col">
+                        <dt className="text-sm font-medium text-gray-500">Teléfono</dt>
+                        <dd className="text-lg font-semibold text-brand-700">{workOrder.clientSnapshot.phone}</dd>
+                      </div>
                     )}
                     {workOrder.clientSnapshot?.email && (
-                      <div><dt className="text-xs text-gray-500">Email</dt><dd className="font-medium">{workOrder.clientSnapshot.email}</dd></div>
+                      <div className="flex flex-col">
+                        <dt className="text-sm font-medium text-gray-500">Email</dt>
+                        <dd className="text-base text-gray-700">{workOrder.clientSnapshot.email}</dd>
+                      </div>
                     )}
                   </dl>
                 </div>
@@ -689,21 +759,41 @@ export default function WorkOrderDetailPage() {
 
               {/* Ubicación */}
               {workOrder.locationSnapshot?.address && (
-                <div className="bg-white border border-gray-200 rounded-xl p-4">
-                  <h2 className="text-sm font-semibold text-gray-900 mb-3">📍 Dónde ir</h2>
-                  <dl className="space-y-2 text-sm">
+                <div className="bg-gradient-to-br from-brand-50 to-brand-100 border-2 border-brand-200 rounded-xl p-5">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 rounded-full bg-brand-200 flex items-center justify-center text-2xl">
+                      📍
+                    </div>
+                    <h2 className="text-lg font-bold text-brand-900">Dónde ir</h2>
+                  </div>
+                  <dl className="space-y-4">
                     {workOrder.locationSnapshot.name && (
-                      <div><dt className="text-xs text-gray-500">Lugar</dt><dd className="font-medium">{workOrder.locationSnapshot.name}</dd></div>
+                      <div className="flex flex-col">
+                        <dt className="text-sm font-medium text-brand-600">Lugar</dt>
+                        <dd className="text-lg font-bold text-brand-900">{workOrder.locationSnapshot.name}</dd>
+                      </div>
                     )}
-                    <div><dt className="text-xs text-gray-500">Dirección</dt><dd className="font-medium">{workOrder.locationSnapshot.address}</dd></div>
+                    <div className="flex flex-col">
+                      <dt className="text-sm font-medium text-brand-600">Dirección</dt>
+                      <dd className="text-base font-semibold text-brand-800">{workOrder.locationSnapshot.address}</dd>
+                    </div>
                     {workOrder.locationSnapshot.city && (
-                      <div><dt className="text-xs text-gray-500">Ciudad</dt><dd className="font-medium">{workOrder.locationSnapshot.city}</dd></div>
+                      <div className="flex flex-col">
+                        <dt className="text-sm font-medium text-brand-600">Ciudad</dt>
+                        <dd className="text-base font-medium text-brand-800">{workOrder.locationSnapshot.city}</dd>
+                      </div>
                     )}
                     {workOrder.locationSnapshot.province && (
-                      <div><dt className="text-xs text-gray-500">Provincia</dt><dd className="font-medium">{workOrder.locationSnapshot.province}</dd></div>
+                      <div className="flex flex-col">
+                        <dt className="text-sm font-medium text-brand-600">Provincia</dt>
+                        <dd className="text-base font-medium text-brand-800">{workOrder.locationSnapshot.province}</dd>
+                      </div>
                     )}
                     {workOrder.locationSnapshot.details?.reference && (
-                      <div><dt className="text-xs text-gray-500">Referencias</dt><dd className="font-medium">{workOrder.locationSnapshot.details.reference}</dd></div>
+                      <div className="flex flex-col">
+                        <dt className="text-sm font-medium text-brand-600">Referencias</dt>
+                        <dd className="text-base text-brand-800">{workOrder.locationSnapshot.details.reference}</dd>
+                      </div>
                     )}
                   </dl>
                   
@@ -717,7 +807,7 @@ export default function WorkOrderDetailPage() {
                     return (
                       <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`}
                         target="_blank" rel="noopener noreferrer"
-                        className="mt-3 inline-flex items-center gap-2 px-4 py-2 text-sm rounded-lg border border-brand-200 bg-brand-50 text-brand-700 hover:bg-brand-100 transition-colors">
+                        className="mt-4 inline-flex items-center justify-center gap-2 px-6 py-3 text-base font-bold rounded-xl border-2 border-brand-300 bg-brand-600 text-white hover:bg-brand-700 transition-colors w-full">
                         📍 Abrir en Google Maps
                       </a>
                     );
@@ -894,10 +984,10 @@ export default function WorkOrderDetailPage() {
 
             {/* Work Execution Status - Show when work has started */}
             {(workOrder.status === 'in_progress' || workOrder.status === 'completed' || workOrder.status === 'closed') && workOrder.startedAt && (
-              <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-amber-700">Estado del Trabajo</span>
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+              <div className="rounded-xl bg-gradient-to-br from-amber-50 to-amber-100 border-2 border-amber-200 p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <span className="text-base font-bold text-amber-800">📊 Estado del Trabajo</span>
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${
                     workOrder.status === 'completed'
                       ? 'bg-green-100 text-green-700'
                       : 'bg-amber-100 text-amber-700'
@@ -905,7 +995,7 @@ export default function WorkOrderDetailPage() {
                     {workOrder.status === 'in_progress' ? 'En Curso' : 'Completado'}
                   </span>
                 </div>
-                <div className="text-xs text-amber-800 space-y-1">
+                <div className="text-base text-amber-900 space-y-2">
                   <p>
                     <span className="font-medium">Inicio:</span>{' '}
                     {new Date(workOrder.startedAt).toLocaleString('es-CL', {
@@ -949,9 +1039,9 @@ export default function WorkOrderDetailPage() {
               </div>
             )}
 
-            {/* Work Execution Buttons - Only for technicians */}
+            {/* Work Execution Buttons - Only for technicians - show only on desktop sidebar */}
             {isCurrentUserTheAssignedTech() && !isTerminal && (
-              <>
+              <div className="hidden sm:block space-y-2">
                 {/* Start Work button - show when status is 'draft', 'scheduled' or 'assigned' */}
                 {(workOrder.status === 'draft' || workOrder.status === 'scheduled' || workOrder.status === 'assigned') && (
                   <>
@@ -979,14 +1069,14 @@ export default function WorkOrderDetailPage() {
                     ✓ Finalizar Servicio
                   </button>
                 )}
-              </>
+              </div>
             )}
 
-            {/* Self-assign for technicians - show only if NOT already assigned to current technician */}
+            {/* Self-assign for technicians - hide on desktop */}
             {isTechnician && !isTerminal && !isCurrentUserTheAssignedTech() && (
               <button
                 onClick={() => setSelfAssignOpen(true)}
-                className="w-full rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 transition-colors"
+                className="block sm:hidden w-full rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 transition-colors"
               >
                 Auto-asignar esta OT
               </button>
@@ -994,16 +1084,19 @@ export default function WorkOrderDetailPage() {
 
             {/* Technician info - visible to all, but buttons only for non-technicians */}
             {workOrder.assignedTechnicians && workOrder.assignedTechnicians.length > 0 && (
-              <div className="rounded-lg bg-brand-50 border border-brand-100 p-3 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-brand-700">Técnico Asignado</span>
-                  <span className="text-xs text-brand-600">{technicianName(workOrder)}</span>
+              <div className="rounded-xl bg-gradient-to-br from-brand-50 to-brand-100 border-2 border-brand-200 p-5">
+                <div className="text-center">
+                  <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-brand-200 text-brand-700 text-2xl mb-3">
+                    👷
+                  </div>
+                  <p className="text-xs font-medium text-brand-600 mb-1">Técnico Asignado</p>
+                  <p className="text-lg font-bold text-brand-900">{technicianName(workOrder)}</p>
                 </div>
                 {isAdmin && !isTerminal && (
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 mt-4">
                     <button
                       onClick={() => { setShowAssignInput(!showAssignInput); if (!showAssignInput) loadTechnicians(); }}
-                      className="flex-1 rounded-lg border border-brand-200 px-3 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-100 transition-colors"
+                      className="flex-1 rounded-lg border border-brand-300 px-3 py-2 text-sm font-medium text-brand-700 hover:bg-brand-200 transition-colors"
                     >
                       Reasignar
                     </button>
@@ -1014,7 +1107,7 @@ export default function WorkOrderDetailPage() {
                         handleUnassign(techId);
                       }}
                       disabled={unassigning}
-                      className="flex-1 rounded-lg border border-danger-200 px-3 py-1.5 text-xs font-medium text-danger-600 hover:bg-danger-50 disabled:opacity-50 transition-colors"
+                      className="flex-1 rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 transition-colors"
                     >
                       {unassigning ? '...' : 'Desasignar'}
                     </button>

@@ -60,7 +60,22 @@ if (expired === 'true') {
       filters.scheduledDateGte = from || undefined;
       filters.scheduledDateLte = to || undefined;
     }
-    if (search) filters.search = search;
+    if (search) {
+      filters.search = search;
+      
+      // También buscar por nombre de técnico
+      const techRegex = new RegExp(search, 'i');
+      const TechnicianModel = (await import('@/operations/models/technician')).TechnicianModel;
+      const matchingTechs = await TechnicianModel.find({
+        name: techRegex,
+        tenantId: new Types.ObjectId(tenantId),
+        deletedAt: null,
+      }).select('_id').lean();
+      const techIds = matchingTechs.map(t => t._id);
+      if (techIds.length > 0) {
+        (filters as any).techSearch = { assignedTechnicians: { $in: techIds } };
+      }
+    }
     if (priority) filters.priority = priority;
     if (workStatus) {
       filters.workStatus = workStatus;
@@ -82,6 +97,10 @@ if (expired === 'true') {
     }
     if (searchParams.get('hasTechnician') === 'true') {
       filters.assignedTechnicians = { $exists: true, $ne: [], $not: { $size: 0 } };
+    }
+    // Filter: órdenes activas para técnicos (no vencidas, no cerradas)
+    if (searchParams.get('techActive') === 'true') {
+      (filters as any).techActive = 'true';
     }
 
     filters.limit = limit;

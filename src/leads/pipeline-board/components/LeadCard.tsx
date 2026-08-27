@@ -314,18 +314,18 @@ export const LeadCard = React.memo(function LeadCard({
       {/* Botón Resuelto - solo para leads convertidos (status won) */}
       {lead.status === 'won' && (
         <div className="mt-1.5">
-            <button
-              onClick={(e) => { e.stopPropagation(); onResolve?.(lead); }}
-              className="px-2 py-0.5 text-[10px] font-medium bg-green-50 text-green-700 rounded hover:bg-green-100 transition-colors"
-            >
-              Descalificar
-            </button>
-            <button
-              onClick={(e) => { e.stopPropagation(); onMarkForFollowUp?.(lead); }}
-              className="px-2 py-0.5 text-[10px] font-medium bg-amber-50 text-amber-700 rounded hover:bg-amber-100 transition-colors"
-            >
-              {followUpMark ? '✓ Seguimiento' : '⏰ Seguimiento'}
-            </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onResolve?.(lead); }}
+            className="px-2 py-0.5 text-[10px] font-medium bg-emerald-100 text-emerald-800 rounded hover:bg-emerald-200 transition-colors"
+          >
+            ✓ Resuelto
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onMarkForFollowUp?.(lead); }}
+            className="px-2 py-0.5 text-[10px] font-medium bg-amber-50 text-amber-700 rounded hover:bg-amber-100 transition-colors"
+          >
+            {followUpMark ? '✓ Seguimiento' : '⏰ Seguimiento'}
+          </button>
         </div>
       )}
 

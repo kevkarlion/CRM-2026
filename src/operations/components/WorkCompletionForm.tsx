@@ -394,16 +394,16 @@ export function WorkCompletionForm({
         <button
           onClick={onCancel}
           disabled={submitting}
-          className="flex-1 py-3 px-4 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors min-h-[48px]"
+          className="flex-1 py-4 px-4 rounded-xl border border-gray-300 text-base font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 transition-colors"
         >
           Cancelar
         </button>
         <button
           onClick={handleSubmit}
           disabled={submitting || !result}
-          className="flex-1 py-3 px-4 rounded-lg bg-brand-600 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50 transition-colors min-h-[48px]"
+          className="flex-1 py-4 px-4 rounded-xl bg-brand-600 text-base font-semibold text-white hover:bg-brand-700 disabled:opacity-50 transition-colors"
         >
-          {submitting ? 'Guardando...' : 'Finalizar Servicio'}
+          {submitting ? 'Guardando...' : '✓ Finalizar Servicio'}
         </button>
       </div>
     </div>
