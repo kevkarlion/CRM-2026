@@ -93,7 +93,7 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
     return seenIds.includes(markId);
   }, [getUserEmail]);
 
-  // Show toast for a mark
+  // Show toast for a mark (API already filters by timestamp, so just check user match)
   const showToastForMark = useCallback((mark: FollowUpMarkResponse) => {
     const currentUserEmail = (userEmailRef.current || getUserEmail() || '').toLowerCase();
     const markAssignedTo = (mark.assignedTo || '').toLowerCase();
@@ -139,7 +139,7 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
     setToasts((prev) => [...prev, toastItem]);
   }, [isAlreadySeen, getUserEmail]);
 
-  // Polling fetch - get ALL marks, filter in showToastForMark
+  // Polling fetch - get NEW marks since last check (using timestamp)
   const fetchNewMarks = useCallback(async () => {
     // Don't poll if we already polled recently (within 5 seconds)
     const now = Date.now();
@@ -152,28 +152,41 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
       if (tenantId) {
         headers['x-tenant-id'] = tenantId;
       }
+
+      // Get last check timestamp from localStorage
+      const userEmail = getUserEmail();
+      const lastCheckKey = `atencion_last_check_${userEmail}`;
+      const lastCheck = localStorage.getItem(lastCheckKey);
       
-      // Fetch ALL marks - we'll filter in showToastForMark
-      const response = await fetch(`/api/follow-up-marks?userAll=true`, { headers });
+      // Build URL with 'since' parameter if we have a last check timestamp
+      let url = '/api/follow-up-marks?userAll=true';
+      if (lastCheck) {
+        url += `&since=${encodeURIComponent(lastCheck)}`;
+      }
+      
+      const response = await fetch(url, { headers });
       
       if (!response.ok) return;
 
       const marks: FollowUpMarkResponse[] = await response.json();
-      if (!Array.isArray(marks) || marks.length === 0) return;
-
-      // Check each mark - show toast for unseen ones from last 5 minutes
-      // BUT only if they are for the current user (filter inside showToastForMark)
-      const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
-      for (const mark of marks) {
-        const markDate = new Date(mark.markedAt).getTime();
-        if (markDate > fiveMinutesAgo) {
-          showToastForMark(mark);
-        }
+      if (!Array.isArray(marks) || marks.length === 0) {
+        // Even if no new marks, update the last check timestamp
+        localStorage.setItem(lastCheckKey, new Date().toISOString());
+        return;
       }
+
+      // Check each mark and show toast if for current user
+      // Since API already filters by timestamp, all marks are "new"
+      for (const mark of marks) {
+        showToastForMark(mark);
+      }
+
+      // Update last check timestamp AFTER successful fetch
+      localStorage.setItem(lastCheckKey, new Date().toISOString());
     } catch {
-      // Silent fail for polling
+      // Silent fail
     }
-  }, [showToastForMark, getTenantId]);
+  }, [getUserEmail, getTenantId, showToastForMark]);
 
   // Start polling fallback - ONLY for Rolija
   const startPolling = useCallback(() => {
@@ -284,20 +297,20 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
   }, [getUserEmail, handleSSEEvent, startPolling, stopPolling]);
 
   const handleToastClick = useCallback((toast: ToastItem) => {
-    markAsSeen(toast._id);
+    // No need to mark as seen - timestamps handle that
     if (toast.type === 'lead') {
       router.push(`/leads/${toast.id}`);
     } else {
       router.push(`/clients/${toast.id}`);
     }
     setToasts((prev) => prev.filter((t) => t._id !== toast._id));
-  }, [router, markAsSeen]);
+  }, [router]);
 
   const handleDismiss = useCallback((toast: ToastItem, e: React.MouseEvent) => {
+    // No need to mark as seen - timestamps handle that
     e.stopPropagation();
-    markAsSeen(toast._id);
     setToasts((prev) => prev.filter((t) => t._id !== toast._id));
-  }, [markAsSeen]);
+  }, []);
 
   if (toasts.length === 0) return null;
 

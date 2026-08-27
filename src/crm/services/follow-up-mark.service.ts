@@ -77,12 +77,20 @@ export class FollowUpMarkService {
   /**
    * Get all follow-up marks assigned to a specific user.
    * Returns marks with populated target data (lead/client info).
+   * @param since - optional Date to filter marks created after this time
    */
-  async getMarksForUser(tenantId: string, userEmail: string): Promise<IFollowUpMark[]> {
-    const marks = await FollowUpMarkModel.find({
+  async getMarksForUser(tenantId: string, userEmail: string, since?: Date): Promise<IFollowUpMark[]> {
+    const query: Record<string, unknown> = {
       tenantId: new Types.ObjectId(tenantId),
       assignedTo: userEmail,
-    })
+    };
+    
+    // Filter by creation date if 'since' is provided
+    if (since) {
+      query.createdAt = { $gt: since };
+    }
+
+    const marks = await FollowUpMarkModel.find(query)
       .sort({ markedAt: -1 })
       .lean();
 
@@ -129,11 +137,19 @@ export class FollowUpMarkService {
   /**
    * Get ALL follow-up marks for a tenant (for pipeline badges).
    * Returns marks with populated target data.
+   * @param since - optional Date to filter marks created after this time
    */
-  async getAllMarksForTenant(tenantId: string): Promise<IFollowUpMark[]> {
-    const marks = await FollowUpMarkModel.find({
+  async getAllMarksForTenant(tenantId: string, since?: Date): Promise<IFollowUpMark[]> {
+    const query: Record<string, unknown> = {
       tenantId: new Types.ObjectId(tenantId),
-    })
+    };
+    
+    // Filter by creation date if 'since' is provided
+    if (since) {
+      query.createdAt = { $gt: since };
+    }
+
+    const marks = await FollowUpMarkModel.find(query)
       .sort({ markedAt: -1 })
       .lean();
 

@@ -56,11 +56,12 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const userEmail = searchParams.get('userEmail');
-    const userAll = searchParams.get('userAll'); // New param to get ALL marks
+    const userAll = searchParams.get('userAll'); // Get ALL marks (for pipeline badges)
+    const since = searchParams.get('since'); // ISO timestamp - only get marks created after this
 
     // If userAll=true, get ALL marks (for pipeline badges)
     if (userAll === 'true') {
-      const marks = await followUpMarkService.getAllMarksForTenant(tenantId);
+      const marks = await followUpMarkService.getAllMarksForTenant(tenantId, since ? new Date(since) : undefined);
       return NextResponse.json(marks);
     }
 
@@ -69,7 +70,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Se requiere el parámetro userEmail' }, { status: 400 });
     }
 
-    const marks = await followUpMarkService.getMarksForUser(tenantId, userEmail);
+    const marks = await followUpMarkService.getMarksForUser(tenantId, userEmail, since ? new Date(since) : undefined);
 
     return NextResponse.json(marks);
   } catch (error) {
