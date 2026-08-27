@@ -85,11 +85,13 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
   // Show toast for a mark
   const showToastForMark = useCallback((mark: FollowUpMarkResponse) => {
     const currentUserEmail = (userEmailRef.current || getUserEmail() || '').toLowerCase();
+    const markAssignedTo = (mark.assignedTo || '').toLowerCase();
+    
+    console.log('[Toast] Check:', { currentUserEmail, markAssignedTo, match: markAssignedTo === currentUserEmail });
     
     if (isAlreadySeen(mark._id)) return;
 
     // Only show if it's for current user (case-insensitive)
-    const markAssignedTo = (mark.assignedTo || '').toLowerCase();
     if (markAssignedTo !== currentUserEmail) return;
 
     // Extract target info - use the 'target' field which is populated
