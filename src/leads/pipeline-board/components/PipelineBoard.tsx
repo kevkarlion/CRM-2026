@@ -174,6 +174,25 @@ export function PipelineBoard() {
     fetchMarks();
   }, [fetchMarks]);
 
+  // Polling para actualizar marks en tiempo real (solo para Rolija)
+  useEffect(() => {
+    // Solo Rolija necesita polling para ver badges actualizados
+    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+    if (!token) return;
+    let isRolija = false;
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      isRolija = payload.email?.toLowerCase() === 'ro.lija@hotmail.com';
+    } catch {}
+    if (!isRolija) return;
+
+    const interval = setInterval(() => {
+      fetchMarks();
+    }, 15000); // Cada 15 segundos
+
+    return () => clearInterval(interval);
+  }, [fetchMarks]);
+
   const { statusMap: conversationStatusMap } = useConversationStatus(allLeadIds);
   const { count: pendingHandoffs, handoffs: handoffList } = usePendingHandoffs();
   const { clients: botClients, refetch: refetchBotClients } = useBotClients();
