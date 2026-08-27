@@ -32,17 +32,13 @@ interface FollowUpMarkResponse {
  * Hybrid approach:
  * 1. SSE for real-time updates (primary)
  * 2. Polling as fallback (more reliable in serverless environments)
+ * 
+ * ONLY Rolija (ro.lija@hotmail.com) should see these toasts.
  */
 export function AttentionToast({ className = '' }: AttentionToastProps) {
   const router = useRouter();
-  const [toasts, setToasts] = useState<ToastItem[]>([]);
-  const eventSourceRef = useRef<EventSource | null>(null);
-  const isConnectedRef = useRef(false);
-  const userEmailRef = useRef<string | null>(null);
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const lastPolledRef = useRef<number>(0);
-
-  // Get current user email
+  
+  // EARLY RETURN: Only Rolija sees toasts
   const getUserEmail = useCallback(() => {
     if (typeof window === 'undefined') return null;
     const token = localStorage.getItem('token');
@@ -55,11 +51,20 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
     }
   }, []);
 
-  // Check if current user is Rolija (the only one who should see toasts and badges)
-  const isRolija = useCallback(() => {
-    const email = getUserEmail();
-    return email?.toLowerCase() === 'ro.lija@hotmail.com';
-  }, [getUserEmail]);
+  const currentUserEmail = getUserEmail();
+  const isRolija = currentUserEmail?.toLowerCase() === 'ro.lija@hotmail.com';
+  
+  // If not Rolija, don't render anything
+  if (!isRolija) {
+    return null;
+  }
+
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const eventSourceRef = useRef<EventSource | null>(null);
+  const isConnectedRef = useRef(false);
+  const userEmailRef = useRef<string | null>(currentUserEmail);
+  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastPolledRef = useRef<number>(0);
 
   // Get tenant ID from localStorage
   const getTenantId = useCallback(() => {
@@ -170,9 +175,6 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
 
   // Start polling fallback - ONLY for Rolija
   const startPolling = useCallback(() => {
-    // Only Rolija should see toasts
-    if (!isRolija()) return;
-    
     if (pollingIntervalRef.current) return;
     
     // Initial fetch
@@ -225,11 +227,8 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
     }
   }, [getUserEmail, isAlreadySeen]);
 
-  // Set up SSE connection on mount - ONLY for Rolija
+  // Set up SSE connection on mount - ONLY for Rolija (already verified above)
   useEffect(() => {
-    // Only Rolija should see toasts
-    if (!isRolija()) return;
-    
     if (isConnectedRef.current) return;
     if (typeof window === 'undefined') return;
 
