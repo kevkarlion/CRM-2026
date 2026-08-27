@@ -58,6 +58,12 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
     }
   }, []);
 
+  // Get tenant ID from localStorage
+  const getTenantId = useCallback(() => {
+    if (typeof window === 'undefined') return null;
+    return localStorage.getItem('tenantId');
+  }, []);
+
   // Mark toast as seen in localStorage
   const markAsSeen = useCallback((markId: string) => {
     const userEmail = getUserEmail();
@@ -146,8 +152,14 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
     lastPolledRef.current = now;
 
     try {
+      const tenantId = getTenantId();
+      const headers: Record<string, string> = {};
+      if (tenantId) {
+        headers['x-tenant-id'] = tenantId;
+      }
+      
       const encodedEmail = encodeURIComponent(userEmail);
-      const response = await fetch(`/api/follow-up-marks?userEmail=${encodedEmail}`);
+      const response = await fetch(`/api/follow-up-marks?userEmail=${encodedEmail}`, { headers });
       
       if (!response.ok) {
         console.warn('[AttentionToast] Polling failed:', response.status);
