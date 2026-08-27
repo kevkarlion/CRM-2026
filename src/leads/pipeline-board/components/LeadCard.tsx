@@ -2,6 +2,8 @@ import React, { useMemo } from 'react';
 import type { ILead, InquiryReason, CustomerType, Temperature } from '../../types/lead';
 import type { ConversationStatus } from '../hooks/useConversationStatus';
 import { calculateLeadScore } from '../../services/lead-score.service';
+import { FollowUpBadge } from '@/components/follow-up/FollowUpBadge';
+import type { FollowUpMark } from '../hooks/useFollowUpMarks';
 
 function relativeTime(date: Date): string {
   const now = Date.now();
@@ -71,6 +73,8 @@ interface LeadCardProps {
   onQuickReply?: (lead: ILead) => void;
   onOpenChat?: (lead: ILead) => void;
   onResolve?: (lead: ILead) => void;
+  followUpMark?: FollowUpMark;
+  onMarkForFollowUp?: (lead: ILead) => void;
 }
 
 export const LeadCard = React.memo(function LeadCard({
@@ -83,6 +87,8 @@ export const LeadCard = React.memo(function LeadCard({
   onQuickReply,
   onOpenChat,
   onResolve,
+  followUpMark,
+  onMarkForFollowUp,
 }: LeadCardProps) {
   // Calcular score si no está guardado
   const calculatedScore = useMemo(() => {
@@ -152,6 +158,10 @@ export const LeadCard = React.memo(function LeadCard({
           {lead.name}
         </p>
         <div className="flex items-center gap-1 mt-1">
+          <FollowUpBadge
+            mark={followUpMark}
+            onClick={() => onMarkForFollowUp?.(lead)}
+          />
           {(() => {
             const temp = (calculatedScore?.temperature || lead.temperature) as string | undefined;
             return temp && TEMPERATURE_CONFIG[temp] ? (
@@ -270,13 +280,13 @@ export const LeadCard = React.memo(function LeadCard({
         </div>
       )}
 
-      {/* Quick Actions - siempre mostrar si hay conversación activa */}
-      {conversationStatus?.hasActiveConversation && (
-        <div className="mt-1.5 flex gap-1">
+      {/* Quick Actions - siempre mostrar si hay conversación activa (excepto para leads won) */}
+      {conversationStatus?.hasActiveConversation && lead.status !== 'won' && (
+        <div className="mt-1.5 flex gap-1 flex-wrap">
           {conversationStatus?.isHandoffPending && (
             <button
               onClick={(e) => { e.stopPropagation(); onTakeCase?.(lead); }}
-              className="flex-1 px-2 py-0.5 text-[10px] font-medium bg-red-50 text-red-700 rounded hover:bg-red-100 transition-colors"
+              className="px-2 py-0.5 text-[10px] font-medium bg-red-50 text-red-700 rounded hover:bg-red-100 transition-colors"
             >
               Tomar caso
             </button>
@@ -284,11 +294,17 @@ export const LeadCard = React.memo(function LeadCard({
           {conversationStatus?.isBotActive && !conversationStatus?.isHandoffPending && (
             <button
               onClick={(e) => { e.stopPropagation(); onQuickReply?.(lead); }}
-              className="flex-1 px-2 py-0.5 text-[10px] font-medium bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition-colors"
+              className="px-2 py-0.5 text-[10px] font-medium bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition-colors"
             >
               Responder
             </button>
           )}
+          <button
+            onClick={(e) => { e.stopPropagation(); onMarkForFollowUp?.(lead); }}
+            className="px-2 py-0.5 text-[10px] font-medium bg-amber-50 text-amber-700 rounded hover:bg-amber-100 transition-colors"
+          >
+            {followUpMark ? '✓' : '⏰'}
+          </button>
           <button
             onClick={(e) => { e.stopPropagation(); onResolve?.(lead); }}
             className="px-2 py-0.5 text-[10px] font-medium bg-green-50 text-green-700 rounded hover:bg-green-100 transition-colors"
@@ -301,23 +317,35 @@ export const LeadCard = React.memo(function LeadCard({
       {/* Botón Resuelto - solo para leads convertidos (status won) */}
       {lead.status === 'won' && (
         <div className="mt-1.5">
-          <button
-            onClick={(e) => { e.stopPropagation(); onResolve?.(lead); }}
-            className="w-full px-2 py-1 text-[10px] font-medium bg-emerald-100 text-emerald-800 rounded hover:bg-emerald-200 transition-colors"
-          >
-            ✓ Resuelto
-          </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onResolve?.(lead); }}
+              className="px-2 py-0.5 text-[10px] font-medium bg-green-50 text-green-700 rounded hover:bg-green-100 transition-colors"
+            >
+              Descalificar
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onMarkForFollowUp?.(lead); }}
+              className="px-2 py-0.5 text-[10px] font-medium bg-amber-50 text-amber-700 rounded hover:bg-amber-100 transition-colors"
+            >
+              {followUpMark ? '✓ Seguimiento' : '⏰ Seguimiento'}
+            </button>
         </div>
       )}
 
-      {/* Sin conversación */}
-      {!conversationStatus && (
+      {/* Sin conversación - solo mostrar si no es won */}
+      {!conversationStatus && lead.status !== 'won' && (
         <div className="mt-1.5 flex gap-1">
           <button
             onClick={(e) => { e.stopPropagation(); onOpenChat?.(lead); }}
             className="flex-1 px-2 py-0.5 text-[10px] text-gray-600 rounded hover:bg-gray-100 transition-colors"
           >
             Ver
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onMarkForFollowUp?.(lead); }}
+            className="px-2 py-0.5 text-[10px] font-medium bg-amber-50 text-amber-700 rounded hover:bg-amber-100 transition-colors"
+          >
+            {followUpMark ? '✓' : '⏰'}
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); onResolve?.(lead); }}

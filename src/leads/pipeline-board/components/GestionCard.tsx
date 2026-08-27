@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import type { IGestion, GestionStatus, InquiryReason, CustomerType, Temperature } from '@/gestion/types/gestion';
 import type { ConversationStatus } from '../hooks/useConversationStatus';
+import type { FollowUpMark } from '../hooks/useFollowUpMarks';
 
 function relativeTime(date: Date): string {
   const now = Date.now();
@@ -67,6 +68,8 @@ interface GestionCardProps {
   onQuickReply?: (gestion: IGestion) => void;
   onOpenChat?: (gestion: IGestion) => void;
   onResolve?: (gestion: IGestion) => void;
+  followUpMark?: FollowUpMark | null;
+  onMarkForFollowUp?: (gestion: IGestion) => void;
 }
 
 export const GestionCard = React.memo(function GestionCard({
@@ -78,6 +81,8 @@ export const GestionCard = React.memo(function GestionCard({
   onQuickReply,
   onOpenChat,
   onResolve,
+  followUpMark,
+  onMarkForFollowUp,
 }: GestionCardProps) {
   const displayName = gestion.companyName || gestion.name || 'Gestión';
   const displayName2 = gestion.name && gestion.name !== gestion.companyName ? gestion.name : undefined;
@@ -199,11 +204,11 @@ export const GestionCard = React.memo(function GestionCard({
 
       {/* Quick Actions */}
       {conversationStatus?.hasActiveConversation && (
-        <div className="mt-1.5 flex gap-1">
+        <div className="mt-1.5 flex gap-1 flex-wrap">
           {conversationStatus?.isHandoffPending && (
             <button
               onClick={(e) => { e.stopPropagation(); onTakeCase?.(gestion); }}
-              className="flex-1 px-2 py-0.5 text-[10px] font-medium bg-red-50 text-red-700 rounded hover:bg-red-100 transition-colors"
+              className="px-2 py-0.5 text-[10px] font-medium bg-red-50 text-red-700 rounded hover:bg-red-100 transition-colors"
             >
               Tomar caso
             </button>
@@ -211,11 +216,23 @@ export const GestionCard = React.memo(function GestionCard({
           {conversationStatus?.isBotActive && !conversationStatus?.isHandoffPending && (
             <button
               onClick={(e) => { e.stopPropagation(); onQuickReply?.(gestion); }}
-              className="flex-1 px-2 py-0.5 text-[10px] font-medium bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition-colors"
+              className="px-2 py-0.5 text-[10px] font-medium bg-blue-50 text-blue-700 rounded hover:bg-blue-100 transition-colors"
             >
               Responder
             </button>
           )}
+          <button
+            onClick={(e) => { e.stopPropagation(); onMarkForFollowUp?.(gestion); }}
+            className="px-2 py-0.5 text-[10px] font-medium bg-amber-50 text-amber-700 rounded hover:bg-amber-100 transition-colors"
+          >
+            {followUpMark ? '✓' : '⏰'}
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onResolve?.(gestion); }}
+            className="px-2 py-0.5 text-[10px] font-medium bg-green-50 text-green-700 rounded hover:bg-green-100 transition-colors"
+          >
+            Descalificar
+          </button>
         </div>
       )}
 
@@ -244,6 +261,18 @@ export const GestionCard = React.memo(function GestionCard({
             className="flex-1 px-2 py-0.5 text-[10px] text-gray-600 rounded hover:bg-gray-100 transition-colors"
           >
             Ver
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onMarkForFollowUp?.(gestion); }}
+            className="px-2 py-0.5 text-[10px] font-medium bg-amber-50 text-amber-700 rounded hover:bg-amber-100 transition-colors"
+          >
+            {followUpMark ? '✓' : '⏰'}
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); onResolve?.(gestion); }}
+            className="px-2 py-0.5 text-[10px] font-medium bg-green-50 text-green-700 rounded hover:bg-green-100 transition-colors"
+          >
+            Descalificar
           </button>
         </div>
       )}

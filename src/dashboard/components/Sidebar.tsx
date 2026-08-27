@@ -71,6 +71,7 @@ const navItems: NavItem[] = [
   { label: 'Visitas Técnicas', href: '/technical-visits', icon: iconMap['Visitas Técnicas'], roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Sales', 'Technician'] },
   { label: 'Mi Calendario', href: '/work-orders/calendar', icon: iconMap['Mi Calendario'], roles: ['Technician', 'Supervisor', 'Dispatcher', 'Owner', 'Administrator'] },
   { label: 'Mapa Operativo', href: '/mapa', icon: iconMap['Mapa'], roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Technician'] },
+  { label: 'Mi Atención', href: '/atencion', icon: iconMap['Mi Calendario'], roles: ['Owner', 'Administrator', 'Supervisor', 'Sales'] },
 ];
 
 export function Sidebar() {

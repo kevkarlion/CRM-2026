@@ -2,6 +2,8 @@ import React, { useMemo } from 'react';
 import type { IClient } from '@/crm/types/client';
 import type { ConversationStatus } from '../hooks/useConversationStatus';
 import { calculateClientScore } from '@/clients/services/client-score.service';
+import { FollowUpBadge } from '@/components/follow-up/FollowUpBadge';
+import type { FollowUpMark } from '../hooks/useFollowUpMarks';
 
 function relativeTime(date: Date): string {
   const now = Date.now();
@@ -55,6 +57,8 @@ interface ClientCardProps {
   onQuickReply?: (client: IClient) => void;
   onOpenChat?: (client: IClient) => void;
   onResolve?: () => void;
+  followUpMark?: FollowUpMark;
+  onMarkForFollowUp?: (client: IClient) => void;
 }
 
 export const ClientCard = React.memo(function ClientCard({
@@ -66,6 +70,8 @@ export const ClientCard = React.memo(function ClientCard({
   onQuickReply,
   onOpenChat,
   onResolve,
+  followUpMark,
+  onMarkForFollowUp,
 }: ClientCardProps) {
   const calculatedScore = useMemo(() => {
     if (!client) return null;
@@ -119,6 +125,10 @@ export const ClientCard = React.memo(function ClientCard({
           <p className="text-[10px] md:text-[11px] text-gray-500 truncate mt-0.5">{client.name}</p>
         )}
         <div className="flex items-center gap-1 mt-1">
+          <FollowUpBadge
+            mark={followUpMark}
+            onClick={() => onMarkForFollowUp?.(client)}
+          />
           {(displayTemperature) && TEMPERATURE_CONFIG[displayTemperature] && (
             <span className={`inline-flex items-center px-1 py-px rounded text-[9px] font-medium border ${TEMPERATURE_CONFIG[displayTemperature].className}`}>
               {TEMPERATURE_CONFIG[displayTemperature].icon} {displayScore || 0}

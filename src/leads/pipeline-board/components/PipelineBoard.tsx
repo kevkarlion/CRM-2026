@@ -8,6 +8,8 @@ import { useConversationStatus } from '../hooks/useConversationStatus';
 import { usePendingHandoffs } from '../hooks/usePendingHandoffs';
 import { useBotClients } from '../hooks/useBotClients';
 import { useCustomerConversations, type CustomerEntry } from '../hooks/useCustomerConversations';
+import { useFollowUpMarks } from '../hooks/useFollowUpMarks';
+import { MarkForFollowUpModal } from '@/components/follow-up/MarkForFollowUpModal';
 
 // Relative time helper
 function relativeTime(date: Date | string): string {
@@ -147,6 +149,11 @@ export function PipelineBoard() {
   // Notification state
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
+  // Follow-up marking state
+  const [followUpMarkModalOpen, setFollowUpMarkModalOpen] = useState(false);
+  const [followUpMarkTarget, setFollowUpMarkTarget] = useState<{ type: 'lead' | 'client'; id: string; name: string } | null>(null);
+  const { marks, loading: marksLoading, fetchMarks, createMark, deleteMark } = useFollowUpMarks();
+
   // Collect all lead IDs across all columns for conversation status lookup
   const allLeadIds = useMemo(() => {
     const ids: string[] = [];
@@ -160,6 +167,19 @@ export function PipelineBoard() {
     }
     return ids;
   }, [columns, unmatched]);
+
+  // Fetch follow-up marks on mount
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        if (payload.email) {
+          fetchMarks(payload.email);
+        }
+      } catch {}
+    }
+  }, [fetchMarks]);
 
   const { statusMap: conversationStatusMap } = useConversationStatus(allLeadIds);
   const { count: pendingHandoffs, handoffs: handoffList } = usePendingHandoffs();
@@ -620,6 +640,28 @@ export function PipelineBoard() {
     console.log('Lead clicked:', leadId);
   }, []);
 
+  // Follow-up mark handlers
+  const handleMarkForFollowUp = useCallback((type: 'lead' | 'client', id: string, name: string) => {
+    setFollowUpMarkTarget({ type, id, name });
+    setFollowUpMarkModalOpen(true);
+  }, []);
+
+  const handleFollowUpMarkSuccess = useCallback(() => {
+    setFollowUpMarkModalOpen(false);
+    setFollowUpMarkTarget(null);
+    // Refetch marks - get current user email from localStorage
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        if (payload.email) {
+          fetchMarks(payload.email);
+        }
+      } catch {}
+    }
+    // SSE broadcast is handled by the API route automatically
+  }, [fetchMarks]);
+
   if (error && !hasData) {
     return (
       <div className="h-full overflow-hidden">
@@ -678,6 +720,8 @@ export function PipelineBoard() {
                 onQuickReply={handleQuickReply}
                 onOpenChat={handleOpenChat}
                 onResolve={handleLeadResolve}
+                followUpMarks={marks}
+                onMarkForFollowUp={(lead) => handleMarkForFollowUp('lead', String(lead._id), lead.name || 'Lead')}
               />
             );
           })}
@@ -880,6 +924,22 @@ export function PipelineBoard() {
                         <div className="mt-1.5 text-xs text-gray-400">
                           1er contacto {customer.createdAt ? relativeTime(customer.createdAt) : '-'}
                         </div>
+                        
+                        {/* Botón de seguimiento */}
+                        {(() => {
+                          const customerMark = marks?.find(m => m.targetId === customer.id);
+                          return (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleMarkForFollowUp('client', customer.id, customer.name || 'Cliente');
+                              }}
+                              className="mt-1.5 px-2 py-0.5 text-[10px] font-medium bg-amber-50 text-amber-700 rounded hover:bg-amber-100 transition-colors"
+                            >
+                              {customerMark ? '✓ Seguimiento' : '⏰ Seguimiento'}
+                            </button>
+                          );
+                        })()}
                       </div>
                     </div>
                   );
@@ -982,6 +1042,23 @@ export function PipelineBoard() {
             </svg>
           </button>
         </div>
+      )}
+
+      {/* Follow-up Mark Modal */}
+      {followUpMarkModalOpen && followUpMarkTarget && (
+        <MarkForFollowUpModal
+          isOpen={followUpMarkModalOpen}
+          onClose={() => {
+            setFollowUpMarkModalOpen(false);
+            setFollowUpMarkTarget(null);
+          }}
+          entityType={followUpMarkTarget.type}
+          entityId={followUpMarkTarget.id}
+          entityName={followUpMarkTarget.name}
+          onSuccess={handleFollowUpMarkSuccess}
+          createMark={createMark}
+          deleteMarkFn={deleteMark}
+        />
       )}
     </div>
   );

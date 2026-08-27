@@ -4,6 +4,7 @@ import type { IPipelineStage } from '../../types/pipeline';
 import type { ConversationStatus } from '../hooks/useConversationStatus';
 import { ColumnHeader } from './ColumnHeader';
 import { LeadCard } from './LeadCard';
+import type { FollowUpMark } from '@/crm/types/follow-up-mark';
 
 interface PipelineColumnProps {
   stage: IPipelineStage;
@@ -17,6 +18,8 @@ interface PipelineColumnProps {
   onQuickReply?: (lead: ILead) => void;
   onOpenChat?: (lead: ILead) => void;
   onResolve?: (lead: ILead) => void;
+  followUpMarks?: FollowUpMark[];
+  onMarkForFollowUp?: (lead: ILead) => void;
 }
 
 function SkeletonCard() {
@@ -43,6 +46,8 @@ export const PipelineColumn = memo(function PipelineColumn({
   onQuickReply,
   onOpenChat,
   onResolve,
+  followUpMarks,
+  onMarkForFollowUp,
 }: PipelineColumnProps) {
   return (
     <div
@@ -62,13 +67,21 @@ export const PipelineColumn = memo(function PipelineColumn({
             No hay leads en esta etapa
           </p>
         ) : (
-          leads.map((lead) => {
+            leads.map((lead) => {
             // Check if this is a Gestion by looking at the source field or custom property
             const isGestion = (lead as any).source === 'gestion' || (lead as any).isFromGestion === true;
             // Get conversation status - use getConversationStatus if available (supports originalLeadId)
             const conversationStatus = getConversationStatus 
               ? getConversationStatus(lead)
               : conversationStatusMap?.get(String(lead._id));
+            // Get follow-up mark for this lead/client (use targetId which is a string)
+            const followUpMark = followUpMarks?.find(m => m.targetId === String(lead._id));
+            
+            // Debug: log para clientes
+            if (isGestion) {
+              console.log('[PipelineColumn] Cliente:', lead.name, '| targetId:', lead._id, '| followUpMark:', followUpMark);
+            }
+            
             return (
             <LeadCard
               key={String(lead._id)}
@@ -81,6 +94,8 @@ export const PipelineColumn = memo(function PipelineColumn({
               onQuickReply={onQuickReply}
               onOpenChat={onOpenChat}
               onResolve={onResolve}
+              followUpMark={followUpMark}
+              onMarkForFollowUp={onMarkForFollowUp}
             />
             );
           })

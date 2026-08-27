@@ -75,3 +75,21 @@ export function broadcastWorkReportCompleted(payload: {
 }): void {
   broadcastEvent('workReportCompleted', payload);
 }
+
+/**
+ * Broadcast ATTENTION_MARK_ADDED event to connected SSE clients.
+ * This is called when a user is marked for follow-up attention.
+ * 
+ * @param payload - The attention mark payload
+ */
+export function broadcastAttentionMarkAdded(payload: {
+  userEmail: string; // Who should see this (assigned user)
+  markId: string;
+  targetType: 'lead' | 'client';
+  targetId: string;
+  targetName: string;
+  markedBy: string;
+  markedAt: string;
+}): void {
+  broadcastEvent('attentionMarkAdded', payload);
+}
