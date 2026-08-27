@@ -81,16 +81,25 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
 
   // Show toast for a mark
   const showToastForMark = useCallback((mark: FollowUpMarkResponse) => {
-    if (isAlreadySeen(mark._id)) return;
+    const currentUserEmail = (userEmailRef.current || getUserEmail() || '').toLowerCase();
+    
+    if (isAlreadySeen(mark._id)) {
+      console.log(`[AttentionToast] ⏭️ Already seen: ${mark._id}`);
+      return;
+    }
 
     // Only show if it's for current user (case-insensitive)
-    const currentUserEmail = (userEmailRef.current || getUserEmail() || '').toLowerCase();
     const markAssignedTo = (mark.assignedTo || '').toLowerCase();
     
     if (markAssignedTo !== currentUserEmail) {
-      console.log(`[AttentionToast] Skipping mark - mark for ${mark.assignedTo}, current user is ${currentUserEmail}`);
+      console.log(`[AttentionToast] ⛔ Skipping mark - mark for ${mark.assignedTo}, current user is ${currentUserEmail}`);
       return;
     }
+
+    console.log(`[AttentionToast] ✅ SHOWING TOAST for: ${mark._id}`, {
+      assignedTo: mark.assignedTo, 
+      targetName: (mark.leadId as any)?.profileName || (mark.clientId as any)?.profileName || 'unknown'
+    });
 
     // Extract target info
     let targetId = '';
@@ -172,20 +181,19 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
     }
   }, [getUserEmail, showToastForMark]);
 
-  // Start polling fallback
+  // Start polling fallback - ALWAYS runs as backup even if SSE is connected
+  // (SSE may not work due to Lambda mismatch in serverless, polling is more reliable)
   const startPolling = useCallback(() => {
     if (pollingIntervalRef.current) return;
     
-    console.log('[AttentionToast] ⏰ Starting polling fallback');
+    console.log('[AttentionToast] ⏰ Starting polling fallback (SSE may not work in serverless)');
     
     // Initial fetch
     fetchNewMarks();
     
-    // Poll every 30 seconds as backup
+    // Poll every 30 seconds as backup - ALWAYS runs, not just when SSE fails
     pollingIntervalRef.current = setInterval(() => {
-      if (!isConnectedRef.current) {
-        fetchNewMarks();
-      }
+      fetchNewMarks();
     }, 30000);
   }, [fetchNewMarks]);
 
@@ -233,7 +241,10 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
         markedAt: data.markedAt,
       };
 
-      setToasts((prev) => [...prev, toastItem]);
+setToasts((prev) => {
+      console.log('[AttentionToast] 📤 Adding toast, prev count:', prev.length, 'new item:', toastItem.name);
+      return [...prev, toastItem];
+    });
     } catch (error) {
       console.error('[AttentionToast] Failed to parse SSE event:', error);
     }
@@ -280,8 +291,8 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
         eventSource.onopen = () => {
           console.log('[AttentionToast] SSE connection opened');
           isConnectedRef.current = true;
-          // Stop polling when SSE is connected
-          stopPolling();
+          // DON'T stop polling - keep it running as reliable backup
+          // (SSE may fail in serverless due to Lambda mismatch)
         };
       } catch (error) {
         console.error('[AttentionToast] Failed to connect SSE:', error);
@@ -292,11 +303,9 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
 
     connectSSE();
 
-    // Also start polling initially as backup (in case SSE never connects)
+    // ALWAYS start polling as reliable backup (runs every 30 seconds regardless of SSE)
     const initialPollingTimeout = setTimeout(() => {
-      if (!isConnectedRef.current) {
-        startPolling();
-      }
+      startPolling();
     }, 2000);
 
     // Cleanup on unmount
@@ -328,6 +337,8 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
   }, [markAsSeen]);
 
   if (toasts.length === 0) return null;
+
+  console.log('[AttentionToast] 🎉 Rendering toast, count:', toasts.length);
 
   return (
     <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 max-w-md w-full mx-4">
