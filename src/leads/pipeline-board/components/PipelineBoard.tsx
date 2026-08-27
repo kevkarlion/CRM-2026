@@ -758,14 +758,13 @@ export function PipelineBoard() {
                     m.targetId === customer.clientId ||
                     m.targetId === customer.leadId
                   );
+                  // Only log once per session, not for every customer
                   const isCurrentUserRolija = (() => {
                     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
                     if (!token) return false;
                     try {
                       const payload = JSON.parse(atob(token.split('.')[1]));
-                      const isRolija = payload.email?.toLowerCase() === 'ro.lija@hotmail.com';
-                      console.log('[PipelineBoard] Cliente badge - email:', payload.email, 'isRolija:', isRolija);
-                      return isRolija;
+                      return payload.email?.toLowerCase() === 'ro.lija@hotmail.com';
                     } catch {
                       return false;
                     }

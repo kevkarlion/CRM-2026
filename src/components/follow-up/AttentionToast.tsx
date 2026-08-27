@@ -54,16 +54,10 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
   const currentUserEmail = getUserEmail();
   const isRolija = currentUserEmail?.toLowerCase() === 'ro.lija@hotmail.com';
   
-  // DEBUG: console.log para verificar en producción
-  console.log('[AttentionToast] Render check - email:', currentUserEmail, 'isRolija:', isRolija);
-  
   // If not Rolija, don't render anything
   if (!isRolija) {
-    console.log('[AttentionToast] ❌ No es Rolija, no renderizo nada');
     return null;
   }
-  
-  console.log('[AttentionToast] ✅ Es Rolija, renderizo toast');
 
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const eventSourceRef = useRef<EventSource | null>(null);
