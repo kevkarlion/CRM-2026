@@ -84,7 +84,6 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
     const currentUserEmail = (userEmailRef.current || getUserEmail() || '').toLowerCase();
     
     if (isAlreadySeen(mark._id)) {
-      console.log(`[AttentionToast] ⏭️ Already seen: ${mark._id}`);
       return;
     }
 
@@ -92,21 +91,22 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
     const markAssignedTo = (mark.assignedTo || '').toLowerCase();
     
     if (markAssignedTo !== currentUserEmail) {
-      console.log(`[AttentionToast] ⛔ Skipping mark - mark for ${mark.assignedTo}, current user is ${currentUserEmail}`);
       return;
     }
 
-    console.log(`[AttentionToast] ✅ SHOWING TOAST for: ${mark._id}`, {
-      assignedTo: mark.assignedTo, 
-      targetName: (mark.leadId as any)?.profileName || (mark.clientId as any)?.profileName || 'unknown'
-    });
-
-    // Extract target info
+    // Extract target info - use the 'target' field which is populated
     let targetId = '';
     let targetName = 'Elemento sin nombre';
     let targetType: 'lead' | 'client' = 'lead';
 
-    if (mark.leadId) {
+    // Use the populated 'target' field (available in production)
+    if ((mark as any).target) {
+      const target = (mark as any).target;
+      targetId = target._id;
+      targetName = target.profileName || target.name || 'Lead sin nombre';
+      targetType = (mark as any).targetType === 'client' ? 'client' : 'lead';
+    } else if (mark.leadId) {
+      // Fallback for non-populated (shouldn't happen)
       targetId = typeof mark.leadId === 'object' ? (mark.leadId as any)._id : mark.leadId;
       const lead = mark.leadId as any;
       targetName = lead.profileName || lead.name || 'Lead sin nombre';
@@ -162,9 +162,6 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
 
       // Check each mark - show toast for unseen ones
       for (const mark of marks) {
-        // DEBUG: Log full mark structure in production
-        console.log('[AttentionToast] 🔍 Mark structure:', JSON.stringify(mark, null, 2));
-        
         const markDate = new Date(mark.markedAt).getTime();
         
         // Only consider marks from the last 5 minutes (to avoid showing old marks)
