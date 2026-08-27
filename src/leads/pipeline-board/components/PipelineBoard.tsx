@@ -174,18 +174,8 @@ export function PipelineBoard() {
     fetchMarks();
   }, [fetchMarks]);
 
-  // Polling para actualizar marks en tiempo real (solo para Rolija)
+  // Polling para actualizar marks en tiempo real (para todos los usuarios)
   useEffect(() => {
-    // Solo Rolija necesita polling para ver badges actualizados
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-    if (!token) return;
-    let isRolija = false;
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      isRolija = payload.email?.toLowerCase() === 'ro.lija@hotmail.com';
-    } catch {}
-    if (!isRolija) return;
-
     const interval = setInterval(() => {
       fetchMarks();
     }, 15000); // Cada 15 segundos
