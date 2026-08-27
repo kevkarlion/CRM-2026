@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
 import mongoose from 'mongoose';
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/crm2026';
-
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -11,11 +9,6 @@ export async function GET(
   try {
     await connectDB();
     const { id } = await params;
-    
-    // Connect directly to avoid model conflicts
-    if (mongoose.connection.readyState !== 1) {
-      await mongoose.connect(MONGODB_URI);
-    }
     
     const db = mongoose.connection.db;
     
