@@ -98,10 +98,12 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
     const currentUserEmail = (userEmailRef.current || getUserEmail() || '').toLowerCase();
     const markAssignedTo = (mark.assignedTo || '').toLowerCase();
     
-    if (isAlreadySeen(mark._id)) return;
-
     // Only show if it's for current user (case-insensitive)
     if (markAssignedTo !== currentUserEmail) return;
+
+    // Skip if we already showed this toast (in memory)
+    const existingToast = toasts.find(t => t._id === mark._id);
+    if (existingToast) return;
 
     // Extract target info - use the 'target' field which is populated
     let targetId = '';
@@ -151,8 +153,8 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
         headers['x-tenant-id'] = tenantId;
       }
       
-      // Fetch ALL marks (no userEmail filter) - we'll filter in showToastForMark
-      const response = await fetch(`/api/follow-up-marks/user/all`, { headers });
+      // Fetch ALL marks - we'll filter in showToastForMark
+      const response = await fetch(`/api/follow-up-marks?userAll=true`, { headers });
       
       if (!response.ok) return;
 
