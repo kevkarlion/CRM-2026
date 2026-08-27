@@ -124,7 +124,12 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
   // Polling fetch - fallback when SSE doesn't work (Lambda mismatch)
   const fetchNewMarks = useCallback(async () => {
     const userEmail = userEmailRef.current || getUserEmail();
-    if (!userEmail) return;
+    if (!userEmail) {
+      console.log('[AttentionToast] ❌ No user email, skipping poll');
+      return;
+    }
+
+    console.log('[AttentionToast] 🔄 Polling for:', userEmail);
 
     // Don't poll if we already polled recently (within 10 seconds)
     const now = Date.now();
@@ -142,15 +147,23 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
 
       const marks: FollowUpMarkResponse[] = await response.json();
       
+      console.log('[AttentionToast] 📥 Got', marks.length, 'marks');
+      
       if (!Array.isArray(marks) || marks.length === 0) return;
 
       // Check each mark - show toast for unseen ones
       for (const mark of marks) {
         const markDate = new Date(mark.markedAt).getTime();
         
-        // Only consider marks from the last 2 minutes (to avoid showing old marks)
-        const twoMinutesAgo = Date.now() - 2 * 60 * 1000;
-        if (markDate > twoMinutesAgo) {
+        // Only consider marks from the last 5 minutes (to avoid showing old marks)
+        const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+        console.log('[AttentionToast] Checking mark:', { 
+          assignedTo: mark.assignedTo, 
+          markedAt: new Date(mark.markedAt).toISOString(),
+          isRecent: markDate > fiveMinutesAgo 
+        });
+        
+        if (markDate > fiveMinutesAgo) {
           showToastForMark(mark);
         }
       }
@@ -163,7 +176,7 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
   const startPolling = useCallback(() => {
     if (pollingIntervalRef.current) return;
     
-    console.log('[AttentionToast] Starting polling fallback');
+    console.log('[AttentionToast] ⏰ Starting polling fallback');
     
     // Initial fetch
     fetchNewMarks();
@@ -284,7 +297,7 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
       if (!isConnectedRef.current) {
         startPolling();
       }
-    }, 5000);
+    }, 2000);
 
     // Cleanup on unmount
     return () => {
