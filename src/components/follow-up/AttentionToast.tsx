@@ -140,9 +140,9 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
 
     console.log('[AttentionToast] 🔄 Polling for:', userEmail);
 
-    // Don't poll if we already polled recently (within 10 seconds)
+    // Don't poll if we already polled recently (within 5 seconds)
     const now = Date.now();
-    if (now - lastPolledRef.current < 10000) return;
+    if (now - lastPolledRef.current < 5000) return;
     lastPolledRef.current = now;
 
     try {
@@ -162,6 +162,9 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
 
       // Check each mark - show toast for unseen ones
       for (const mark of marks) {
+        // DEBUG: Log full mark structure in production
+        console.log('[AttentionToast] 🔍 Mark structure:', JSON.stringify(mark, null, 2));
+        
         const markDate = new Date(mark.markedAt).getTime();
         
         // Only consider marks from the last 5 minutes (to avoid showing old marks)
@@ -191,10 +194,10 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
     // Initial fetch
     fetchNewMarks();
     
-    // Poll every 30 seconds as backup - ALWAYS runs, not just when SSE fails
+    // Poll every 10 seconds as backup - ALWAYS runs, not just when SSE fails
     pollingIntervalRef.current = setInterval(() => {
       fetchNewMarks();
-    }, 30000);
+    }, 10000);
   }, [fetchNewMarks]);
 
   // Stop polling
