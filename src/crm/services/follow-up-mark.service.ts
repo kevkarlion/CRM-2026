@@ -127,6 +127,56 @@ export class FollowUpMarkService {
   }
 
   /**
+   * Get ALL follow-up marks for a tenant (for pipeline badges).
+   * Returns marks with populated target data.
+   */
+  async getAllMarksForTenant(tenantId: string): Promise<IFollowUpMark[]> {
+    const marks = await FollowUpMarkModel.find({
+      tenantId: new Types.ObjectId(tenantId),
+    })
+      .sort({ markedAt: -1 })
+      .lean();
+
+    // Transform marks to include targetType and target populated data
+    const transformedMarks = await Promise.all(
+      marks.map(async (mark) => {
+        const result: Record<string, unknown> = { ...mark };
+
+        if (mark.leadId) {
+          result.targetType = 'lead';
+          result.targetId = String(mark.leadId);
+          const lead = await LeadModel.findOne({ _id: mark.leadId }).select('name profileName phone status').lean();
+          if (lead) {
+            result.target = {
+              _id: String(lead._id),
+              name: (lead as { profileName?: string; name?: string }).profileName || (lead as { name: string }).name,
+              status: (lead as { status?: string }).status,
+            };
+          }
+        } else if (mark.clientId) {
+          result.targetType = 'client';
+          result.targetId = String(mark.clientId);
+          const client = await ClientModel.findOne({ _id: mark.clientId }).select('fullName profileName companyName status').lean();
+          if (client) {
+            result.target = {
+              _id: String(client._id),
+              name: (client as { profileName?: string; fullName?: string; companyName?: string }).profileName ||
+                    (client as { fullName?: string }).fullName ||
+                    (client as { companyName?: string }).companyName ||
+                    'Sin nombre',
+              status: (client as { status?: string }).status,
+            };
+          }
+        }
+
+        return result as unknown as IFollowUpMark;
+      })
+    );
+
+    return transformedMarks as unknown as IFollowUpMark[];
+  }
+
+  /**
    * Get all follow-up marks for a specific lead.
    */
   async getMarksForLead(tenantId: string, leadId: string): Promise<IFollowUpMark[]> {

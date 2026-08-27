@@ -56,7 +56,15 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
     const userEmail = searchParams.get('userEmail');
+    const userAll = searchParams.get('userAll'); // New param to get ALL marks
 
+    // If userAll=true, get ALL marks (for pipeline badges)
+    if (userAll === 'true') {
+      const marks = await followUpMarkService.getAllMarksForTenant(tenantId);
+      return NextResponse.json(marks);
+    }
+
+    // Original: filter by userEmail (required)
     if (!userEmail) {
       return NextResponse.json({ error: 'Se requiere el parámetro userEmail' }, { status: 400 });
     }

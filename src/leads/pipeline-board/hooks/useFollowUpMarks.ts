@@ -76,9 +76,15 @@ export function useFollowUpMarks(options: UseFollowUpMarksOptions = {}): UseFoll
     try {
       const headers = getAuthHeaders();
       let url = '/api/follow-up-marks';
+      
       if (userEmail) {
+        // Filter by specific user
         url += `?userEmail=${encodeURIComponent(userEmail)}`;
+      } else {
+        // Get ALL marks (for pipeline badges)
+        url += '?userAll=true';
       }
+      
       const res = await fetch(url, {
         headers: { ...headers, 'Content-Type': 'application/json' },
       });

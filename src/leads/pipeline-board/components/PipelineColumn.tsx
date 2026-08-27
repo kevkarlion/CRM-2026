@@ -77,11 +77,6 @@ export const PipelineColumn = memo(function PipelineColumn({
             // Get follow-up mark for this lead/client (use targetId which is a string)
             const followUpMark = followUpMarks?.find(m => m.targetId === String(lead._id));
             
-            // Debug: log para clientes
-            if (isGestion) {
-              console.log('[PipelineColumn] Cliente:', lead.name, '| targetId:', lead._id, '| followUpMark:', followUpMark);
-            }
-            
             return (
             <LeadCard
               key={String(lead._id)}

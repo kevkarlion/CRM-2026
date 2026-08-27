@@ -125,9 +125,19 @@ export const ClientCard = React.memo(function ClientCard({
           <p className="text-[10px] md:text-[11px] text-gray-500 truncate mt-0.5">{client.name}</p>
         )}
         <div className="flex items-center gap-1 mt-1">
-          <FollowUpBadge
-            mark={followUpMark}
-          />
+          {/* Solo Rolija ve el badge de seguimiento */}
+          {followUpMark && (() => {
+            const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+            if (!token) return null;
+            try {
+              const payload = JSON.parse(atob(token.split('.')[1]));
+              return payload.email?.toLowerCase() === 'ro.lija@hotmail.com' ? (
+                <FollowUpBadge mark={followUpMark} />
+              ) : null;
+            } catch {
+              return null;
+            }
+          })()}
           {(displayTemperature) && TEMPERATURE_CONFIG[displayTemperature] && (
             <span className={`inline-flex items-center px-1 py-px rounded text-[9px] font-medium border ${TEMPERATURE_CONFIG[displayTemperature].className}`}>
               {TEMPERATURE_CONFIG[displayTemperature].icon} {displayScore || 0}

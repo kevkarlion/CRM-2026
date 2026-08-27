@@ -55,6 +55,12 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
     }
   }, []);
 
+  // Check if current user is Rolija (the only one who should see toasts and badges)
+  const isRolija = useCallback(() => {
+    const email = getUserEmail();
+    return email?.toLowerCase() === 'ro.lija@hotmail.com';
+  }, [getUserEmail]);
+
   // Get tenant ID from localStorage
   const getTenantId = useCallback(() => {
     if (typeof window === 'undefined') return null;
@@ -86,8 +92,6 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
   const showToastForMark = useCallback((mark: FollowUpMarkResponse) => {
     const currentUserEmail = (userEmailRef.current || getUserEmail() || '').toLowerCase();
     const markAssignedTo = (mark.assignedTo || '').toLowerCase();
-    
-    console.log('[Toast] Check:', { currentUserEmail, markAssignedTo, match: markAssignedTo === currentUserEmail });
     
     if (isAlreadySeen(mark._id)) return;
 
@@ -128,11 +132,8 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
     setToasts((prev) => [...prev, toastItem]);
   }, [isAlreadySeen, getUserEmail]);
 
-  // Polling fetch - fallback when SSE doesn't work (Lambda mismatch)
+  // Polling fetch - get ALL marks, filter in showToastForMark
   const fetchNewMarks = useCallback(async () => {
-    const userEmail = userEmailRef.current || getUserEmail();
-    if (!userEmail) return;
-
     // Don't poll if we already polled recently (within 5 seconds)
     const now = Date.now();
     if (now - lastPolledRef.current < 5000) return;
@@ -145,8 +146,8 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
         headers['x-tenant-id'] = tenantId;
       }
       
-      const encodedEmail = encodeURIComponent(userEmail);
-      const response = await fetch(`/api/follow-up-marks?userEmail=${encodedEmail}`, { headers });
+      // Fetch ALL marks (no userEmail filter) - we'll filter in showToastForMark
+      const response = await fetch(`/api/follow-up-marks/user/all`, { headers });
       
       if (!response.ok) return;
 
@@ -154,6 +155,7 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
       if (!Array.isArray(marks) || marks.length === 0) return;
 
       // Check each mark - show toast for unseen ones from last 5 minutes
+      // BUT only if they are for the current user (filter inside showToastForMark)
       const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
       for (const mark of marks) {
         const markDate = new Date(mark.markedAt).getTime();
@@ -164,10 +166,13 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
     } catch {
       // Silent fail for polling
     }
-  }, [getUserEmail, showToastForMark, getTenantId]);
+  }, [showToastForMark, getTenantId]);
 
-  // Start polling fallback - ALWAYS runs as backup
+  // Start polling fallback - ONLY for Rolija
   const startPolling = useCallback(() => {
+    // Only Rolija should see toasts
+    if (!isRolija()) return;
+    
     if (pollingIntervalRef.current) return;
     
     // Initial fetch
@@ -220,8 +225,11 @@ export function AttentionToast({ className = '' }: AttentionToastProps) {
     }
   }, [getUserEmail, isAlreadySeen]);
 
-  // Set up SSE connection on mount
+  // Set up SSE connection on mount - ONLY for Rolija
   useEffect(() => {
+    // Only Rolija should see toasts
+    if (!isRolija()) return;
+    
     if (isConnectedRef.current) return;
     if (typeof window === 'undefined') return;
 

@@ -31,6 +31,7 @@ import { LeadFilters } from './LeadFilters';
 import { LeadChatDrawer } from './LeadChatDrawer';
 import { ClientChatDrawer } from './ClientChatDrawer';
 import { ClientCard } from './ClientCard';
+import { FollowUpBadge } from '@/components/follow-up/FollowUpBadge';
 import type { ILead } from '../../types/lead';
 
 function SkeletonColumn() {
@@ -751,6 +752,24 @@ export function PipelineBoard() {
                   };
                   const tempConfig = customer.temperature ? TEMP_CONFIG[customer.temperature] : null;
                   
+                  // Check if customer has follow-up mark
+                  const customerMark = marks?.find(m => 
+                    m.targetId === customer.id || 
+                    m.targetId === customer.clientId ||
+                    m.targetId === customer.leadId
+                  );
+                  const isCurrentUserRolija = (() => {
+                    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+                    if (!token) return false;
+                    try {
+                      const payload = JSON.parse(atob(token.split('.')[1]));
+                      return payload.email?.toLowerCase() === 'ro.lija@hotmail.com';
+                    } catch {
+                      return false;
+                    }
+                  })();
+                  const showFollowUpBadge = customerMark && isCurrentUserRolija;
+                  
                   return (
                     <div
                       key={customer.id}
@@ -801,6 +820,8 @@ export function PipelineBoard() {
                               {customer.score} pts
                             </span>
                           )}
+                          {/* Badge de seguimiento - solo Rolija */}
+                          {showFollowUpBadge && <FollowUpBadge mark={customerMark} />}
                         </div>
                         {customer.profileName && (
                           <p className="text-xs md:text-[13px] font-bold text-gray-900 leading-tight">
