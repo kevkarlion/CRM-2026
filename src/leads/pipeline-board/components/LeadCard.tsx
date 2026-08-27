@@ -158,18 +158,24 @@ export const LeadCard = React.memo(function LeadCard({
           {lead.name}
         </p>
         <div className="flex items-center gap-1 mt-1">
-          {/* Solo Rolija ve el badge de seguimiento */}
+          {/* Solo Rolija ve el badge de seguimiento - DEBUG */}
           {followUpMark && (() => {
             const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-            if (!token) return null;
-            try {
-              const payload = JSON.parse(atob(token.split('.')[1]));
-              return payload.email?.toLowerCase() === 'ro.lija@hotmail.com' ? (
-                <FollowUpBadge mark={followUpMark} />
-              ) : null;
-            } catch {
-              return null;
+            let isRolija = false;
+            if (token) {
+              try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                isRolija = payload.email?.toLowerCase() === 'ro.lija@hotmail.com';
+                console.log('[LeadCard] Badge check - email:', payload.email, 'isRolija:', isRolija);
+              } catch {
+                console.log('[LeadCard] Badge check - token parse error');
+              }
+            } else {
+              console.log('[LeadCard] Badge check - no token');
             }
+            return isRolija ? (
+              <FollowUpBadge mark={followUpMark} />
+            ) : null;
           })()}
           {(() => {
             const temp = (calculatedScore?.temperature || lead.temperature) as string | undefined;

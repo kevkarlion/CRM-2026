@@ -763,7 +763,9 @@ export function PipelineBoard() {
                     if (!token) return false;
                     try {
                       const payload = JSON.parse(atob(token.split('.')[1]));
-                      return payload.email?.toLowerCase() === 'ro.lija@hotmail.com';
+                      const isRolija = payload.email?.toLowerCase() === 'ro.lija@hotmail.com';
+                      console.log('[PipelineBoard] Cliente badge - email:', payload.email, 'isRolija:', isRolija);
+                      return isRolija;
                     } catch {
                       return false;
                     }
