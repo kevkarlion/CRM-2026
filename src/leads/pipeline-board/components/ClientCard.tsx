@@ -127,7 +127,6 @@ export const ClientCard = React.memo(function ClientCard({
         <div className="flex items-center gap-1 mt-1">
           <FollowUpBadge
             mark={followUpMark}
-            onClick={() => onMarkForFollowUp?.(client)}
           />
           {(displayTemperature) && TEMPERATURE_CONFIG[displayTemperature] && (
             <span className={`inline-flex items-center px-1 py-px rounded text-[9px] font-medium border ${TEMPERATURE_CONFIG[displayTemperature].className}`}>

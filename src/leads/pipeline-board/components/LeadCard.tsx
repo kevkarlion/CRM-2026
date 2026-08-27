@@ -160,7 +160,6 @@ export const LeadCard = React.memo(function LeadCard({
         <div className="flex items-center gap-1 mt-1">
           <FollowUpBadge
             mark={followUpMark}
-            onClick={() => onMarkForFollowUp?.(lead)}
           />
           {(() => {
             const temp = (calculatedScore?.temperature || lead.temperature) as string | undefined;

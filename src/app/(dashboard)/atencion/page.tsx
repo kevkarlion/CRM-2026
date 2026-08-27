@@ -301,7 +301,7 @@ function MarkCard({ mark, onRequestUnmark }: MarkCardProps) {
         <button
           onClick={handleUnmark}
           disabled={unmarking}
-          className="ml-3 px-3 py-1.5 text-sm font-medium text-danger-700 bg-danger-50 rounded hover:bg-danger-100 disabled:opacity-50 transition-colors"
+          className="ml-3 px-3 py-1.5 text-sm font-medium text-danger-700 bg-danger-50 rounded hover:bg-danger-100 disabled:opacity-50 transition-colors cursor-pointer"
         >
           {unmarking ? '...' : '✕'}
         </button>
@@ -375,7 +375,7 @@ function MarkRow({ mark, onRequestUnmark }: MarkRowProps) {
         <button
           onClick={handleUnmark}
           disabled={unmarking}
-          className="px-3 py-1.5 text-sm font-medium text-danger-700 bg-danger-50 rounded hover:bg-danger-100 disabled:opacity-50 transition-colors"
+          className="px-3 py-1.5 text-sm font-medium text-danger-700 bg-danger-50 rounded hover:bg-danger-100 disabled:opacity-50 transition-colors cursor-pointer"
         >
           {unmarking ? 'Quitando...' : 'Quitar'}
         </button>

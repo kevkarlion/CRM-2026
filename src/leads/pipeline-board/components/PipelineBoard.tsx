@@ -168,17 +168,9 @@ export function PipelineBoard() {
     return ids;
   }, [columns, unmatched]);
 
-  // Fetch follow-up marks on mount
+  // Fetch ALL follow-up marks on mount (not just current user's)
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        if (payload.email) {
-          fetchMarks(payload.email);
-        }
-      } catch {}
-    }
+    fetchMarks();
   }, [fetchMarks]);
 
   const { statusMap: conversationStatusMap } = useConversationStatus(allLeadIds);

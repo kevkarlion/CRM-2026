@@ -69,13 +69,17 @@ export function useFollowUpMarks(options: UseFollowUpMarksOptions = {}): UseFoll
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchMarks = useCallback(async (userEmail: string) => {
+  const fetchMarks = useCallback(async (userEmail?: string) => {
     setLoading(true);
     setError(null);
     
     try {
       const headers = getAuthHeaders();
-      const res = await fetch(`/api/follow-up-marks?userEmail=${encodeURIComponent(userEmail)}`, {
+      let url = '/api/follow-up-marks';
+      if (userEmail) {
+        url += `?userEmail=${encodeURIComponent(userEmail)}`;
+      }
+      const res = await fetch(url, {
         headers: { ...headers, 'Content-Type': 'application/json' },
       });
       
