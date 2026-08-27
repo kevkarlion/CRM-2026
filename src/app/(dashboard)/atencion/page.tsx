@@ -63,6 +63,17 @@ export default function AtencionPage() {
     fetchMarks(user.email);
   }, [router, fetchMarks]);
 
+  // Polling para actualizaciones en tiempo real (para todos los usuarios)
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const interval = setInterval(() => {
+      fetchMarks(currentUser.email);
+    }, 15000); // Cada 15 segundos
+
+    return () => clearInterval(interval);
+  }, [currentUser, fetchMarks]);
+
   const handleUnmark = useCallback(async (markId: string) => {
     await deleteMark(markId);
   }, [deleteMark]);
@@ -177,7 +188,7 @@ export default function AtencionPage() {
                     Estado
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Marcado por
+                    Para
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Fecha / Hora
@@ -279,7 +290,7 @@ function MarkCard({ mark, onRequestUnmark }: MarkCardProps) {
           
           <div className="mt-2 space-y-1 text-sm text-gray-500">
             <p>
-              <span className="text-gray-400">Marcado por:</span>{' '}
+              <span className="text-gray-400">Para:</span>{' '}
               {mark.markedByUser?.name || mark.assignedTo}
             </p>
             <p>
