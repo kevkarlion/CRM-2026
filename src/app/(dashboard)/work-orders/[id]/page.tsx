@@ -527,7 +527,7 @@ export default function WorkOrderDetailPage() {
             </svg>
           </button>
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl sm:text-4xl font-extrabold text-gray-900 truncate">{workOrder.title}</h1>
+            <h1 className="text-2xl sm:text-4xl font-extrabold text-gray-900 break-words">{workOrder.title}</h1>
             <p className="text-base text-gray-500 mt-1">#{shortWO(workOrder.workOrderNumber)}</p>
           </div>
         </div>
@@ -1039,9 +1039,9 @@ export default function WorkOrderDetailPage() {
               </div>
             )}
 
-            {/* Work Execution Buttons - Only for technicians - show only on desktop sidebar */}
+            {/* Work Execution Buttons - Only for technicians - hide, big buttons already shown in main content */}
             {isCurrentUserTheAssignedTech() && !isTerminal && (
-              <div className="hidden sm:block space-y-2">
+              <div className="hidden space-y-2">
                 {/* Start Work button - show when status is 'draft', 'scheduled' or 'assigned' */}
                 {(workOrder.status === 'draft' || workOrder.status === 'scheduled' || workOrder.status === 'assigned') && (
                   <>
@@ -1076,14 +1076,14 @@ export default function WorkOrderDetailPage() {
             {isTechnician && !isTerminal && !isCurrentUserTheAssignedTech() && (
               <button
                 onClick={() => setSelfAssignOpen(true)}
-                className="block sm:hidden w-full rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 transition-colors"
+                className="hidden w-full rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 transition-colors"
               >
                 Auto-asignar esta OT
               </button>
             )}
 
-            {/* Technician info - visible to all, but buttons only for non-technicians */}
-            {workOrder.assignedTechnicians && workOrder.assignedTechnicians.length > 0 && (
+            {/* Technician info - visible to all */}
+            {workOrder.assignedTechnicians && workOrder.assignedTechnicians.length > 0 ? (
               <div className="rounded-xl bg-gradient-to-br from-brand-50 to-brand-100 border-2 border-brand-200 p-5">
                 <div className="text-center">
                   <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-brand-200 text-brand-700 text-2xl mb-3">
@@ -1092,6 +1092,19 @@ export default function WorkOrderDetailPage() {
                   <p className="text-xs font-medium text-brand-600 mb-1">Técnico Asignado</p>
                   <p className="text-lg font-bold text-brand-900">{technicianName(workOrder)}</p>
                 </div>
+                
+                {/* Botón Solicitar para técnicos que no son el asignado */}
+                {isTechnician && !isAdmin && !isCurrentUserTheAssignedTech() && !isTerminal && (
+                  (workOrder.status === 'scheduled' || workOrder.status === 'draft') && (
+                    <button
+                      onClick={() => setSelfAssignOpen(true)}
+                      className="w-full mt-4 rounded-lg bg-brand-600 px-4 py-3 text-base font-bold text-white hover:bg-brand-700 transition-colors"
+                    >
+                      📤 Solicitar esta OT
+                    </button>
+                  )
+                )}
+                
                 {isAdmin && !isTerminal && (
                   <div className="flex gap-2 mt-4">
                     <button
@@ -1151,6 +1164,16 @@ export default function WorkOrderDetailPage() {
                   </div>
                 )}
               </div>
+            ) : (
+              /* No hay técnico asignado - mostrar opción de auto-asignarse para técnicos */
+              isTechnician && !isAdmin && !isTerminal && (workOrder.status === 'scheduled' || workOrder.status === 'draft') && (
+                <button
+                  onClick={() => setSelfAssignOpen(true)}
+                  className="w-full rounded-xl bg-brand-600 px-6 py-4 text-base font-bold text-white hover:bg-brand-700 transition-colors shadow-lg"
+                >
+                  📤 Solicitar esta OT
+                </button>
+              )
             )}
 
           </div>

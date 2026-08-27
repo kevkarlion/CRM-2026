@@ -30,7 +30,11 @@ export async function GET(request: NextRequest) {
     const skip = (page - 1) * limit;
 
     const filters: Record<string, unknown> = {};
-    if (status) filters.status = status;
+    if (status === 'not_closed') {
+      filters.status = { $ne: 'closed' };
+    } else if (status) {
+      filters.status = status;
+    }
 if (expired === 'true') {
       // Usar timezone de Argentina (UTC-3) para calcular "hoy"
       const now = new Date();

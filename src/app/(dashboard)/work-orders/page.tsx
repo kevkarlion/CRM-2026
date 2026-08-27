@@ -188,8 +188,8 @@ function WorkOrdersContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Default to 'mine' - never auto-switch based on role
-  const [activeTab, setActiveTab] = useState<Tab>('mine');
+  // Default to 'all' - show all technicians' scheduled orders
+  const [activeTab, setActiveTab] = useState<Tab>('all');
 
   // Show loading while role is being determined
   if (roleLoading) {
@@ -202,10 +202,10 @@ function WorkOrdersContent() {
 
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState(
-    searchParams.get('expired') === 'true' ? 'expired' : (searchParams.get('status') || '')
+    searchParams.get('expired') === 'true' ? 'expired' : (searchParams.get('status') || 'not_closed')
   );
   const [priorityFilter, setPriorityFilter] = useState('');
-  const [fromDate, setFromDate] = useState(searchParams.get('startDate') || '');
+  const [fromDate, setFromDate] = useState(searchParams.get('startDate') || new Date().toISOString().split('T')[0]);
   const [toDate, setToDate] = useState(searchParams.get('endDate') || '');
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -296,6 +296,9 @@ const fetchOrders = useCallback(async () => {
         // Solo asignadas (in_progress sin scheduledDate)
         params.status = 'in_progress';
         params.scheduledDate = 'none';
+      } else if (statusFilter === 'not_closed') {
+        // Excluir closed y cancelled
+        params.status = 'not_closed';
       } else if (statusFilter) {
         // Regular status filter (operativo)
         params.status = statusFilter;
