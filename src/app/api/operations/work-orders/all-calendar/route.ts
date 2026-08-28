@@ -5,9 +5,6 @@ import { TechnicalVisitModel } from '@/operations/models/technical-visit';
 import { TechnicianModel } from '@/operations/models/technician';
 import { Types } from 'mongoose';
 
-// Set timezone to Chile for consistent date handling
-process.env.TZ = 'America/Santiago';
-
 /**
  * Convert a Date to YYYY-MM-DD string using Chile timezone (not UTC).
  * This prevents the day-shift bug when the server is in UTC.
