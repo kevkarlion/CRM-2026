@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
 import { processWhatsAppWebhookMessage } from '@/conversation/infrastructure/webhook-integration';
+import { claimInboundMessage, extractWhatsAppMessage } from '@/crm/helpers/whatsapp-message-claim';
 
 /**
  * POST /api/webhook/whatsapp/bot
@@ -31,27 +32,9 @@ export async function POST(req: NextRequest) {
     const pushName = contact.profile?.name;
     const messageId = message.id;
 
-    // Extract content based on message type
-    let messageContent = '';
-
-    if (message.type === 'text') {
-      messageContent = message.text?.body || '';
-    } else if (message.type === 'interactive') {
-      messageContent =
-        message.button?.text ||
-        message.list_reply?.title ||
-        message.button?.payload ||
-        message.list_reply?.id ||
-        '';
-    } else if (message.type === 'image') {
-      messageContent = message.image?.caption || '[Imagen]';
-    } else if (message.type === 'audio') {
-      messageContent = '[Audio]';
-    } else if (message.type === 'video') {
-      messageContent = message.video?.caption || '[Video]';
-    } else if (message.type === 'document') {
-      messageContent = `[Documento: ${message.document?.filename || 'archivo'}]`;
-    }
+    // Extract content based on message type (shared with the main webhook route)
+    const { content: messageContent, type: messageType, mediaId, caption, filename } =
+      extractWhatsAppMessage(message);
 
     if (!messageContent) {
       return NextResponse.json({ status: 'ok' }, { status: 200 });
@@ -61,6 +44,29 @@ export async function POST(req: NextRequest) {
     const whatsappService = (await import('@/crm/services/whatsapp.service')).default;
     const tenantId = await whatsappService.getActiveTenantId();
 
+    // CLAIM ATOMICO con la misma semántica que la ruta principal (mutex por messageId único).
+    // Si la ruta principal ya reclamó/procesó este wamid, el create recibe E11000 y
+    // este bot ignora el duplicado: no vuelve a correr el pipeline ni responde dos veces.
+    const claim = await claimInboundMessage({
+      tenantId,
+      phone,
+      messageId,
+      content: messageContent,
+      type: messageType,
+      mediaId,
+      caption,
+      filename,
+    });
+
+    if (!claim.claimed) {
+      if (claim.reason === 'duplicate') {
+        console.log(`[Bot Webhook] mensaje duplicado (wamid ${messageId}) ignorado en bot`);
+      } else {
+        console.error(`[Bot Webhook] no se pudo reclamar el mensaje (wamid ${messageId}) — ignorado`);
+      }
+      return NextResponse.json({ status: 'ok', duplicate: true }, { status: 200 });
+    }
+
     console.log(`[Bot Webhook] Processing message from ${phone}: "${messageContent}"`);
 
     const result = await processWhatsAppWebhookMessage({
@@ -69,6 +75,10 @@ export async function POST(req: NextRequest) {
       messageContent,
       pushName,
       messageId,
+      messageType,
+      mediaId,
+      caption,
+      filename,
     });
 
     console.log(`[Bot Webhook] Processed: ${result.actions.length} actions, leadId: ${result.leadId}`);

@@ -5,6 +5,8 @@ import { QuoteService, ValidationError } from '@/quotes/services/quote.service';
 import DocumentModel from '@/documents/models/document';
 import WorkOrderModel from '@/operations/models/work-order';
 import { getNextWorkOrderNumber } from '@/operations/helpers/counter';
+import { eventBus } from '@/infrastructure/events/event-bus';
+import { DOMAIN_EVENTS, SaleConfirmedPayload } from '@/infrastructure/events/event.types';
 
 const quoteService = new QuoteService();
 
@@ -12,6 +14,7 @@ type DocumentAction = 'quote_sent' | 'won';
 
 interface DocumentActionBody {
   action: DocumentAction;
+  saleType?: 'product' | 'service';
 }
 
 export async function POST(
@@ -29,7 +32,7 @@ export async function POST(
     }
 
     const body = await request.json() as DocumentActionBody;
-    const { action } = body;
+    const { action, saleType } = body;
 
     if (!action || !['quote_sent', 'won'].includes(action)) {
       return NextResponse.json(
@@ -93,8 +96,15 @@ export async function POST(
     }
 
     // action === 'won'
+    // Determine sale type (default to service for backward compatibility)
+    const isProductSale = saleType === 'product';
+    const finalSaleType = saleType || 'service';
+
     // Mark as direct sale (draft -> direct_sale)
-    await quoteService.markAsDirectSale(quoteId, userId, tenantId);
+    const updatedQuote = await quoteService.markAsDirectSale(quoteId, userId, tenantId, finalSaleType);
+
+    // Get quote total for SALE_CONFIRMED event
+    const quoteTotal = updatedQuote?.total || 0;
 
     // Change lead to won
     await LeadModel.findByIdAndUpdate(leadId, {
@@ -106,57 +116,92 @@ export async function POST(
 
     console.log('[document-action] Lead marked as won:', leadId);
 
-    // Create Work Order in draft status
-    const tenantPrefix = tenantId.slice(-6);
-    const workOrderNumber = await getNextWorkOrderNumber(tenantPrefix);
+    // Declare variables for workOrder outside the if block
+    let workOrder: any = undefined;
+    let workOrderNumber: string | undefined = undefined;
 
-    const [workOrder] = await WorkOrderModel.create([{
-      tenantId: new mongoose.Types.ObjectId(tenantId),
-      clientId: null,
-      leadId: new mongoose.Types.ObjectId(leadId),
-      quoteId: new mongoose.Types.ObjectId(quoteId),
-      clientSnapshot: {
-        name: leadName,
-        email: lead?.email || '',
-        phone: lead?.phone || '',
-        companyName: lead?.companyName || '',
-        customerType: lead?.customerType || 'residential',
-        status: 'active',
-      },
-      locationSnapshot: {
-        name: leadName,
-        address: lead?.address || '',
-      },
-      source: 'direct_sale',
-      category: 'installation',
-      workOrderNumber,
-      title: `Venta: ${leadName}`,
-      description: `Venta generada desde documento PDF para lead #${leadId}`,
-      status: 'draft',
-      priority: 'normal',
-      createdBy: userId ? new mongoose.Types.ObjectId(userId) : new mongoose.Types.ObjectId(),
-      updatedBy: userId ? new mongoose.Types.ObjectId(userId) : new mongoose.Types.ObjectId(),
-    }]);
+    // Only create WorkOrder for service sales (default behavior)
+    if (!isProductSale) {
+      // Create Work Order in draft status
+      const tenantPrefix = tenantId.slice(-6);
+      workOrderNumber = await getNextWorkOrderNumber(tenantPrefix);
 
-    console.log('[document-action] WorkOrder created:', workOrder._id, 'workOrderNumber:', workOrderNumber);
+      try {
+        [workOrder] = await WorkOrderModel.create([{
+          tenantId: new mongoose.Types.ObjectId(tenantId),
+          clientId: null,
+          leadId: new mongoose.Types.ObjectId(leadId),
+          quoteId: new mongoose.Types.ObjectId(quoteId),
+          clientSnapshot: {
+            name: leadName,
+            email: lead?.email || '',
+            phone: lead?.phone || '',
+            companyName: lead?.companyName || '',
+            customerType: lead?.customerType || 'residential',
+            status: 'active',
+          },
+          locationSnapshot: {
+            name: leadName,
+            address: lead?.address || '',
+          },
+          source: 'direct_sale',
+          category: 'installation',
+          workOrderNumber,
+          title: `Venta: ${leadName}`,
+          description: `Venta generada desde documento PDF para lead #${leadId}`,
+          status: 'draft',
+          priority: 'normal',
+          createdBy: userId ? new mongoose.Types.ObjectId(userId) : new mongoose.Types.ObjectId(),
+          updatedBy: userId ? new mongoose.Types.ObjectId(userId) : new mongoose.Types.ObjectId(),
+        }]);
 
-    // Link work order to quote
-    const QuoteModel = (await import('@/quotes/models/quote')).default;
-    await QuoteModel.updateOne(
-      { _id: new mongoose.Types.ObjectId(quoteId) },
-      { $set: { convertedToWorkOrder: workOrder._id } }
-    );
+        // Link the work order to the quote
+        const QuoteModel = (await import('@/quotes/models/quote')).default;
+        await QuoteModel.updateOne(
+          { _id: new mongoose.Types.ObjectId(quoteId) },
+          { $set: { convertedToWorkOrder: workOrder._id } }
+        );
+      } catch (woError) {
+        console.error('[document-action] WorkOrder creation failed:', woError);
+        throw woError;
+      }
+
+      console.log('[document-action] WorkOrder created:', workOrder._id, 'workOrderNumber:', workOrderNumber);
+    }
+
+    // Always publish SALE_CONFIRMED event so the lead timeline records the sale
+    try {
+      console.log('[document-action] Publishing SALE_CONFIRMED for direct sale');
+      await eventBus.publish({
+        type: DOMAIN_EVENTS.SALE_CONFIRMED,
+        aggregateId: leadId,
+        aggregateType: 'Lead',
+        tenantId,
+        userId,
+        timestamp: new Date(),
+        payload: {
+          leadId: leadId,
+          clientId: null,
+          amount: quoteTotal,
+          saleMode: isProductSale ? 'product' : 'direct',
+          leadName: leadName,
+          quotesCount: 1,
+          documentId: documentId,
+          documentTitle: document.title || document.filename,
+        } as unknown as SaleConfirmedPayload,
+      });
+      console.log('[document-action] SALE_CONFIRMED published successfully');
+    } catch (eventError) {
+      console.error('[document-action] Failed to publish SALE_CONFIRMED:', eventError);
+    }
 
     return NextResponse.json({
       success: true,
       quoteId,
       leadId,
       newStatus: 'won',
-      workOrder: {
-        _id: String(workOrder._id),
-        workOrderNumber,
-        status: 'draft',
-      },
+      saleType: finalSaleType,
+      workOrder: !isProductSale ? { _id: String(workOrder._id), workOrderNumber, status: 'draft' } : undefined,
     });
   } catch (error) {
     if (error instanceof ValidationError) {

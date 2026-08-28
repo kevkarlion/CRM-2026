@@ -6,8 +6,10 @@ import WhatsAppMessageModel from '@/crm/models/whatsapp-message';
 import { BotMessageHandler } from './bot-message-handler';
 import { WhatsAppBotAdapter } from './whatsapp-adapter';
 import type { BotAction } from '../application/types';
+import type { ILead } from '@/leads/types/lead';
 import { calculateLeadScore } from '@/leads/services/lead-score.service';
 import { normalizePhone, phoneMatchQuery } from '@/lib/phone';
+import { buildInboundMessageClaimDoc } from '@/crm/helpers/whatsapp-message-claim';
 
 export interface WebhookMessageInput {
   tenantId: string;
@@ -29,6 +31,20 @@ export interface WebhookProcessResult {
   entityType: 'client' | 'lead';
   conversationId?: string;
   replyContent?: string;
+}
+
+/**
+ * Detecta un error de clave duplicada (código 11000) de MongoDB.
+ * Cubre tanto `MongoServerError` (create/insertOne) como `MongoBulkWriteError` (insertMany/bulkWrite).
+ */
+function isDuplicateKeyError(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  const maybeMongoError = error as { code?: unknown; name?: unknown };
+  return (
+    maybeMongoError.code === 11000 ||
+    maybeMongoError.name === 'MongoServerError' ||
+    maybeMongoError.name === 'MongoBulkWriteError'
+  );
 }
 
 /**
@@ -114,18 +130,55 @@ async function findOrCreateEntity(
 
   // 3. If no client or lead, create new lead
   console.log('[findOrCreateEntity] Creating new lead for phone:', normalizedPhone);
-  
-  const newLead = await LeadModel.create({
-    tenantId: new Types.ObjectId(tenantId),
-    name: pushName || `Lead WhatsApp ${normalizedPhone.slice(-4)}`,
-    profileName: pushName,
-    phone: normalizedPhone,
-    source: 'whatsapp',
-    status: 'new',
-    notes: messageContent ? `Mensaje inicial: ${messageContent}` : 'Creado desde WhatsApp',
-    createdBy: 'whatsapp-bot',
-    updatedBy: 'whatsapp-bot',
-  });
+
+  let newLead: ILead | undefined;
+  try {
+    newLead = await LeadModel.create({
+      tenantId: new Types.ObjectId(tenantId),
+      name: pushName || `Lead WhatsApp ${normalizedPhone.slice(-4)}`,
+      profileName: pushName,
+      phone: normalizedPhone,
+      source: 'whatsapp',
+      status: 'new',
+      notes: messageContent ? `Mensaje inicial: ${messageContent}` : 'Creado desde WhatsApp',
+      createdBy: 'whatsapp-bot',
+      updatedBy: 'whatsapp-bot',
+    });
+  } catch (error) {
+    // Por qué existe este catch (carrera TOCTOU):
+    // Vercel puede levantar DOS invocaciones serverless para DOS mensajes del mismo
+    // teléfono en milisegundos. Ambas pasan el findOne del paso 2 sin encontrar nada
+    // y ambas llegan al create. El índice único parcial (tenantId + phone, deletedAt
+    // null) hace que SOLO una gane: la otra recibe E11000 (duplicate key). En vez de
+    // fallar, re-consultamos el lead que ya creó la otra invocación y lo devolvemos.
+    if (!isDuplicateKeyError(error)) {
+      console.error('[findOrCreateEntity] Error creating new lead:', error);
+      throw error;
+    }
+
+    const existingWinner = await LeadModel.findOne({
+      tenantId: new Types.ObjectId(tenantId),
+      phone: phoneMatchQuery(normalizedPhone),
+      deletedAt: null,
+    });
+
+    if (!existingWinner) {
+      console.error(
+        `[findOrCreateEntity] Duplicate key (11000) al crear lead (tenant ${tenantId}, phone ${normalizedPhone}) ` +
+          'pero no se encontró un lead activo existente — re-lanzando error original'
+      );
+      throw error;
+    }
+
+    console.warn(
+      `[webhook] carrera TOCTOU detectada en lead (tenant ${tenantId}, phone ${normalizedPhone}) — devolviendo lead existente ${existingWinner._id}`
+    );
+    return {
+      leadId: String(existingWinner._id),
+      entityType: 'lead',
+      isNew: false,
+    };
+  }
 
   return { 
     leadId: String(newLead._id), 
@@ -136,6 +189,10 @@ async function findOrCreateEntity(
 
 /**
  * Saves an inbound WhatsApp message to the database.
+ *
+ * El row ya fue reclamado por la ruta (mutex por messageId único, ver
+ * claimInboundMessage). Aquí solo adjuntamos leadId/clientId al row reclamado
+ * mediante updateOne; el upsert cubre callers defensivos que lleguen sin claim.
  */
 async function saveInboundMessage(
   tenantId: string,
@@ -155,21 +212,36 @@ async function saveInboundMessage(
       console.log('[WebhookIntegration] Skipping message save - no leadId nor clientId');
       return;
     }
-    
-    await WhatsAppMessageModel.create({
-      tenantId: new Types.ObjectId(tenantId),
-      phone,
-      messageId: messageId || `wamid.bot.${Date.now()}`,
-      direction: 'inbound',
-      type: messageType || 'text',
-      content,
-      status: 'delivered',
-      leadId: leadId ? new Types.ObjectId(leadId) : undefined,
-      clientId: clientId ? new Types.ObjectId(clientId) : undefined,
-      metadata: mediaId ? { mediaId, caption, filename } : undefined,
-    });
+
+    const resolvedMessageId = messageId || `wamid.bot.${Date.now()}`;
+
+    const set: Record<string, unknown> = {
+      ...buildInboundMessageClaimDoc({
+        tenantId,
+        phone,
+        messageId: resolvedMessageId,
+        content,
+        type: messageType as 'text' | 'image' | 'audio' | 'video' | 'document' | 'interactive' | 'unknown',
+        mediaId,
+        caption,
+        filename,
+      }),
+    };
+    if (leadId) set.leadId = new Types.ObjectId(leadId);
+    if (clientId) set.clientId = new Types.ObjectId(clientId);
+
+    await WhatsAppMessageModel.updateOne(
+      { messageId: resolvedMessageId },
+      { $set: set },
+      { upsert: true, runValidators: true }
+    );
   } catch (error) {
-    console.error('[WebhookIntegration] Error saving inbound message:', error);
+    if (isDuplicateKeyError(error)) {
+      // El mensaje ya fue reclamado por otra invocación concurrente.
+      console.log(`[WebhookIntegration] Mensaje ya reclamado por otra invocación - messageId: ${messageId}`);
+    } else {
+      console.error('[WebhookIntegration] Error saving inbound message:', error);
+    }
   }
 }
 

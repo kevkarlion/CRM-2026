@@ -5,6 +5,7 @@ import WhatsAppMessageModel from '@/crm/models/whatsapp-message';
 import { isMaintenanceMode, isMaintenanceBypassPhone, getMaintenanceWhatsAppMessage } from '@/lib/maintenance';
 import whatsappService from '@/crm/services/whatsapp.service';
 import ConversationModel from '@/conversation/models/conversation';
+import { claimInboundMessage, extractWhatsAppMessage } from '@/crm/helpers/whatsapp-message-claim';
 import { Types } from 'mongoose';
 
 // Token de verificación para validar la conexión con Meta
@@ -122,56 +123,9 @@ export async function POST(req: NextRequest) {
       const pushName = contact.profile?.name;
       const messageId = message.id;
 
-      // Check if message was already processed (prevent duplicates)
-      try {
-        const existingMessage = await WhatsAppMessageModel.findOne({ messageId });
-        
-        if (existingMessage) {
-          console.log(`⏭️ Mensaje ya procesado, ignorando: ${messageId}`);
-          return NextResponse.json({ status: 'ok', duplicate: true }, { status: 200 });
-        }
-      } catch (dupError) {
-        console.error('[Webhook] Error checking duplicate:', dupError);
-      }
-
-      // Extraer contenido según tipo de mensaje
-      let messageContent = '';
-      let messageType = 'text';
-      let mediaId: string | undefined;
-      let caption: string | undefined;
-      let filename: string | undefined;
-
-      if (message.type === 'text') {
-        messageContent = message.text?.body || '';
-        messageType = 'text';
-      } else if (message.type === 'interactive') {
-        messageContent =
-          message.button?.text ||
-          message.list_reply?.title ||
-          message.button?.payload ||
-          message.list_reply?.id ||
-          '';
-        messageType = 'interactive';
-      } else if (message.type === 'image') {
-        messageContent = message.image?.caption || '[Imagen]';
-        messageType = 'image';
-        mediaId = message.image?.id;
-        caption = message.image?.caption;
-      } else if (message.type === 'audio') {
-        messageContent = '[Audio]';
-        messageType = 'audio';
-        mediaId = message.audio?.id;
-      } else if (message.type === 'video') {
-        messageContent = message.video?.caption || '[Video]';
-        messageType = 'video';
-        mediaId = message.video?.id;
-        caption = message.video?.caption;
-      } else if (message.type === 'document') {
-        messageContent = `[Documento: ${message.document?.filename || 'archivo'}]`;
-        messageType = 'document';
-        mediaId = message.document?.id;
-        filename = message.document?.filename;
-      }
+      // Extraer contenido según tipo de mensaje (lógica compartida con la ruta bot)
+      const { content: messageContent, type: messageType, mediaId, caption, filename } =
+        extractWhatsAppMessage(message);
 
       if (!messageContent) {
         return NextResponse.json({ status: 'ok' }, { status: 200 });
@@ -196,6 +150,29 @@ export async function POST(req: NextRequest) {
       const tenantId = await whatsappService.getActiveTenantId();
 
       console.log(`[Webhook] Processing message from ${phone}: "${messageContent}"`);
+
+      // CLAIM ATOMICO: el row de WhatsAppMessage por messageId (único) actúa como
+      // mutex. Solo una invocación puede insertarlo; la perdedora (E11000) recibe
+      // un 200 sin procesar, antes de cualquier findOrCreateEntity.
+      const claim = await claimInboundMessage({
+        tenantId,
+        phone,
+        messageId,
+        content: messageContent,
+        type: messageType,
+        mediaId,
+        caption,
+        filename,
+      });
+
+      if (!claim.claimed) {
+        if (claim.reason === 'duplicate') {
+          console.log(`[webhook] mensaje duplicado (wamid ${messageId}) ignorado`);
+        } else {
+          console.error(`[webhook] no se pudo reclamar el mensaje (wamid ${messageId}) — ignorado`);
+        }
+        return NextResponse.json({ status: 'ok', duplicate: true }, { status: 200 });
+      }
 
       // IMPORTANTE: Verificar si hay una conversación con owner: OPERATOR antes de procesar
       // Buscar usando el phone original o los últimos 10 dígitos

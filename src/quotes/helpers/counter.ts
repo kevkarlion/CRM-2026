@@ -1,4 +1,5 @@
-import { Schema, model, Model, models } from 'mongoose';
+import { Schema, model, Model } from 'mongoose';
+import mongoose from 'mongoose';
 
 interface IQuoteCounter {
   _id: string;
@@ -10,7 +11,7 @@ const quoteCounterSchema = new Schema<IQuoteCounter>({
   seq: { type: Number, required: true, default: 0 },
 });
 
-const QuoteCounterModel: Model<IQuoteCounter> = models.QuoteCounter || model<IQuoteCounter>(
+const QuoteCounterModel: Model<IQuoteCounter> = mongoose.models.QuoteCounter || model<IQuoteCounter>(
   'QuoteCounter',
   quoteCounterSchema
 );

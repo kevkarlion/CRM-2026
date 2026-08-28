@@ -81,12 +81,13 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
   const [actionDocId, setActionDocId] = useState<string | null>(null);
   
   // Quotes del lead - para saber el estado de cada documento
-  const [quotes, setQuotes] = useState<{ _id: string; sourceDocumentId: string; status: string }[]>([]);
+  const [quotes, setQuotes] = useState<{ _id: string; sourceDocumentId: string; status: string; saleType?: string; sentAt?: string; approvedAt?: string; wonAt?: string }[]>([]);
   
   // Confirmation modal state
   const [showConfirm, setShowConfirm] = useState(false);
   const [confirmAction, setConfirmAction] = useState<'quote_sent' | 'approved' | 'won' | 'delete' | null>(null);
   const [confirmDocId, setConfirmDocId] = useState<string | null>(null);
+  const [selectedSaleType, setSelectedSaleType] = useState<'product' | 'service'>('service');
   
   // Success notification state
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -107,7 +108,7 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
         setDocuments(docsRes.documents || []);
         
         // Load quotes for this lead to know their status
-        const quotesRes = await api.get<{ data: { _id: string; sourceDocumentId: string; status: string }[] }>('/api/crm/quotes', {
+        const quotesRes = await api.get<{ data: { _id: string; sourceDocumentId: string; status: string; saleType?: string; sentAt?: string; approvedAt?: string; wonAt?: string }[] }>('/api/crm/quotes', {
           leadId,
         });
         setQuotes(quotesRes.data || []);
@@ -121,9 +122,9 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
   }, [leadId]);
 
   // Get quote status for a document
-  const getQuoteStatus = (docId: string): string | null => {
+  const getQuoteStatus = (docId: string): { status: string; saleType?: string; sentAt?: string; approvedAt?: string; wonAt?: string } | null => {
     const quote = quotes.find(q => String(q.sourceDocumentId) === docId || q.sourceDocumentId === docId);
-    return quote?.status || null;
+    return quote ? { status: quote.status, saleType: quote.saleType, sentAt: quote.sentAt, approvedAt: quote.approvedAt, wonAt: quote.wonAt } : null;
   };
 
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -229,6 +230,10 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
     // Open confirmation modal instead of native confirm
     setConfirmDocId(docId);
     setConfirmAction(action);
+    // Reset sale type selection for 'won' action
+    if (action === 'won') {
+      setSelectedSaleType('service');
+    }
     setShowConfirm(true);
   };
 
@@ -257,7 +262,7 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
         await api.post(`/api/crm/quotes/${quote._id}/approve`, {});
         
         // Reload quotes to get updated status
-        const quotesRes = await api.get<{ data: { _id: string; sourceDocumentId: string; status: string }[] }>('/api/crm/quotes', {
+        const quotesRes = await api.get<{ data: { _id: string; sourceDocumentId: string; status: string; saleType?: string; sentAt?: string; approvedAt?: string; wonAt?: string }[] }>('/api/crm/quotes', {
           leadId,
         });
         setQuotes(quotesRes.data || []);
@@ -275,18 +280,28 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
 
     // Handle quote_sent and won actions (existing document action API)
     try {
+      // Build action body - include saleType only for 'won'
+      const actionBody: { action: string; saleType?: 'product' | 'service' } = { action };
+      if (action === 'won') {
+        actionBody.saleType = selectedSaleType;
+      }
+
       const res = await api.post<{
         success: boolean;
         quoteId: string;
         leadId: string;
         newStatus: string;
+        saleType?: string;
         client?: { _id: string };
         workOrder?: { _id: string; workOrderNumber: string; status: string };
-      }>(`/api/crm/leads/${leadId}/documents/${docId}/action`, { action });
+      }>(`/api/crm/leads/${leadId}/documents/${docId}/action`, actionBody);
 
       if (res.success) {
+        // Force a small delay to ensure DB is updated
+        await new Promise(resolve => setTimeout(resolve, 300));
+
         // Reload quotes to get updated status
-        const quotesRes = await api.get<{ quotes: { _id: string; sourceDocumentId: string; status: string }[] }>('/api/crm/quotes', {
+        const quotesRes = await api.get<{ data: { _id: string; sourceDocumentId: string; status: string; saleType?: string; sentAt?: string; approvedAt?: string; wonAt?: string }[] }>('/api/crm/quotes', {
           leadId,
         });
         setQuotes(quotesRes.data || []);
@@ -300,7 +315,9 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
         if (res.newStatus === 'won') {
           setNotification({ 
             type: 'success', 
-            message: `Venta confirmada. OT: ${res.workOrder?.workOrderNumber || '—'} (borrador)` 
+            message: res.saleType === 'product'
+              ? 'Venta de producto confirmada'
+              : `Venta confirmada. OT: ${res.workOrder?.workOrderNumber || '—'} (borrador)` 
           });
         } else {
           setNotification({ type: 'success', message: 'Presupuesto enviado correctamente' });
@@ -539,7 +556,7 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
                     const quoteStatus = getQuoteStatus(doc._id);
                     
                     // Quote sent (presupuesto enviado, esperando aprobación)
-                    if (quoteStatus === 'sent') {
+                    if (quoteStatus?.status === 'sent') {
                       return (
                         <>
                           <span className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-100 rounded-lg">
@@ -570,7 +587,7 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
                     }
                     
                     // Quote approved (presupuesto aprobado)
-                    if (quoteStatus === 'approved') {
+                    if (quoteStatus?.status === 'approved') {
                       return (
                         <>
                           <span className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-100 rounded-lg">
@@ -591,10 +608,17 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
                     }
                     
                     // Direct sale or lead won (venta confirmada)
-                    if (quoteStatus === 'direct_sale' || leadStatus === 'won') {
+                    if (quoteStatus?.status === 'direct_sale' || leadStatus === 'won') {
+                      const wonDate = quoteStatus?.wonAt ? formatDate(quoteStatus.wonAt) : (quoteStatus?.approvedAt ? formatDate(quoteStatus.approvedAt) : '');
+                      let saleTypeLabel = '';
+                      if (quoteStatus?.saleType === 'product') {
+                        saleTypeLabel = 'de producto';
+                      } else if (quoteStatus?.saleType === 'service') {
+                        saleTypeLabel = 'de servicio';
+                      }
                       return (
-                        <span className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-100 rounded-lg">
-                          ✓ Venta confirmada
+                        <span className="px-3 py-1.5 text-xs font-medium text-white bg-gray-800 rounded-lg">
+                          Venta confirmada {saleTypeLabel ? `${saleTypeLabel} ` : ''}{wonDate ? `- ${wonDate}` : ''}
                         </span>
                       );
                     }
@@ -671,10 +695,48 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
                     : confirmAction === 'approved'
                     ? 'Esta acción aprobará el presupuesto. ¿Estás seguro de continuar?'
                     : confirmAction === 'won'
-                    ? 'Esta acción confirmará la venta, creará un cliente y una orden de trabajo en estado borrador. ¿Estás seguro de continuar?'
+                    ? selectedSaleType === 'product'
+                      ? 'Esta acción confirmará la venta como producto (sin orden de trabajo). ¿Estás seguro de continuar?'
+                      : 'Esta acción confirmará la venta y creará una orden de trabajo en estado borrador. ¿Estás seguro de continuar?'
                     : '¿Estás seguro de eliminar este documento? Esta acción no se puede deshacer.'
                   }
                 </p>
+
+                {/* Sale type selection for 'won' action */}
+                {confirmAction === 'won' && (
+                  <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+                    <p className="text-sm font-medium text-gray-700 mb-2">Tipo de venta:</p>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedSaleType('product')}
+                        className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border transition-colors cursor-pointer ${
+                          selectedSaleType === 'product'
+                            ? 'bg-brand-600 text-white border-brand-600'
+                            : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        Producto
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedSaleType('service')}
+                        className={`flex-1 px-3 py-2 text-sm font-medium rounded-lg border transition-colors cursor-pointer ${
+                          selectedSaleType === 'service'
+                            ? 'bg-brand-600 text-white border-brand-600'
+                            : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        Servicio
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      {selectedSaleType === 'product'
+                        ? 'Solo se registrará la venta, sin orden de trabajo.'
+                        : 'Se creará una orden de trabajo en estado borrador.'}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex gap-3 justify-end">

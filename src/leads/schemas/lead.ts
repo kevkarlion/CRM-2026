@@ -89,7 +89,15 @@ export const leadSchema = new Schema<ILead>(
 leadSchema.index({ tenantId: 1, status: 1, createdAt: -1 });
 leadSchema.index({ tenantId: 1, assignedTo: 1, status: 1 });
 leadSchema.index({ tenantId: 1, email: 1 });
-leadSchema.index({ tenantId: 1, phone: 1 });
+// Índice único parcial (tenantId + phone) para prevenir duplicados por la carrera
+// TOCTOU del webhook de WhatsApp: dos invocaciones serverless para el mismo teléfono
+// en milisegundos podían crear dos leads. `deletedAt: null` permite que los leads
+// soft-deleted (merge de duplicados) coexistan; `phone: { $exists: true }` evita que
+// leads sin teléfono (opcional a nivel de aplicación) colisionen entre sí en un tenant.
+leadSchema.index(
+  { tenantId: 1, phone: 1 },
+  { unique: true, partialFilterExpression: { deletedAt: null, phone: { $exists: true } } }
+);
 
 leadSchema.pre('save', function (next) {
   if (this.phone) {
