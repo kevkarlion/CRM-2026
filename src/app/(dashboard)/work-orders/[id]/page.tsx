@@ -406,7 +406,7 @@ export default function WorkOrderDetailPage() {
     setDeleting(true);
     try {
       await api.del(`/api/operations/work-orders/${id}`);
-      router.push('/work-orders');
+      router.push(isTechnician ? '/work-orders' : '/work-orders/all');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al eliminar');
     } finally {
@@ -508,7 +508,7 @@ export default function WorkOrderDetailPage() {
     return (
       <div className="text-center py-16">
         <p className="text-gray-500">Orden de trabajo no encontrada</p>
-        <button onClick={() => router.push('/work-orders')} className="mt-4 text-sm text-brand-600 font-medium">
+        <button onClick={() => router.push(isTechnician ? '/work-orders' : '/work-orders/all')} className="mt-4 text-sm text-brand-600 font-medium">
           Volver a órdenes
         </button>
       </div>
@@ -523,7 +523,7 @@ export default function WorkOrderDetailPage() {
       {/* Header */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
-          <button onClick={() => router.push('/work-orders/all')} className="p-2 -ml-2 text-gray-400 hover:text-gray-600 transition-colors">
+          <button onClick={() => router.push(isTechnician ? '/work-orders' : '/work-orders/all')} className="p-2 -ml-2 text-gray-400 hover:text-gray-600 transition-colors">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>

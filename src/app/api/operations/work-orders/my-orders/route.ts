@@ -51,18 +51,36 @@ export async function GET(request: NextRequest) {
     const day = String(localNow.getDate()).toString().padStart(2, '0');
     const todayStr = `${year}-${month}-${day}`;
 
-    // Check for expired filter
+    // Check for expired filter and status filter
     const { searchParams } = new URL(request.url);
     const expired = searchParams.get('expired');
+    const statusFilter = searchParams.get('status');
+    const closedDate = searchParams.get('closedDate');
 
     // Default query: solo órdenes activas del técnico
     let query: Record<string, unknown> = {
       tenantId: tenantObjectId,
       assignedTechnicians: technician._id,
       deletedAt: null,
-      // Excluir: draft, closed, cancelled
-      status: { $nin: ['draft', 'closed', 'cancelled'] },
     };
+
+    // Apply closedDate filter if provided (for today's closed orders)
+    if (closedDate) {
+      query.closedAt = { $gte: closedDate, $lt: closedDate + 'T23:59:59' };
+    }
+
+    // Apply status filter
+    if (statusFilter === 'not_closed') {
+      // Excluir closed/cancelled en status O en workStatus
+      query.status = { $nin: ['closed', 'cancelled'] };
+      query.workStatus = { $nin: ['cancelled'] };
+    } else if (statusFilter) {
+      query.status = statusFilter;
+    } else {
+      // Default: exclude draft, closed, cancelled
+      query.status = { $nin: ['draft', 'closed', 'cancelled'] };
+      query.workStatus = { $nin: ['cancelled'] };
+    }
 
     if (expired === 'true') {
       // Show expired orders (last 30 days, before today)
@@ -75,26 +93,9 @@ export async function GET(request: NextRequest) {
         scheduledDate: { $gte: thirtyDaysAgoStr, $lt: todayStr },
         workStatus: { $nin: ['paused', 'cancelled'] },
       };
-    } else {
-      // Normal view: exclude expired orders
-      (query as any).$and = [
-        {
-          $or: [
-            { scheduledDate: { $exists: false } },
-            { scheduledDate: null },
-            { scheduledDate: { $gte: todayStr } },
-            { status: 'in_progress' },
-          ],
-        },
-        {
-          $or: [
-            { workStatus: { $exists: false } },
-            { workStatus: null },
-            { workStatus: 'active' },
-          ],
-        },
-      ];
     }
+
+    // REMOVIDO: el filtro adicional por fecha/workStatus que excluía órdenes
 
     const workOrders = await WorkOrderModel.find(query)
       .populate('assignedTechnicians', 'name email phone')
@@ -109,6 +110,7 @@ export async function GET(request: NextRequest) {
       priority: wo.priority,
       category: wo.category,
       source: wo.source,
+      createdAt: wo.createdAt,
       scheduledDate: wo.scheduledDate,
       scheduledStart: wo.scheduledStart,
       scheduledEnd: wo.scheduledEnd,

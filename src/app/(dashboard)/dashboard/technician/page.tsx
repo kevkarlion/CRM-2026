@@ -39,6 +39,11 @@ function TechnicianDashboardContent() {
   const [expiredOrders, setExpiredOrders] = useState<any[]>([]);
   const [expiredLoading, setExpiredLoading] = useState(false);
 
+  // Modal de cerradas
+  const [closedModalOpen, setClosedModalOpen] = useState(false);
+  const [closedOrders, setClosedOrders] = useState<any[]>([]);
+  const [closedLoading, setClosedLoading] = useState(false);
+
   useEffect(() => {
     async function load() {
       try {
@@ -73,6 +78,32 @@ function TechnicianDashboardContent() {
     setExpiredModalOpen(true);
     if (expiredOrders.length === 0) {
       loadExpiredOrders();
+    }
+  };
+
+  // Función para cargar las órdenes cerradas de HOY del técnico actual
+  const loadClosedOrders = async () => {
+    setClosedLoading(true);
+    try {
+      // Calcular fecha de hoy
+      const today = new Date();
+      const todayStr = today.toISOString().split('T')[0];
+      
+      // Llamar endpoint con filtro de fecha de cierre = hoy
+      const res = await fetch(`/api/operations/work-orders/my-orders?status=closed&closedDate=${todayStr}&limit=100`);
+      const data = await res.json();
+      setClosedOrders(data.data || []);
+    } catch (err) {
+      console.error('Error loading closed orders:', err);
+    } finally {
+      setClosedLoading(false);
+    }
+  };
+
+  const handleClosedClick = () => {
+    setClosedModalOpen(true);
+    if (closedOrders.length === 0) {
+      loadClosedOrders();
     }
   };
 
@@ -266,10 +297,10 @@ function TechnicianDashboardContent() {
             </div>
           </Link>
 
-          {/* 2. RESUELTAS */}
-          <Link
-            href="/work-orders?tab=mine&status=closed"
-            className="group bg-white border border-slate-200 rounded-2xl p-5 hover:border-emerald-400 hover:shadow-xl hover:-translate-y-1 transition-all relative overflow-hidden"
+          {/* 2. CERRADAS - Modal */}
+          <button
+            onClick={handleClosedClick}
+            className="group bg-white border border-slate-200 rounded-2xl p-5 hover:border-emerald-400 hover:shadow-xl hover:-translate-y-1 transition-all relative overflow-hidden text-left w-full"
           >
             <div className="absolute top-0 right-0 w-20 h-20 bg-emerald-50 rounded-full -mr-10 -mt-10 opacity-50" />
             <div className="relative">
@@ -286,7 +317,7 @@ function TechnicianDashboardContent() {
                 <span>completadas hoy</span>
               </div>
             </div>
-          </Link>
+          </button>
 
           {/* 3. PENDIENTES */}
           <Link
@@ -400,6 +431,64 @@ function TechnicianDashboardContent() {
                               <span className="block">Programada: {wo.scheduledDate ? new Date(wo.scheduledDate).toLocaleDateString('es-AR') : '—'}</span>
                               <span className="block">Creada: {wo.createdAt ? new Date(wo.createdAt).toLocaleDateString('es-AR') : '—'}</span>
                             </div>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ─── Modal de Órdenes Cerradas ─── */}
+        {closedModalOpen && (
+          <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+            <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-3xl max-h-[90vh] sm:max-h-[80vh] overflow-hidden flex flex-col">
+              <div className="p-4 sm:p-6 border-b flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-900">Órdenes Cerradas</h2>
+                  <p className="text-xs sm:text-sm text-gray-500">Tus órdenes de trabajo cerradas</p>
+                </div>
+                <button
+                  onClick={() => setClosedModalOpen(false)}
+                  className="p-2 hover:bg-gray-100 rounded-lg"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="flex-1 overflow-auto p-4 sm:p-6">
+                {closedLoading ? (
+                  <div className="text-center py-8 text-gray-500">Cargando...</div>
+                ) : closedOrders.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">No hay órdenes cerradas</div>
+                ) : (
+                  <div className="space-y-2">
+                    {closedOrders.map((wo) => (
+                      <Link
+                        key={wo._id}
+                        href={`/work-orders/${wo._id}`}
+                        onClick={() => setClosedModalOpen(false)}
+                        className="block p-3 sm:p-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              <span className="font-mono text-sm font-bold text-gray-900 truncate">
+                                {wo.workOrderNumber}
+                              </span>
+                              <span className="px-2 py-0.5 text-xs rounded-full bg-emerald-100 text-emerald-700">
+                                Cerrada
+                              </span>
+                            </div>
+                            <div className="text-sm text-gray-600 mb-1 truncate">{wo.title}</div>
+                            <div className="text-xs text-gray-500 truncate">
+                              {wo.clientSnapshot?.name || 'Sin cliente'}
+                            </div>
+                          </div>
+                          <div className="text-right text-xs ml-2 flex-shrink-0 text-gray-500">
+                            <span className="block">Cerrada: {wo.closedAt ? new Date(wo.closedAt).toLocaleDateString('es-AR') : '—'}</span>
                           </div>
                         </div>
                       </Link>

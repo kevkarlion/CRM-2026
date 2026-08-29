@@ -188,8 +188,8 @@ function WorkOrdersContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Default to 'all' - show all technicians' scheduled orders
-  const [activeTab, setActiveTab] = useState<Tab>('all');
+  // Default to 'mine' - show only technician's orders
+  const [activeTab, setActiveTab] = useState<Tab>('mine');
 
   // Show loading while role is being determined
   if (roleLoading) {
@@ -201,11 +201,13 @@ function WorkOrdersContent() {
   }
 
   const [search, setSearch] = useState('');
+  // Default status filter: for 'mine' tab, let the endpoint handle filtering
   const [statusFilter, setStatusFilter] = useState(
-    searchParams.get('expired') === 'true' ? 'expired' : (searchParams.get('status') || 'not_closed')
+    searchParams.get('expired') === 'true' ? 'expired' : 
+    (searchParams.get('status') || '')
   );
   const [priorityFilter, setPriorityFilter] = useState('');
-  const [fromDate, setFromDate] = useState(searchParams.get('startDate') || new Date().toISOString().split('T')[0]);
+  const [fromDate, setFromDate] = useState(searchParams.get('startDate') || '');
   const [toDate, setToDate] = useState(searchParams.get('endDate') || '');
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -222,6 +224,18 @@ function WorkOrdersContent() {
   // WorkStatus dropdown state (negocio)
   const [workStatusDropdown, setWorkStatusDropdown] = useState<string | null>(null);
   const [changingWorkStatus, setChangingWorkStatus] = useState<string | null>(null);
+
+  // When tab changes, update status filter
+  useEffect(() => {
+    if (activeTab === 'mine') {
+      // For 'mine' tab, let the endpoint handle it (shows not closed/cancelled)
+      setStatusFilter('');
+    } else if (activeTab === 'all') {
+      // For 'all' tab, exclude closed and cancelled
+      setStatusFilter('not_closed');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   // Reset page to 1 when filters change
   useEffect(() => {
@@ -303,6 +317,11 @@ const fetchOrders = useCallback(async () => {
         // Regular status filter (operativo)
         params.status = statusFilter;
       }
+      
+      // For 'mine' tab, always pass status=not_closed to include expired
+      if (activeTab === 'mine' && !statusFilter) {
+        params.status = 'not_closed';
+      }
       if (priorityFilter) params.priority = priorityFilter;
       if (fromDate) params.from = fromDate;
       if (toDate) params.to = toDate;
@@ -317,7 +336,10 @@ const fetchOrders = useCallback(async () => {
         ? '/api/operations/work-orders/my-orders'
         : '/api/operations/work-orders';
 
+      console.log('[WorkOrders] Fetching:', { endpoint, params: JSON.stringify(params), statusFilter, activeTab });
+
       const result = await api.get<ListResponse>(endpoint, params);
+      console.log('[WorkOrders] Response:', (result as any).total);
       setOrders(unwrapData(result));
       setTotal((result as any).total);
     } catch (err) {
