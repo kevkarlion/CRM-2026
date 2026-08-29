@@ -5,6 +5,7 @@ import { connectDB } from '@/core/db';
 import UserModel from '@/core/models/user';
 import UserRoleModel from '@/core/models/user-role';
 import RoleModel from '@/core/models/role';
+import { buildDisplayName } from '@/lib/build-display-name';
 import { isMaintenanceMode, isMaintenanceBypassEmail } from '@/lib/maintenance';
 
 export async function POST(request: NextRequest) {
@@ -66,7 +67,7 @@ export async function POST(request: NextRequest) {
         userId: user._id.toString(),
         tenantId: user.tenantId.toString(),
         roles: roleNames,
-        name: `${user.firstName} ${user.lastName}`.trim(),
+        name: buildDisplayName(user.firstName, user.lastName, user.email),
         email: user.email,
       },
       secret,
