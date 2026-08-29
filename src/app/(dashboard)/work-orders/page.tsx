@@ -214,6 +214,10 @@ function WorkOrdersContent() {
   const [limit] = useState(50);
   const [technicians, setTechnicians] = useState<{ _id: string; name: string }[]>([]);
   const [technicianFilter, setTechnicianFilter] = useState('');
+  
+  // Filter for viewing: 'mine' = my orders (default), 'all' = all technicians, or specific tech ID
+  const [viewFilter, setViewFilter] = useState<string>('mine');
+  
   const [sortField, setSortField] = useState<'scheduledDate' | 'createdAt' | 'workOrderNumber'>('scheduledDate');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
 
@@ -318,41 +322,67 @@ const fetchOrders = useCallback(async () => {
         params.status = statusFilter;
       }
       
-      // For 'mine' tab, always pass status=not_closed to include expired
-      if (activeTab === 'mine' && !statusFilter) {
+      // For 'mine' tab or when viewFilter is not empty, always pass status=not_closed to include expired
+      // But also exclude workStatus: cancelled
+      if ((activeTab === 'mine' || viewFilter !== '') && !statusFilter) {
         params.status = 'not_closed';
       }
       if (priorityFilter) params.priority = priorityFilter;
       if (fromDate) params.from = fromDate;
       if (toDate) params.to = toDate;
-      if (technicianFilter) params.technicianId = technicianFilter;
+      
+      // Use viewFilter to determine endpoint and technician filter
+      let endpoint = '/api/operations/work-orders';
+      
+      if (viewFilter === 'mine') {
+        // Use my-orders endpoint for own orders
+        endpoint = '/api/operations/work-orders/my-orders';
+      } else if (viewFilter === 'all') {
+        // Show all - use generic endpoint
+        endpoint = '/api/operations/work-orders';
+      } else {
+        // Specific technician selected - use generic endpoint with technicianId
+        endpoint = '/api/operations/work-orders';
+        params.technicianId = viewFilter;
+      }
       
       // Pagination
       params.page = String(page);
       params.limit = String(limit);
-
-      // Use different endpoint based on tab
-      const endpoint = activeTab === 'mine'
-        ? '/api/operations/work-orders/my-orders'
-        : '/api/operations/work-orders';
-
-      console.log('[WorkOrders] Fetching:', { endpoint, params: JSON.stringify(params), statusFilter, activeTab });
+      
+      console.log('[WorkOrders] Fetching:', { 
+        endpoint, 
+        params: JSON.stringify(params), 
+        statusFilter, 
+        viewFilter, 
+        isTechnician,
+        activeTab 
+      });
 
       const result = await api.get<ListResponse>(endpoint, params);
-      console.log('[WorkOrders] Response:', (result as any).total);
-      setOrders(unwrapData(result));
-      setTotal((result as any).total);
+      
+      // Filter out cancelled workStatus on frontend (negocio)
+      const allOrders = unwrapData(result);
+      const filteredOrders = allOrders.filter((wo: any) => wo.workStatus !== 'cancelled');
+      
+      setOrders(filteredOrders);
+      setTotal(filteredOrders.length);
     } catch (err) {
       setError(err instanceof Error ? err.message: 'Error al cargar órdenes');
     } finally {
       setLoading(false);
     }
-  }, [search, statusFilter, priorityFilter, fromDate, toDate, technicianFilter, activeTab, isTechnician]);
+  }, [search, statusFilter, priorityFilter, fromDate, toDate, technicianFilter, activeTab, isTechnician, viewFilter, page]);
 
   // Initial load + filter changes (debounced search)
   useEffect(() => {
     // Don't fetch while role is loading
     if (roleLoading) return;
+    
+    console.log('[WorkOrders] Effect triggered:', { 
+      search, statusFilter, priorityFilter, fromDate, toDate, 
+      technicianFilter, activeTab, page, roleLoading, isTechnician, viewFilter, mounted: mountedRef.current 
+    });
     
     if (!mountedRef.current) {
       mountedRef.current = true;
@@ -364,7 +394,7 @@ const fetchOrders = useCallback(async () => {
       fetchOrders();
     }, search ? 400 : 0);
     return () => clearTimeout(timer);
-  }, [search, statusFilter, priorityFilter, fromDate, toDate, technicianFilter, activeTab, page, roleLoading, isTechnician]);
+  }, [search, statusFilter, priorityFilter, fromDate, toDate, technicianFilter, activeTab, page, roleLoading, isTechnician, viewFilter]);
 
   async function loadTechnicians() {
     try {
@@ -442,6 +472,27 @@ const fetchOrders = useCallback(async () => {
               {total > 0 ? `${total} órdenes encontradas` : 'Gestiona tus órdenes de trabajo'}
             </p>
           </div>
+          {/* Filter by technician - only show for technicians */}
+          {isTechnician && (
+            <select
+              value={viewFilter}
+              onChange={(e) => {
+                setViewFilter(e.target.value);
+                setPage(1);
+              }}
+              className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+            >
+              <option value="mine">Mis Órdenes</option>
+              <option value="all">Activas</option>
+              {technicians
+                .filter(t => t.email?.toLowerCase() !== user?.email?.toLowerCase())
+                .map((tech) => (
+                <option key={tech._id} value={tech._id}>
+                  {tech.name}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <a
@@ -594,8 +645,8 @@ const fetchOrders = useCallback(async () => {
                         >
                           Ver
                         </button>
-                        {isTechnician && !isAdmin && !isOwn && activeTab === 'all' && 
-                         (wo.status === 'scheduled' || wo.status === 'draft') && (
+                        {isTechnician && !isAdmin && !isOwn && 
+                         (wo.status === 'scheduled' || wo.status === 'draft' || wo.status === 'assigned') && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
@@ -761,9 +812,9 @@ const fetchOrders = useCallback(async () => {
                       </svg>
                       Ver
                     </button>
-                    {/* Botón "Solicitar" para técnicos - en OTs Programadas (sin técnico) o Borrador */}
-                    {isTechnician && !isAdmin && !isOwn && activeTab === 'all' && 
-                     (wo.status === 'scheduled' || wo.status === 'draft') && (
+                    {/* Botón "Solicitar" para técnicos - en OTs Programadas, Asignadas o Borrador */}
+                    {isTechnician && !isAdmin && !isOwn && 
+                     (wo.status === 'scheduled' || wo.status === 'draft' || wo.status === 'assigned') && (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();

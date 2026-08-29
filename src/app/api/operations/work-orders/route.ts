@@ -31,8 +31,9 @@ export async function GET(request: NextRequest) {
 
     const filters: Record<string, unknown> = {};
     if (status === 'not_closed') {
-      // Excluir solo closed y cancelled, pero permitir vencidas
+      // Excluir closed y cancelled en status, y cancelled en workStatus
       filters.status = { $nin: ['closed', 'cancelled'] };
+      filters.workStatus = { $nin: ['cancelled'] };
     } else if (status) {
       filters.status = status;
     }
