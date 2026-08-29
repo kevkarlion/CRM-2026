@@ -2,8 +2,8 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, useCallback, useRef, useMemo, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { api, unwrapData } from '@/lib/api-client';
 import { useRole } from '@/dashboard/context/role-context';
 import { SelfAssignmentDrawer } from '@/operations/components/SelfAssignmentDrawer';
@@ -102,8 +102,9 @@ function label<T extends { value: string; label: string }>(opts: T[], val: strin
   return opts.find(o => o.value === val)?.label ?? val;
 }
 
-export default function AllWorkOrdersPage() {
+function AllWorkOrdersPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { isAdmin, isTechnician, user, loading: roleLoading } = useRole();
   const [orders, setOrders] = useState<WorkOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -130,6 +131,7 @@ export default function AllWorkOrdersPage() {
 
   const fetchOrders = useCallback(async () => {
     try {
+      console.log('[WorkOrdersAll] fetchOrders starting');
       setLoading(true);
       setError(null);
 
@@ -163,38 +165,89 @@ export default function AllWorkOrdersPage() {
       params.page = String(page);
       params.limit = String(limit);
 
-      // Sort is done client-side, not via API
       const endpoint = '/api/operations/work-orders';
 
       const result = await api.get<ListResponse>(endpoint, params);
+      console.log('[WorkOrdersAll] fetchOrders got result:', (result as any).total);
       setOrders(unwrapData(result));
       setTotal((result as any).total);
     } catch (err) {
+      console.error('[WorkOrdersAll] fetchOrders error:', err);
       setError(err instanceof Error ? err.message : 'Error al cargar órdenes');
     } finally {
+      console.log('[WorkOrdersAll] fetchOrders finished');
       setLoading(false);
     }
   }, [search, statusFilter, priorityFilter, fromDate, toDate, technicianFilter, page]);
 
+  // Track if auto-filters from URL have been applied (to avoid infinite loops)
+  const autoFiltersApplied = useRef(false);
+
+  // Initial load - loads technicians and fetches orders
+  useEffect(() => {
+    console.log('[WorkOrdersAll] Initial effect running');
+    if (!mountedRef.current) {
+      console.log('[WorkOrdersAll] First mount - loading techs and fetching');
+      mountedRef.current = true;
+      loadTechnicians();
+      fetchOrders();
+    }
+  }, []);
+
+  // When filters or search change, re-fetch
+  useEffect(() => {
+    console.log('[WorkOrdersAll] Filter effect:', { techniciansLength: technicians.length, roleLoading, mounted: mountedRef.current });
+    if (technicians.length === 0) return;
+    if (roleLoading) return;
+    if (!mountedRef.current) return;
+    
+    fetchOrders();
+  }, [search, statusFilter, technicianFilter, priorityFilter, fromDate, toDate, page]);
+
+  // Auto-select filters from URL - runs AFTER technicians are loaded
   useEffect(() => {
     if (roleLoading) return;
+    if (technicians.length === 0) return;
+    if (autoFiltersApplied.current) return;
     
-    if (!mountedRef.current) {
-      mountedRef.current = true;
-      fetchOrders();
-      loadTechnicians();
-      return;
+    const urlExpired = new URLSearchParams(window.location.search).get('expired');
+    const urlTechId = new URLSearchParams(window.location.search).get('technicianId');
+    
+    // If no URL params, nothing to do
+    if (urlExpired !== 'true' && !urlTechId) return;
+    
+    console.log('[WorkOrdersAll] Applying URL filters:', { urlExpired, urlTechId });
+    autoFiltersApplied.current = true;
+    
+    // Apply technician filter
+    if (urlTechId) {
+      setTechnicianFilter(urlTechId);
+    } else if (isTechnician && user?.email) {
+      // Auto-select self for technicians
+      const userEmailLower = user.email.toLowerCase();
+      const myTech = technicians.find(t => 
+        t.email?.toLowerCase() === userEmailLower ||
+        t.email?.toLowerCase().includes(userEmailLower.split('@')[0])
+      );
+      if (myTech) {
+        console.log('[WorkOrdersAll] Auto-selected technician:', myTech.name);
+        setTechnicianFilter(myTech._id);
+      }
     }
-    const timer = setTimeout(() => {
-      fetchOrders();
-    }, search ? 400 : 0);
-    return () => clearTimeout(timer);
-  }, [search, statusFilter, priorityFilter, fromDate, toDate, technicianFilter, page, roleLoading, fetchOrders]);
+    
+    // Apply expired filter
+    if (urlExpired === 'true') {
+      setStatusFilter('expired');
+    }
+    
+    // fetchOrders will be triggered automatically by filter effect
+  }, [roleLoading, technicians.length, isTechnician, user?.email]);
 
   async function loadTechnicians() {
     try {
-      const data = await api.get<{ data: { _id: string; name: string }[] }>('/api/operations/technicians');
-      setTechnicians(data.data || []);
+      const data = await api.get<{ data: { _id: string; name: string; email?: string }[] }>('/api/operations/technicians');
+      const techs = data.data || [];
+      setTechnicians(techs);
     } catch (err) {
       // ignore
     }
@@ -494,5 +547,18 @@ export default function AllWorkOrdersPage() {
         </>
       )}
     </div>
+  );
+}
+
+// Separate component to be wrapped in Suspense
+function WorkOrdersAllContent() {
+  return <AllWorkOrdersPage />;
+}
+
+export default function WorkOrdersAllPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center">Cargando...</div>}>
+      <WorkOrdersAllContent />
+    </Suspense>
   );
 }

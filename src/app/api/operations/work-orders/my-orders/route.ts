@@ -48,18 +48,36 @@ export async function GET(request: NextRequest) {
     // Formatear fecha en formato YYYY-MM-DD en hora local Argentina
     const year = localNow.getFullYear();
     const month = String(localNow.getMonth() + 1).padStart(2, '0');
-    const day = String(localNow.getDate()).padStart(2, '0');
+    const day = String(localNow.getDate()).toString().padStart(2, '0');
     const todayStr = `${year}-${month}-${day}`;
 
-    // Query filtrado: solo órdenes activas del técnico
-    const query = {
+    // Check for expired filter
+    const { searchParams } = new URL(request.url);
+    const expired = searchParams.get('expired');
+
+    // Default query: solo órdenes activas del técnico
+    let query: Record<string, unknown> = {
       tenantId: tenantObjectId,
       assignedTechnicians: technician._id,
       deletedAt: null,
       // Excluir: draft, closed, cancelled
       status: { $nin: ['draft', 'closed', 'cancelled'] },
-      // Excluir vencidas
-      $and: [
+    };
+
+    if (expired === 'true') {
+      // Show expired orders (last 30 days, before today)
+      const thirtyDaysAgo = new Date(localNow);
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      const thirtyDaysAgoStr = thirtyDaysAgo.toISOString().split('T')[0];
+      
+      query = {
+        ...query,
+        scheduledDate: { $gte: thirtyDaysAgoStr, $lt: todayStr },
+        workStatus: { $nin: ['paused', 'cancelled'] },
+      };
+    } else {
+      // Normal view: exclude expired orders
+      (query as any).$and = [
         {
           $or: [
             { scheduledDate: { $exists: false } },
@@ -75,8 +93,8 @@ export async function GET(request: NextRequest) {
             { workStatus: 'active' },
           ],
         },
-      ],
-    };
+      ];
+    }
 
     const workOrders = await WorkOrderModel.find(query)
       .populate('assignedTechnicians', 'name email phone')

@@ -209,6 +209,7 @@ export async function GET(request: NextRequest) {
       assignedTechnicians: { $in: [technicianId] },
       status: { $nin: ['completed', 'cancelled', 'closed'] },
       scheduledDate: { $lt: todayStr },
+      workStatus: { $nin: ['paused', 'cancelled'] },
     });
 
     // VT vencidas asignadas a este técnico
@@ -220,18 +221,21 @@ export async function GET(request: NextRequest) {
       scheduledDate: { $lt: todayStartDate },
     });
 
-    // === Órdenes y Visitas Vencidas (GLOBAL) ===
+    // === Órdenes y Visitas Vencidas (DEL TÉCNICO) ===
     // Órdenes de trabajo vencidas (fecha programada < hoy Y no completada)
     const expiredOrders = await WorkOrderModel.countDocuments({
       tenantId: tenantObjectId,
+      assignedTechnicians: technicianId,
       deletedAt: null,
       status: { $nin: ['completed', 'cancelled', 'closed'] },
       scheduledDate: { $lt: todayStr },
+      workStatus: { $nin: ['paused', 'cancelled'] },
     });
 
     // Visitas técnicas vencidas (el campo es Date en el modelo)
     const expiredVisits = await TechnicalVisitModel.countDocuments({
       tenantId: tenantObjectId,
+      assignedTechnicianId: technicianId,
       deletedAt: null,
       status: { $nin: ['completed', 'cancelled', 'converted_to_work_order'] },
       scheduledDate: { $lt: todayStartDate },

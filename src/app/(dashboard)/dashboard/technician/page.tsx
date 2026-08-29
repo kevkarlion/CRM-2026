@@ -33,6 +33,11 @@ function TechnicianDashboardContent() {
   const [dashboard, setDashboard] = useState<TechnicianDashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
+  // Modal de vencidas
+  const [expiredModalOpen, setExpiredModalOpen] = useState(false);
+  const [expiredOrders, setExpiredOrders] = useState<any[]>([]);
+  const [expiredLoading, setExpiredLoading] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -48,6 +53,28 @@ function TechnicianDashboardContent() {
     }
     load();
   }, []);
+
+  // Función para cargar las órdenes vencidas del técnico actual
+  const loadExpiredOrders = async () => {
+    setExpiredLoading(true);
+    try {
+      // Usamos el endpoint my-orders que filtra por el técnico actual
+      const res = await fetch('/api/operations/work-orders/my-orders?expired=true&limit=100');
+      const data = await res.json();
+      setExpiredOrders(data.data || []);
+    } catch (err) {
+      console.error('Error loading expired orders:', err);
+    } finally {
+      setExpiredLoading(false);
+    }
+  };
+
+  const handleExpiredClick = () => {
+    setExpiredModalOpen(true);
+    if (expiredOrders.length === 0) {
+      loadExpiredOrders();
+    }
+  };
 
   const { user } = useRole();
   const [techName, setTechName] = useState('Técnico');
@@ -285,9 +312,9 @@ function TechnicianDashboardContent() {
           </Link>
 
           {/* 4. VENCIDAS */}
-          <Link
-            href="/work-orders?tab=mine&expired=true"
-            className={`group bg-white border rounded-2xl p-5 hover:shadow-xl hover:-translate-y-1 transition-all relative overflow-hidden ${
+          <button
+            onClick={handleExpiredClick}
+            className={`group bg-white border rounded-2xl p-5 hover:shadow-xl hover:-translate-y-1 transition-all relative overflow-hidden text-left w-full ${
               totalExpired > 0 ? 'border-red-200' : 'border-slate-200'
             }`}
           >
@@ -311,10 +338,78 @@ function TechnicianDashboardContent() {
               <div className="flex items-center gap-2 text-xs text-slate-500">
                 <span>{expiredWO} OT · {expiredVT} VT</span>
               </div>
+              </div>
+            </button>
+          </div>
+        </section>
+
+        {/* ─── Modal de Órdenes Vencidas ─── */}
+        {expiredModalOpen && (
+          <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-0 sm:p-4">
+            <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-3xl max-h-[90vh] sm:max-h-[80vh] overflow-hidden flex flex-col">
+              <div className="p-4 sm:p-6 border-b flex items-center justify-between">
+                <div>
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-900">Órdenes Vencidas</h2>
+                  <p className="text-xs sm:text-sm text-gray-500">Tus órdenes de trabajo vencidas</p>
+                </div>
+                <button
+                  onClick={() => setExpiredModalOpen(false)}
+                  className="p-2 hover:bg-gray-100 rounded-lg"
+                >
+                  ✕
+                </button>
+              </div>
+              <div className="flex-1 overflow-auto p-4 sm:p-6">
+                {expiredLoading ? (
+                  <div className="text-center py-8 text-gray-500">Cargando...</div>
+                ) : expiredOrders.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500">No hay órdenes vencidas</div>
+                ) : (
+                  <div className="space-y-2">
+                    {expiredOrders.map((wo) => (
+                      <Link
+                        key={wo._id}
+                        href={`/work-orders/${wo._id}`}
+                        onClick={() => setExpiredModalOpen(false)}
+                        className="block p-3 sm:p-4 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              <span className="font-mono text-sm font-bold text-gray-900 truncate">
+                                {wo.workOrderNumber}
+                              </span>
+                              <span className={`px-2 py-0.5 text-xs rounded-full ${
+                                wo.priority === 'urgent' ? 'bg-red-100 text-red-700' :
+                                wo.priority === 'high' ? 'bg-orange-100 text-orange-700' :
+                                'bg-blue-100 text-blue-700'
+                              }`}>
+                                {wo.priority === 'urgent' ? 'Urgente' : wo.priority === 'high' ? 'Alta' : 'Normal'}
+                              </span>
+                            </div>
+                            <div className="text-sm text-gray-600 mb-1 truncate">{wo.title}</div>
+                            <div className="text-xs text-gray-500 truncate">
+                              {wo.clientSnapshot?.name || 'Sin cliente'}
+                            </div>
+                          </div>
+                          <div className="text-right text-xs ml-2 flex-shrink-0">
+                            <div className="text-red-600 font-medium mb-1">
+                              VENCIDA
+                            </div>
+                            <div className="text-gray-500">
+                              <span className="block">Programada: {wo.scheduledDate ? new Date(wo.scheduledDate).toLocaleDateString('es-AR') : '—'}</span>
+                              <span className="block">Creada: {wo.createdAt ? new Date(wo.createdAt).toLocaleDateString('es-AR') : '—'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
-          </Link>
-        </div>
-      </section>
+          </div>
+        )}
 
       {/* ─── Mis Tareas Próximas ─── */}
       <section>
