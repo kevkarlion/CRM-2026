@@ -2,6 +2,7 @@
 
 import { FormEvent, Suspense, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
+import { buildDisplayName } from '@/lib/build-display-name';
 
 function LoginForm() {
   const searchParams = useSearchParams();
@@ -47,9 +48,11 @@ function LoginForm() {
       // Cache user profile from login response (JWT may lack name/email)
       if (data.user) {
         const userToCache = {
-          name: (data.user as any).firstName
-            ? `${(data.user as any).firstName} ${(data.user as any).lastName || ''}`.trim()
-            : (data.user as any).email ?? 'Admin',
+          name: buildDisplayName(
+            (data.user as any).firstName,
+            (data.user as any).lastName,
+            (data.user as any).email,
+          ),
           email: (data.user as any).email ?? '',
           role: ((data.user as any).roles?.[0] as string) || 'Administrator',
         };

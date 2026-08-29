@@ -4,6 +4,7 @@
 
 import { createContext, useContext, useState, useMemo, useEffect, type ReactNode } from 'react';
 import { RoleDefaultPermissions, type TenantRoleName, type PermissionKey } from '@/rbac/permissions';
+import { buildDisplayName } from '@/lib/build-display-name';
 
 interface UserInfo {
   name: string;
@@ -26,7 +27,7 @@ interface RoleContextValue {
   loading: boolean;
 }
 
-function decodeToken(token: string): { userId?: string; tenantId?: string; roles?: string[]; name?: string; email?: string } | null {
+export function decodeToken(token: string): { userId?: string; tenantId?: string; roles?: string[]; name?: string; email?: string } | null {
   try {
     const payload = token.split('.')[1];
     const decoded = JSON.parse(atob(payload));
@@ -40,7 +41,7 @@ function decodeToken(token: string): { userId?: string; tenantId?: string; roles
       userId: decoded.userId ?? decoded.sub,
       tenantId: decoded.tenantId,
       roles: decoded.roles ?? [],
-      name: decoded.name ?? 'Usuario',
+      name: buildDisplayName(decoded.name, null, decoded.email ?? ''),
       email: decoded.email ?? '',
     };
   } catch {
@@ -108,7 +109,13 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       const existing = getCachedUser();
       if (existing && !existing._isDefault && existing.name && existing.name !== 'Admin') {
         // Normalize role from cache — login response may have 'technician' instead of 'Technician'
-        setUser({ ...existing, role: normalizeRole(existing.role) });
+        const safeName = buildDisplayName(existing.name, null, existing.email);
+        const safeUser: UserInfo = { ...existing, role: normalizeRole(existing.role), name: safeName };
+        setUser(safeUser);
+        if (safeName !== existing.name) {
+          // Evict junk names ("undefined undefined", empty, whitespace-only) cached from older JWTs
+          setCachedUser(safeUser);
+        }
         setLoading(false);
         return;
       }
@@ -127,7 +134,7 @@ export function RoleProvider({ children }: { children: ReactNode }) {
       const role = normalizeRole(rawRole);
       
       const newUser: UserInfo = {
-        name: data.name ?? 'Admin',
+        name: data.name ?? 'Usuario',
         email: data.email ?? 'admin@demo.cl',
         role,
       };
