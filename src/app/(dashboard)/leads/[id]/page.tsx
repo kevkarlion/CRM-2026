@@ -318,8 +318,7 @@ const handleCedeControl = async () => {
   }
 
   function handleViewQuoteDetail(quoteId: string) {
-    setSelectedQuoteId(quoteId);
-    setShowQuoteDetail(true);
+    router.push(`/quotes/${quoteId}`);
   }
 
   const refreshLeadAndTimeline = () => {

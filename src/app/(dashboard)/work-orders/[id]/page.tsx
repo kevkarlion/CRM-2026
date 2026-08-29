@@ -46,6 +46,8 @@ interface WorkOrder {
   duration?: number;
   startedBy?: string;
   workReportId?: string;
+  leadId?: string;
+  clientId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -521,7 +523,7 @@ export default function WorkOrderDetailPage() {
       {/* Header */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
-          <button onClick={() => router.push('/work-orders')} className="p-2 -ml-2 text-gray-400 hover:text-gray-600 transition-colors">
+          <button onClick={() => router.push('/work-orders/all')} className="p-2 -ml-2 text-gray-400 hover:text-gray-600 transition-colors">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
@@ -529,6 +531,26 @@ export default function WorkOrderDetailPage() {
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl sm:text-4xl font-extrabold text-gray-900 break-words">{workOrder.title}</h1>
             <p className="text-base text-gray-500 mt-1">#{shortWO(workOrder.workOrderNumber)}</p>
+            {isAdmin && (
+              <div className="flex gap-2 mt-2">
+                {workOrder.leadId && (
+                  <button
+                    onClick={() => router.push(`/leads/${workOrder.leadId}`)}
+                    className="px-3 py-1.5 text-sm text-brand-600 hover:text-brand-700 hover:bg-brand-50 font-medium rounded-lg cursor-pointer transition-colors"
+                  >
+                    Ir al Lead →
+                  </button>
+                )}
+                {workOrder.clientId && (
+                  <button
+                    onClick={() => router.push(`/clients/${workOrder.clientId}`)}
+                    className="px-3 py-1.5 text-sm text-brand-600 hover:text-brand-700 hover:bg-brand-50 font-medium rounded-lg cursor-pointer transition-colors"
+                  >
+                    Ir al Cliente →
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
         

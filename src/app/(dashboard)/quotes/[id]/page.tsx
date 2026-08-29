@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { api } from '@/lib/api-client'
+import { useRole } from '@/dashboard/context/role-context'
 import { Breadcrumb } from '@/lib/components/Breadcrumb'
 import { ExecutiveSummaryHeader } from '@/components/quotes/detail/executive-summary-header'
 import { GeneralInfoCard } from '@/components/quotes/detail/general-info-card'
@@ -29,6 +30,7 @@ export default function QuoteDetailPage() {
   const params = useParams()
   const router = useRouter()
   const quoteId = params.id as string
+  const { isAdmin } = useRole()
 
   const [data, setData] = useState<QuoteDetailData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -186,6 +188,15 @@ export default function QuoteDetailPage() {
             quote={data.quote}
             leadName={data.lead?.name}
           />
+
+          {isAdmin && data.lead && (
+            <button
+              onClick={() => router.push(`/leads/${data.lead._id}`)}
+              className="px-3 py-1.5 text-sm text-brand-600 hover:text-brand-700 hover:bg-brand-50 font-medium rounded-lg cursor-pointer transition-colors"
+            >
+              Ir al Lead →
+            </button>
+          )}
 
           {/* Documento PDF embedido */}
           {sourceDocument?.secureUrl && (
