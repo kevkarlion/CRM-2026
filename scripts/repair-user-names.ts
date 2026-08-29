@@ -2,8 +2,22 @@ import { config } from 'dotenv';
 config({ path: '.env.local' });
 
 import mongoose from 'mongoose';
-const { connectDB } = await import('../src/core/db');
 import UserModel from '../src/core/models/user';
+
+// Connect directly instead of src/core/db.connectDB: that helper runs
+// ensureWorkReportIndexes() (dropIndex/createIndex on work_reports) on every
+// fresh connection, which would write to the DB even under --dry-run. This
+// script only needs the users collection, so a plain connection is safe and
+// keeps dry-run truly write-free.
+async function localConnect() {
+  const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017/crm-2026';
+  if (!process.env.MONGODB_URI) {
+    console.warn('WARNING: MONGODB_URI not set — falling back to mongodb://localhost:27017/crm-2026');
+  }
+  if (mongoose.connection.readyState === 0) {
+    await mongoose.connect(uri);
+  }
+}
 
 /**
  * One-off repair for user records whose firstName/lastName is genuinely
@@ -22,7 +36,12 @@ import UserModel from '../src/core/models/user';
  * procedure from that log.
  *
  * Run ad-hoc: npx tsx scripts/repair-user-names.ts
+ * Dry run:     npx tsx scripts/repair-user-names.ts --dry-run
+ *   (prints exactly what would change without writing anything)
  */
+
+// --dry-run prints the planned changes without touching the database.
+const DRY_RUN = process.argv.includes('--dry-run');
 
 function isMissing(value: unknown): boolean {
   return value == null || (typeof value === 'string' && value.trim() === '');
@@ -30,7 +49,7 @@ function isMissing(value: unknown): boolean {
 
 async function repair() {
   console.log('Connecting…');
-  await connectDB();
+  await localConnect();
   console.log('Connected.\n');
 
   const users = await UserModel.find({
@@ -44,6 +63,7 @@ async function repair() {
   }).lean();
 
   console.log(`Users with missing/whitespace-only first or last name: ${users.length}\n`);
+  if (DRY_RUN && users.length > 0) console.log('DRY RUN MODE: no changes will be written.\n');
 
   let usersUpdated = 0;
   let fieldsUpdated = 0;
@@ -63,7 +83,9 @@ async function repair() {
 
     if (!hadChange) continue;
 
-    await UserModel.updateOne({ _id: user._id }, { $set: updates });
+    if (!DRY_RUN) {
+      await UserModel.updateOne({ _id: user._id }, { $set: updates });
+    }
     usersUpdated += 1;
     fieldsUpdated += Object.keys(updates).length;
 
@@ -74,8 +96,14 @@ async function repair() {
   }
 
   console.log('\nSummary:');
-  console.log(`  Users updated: ${usersUpdated}`);
-  console.log(`  Fields filled with email: ${fieldsUpdated}`);
+  if (DRY_RUN) {
+    console.log(`  DRY RUN — users that would be updated: ${usersUpdated}`);
+    console.log(`  DRY RUN — fields that would be filled: ${fieldsUpdated}`);
+    console.log('  No changes were written.');
+  } else {
+    console.log(`  Users updated: ${usersUpdated}`);
+    console.log(`  Fields filled with email: ${fieldsUpdated}`);
+  }
 
   await mongoose.disconnect();
 }
