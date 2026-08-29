@@ -19,11 +19,11 @@ const TYPE_LABEL: Record<QuoteItemType, string> = {
 }
 
 const TYPE_COLOR: Record<QuoteItemType, string> = {
-  product: 'bg-blue-50 text-blue-700',
-  service: 'bg-purple-50 text-purple-700',
-  labor: 'bg-orange-50 text-orange-700',
-  material: 'bg-teal-50 text-teal-700',
-  part: 'bg-gray-100 text-gray-700',
+  product: 'bg-sky-600 text-white',
+  service: 'bg-violet-600 text-white',
+  labor: 'bg-amber-500 text-gray-900',
+  material: 'bg-teal-600 text-white',
+  part: 'bg-gray-700 text-white',
 }
 
 export function ServicesCards({ items }: ServicesCardsProps) {
@@ -39,23 +39,27 @@ export function ServicesCards({ items }: ServicesCardsProps) {
             key={index}
             className="border border-gray-100 rounded-lg p-4 hover:border-gray-200 transition-colors"
           >
-            <div className="flex justify-between items-start mb-2">
-              <div className="space-y-1">
-                <h3 className="font-medium text-gray-900">{item.description}</h3>
+            <div className="flex justify-between items-start gap-3 mb-2">
+              <div className="space-y-1 min-w-0">
+                <h3 className="font-medium text-gray-900 break-words">{item.description}</h3>
                 {item.type && (
-                  <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full ${TYPE_COLOR[item.type] || 'bg-gray-100 text-gray-700'}`}>
+                  <span className={`inline-block text-xs font-medium px-2 py-0.5 rounded-full ${TYPE_COLOR[item.type] || 'bg-gray-700 text-white'}`}>
                     {TYPE_LABEL[item.type] || item.type}
                   </span>
                 )}
               </div>
-              <span className="text-sm font-semibold text-gray-700">
+              <span className="text-sm font-semibold text-gray-700 whitespace-nowrap">
                 {formatCLP(item.subtotal)}
               </span>
             </div>
 
-            <div className="flex gap-4 text-xs text-gray-500">
-              <span>Cant: {item.quantity}</span>
-              <span>Precio: {formatCLP(item.unitPrice)}</span>
+            <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap gap-2 text-xs">
+              <span className="inline-flex items-center gap-1 bg-gray-50 rounded-md px-2 py-1 text-gray-600">
+                <span className="font-semibold text-gray-400">Cant:</span> {item.quantity}
+              </span>
+              <span className="inline-flex items-center gap-1 bg-gray-50 rounded-md px-2 py-1 text-gray-600">
+                <span className="font-semibold text-gray-400">Precio:</span> {formatCLP(item.unitPrice)}
+              </span>
             </div>
           </div>
         ))}

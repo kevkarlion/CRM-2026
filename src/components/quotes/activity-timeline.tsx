@@ -100,17 +100,15 @@ export function ActivityTimeline({ entityType, entityId }: ActivityTimelineProps
     );
   }
 
+  if (error || activities.length === 0) {
+    return null;
+  }
+
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5">
       <h3 className="text-sm font-semibold text-gray-900 mb-4">Actividad</h3>
 
-      {error || activities.length === 0 ? (
-        <div className="text-center py-8">
-          <p className="text-sm text-gray-500 mb-1">Próximamente</p>
-          <p className="text-xs text-gray-400">El timeline de actividad estará disponible pronto</p>
-        </div>
-      ) : (
-        <div className="space-y-0 relative">
+      <div className="space-y-0 relative">
           <div className="absolute left-[5px] top-2 bottom-2 w-px bg-gray-200" />
           {activities.map(activity => (
             <div key={activity._id} className="relative flex items-start gap-3 pb-4 last:pb-0">
@@ -129,8 +127,7 @@ export function ActivityTimeline({ entityType, entityId }: ActivityTimelineProps
               </div>
             </div>
           ))}
-        </div>
-      )}
+      </div>
     </div>
   );
 }

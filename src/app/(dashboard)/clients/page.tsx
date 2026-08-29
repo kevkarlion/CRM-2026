@@ -46,6 +46,20 @@ const STATUS_VARIANT: Record<string, string> = {
   blocked: 'bg-danger-50 text-danger-700',
 };
 
+const STATUS_VARIANT_MOBILE: Record<string, string> = {
+  prospect: 'bg-sky-600 text-white',
+  active: 'bg-emerald-700 text-white',
+  inactive: 'bg-gray-200 text-gray-800',
+  blocked: 'bg-rose-600 text-white',
+};
+
+const STATUS_ACCENT_MOBILE: Record<string, string> = {
+  prospect: 'border-l-sky-500',
+  active: 'border-l-emerald-500',
+  inactive: 'border-l-gray-300',
+  blocked: 'border-l-rose-500',
+};
+
 const CUSTOMER_TYPE_LABEL: Record<string, string> = {
   residential: 'Residencial',
   commercial: 'Comercial',
@@ -234,28 +248,49 @@ export default function ClientsPage() {
             {sortedClients.map((client) => (
               <div
                 key={client._id}
-                className="bg-white border border-gray-200 rounded-xl p-3.5 hover:border-gray-300 transition-colors"
+                className={`bg-white border border-gray-200 border-l-4 rounded-xl p-4 shadow-sm space-y-3 ${STATUS_ACCENT_MOBILE[client.status] || 'border-l-gray-300'}`}
               >
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <p className="font-medium text-gray-900">{clientName(client)}</p>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-medium text-gray-900 truncate">{clientName(client)}</p>
                     {client.companyName && client.fullName && (
-                      <p className="text-sm text-gray-500">{client.fullName}</p>
+                      <p className="text-sm text-gray-500 truncate">{client.fullName}</p>
                     )}
                   </div>
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[client.status] || 'bg-gray-100 text-gray-700'}`}>
+                  <span className={`inline-flex items-center shrink-0 px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT_MOBILE[client.status] || 'bg-gray-200 text-gray-800'}`}>
                     {STATUS_OPTIONS.find((o) => o.value === client.status)?.label || client.status}
                   </span>
                 </div>
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400">
-                  {client.email && <span>{client.email}</span>}
-                  {client.phone && <span>{client.phone}</span>}
-                  <span>{CUSTOMER_TYPE_LABEL[client.customerType] || client.customerType}</span>
-                  {client.locality && <span>{client.locality}</span>}
-                  <span>{formatDate(client.createdAt)}</span>
+                <div className="grid grid-cols-2 gap-2">
+                  {client.email && (
+                    <div className="bg-gray-50 rounded-lg px-3 py-2 min-w-0">
+                      <span className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400">Email</span>
+                      <span className="block text-sm font-medium text-gray-900 truncate">{client.email}</span>
+                    </div>
+                  )}
+                  {client.phone && (
+                    <div className="bg-gray-50 rounded-lg px-3 py-2 min-w-0">
+                      <span className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400">Teléfono</span>
+                      <span className="block text-sm font-medium text-gray-900">{client.phone}</span>
+                    </div>
+                  )}
+                  <div className="bg-gray-50 rounded-lg px-3 py-2 min-w-0">
+                    <span className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400">Tipo</span>
+                    <span className="block text-sm font-medium text-gray-900">{CUSTOMER_TYPE_LABEL[client.customerType] || client.customerType}</span>
+                  </div>
+                  {client.locality && (
+                    <div className="bg-gray-50 rounded-lg px-3 py-2 min-w-0">
+                      <span className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400">Localidad</span>
+                      <span className="block text-sm font-medium text-gray-900 truncate">{client.locality}</span>
+                    </div>
+                  )}
+                  <div className="bg-gray-50 rounded-lg px-3 py-2 min-w-0">
+                    <span className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400">Creado</span>
+                    <span className="block text-sm font-medium text-gray-900">{formatDate(client.createdAt)}</span>
+                  </div>
                 </div>
                 {client.tags && client.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1.5 mt-3">
+                  <div className="flex flex-wrap gap-1.5">
                     {client.tags.map((tag) => (
                       <span key={tag} className="px-2 py-0.5 rounded-full text-xs font-medium bg-brand-50 text-brand-700">
                         {tag}
@@ -263,7 +298,7 @@ export default function ClientsPage() {
                     ))}
                   </div>
                 )}
-                <div className="mt-3 flex justify-end border-t border-gray-100 pt-3">
+                <div className="flex justify-end border-t border-gray-100 pt-3">
                   <ViewClientLink clientId={client._id} />
                 </div>
               </div>

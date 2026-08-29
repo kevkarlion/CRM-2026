@@ -397,15 +397,17 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
   return (
     <div className="space-y-4">
       {/* Header with Add button */}
-      <div className="flex justify-between items-center">
-        <h2 className="text-lg font-semibold text-gray-900">
-          Documentación
-          <span className="ml-2 text-sm font-normal text-gray-500">
-            ({filter === 'quotes' 
-              ? documents.filter(d => d.documentType === 'presupuesto' || d.documentType === 'cotizacion').length 
-              : documents.length})
-          </span>
-          <div className="flex gap-1 ml-4 inline-flex">
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+          <h2 className="text-lg font-semibold text-gray-900">
+            Documentación
+            <span className="ml-2 text-sm font-normal text-gray-500">
+              ({filter === 'quotes'
+                ? documents.filter(d => d.documentType === 'presupuesto' || d.documentType === 'cotizacion').length
+                : documents.length})
+            </span>
+          </h2>
+          <div className="flex gap-1">
             <button
               onClick={() => setFilter('all')}
               className={`px-3 py-1 text-xs rounded-lg ${filter === 'all' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
@@ -419,10 +421,10 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
               Presupuestos
             </button>
           </div>
-        </h2>
+        </div>
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors cursor-pointer"
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 bg-brand-600 text-white rounded-lg text-sm font-medium hover:bg-brand-700 transition-colors cursor-pointer"
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -553,60 +555,124 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
 
       {/* Document List */}
       {filteredDocs.length > 0 && (
-        <div className="space-y-2">
+        <div className="space-y-3">
           {filteredDocs.map((doc) => (
             <div
               key={doc._id}
-              className="flex items-center gap-4 p-4 bg-white border border-gray-200 rounded-xl hover:border-gray-300 transition-colors"
+              className="flex flex-col sm:flex-row sm:items-start gap-3 p-3 sm:p-4 bg-white border border-gray-200 rounded-xl hover:border-gray-300 transition-colors"
             >
-              {doc.mimeType.startsWith('image/') ? (
-                <img
-                  src={doc.secureUrl}
-                  alt={doc.title}
-                  className="w-12 h-12 object-cover rounded-lg"
-                />
-              ) : (
-                <div className="w-12 h-12 flex items-center justify-center">
-                  {getFileIcon(doc.mimeType)}
-                </div>
-              )}
+              {/* File thumbnail - smaller on mobile */}
+              <div className="shrink-0">
+                {doc.mimeType.startsWith('image/') ? (
+                  <img
+                    src={doc.secureUrl}
+                    alt={doc.title}
+                    className="w-10 h-10 sm:w-12 sm:h-12 object-cover rounded-lg"
+                  />
+                ) : (
+                  <div className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center">
+                    {getFileIcon(doc.mimeType)}
+                  </div>
+                )}
+              </div>
 
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">
                   {doc.title}
                 </p>
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  <span>{DOCUMENT_TYPE_LABELS[doc.documentType as DocumentType] || doc.documentType}</span>
-                  <span>•</span>
-                  <span>{formatDate(doc.createdAt)}</span>
-                  <span>•</span>
-                  <span>{formatFileSize(doc.fileSize)}</span>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-500 mt-1">
+                  <span className="shrink-0">{DOCUMENT_TYPE_LABELS[doc.documentType as DocumentType] || doc.documentType}</span>
+                  <span className="hidden sm:inline">•</span>
+                  <span className="shrink-0">{formatDate(doc.createdAt)}</span>
+                  <span className="hidden sm:inline">•</span>
+                  <span className="shrink-0">{formatFileSize(doc.fileSize)}</span>
                 </div>
-              </div>
 
-              {/* Action Buttons - based on quote status from API */}
-              <div className="flex flex-col gap-1 items-stretch">
-                {/* Only show action buttons for quote documents */}
-                {(doc.documentType === 'presupuesto' || doc.documentType === 'cotizacion') && (() => {
-                    const quoteStatus = getQuoteStatus(doc._id);
-                    
-                    // Quote sent (presupuesto enviado, esperando aprobación)
-                    if (quoteStatus?.status === 'sent') {
+                {/* Action Buttons - based on quote status from API */}
+                {(doc.documentType === 'presupuesto' || doc.documentType === 'cotizacion') && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {(() => {
+                      const quoteStatus = getQuoteStatus(doc._id);
+
+                      // Quote sent (presupuesto enviado, esperando aprobación)
+                      if (quoteStatus?.status === 'sent') {
+                        return (
+                          <>
+                            <span className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-100 rounded-lg">
+                              Presupuesto enviado
+                            </span>
+                            {/* Botón para aprobar el presupuesto */}
+                            <button
+                              onClick={() => handleDocumentActionClick(doc._id, 'approved')}
+                              disabled={actionLoading !== null}
+                              className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors cursor-pointer"
+                              title="Aprobar presupuesto"
+                            >
+                              {actionLoading === 'approved' && actionDocId === doc._id ? '...' : 'Aprobada'}
+                            </button>
+                            {/* Allow confirm sale even after sending */}
+                            {leadStatus !== 'won' && (
+                              <button
+                                onClick={() => handleDocumentActionClick(doc._id, 'won')}
+                                disabled={actionLoading !== null}
+                                className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 rounded-lg hover:bg-green-100 disabled:opacity-50 transition-colors cursor-pointer"
+                                title="Confirmar venta y crear OT"
+                              >
+                                {actionLoading === 'won' && actionDocId === doc._id ? '...' : 'Confirmar Venta'}
+                              </button>
+                            )}
+                          </>
+                        );
+                      }
+
+                      // Quote approved (presupuesto aprobado)
+                      if (quoteStatus?.status === 'approved') {
+                        return (
+                          <>
+                            <span className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-100 rounded-lg">
+                              Presupuesto aprobado
+                            </span>
+                            {leadStatus !== 'won' && (
+                              <button
+                                onClick={() => handleDocumentActionClick(doc._id, 'won')}
+                                disabled={actionLoading !== null}
+                                className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 rounded-lg hover:bg-green-100 disabled:opacity-50 transition-colors cursor-pointer"
+                                title="Confirmar venta y crear OT"
+                              >
+                                {actionLoading === 'won' && actionDocId === doc._id ? '...' : 'Confirmar Venta'}
+                              </button>
+                            )}
+                          </>
+                        );
+                      }
+
+                      // Direct sale or lead won (venta confirmada)
+                      if (quoteStatus?.status === 'direct_sale' || leadStatus === 'won') {
+                        const wonDate = quoteStatus?.wonAt ? formatDate(quoteStatus.wonAt) : (quoteStatus?.approvedAt ? formatDate(quoteStatus.approvedAt) : '');
+                        let saleTypeLabel = '';
+                        if (quoteStatus?.saleType === 'product') {
+                          saleTypeLabel = 'de producto';
+                        } else if (quoteStatus?.saleType === 'service') {
+                          saleTypeLabel = 'de servicio';
+                        }
+                        return (
+                          <span className="px-3 py-1.5 text-xs font-medium text-white bg-gray-800 rounded-lg">
+                            Venta confirmada {saleTypeLabel ? `${saleTypeLabel} ` : ''}{wonDate ? `- ${wonDate}` : ''}
+                          </span>
+                        );
+                      }
+
+                      // No quote yet - show action buttons
                       return (
                         <>
-                          <span className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-100 rounded-lg">
-                            ✓ Presupuesto enviado
-                          </span>
-                          {/* Botón para aprobar el presupuesto */}
                           <button
-                            onClick={() => handleDocumentActionClick(doc._id, 'approved')}
+                            onClick={() => handleDocumentActionClick(doc._id, 'quote_sent')}
                             disabled={actionLoading !== null}
                             className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors cursor-pointer"
-                            title="Aprobar presupuesto"
+                            title="Enviar presupuesto al cliente"
                           >
-                            {actionLoading === 'approved' && actionDocId === doc._id ? '...' : 'Aprobada'}
+                            {actionLoading === 'quote_sent' && actionDocId === doc._id ? '...' : 'Enviar Presupuesto'}
                           </button>
-                          {/* Allow confirm sale even after sending */}
                           {leadStatus !== 'won' && (
                             <button
                               onClick={() => handleDocumentActionClick(doc._id, 'won')}
@@ -619,92 +685,35 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
                           )}
                         </>
                       );
-                    }
-                    
-                    // Quote approved (presupuesto aprobado)
-                    if (quoteStatus?.status === 'approved') {
-                      return (
-                        <>
-                          <span className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-100 rounded-lg">
-                            ✓ Presupuesto aprobado
-                          </span>
-                          {leadStatus !== 'won' && (
-                            <button
-                              onClick={() => handleDocumentActionClick(doc._id, 'won')}
-                              disabled={actionLoading !== null}
-                              className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 rounded-lg hover:bg-green-100 disabled:opacity-50 transition-colors cursor-pointer"
-                              title="Confirmar venta y crear OT"
-                            >
-                              {actionLoading === 'won' && actionDocId === doc._id ? '...' : 'Confirmar Venta'}
-                            </button>
-                          )}
-                        </>
-                      );
-                    }
-                    
-                    // Direct sale or lead won (venta confirmada)
-                    if (quoteStatus?.status === 'direct_sale' || leadStatus === 'won') {
-                      const wonDate = quoteStatus?.wonAt ? formatDate(quoteStatus.wonAt) : (quoteStatus?.approvedAt ? formatDate(quoteStatus.approvedAt) : '');
-                      let saleTypeLabel = '';
-                      if (quoteStatus?.saleType === 'product') {
-                        saleTypeLabel = 'de producto';
-                      } else if (quoteStatus?.saleType === 'service') {
-                        saleTypeLabel = 'de servicio';
-                      }
-                      return (
-                        <span className="px-3 py-1.5 text-xs font-medium text-white bg-gray-800 rounded-lg">
-                          Venta confirmada {saleTypeLabel ? `${saleTypeLabel} ` : ''}{wonDate ? `- ${wonDate}` : ''}
-                        </span>
-                      );
-                    }
-                    
-                    // No quote yet - show action buttons
-                    return (
-                      <>
-                        <button
-                          onClick={() => handleDocumentActionClick(doc._id, 'quote_sent')}
-                          disabled={actionLoading !== null}
-                          className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100 disabled:opacity-50 transition-colors cursor-pointer"
-                          title="Enviar presupuesto al cliente"
-                        >
-                          {actionLoading === 'quote_sent' && actionDocId === doc._id ? '...' : 'Enviar Presupuesto'}
-                        </button>
-                        {leadStatus !== 'won' && (
-                          <button
-                            onClick={() => handleDocumentActionClick(doc._id, 'won')}
-                            disabled={actionLoading !== null}
-                            className="px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 rounded-lg hover:bg-green-100 disabled:opacity-50 transition-colors cursor-pointer"
-                            title="Confirmar venta y crear OT"
-                          >
-                            {actionLoading === 'won' && actionDocId === doc._id ? '...' : 'Confirmar Venta'}
-                          </button>
-                        )}
-                      </>
-                    );
-                  })()}
+                    })()}
+                  </div>
+                )}
               </div>
 
-              <div className="flex flex-col gap-1 items-stretch">
+              {/* Right side - View and Delete for ALL documents */}
+              <div className="flex gap-1 mt-3 sm:mt-0 sm:shrink-0">
                 <a
                   href={doc.secureUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-2 text-gray-500 hover:text-brand-600 transition-colors"
+                  className="flex items-center gap-1 p-2 text-xs font-medium text-gray-500 hover:text-brand-600 hover:bg-gray-100 rounded-lg transition-colors"
                   title="Ver"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                   </svg>
+                  <span className="sm:hidden">Ver</span>
                 </a>
                 <button
                   onClick={() => handleDelete(doc._id)}
-                  className="p-2 text-gray-500 hover:text-red-600 transition-colors"
+                  className="flex items-center gap-1 p-2 text-xs font-medium text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                   title="Eliminar"
                 >
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
+                  <span className="sm:hidden">Eliminar</span>
                 </button>
               </div>
             </div>

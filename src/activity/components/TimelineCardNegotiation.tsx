@@ -117,7 +117,7 @@ export function TimelineCardNegotiation({ event }: TimelineCardProps) {
 
       {nextFollowUp && (
         <p className="text-xs text-amber-600 mt-2 bg-amber-50 px-2 py-1 rounded inline-block">
-          📅 {formatNextFollowUp(nextFollowUp)}
+          <span className="font-medium">Próximo seguimiento:</span> {formatNextFollowUp(nextFollowUp)}
         </p>
       )}
 

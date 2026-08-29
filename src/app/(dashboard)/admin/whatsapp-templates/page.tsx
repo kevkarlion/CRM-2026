@@ -29,6 +29,24 @@ const CATEGORIES = [
   { value: 'AUTHENTICATION', label: 'Autenticación' },
 ];
 
+const CATEGORY_LABEL: Record<string, string> = {
+  TRANSACTIONAL: 'Transaccional',
+  MARKETING: 'Marketing',
+  AUTHENTICATION: 'Autenticación',
+};
+
+const CATEGORY_BADGE: Record<string, string> = {
+  TRANSACTIONAL: 'bg-sky-600 text-white',
+  MARKETING: 'bg-violet-600 text-white',
+  AUTHENTICATION: 'bg-gray-700 text-white',
+};
+
+const CATEGORY_ACCENT: Record<string, string> = {
+  TRANSACTIONAL: 'border-l-sky-500',
+  MARKETING: 'border-l-violet-500',
+  AUTHENTICATION: 'border-l-gray-500',
+};
+
 const LANGUAGES = [
   { value: 'es', label: 'Español' },
   { value: 'en', label: 'Inglés' },
@@ -177,16 +195,16 @@ export default function WhatsAppTemplatesAdminPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Plantillas de WhatsApp</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Plantillas de WhatsApp</h1>
           <p className="text-sm text-gray-500 mt-1">
             Gestiona las plantillas de mensaje para WhatsApp Business API
           </p>
         </div>
         <button
           onClick={openCreateForm}
-          className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 transition-colors"
+          className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 transition-colors"
         >
           + Nueva plantilla
         </button>
@@ -217,7 +235,8 @@ export default function WhatsAppTemplatesAdminPage() {
           </button>
         </div>
       ) : (
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <>
+        <div className="hidden sm:block bg-white rounded-lg border border-gray-200 overflow-hidden">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
@@ -280,6 +299,53 @@ export default function WhatsAppTemplatesAdminPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Mobile cards */}
+        <div className="sm:hidden space-y-3">
+          {templates.map((template) => (
+            <div
+              key={template._id}
+              className={`bg-white border border-gray-200 rounded-xl p-4 shadow-sm border-l-4 ${CATEGORY_ACCENT[template.category] || 'border-l-gray-500'}`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-medium text-gray-900 truncate">{template.name}</p>
+                  <span className={`inline-flex items-center px-2 py-0.5 mt-1.5 text-xs font-medium rounded-full ${CATEGORY_BADGE[template.category] || 'bg-gray-700 text-white'}`}>
+                    {CATEGORY_LABEL[template.category] || template.category}
+                  </span>
+                </div>
+                <span className="text-xs text-gray-400 shrink-0 uppercase">{template.language}</span>
+              </div>
+
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <div className="bg-gray-50 rounded-lg px-3 py-2">
+                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400">Variables</span>
+                  <p className="text-sm font-medium text-gray-900">{template.variables?.length || 0}</p>
+                </div>
+                <div className="bg-gray-50 rounded-lg px-3 py-2">
+                  <span className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400">Actualizado</span>
+                  <p className="text-sm font-medium text-gray-900 truncate">{new Date(template.updatedAt).toLocaleDateString('es-CL')}</p>
+                </div>
+              </div>
+
+              <div className="mt-3 pt-3 border-t border-gray-100 flex gap-2">
+                <button
+                  onClick={() => openEditForm(template)}
+                  className="flex-1 inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium bg-white border border-brand-200 text-brand-700 hover:bg-brand-50 transition-colors"
+                >
+                  Editar
+                </button>
+                <button
+                  onClick={() => handleDelete(template._id)}
+                  className="inline-flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium bg-white border border-danger-200 text-danger-600 hover:bg-danger-50 transition-colors"
+                >
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+        </>
       )}
 
       {/* Create/Edit Form Modal */}
@@ -404,7 +470,7 @@ export default function WhatsAppTemplatesAdminPage() {
                 ) : (
                   <div className="space-y-2">
                     {formVariables.map((variable) => (
-                      <div key={variable.index} className="flex items-center gap-2">
+                      <div key={variable.index} className="flex flex-col sm:flex-row sm:items-center gap-2">
                         <span className="text-sm text-gray-500 w-8">
                           {`{{${variable.index}}}`}
                         </span>
@@ -412,7 +478,7 @@ export default function WhatsAppTemplatesAdminPage() {
                           type="text"
                           value={variable.field}
                           onChange={(e) => updateVariable(variable.index, 'field', e.target.value)}
-                          className="flex-1 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
+                          className="flex-1 w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
                           placeholder="field (e.g., fullName)"
                           disabled={submitting}
                         />
@@ -420,14 +486,14 @@ export default function WhatsAppTemplatesAdminPage() {
                           type="text"
                           value={variable.defaultValue || ''}
                           onChange={(e) => updateVariable(variable.index, 'defaultValue', e.target.value)}
-                          className="w-32 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
+                          className="w-full sm:w-32 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
                           placeholder="default"
                           disabled={submitting}
                         />
                         <button
                           type="button"
                           onClick={() => removeVariable(variable.index)}
-                          className="text-danger-600 hover:text-danger-700"
+                          className="self-end sm:self-auto text-danger-600 hover:text-danger-700"
                           disabled={submitting}
                         >
                           <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -444,11 +510,11 @@ export default function WhatsAppTemplatesAdminPage() {
               </div>
 
               {/* Actions */}
-              <div className="flex items-center gap-3 pt-4">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-4">
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="rounded-lg bg-brand-600 px-5 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50 transition-colors"
+                  className="w-full sm:w-auto rounded-lg bg-brand-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50 transition-colors"
                 >
                   {submitting
                     ? 'Guardando...'
@@ -460,7 +526,7 @@ export default function WhatsAppTemplatesAdminPage() {
                   type="button"
                   onClick={closeForm}
                   disabled={submitting}
-                  className="rounded-lg border border-gray-200 px-5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="w-full sm:w-auto rounded-lg border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
                 >
                   Cancelar
                 </button>

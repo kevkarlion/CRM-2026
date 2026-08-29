@@ -77,18 +77,18 @@ export function getNextAction(entity: {
 }
 
 const actionStyles: Record<NextActionType, string> = {
-  send_quote: 'bg-blue-50 text-blue-700 ring-blue-600/20',
-  follow_up: 'bg-gray-50 text-gray-700 ring-gray-600/20',
-  go_to_negotiation: 'bg-amber-50 text-amber-700 ring-amber-600/20',
-  convert_to_work_order: 'bg-green-50 text-green-700 ring-green-600/20',
-  contact_client: 'bg-orange-50 text-orange-700 ring-orange-600/20',
-  review_and_requote: 'bg-red-50 text-red-700 ring-red-600/20',
-  respond_counteroffer: 'bg-purple-50 text-purple-700 ring-purple-600/20',
-  confirm_sale: 'bg-emerald-50 text-emerald-700 ring-emerald-600/20',
-  schedule_work_order: 'bg-teal-50 text-teal-700 ring-teal-600/20',
-  awaiting_execution: 'bg-indigo-50 text-indigo-700 ring-indigo-600/20',
-  follow_up_visit: 'bg-teal-50 text-teal-700 ring-teal-600/20',
-  product_sale: 'bg-gray-100 text-gray-600 ring-gray-500/20',
+  send_quote: 'bg-brand-600 text-white',
+  follow_up: 'bg-amber-500 text-gray-900',
+  go_to_negotiation: 'bg-violet-600 text-white',
+  convert_to_work_order: 'bg-emerald-700 text-white',
+  contact_client: 'bg-rose-600 text-white',
+  review_and_requote: 'bg-red-600 text-white',
+  respond_counteroffer: 'bg-violet-600 text-white',
+  confirm_sale: 'bg-emerald-700 text-white',
+  schedule_work_order: 'bg-sky-600 text-white',
+  awaiting_execution: 'bg-gray-700 text-white',
+  follow_up_visit: 'bg-teal-600 text-white',
+  product_sale: 'bg-gray-800 text-white',
   none: '',
 };
 
@@ -102,10 +102,10 @@ export function NextActionBadge({ type, label }: NextActionBadgeProps) {
     return <span className="text-gray-400">-</span>;
   }
 
-  const style = actionStyles[type] || 'bg-gray-50 text-gray-700 ring-gray-600/20';
+  const style = actionStyles[type] || 'bg-gray-700 text-white';
   
   return (
-    <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${style}`}>
+    <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${style}`}>
       {label}
     </span>
   );

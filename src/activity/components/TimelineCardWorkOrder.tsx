@@ -107,7 +107,7 @@ export function TimelineCardWorkOrder({ event }: TimelineCardProps) {
       <div className="mt-2 space-y-1">
         {categoryLabel && (
           <p className="text-xs text-gray-600">
-            📋 {categoryLabel}
+            <span className="font-medium">Categoría:</span> {categoryLabel}
             {priorityLabel && (
               <span className={`ml-2 px-1.5 py-0.5 rounded text-xs ${PRIORITY_COLORS[meta.priority as string] || 'bg-gray-50 text-gray-500'}`}>
                 {priorityLabel}
@@ -117,16 +117,16 @@ export function TimelineCardWorkOrder({ event }: TimelineCardProps) {
         )}
 
         {clientName && (
-          <p className="text-xs text-gray-600">👤 {clientName}</p>
+          <p className="text-xs text-gray-600"><span className="font-medium">Cliente:</span> {clientName}</p>
         )}
 
         {address && (
-          <p className="text-xs text-gray-500">📍 {address}</p>
+          <p className="text-xs text-gray-500"><span className="font-medium">Dirección:</span> {address}</p>
         )}
 
         {scheduledDate && !isStatusChange && (
           <p className="text-xs text-gray-600">
-            📅 {formatDateLong(scheduledDate)}
+            <span className="font-medium">Fecha:</span> {formatDateLong(scheduledDate)}
           </p>
         )}
       </div>

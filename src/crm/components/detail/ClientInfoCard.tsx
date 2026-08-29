@@ -14,10 +14,13 @@ interface InfoFieldProps {
 }
 
 function InfoField({ label, value }: InfoFieldProps) {
+  const hasValue = Boolean(value);
   return (
-    <div>
-      <dt className="text-xs font-medium text-gray-500">{label}</dt>
-      <dd className="mt-0.5 text-sm text-gray-900">{value || '—'}</dd>
+    <div className="bg-gray-50 rounded-lg px-3 py-2">
+      <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">{label}</dt>
+      <dd className={`mt-0.5 text-sm font-medium break-words ${hasValue ? 'text-gray-900' : 'text-gray-400'}`}>
+        {value || '—'}
+      </dd>
     </div>
   );
 }
@@ -40,7 +43,7 @@ function SectionBlock({
   return (
     <section>
       <SectionTitle>{title}</SectionTitle>
-      <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">{children}</dl>
+      <dl className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">{children}</dl>
     </section>
   );
 }
@@ -76,7 +79,7 @@ export function ClientInfoCard({ client }: ClientInfoCardProps) {
 
         {client.activeGestion && (
           <SectionBlock title="Gestión">
-            <div className="col-span-full flex items-center gap-2">
+            <div className="col-span-full flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2">
               <span className={`w-2 h-2 rounded-full ${GESTION_STATUS_DOT_COLOR[client.activeGestion.status] || 'bg-gray-400'}`} />
               <span
                 className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${

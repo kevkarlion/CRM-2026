@@ -94,10 +94,10 @@ export function ClientResolvedConversationsTab({ clientId }: ClientResolvedConve
       {conversations.map((conv) => (
         <div
           key={conv._id}
-          className="p-4 bg-white border border-gray-200 rounded-lg"
+          className="p-4 bg-white border border-gray-200 rounded-xl shadow-sm"
         >
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
               <p className="text-sm font-medium text-gray-900">
                 Conversación de WhatsApp
               </p>
@@ -105,19 +105,19 @@ export function ClientResolvedConversationsTab({ clientId }: ClientResolvedConve
                 Teléfono: {conv.phoneNumber}
               </p>
             </div>
-            <span className="px-2 py-1 text-xs font-medium bg-green-100 text-green-700 rounded">
+            <span className="shrink-0 px-2 py-0.5 rounded-full text-xs font-medium bg-emerald-700 text-white">
               Resuelta
             </span>
           </div>
-          
-          <div className="mt-3 pt-3 border-t border-gray-100 grid grid-cols-2 gap-4 text-xs text-gray-500">
-            <div>
-              <p className="font-medium">Creada</p>
-              <p>{new Date(conv.createdAt).toLocaleString('es-AR')}</p>
+
+          <div className="mt-3 pt-3 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="bg-gray-50 rounded-lg px-3 py-2 min-w-0">
+              <p className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400">Creada</p>
+              <p className="text-sm font-medium text-gray-900 break-words">{new Date(conv.createdAt).toLocaleString('es-AR')}</p>
             </div>
-            <div>
-              <p className="font-medium">Resuelta</p>
-              <p>{conv.resolvedAt ? new Date(conv.resolvedAt).toLocaleString('es-AR') : '—'}</p>
+            <div className="bg-gray-50 rounded-lg px-3 py-2 min-w-0">
+              <p className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400">Resuelta</p>
+              <p className="text-sm font-medium text-gray-900 break-words">{conv.resolvedAt ? new Date(conv.resolvedAt).toLocaleString('es-AR') : '—'}</p>
             </div>
           </div>
           

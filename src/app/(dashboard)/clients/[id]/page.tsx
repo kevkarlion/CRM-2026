@@ -575,8 +575,8 @@ export default function ClientDetailPage() {
                     <div className="space-y-3">
                       {((client as any).gestions || []).map((gestion: any) => (
                         <div key={gestion._id} className="bg-white p-4 rounded-lg border border-gray-200">
-                          <div className="flex justify-between items-start mb-3">
-                            <div className="flex items-center gap-2">
+                          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-3">
+                            <div className="flex flex-wrap items-center gap-2">
                               <span className={`px-2 py-1 rounded text-xs font-medium ${
                                 gestion.status === 'new' ? 'bg-blue-100 text-blue-800' :
                                 gestion.status === 'contacted' ? 'bg-cyan-100 text-cyan-800' :
@@ -601,29 +601,33 @@ gestion.status === 'won' ? 'bg-green-100 text-green-800' :
                                 #{gestion._id?.slice(-4)}
                               </span>
                             </div>
-                            <span className="text-sm text-gray-500">
+                            <span className="text-xs text-gray-500">
                               {gestion.createdAt ? new Date(gestion.createdAt).toLocaleDateString('es-AR') : ''}
                             </span>
                           </div>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-gray-600">
+                          <div className="grid grid-cols-2 gap-2 text-sm">
                             {gestion.score > 0 && (
-                              <div>
-                                <span className="font-medium">Score:</span> {gestion.score} ({gestion.temperature || 'N/A'})
+                              <div className="bg-gray-50 rounded-lg px-3 py-2">
+                                <span className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400">Score</span>
+                                <p className="text-sm font-medium text-gray-900">{gestion.score} ({gestion.temperature || 'N/A'})</p>
                               </div>
                             )}
                             {gestion.inquiryReason && (
-                              <div>
-                                <span className="font-medium">Tipo:</span> {gestion.inquiryReason}
+                              <div className="bg-gray-50 rounded-lg px-3 py-2">
+                                <span className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400">Tipo</span>
+                                <p className="text-sm font-medium text-gray-900 break-words">{gestion.inquiryReason}</p>
                               </div>
                             )}
                             {gestion.estimatedValue && (
-                              <div>
-                                <span className="font-medium">Valor estimado:</span> ${gestion.estimatedValue.toLocaleString('es-AR')}
+                              <div className="bg-gray-50 rounded-lg px-3 py-2">
+                                <span className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400">Valor estimado</span>
+                                <p className="text-sm font-medium text-gray-900">${gestion.estimatedValue.toLocaleString('es-AR')}</p>
                               </div>
                             )}
                             {gestion.source && (
-                              <div>
-                                <span className="font-medium">Fuente:</span> {gestion.source}
+                              <div className="bg-gray-50 rounded-lg px-3 py-2">
+                                <span className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400">Fuente</span>
+                                <p className="text-sm font-medium text-gray-900 break-words">{gestion.source}</p>
                               </div>
                             )}
                           </div>
@@ -759,12 +763,12 @@ gestion.status === 'won' ? 'bg-green-100 text-green-800' :
               />
             </div>
 
-            <div className="flex items-center gap-3 pt-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-4">
               <button
                 type="button"
                 onClick={handleBlock}
                 disabled={submitting || !blockReason.trim()}
-                className="rounded-lg bg-danger-500 px-5 py-2 text-sm font-medium text-white hover:bg-danger-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="w-full sm:w-auto rounded-lg bg-danger-500 px-5 py-2.5 text-sm font-medium text-white hover:bg-danger-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 {submitting ? 'Bloqueando...' : 'Bloquear Cliente'}
               </button>
@@ -772,7 +776,7 @@ gestion.status === 'won' ? 'bg-green-100 text-green-800' :
                 type="button"
                 onClick={closeBlockModal}
                 disabled={submitting}
-                className="rounded-lg border border-gray-200 px-5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                className="w-full sm:w-auto rounded-lg border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 Cancelar
               </button>
@@ -795,12 +799,12 @@ gestion.status === 'won' ? 'bg-green-100 text-green-800' :
               </div>
             )}
 
-            <div className="flex items-center gap-3 pt-2">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 pt-2">
               <button
                 type="button"
                 onClick={handleUnblock}
                 disabled={submitting}
-                className="rounded-lg bg-success-600 px-5 py-2 text-sm font-medium text-white hover:bg-success-700 disabled:opacity-50 transition-colors"
+                className="w-full sm:w-auto rounded-lg bg-success-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-success-700 disabled:opacity-50 transition-colors"
               >
                 {submitting ? 'Desbloqueando...' : 'Desbloquear'}
               </button>
@@ -808,7 +812,7 @@ gestion.status === 'won' ? 'bg-green-100 text-green-800' :
                 type="button"
                 onClick={closeUnblockModal}
                 disabled={submitting}
-                className="rounded-lg border border-gray-200 px-5 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                className="w-full sm:w-auto rounded-lg border border-gray-200 px-5 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 Cancelar
               </button>

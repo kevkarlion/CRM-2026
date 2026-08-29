@@ -25,10 +25,13 @@ interface InfoFieldProps {
 }
 
 function InfoField({ label, value }: InfoFieldProps) {
+  const hasValue = Boolean(value);
   return (
-    <div>
-      <dt className="text-xs font-medium text-gray-500">{label}</dt>
-      <dd className="mt-0.5 text-sm text-gray-900">{value || '—'}</dd>
+    <div className="bg-gray-50 rounded-lg px-3 py-2">
+      <dt className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">{label}</dt>
+      <dd className={`mt-0.5 text-sm font-medium break-words ${hasValue ? 'text-gray-900' : 'text-gray-400'}`}>
+        {value || '—'}
+      </dd>
     </div>
   );
 }
@@ -53,7 +56,7 @@ function SectionBlock({
   return (
     <section className={className}>
       <SectionTitle>{title}</SectionTitle>
-      <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">{children}</dl>
+      <dl className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">{children}</dl>
     </section>
   );
 }
@@ -69,9 +72,8 @@ export function LeadInfoCard({
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl p-5">
-      <div className="mb-4 flex items-center justify-between">
+      <div className="mb-4">
         <h2 className="text-base font-semibold text-gray-900">Información del Lead</h2>
-        <span className="text-xs text-gray-400">{lead.name}</span>
       </div>
 
       <div className="space-y-5">
@@ -114,8 +116,8 @@ export function LeadInfoCard({
             <SectionTitle>Venta</SectionTitle>
             <div className="mt-3 space-y-2 text-sm">
               {lead.convertedToWorkOrder && (
-                <div className="flex items-center gap-3">
-                  <dt className="w-32 shrink-0 text-xs font-medium text-gray-500">OT Creada</dt>
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
+                  <dt className="w-full sm:w-32 sm:shrink-0 text-[10px] font-semibold uppercase tracking-wider text-gray-400">OT Creada</dt>
                   <dd>
                     <Link
                       href={`/work-orders/${lead.convertedToWorkOrder}`}
@@ -128,15 +130,15 @@ export function LeadInfoCard({
               )}
 
               {loadingSaleDetail ? (
-                <div className="flex items-center gap-3">
-                  <dt className="w-32 shrink-0 text-xs font-medium text-gray-500">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
+                  <dt className="w-full sm:w-32 sm:shrink-0 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
                     Detalle de Venta
                   </dt>
                   <dd className="text-sm text-gray-400">Cargando...</dd>
                 </div>
               ) : saleDetail?.hasSale && saleDetail.quote ? (
-                <div className="flex items-center gap-3">
-                  <dt className="w-32 shrink-0 text-xs font-medium text-gray-500">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
+                  <dt className="w-full sm:w-32 sm:shrink-0 text-[10px] font-semibold uppercase tracking-wider text-gray-400">
                     Detalle de Venta
                   </dt>
                   <dd className="flex flex-1 items-center gap-3">

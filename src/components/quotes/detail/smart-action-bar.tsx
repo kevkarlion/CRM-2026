@@ -21,7 +21,7 @@ export function SmartActionBar({ actions, onAction, loading }: SmartActionBarPro
 
   return (
     <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4">
-      <div className="flex flex-wrap gap-2 justify-end">
+      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:justify-end">
         {actions.map((action) => (
           <button
             key={action.id}
@@ -29,9 +29,10 @@ export function SmartActionBar({ actions, onAction, loading }: SmartActionBarPro
             disabled={action.disabled || loading}
             title={action.tooltip}
             className={`
-              px-4 py-2 rounded-lg text-sm font-medium transition-colors
+              w-full sm:w-auto px-4 py-2.5 rounded-lg text-sm font-medium transition-colors
+              flex items-center justify-center
               ${VARIANT_STYLES[action.variant]}
-              ${action.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+              ${action.disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer active:opacity-90'}
             `}
           >
             {action.label}

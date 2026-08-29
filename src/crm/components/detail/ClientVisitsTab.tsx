@@ -7,7 +7,18 @@ import { EntityEmptyState } from '@/components/entity-detail';
 import { api, unwrapData } from '@/lib/api-client';
 import { formatDateShort } from '@/operations/helpers/date-utils';
 import { TECHNICAL_VISIT_STATUS_LABELS } from '@/operations/constants/status-labels';
-import { TECHNICAL_VISIT_STATUS_VARIANT } from '@/operations/constants/status-colors';
+
+// Badges sólidos para las cards (la tabla desktop conserva las variantes pastel)
+const TECHNICAL_VISIT_STATUS_VARIANT_MOBILE: Record<string, string> = {
+  draft: 'bg-gray-200 text-gray-800',
+  scheduled: 'bg-sky-600 text-white',
+  confirmed: 'bg-teal-600 text-white',
+  assigned: 'bg-sky-600 text-white',
+  in_progress: 'bg-amber-500 text-gray-900',
+  completed: 'bg-emerald-700 text-white',
+  cancelled: 'bg-rose-600 text-white',
+  converted_to_work_order: 'bg-violet-600 text-white',
+};
 
 interface VisitListItem {
   _id: string;
@@ -117,7 +128,7 @@ export function ClientVisitsTab({ clientId }: ClientVisitsTabProps) {
           <Link
             key={visit._id}
             href={`/technical-visits/${visit._id}`}
-            className="block rounded-xl border border-gray-200 bg-gray-50 p-4 transition-colors hover:border-brand-300 hover:bg-brand-50/40"
+            className="block rounded-xl border border-gray-200 border-l-4 border-l-teal-600 bg-white p-4 shadow-sm transition-colors hover:border-gray-300"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0 flex-1">
@@ -131,7 +142,7 @@ export function ClientVisitsTab({ clientId }: ClientVisitsTabProps) {
               </div>
               <div className="shrink-0">
                 <span
-                  className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${TECHNICAL_VISIT_STATUS_VARIANT[visit.status] || 'bg-gray-100 text-gray-700'}`}
+                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${TECHNICAL_VISIT_STATUS_VARIANT_MOBILE[visit.status] || 'bg-gray-200 text-gray-800'}`}
                 >
                   {TECHNICAL_VISIT_STATUS_LABELS[visit.status as keyof typeof TECHNICAL_VISIT_STATUS_LABELS] || visit.status}
                 </span>

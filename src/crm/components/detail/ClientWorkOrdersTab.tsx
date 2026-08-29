@@ -9,6 +9,19 @@ import { formatDateShort } from '@/operations/helpers/date-utils';
 import { WORK_ORDER_STATUS_LABELS } from '@/operations/constants/status-labels';
 import { WORK_ORDER_STATUS_VARIANT } from '@/operations/constants/status-colors';
 
+// Móvil: badges sólidos (la tabla desktop conserva las variantes pastel)
+const WORK_ORDER_STATUS_VARIANT_MOBILE: Record<string, string> = {
+  draft: 'bg-gray-200 text-gray-800',
+  scheduled: 'bg-sky-600 text-white',
+  confirmed: 'bg-sky-600 text-white',
+  assigned: 'bg-sky-600 text-white',
+  in_progress: 'bg-amber-500 text-gray-900',
+  paused: 'bg-amber-500 text-gray-900',
+  completed: 'bg-emerald-700 text-white',
+  closed: 'bg-gray-700 text-white',
+  cancelled: 'bg-rose-600 text-white',
+};
+
 interface WorkOrderListItem {
   _id: string;
   workOrderNumber: string;
@@ -75,28 +88,42 @@ export function ClientWorkOrdersTab({ clientId }: ClientWorkOrdersTabProps) {
 
   if (loading) {
     return (
-      <div className="overflow-hidden rounded-lg border border-gray-200">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nº</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Título</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
-              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {[1, 2, 3].map((i) => (
-              <tr key={i}>
-                <td className="px-4 py-3"><div className="h-4 w-12 bg-gray-200 rounded animate-pulse" /></td>
-                <td className="px-4 py-3"><div className="h-4 w-32 bg-gray-200 rounded animate-pulse" /></td>
-                <td className="px-4 py-3"><div className="h-4 w-20 bg-gray-200 rounded animate-pulse" /></td>
-                <td className="px-4 py-3"><div className="h-5 w-16 bg-gray-200 rounded animate-pulse" /></td>
+      <>
+        <div className="hidden sm:block overflow-hidden rounded-lg border border-gray-200">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nº</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Título</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {[1, 2, 3].map((i) => (
+                <tr key={i}>
+                  <td className="px-4 py-3"><div className="h-4 w-12 bg-gray-200 rounded animate-pulse" /></td>
+                  <td className="px-4 py-3"><div className="h-4 w-32 bg-gray-200 rounded animate-pulse" /></td>
+                  <td className="px-4 py-3"><div className="h-4 w-20 bg-gray-200 rounded animate-pulse" /></td>
+                  <td className="px-4 py-3"><div className="h-5 w-16 bg-gray-200 rounded animate-pulse" /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="sm:hidden space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="bg-white border border-gray-200 rounded-xl p-4">
+              <div className="flex justify-between items-start mb-3">
+                <div className="h-5 w-20 bg-gray-200 rounded animate-pulse" />
+                <div className="h-5 w-16 bg-gray-200 rounded-full animate-pulse" />
+              </div>
+              <div className="h-4 w-3/4 bg-gray-200 rounded animate-pulse mb-2" />
+              <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+            </div>
+          ))}
+        </div>
+      </>
     );
   }
 
@@ -140,7 +167,7 @@ export function ClientWorkOrdersTab({ clientId }: ClientWorkOrdersTabProps) {
         <span className="font-normal text-gray-500">({workOrders.length})</span>
       </h2>
 
-      <div className="overflow-hidden rounded-lg border border-gray-200">
+      <div className="hidden sm:block overflow-hidden rounded-lg border border-gray-200">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -192,6 +219,43 @@ export function ClientWorkOrdersTab({ clientId }: ClientWorkOrdersTabProps) {
             ))}
           </tbody>
         </table>
+      </div>
+
+      <div className="sm:hidden space-y-3">
+        {workOrders.map((workOrder) => (
+          <div
+            key={workOrder._id}
+            className="bg-white border border-gray-200 border-l-4 border-l-violet-600 rounded-xl p-4 shadow-sm space-y-3"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-sm text-gray-500">{formatWorkOrderNumber(workOrder.workOrderNumber)}</p>
+                <p className="font-medium text-gray-900 truncate">{workOrder.title}</p>
+              </div>
+              <span
+                className={`inline-flex items-center shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${WORK_ORDER_STATUS_VARIANT_MOBILE[workOrder.status] || 'bg-gray-200 text-gray-800'}`}
+              >
+                {WORK_ORDER_STATUS_LABELS[workOrder.status as keyof typeof WORK_ORDER_STATUS_LABELS] || workOrder.status}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="bg-gray-50 rounded-lg px-3 py-2 col-span-2">
+                <span className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400">Fecha</span>
+                <span className="block text-sm font-medium text-gray-900">
+                  {formatDateShort(workOrder.scheduledDate || workOrder.createdAt)}
+                </span>
+              </div>
+            </div>
+            <div className="flex border-t border-gray-100 pt-3">
+              <Link
+                href={`/work-orders/${workOrder._id}`}
+                className="flex-1 inline-flex items-center justify-center rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 transition-colors cursor-pointer"
+              >
+                Ver
+              </Link>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

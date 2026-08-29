@@ -44,6 +44,28 @@ const STATUS_VARIANT: Record<string, string> = {
   disqualified: 'bg-gray-100 text-gray-700',
 };
 
+const STATUS_VARIANT_MOBILE: Record<string, string> = {
+  new: 'bg-sky-600 text-white',
+  contacted: 'bg-sky-600 text-white',
+  quote_sent: 'bg-violet-600 text-white',
+  technical_visit: 'bg-amber-500 text-gray-900',
+  negotiation: 'bg-amber-500 text-gray-900',
+  won: 'bg-emerald-700 text-white',
+  lost: 'bg-rose-600 text-white',
+  disqualified: 'bg-gray-200 text-gray-800',
+};
+
+const STATUS_ACCENT_MOBILE: Record<string, string> = {
+  new: 'border-l-sky-500',
+  contacted: 'border-l-sky-500',
+  quote_sent: 'border-l-violet-500',
+  technical_visit: 'border-l-amber-500',
+  negotiation: 'border-l-amber-500',
+  won: 'border-l-emerald-500',
+  lost: 'border-l-rose-500',
+  disqualified: 'border-l-gray-300',
+};
+
 function statusLabel(status: string): string {
   return (LEAD_STATUS_LABELS as Record<string, string>)[status] || status;
 }
@@ -240,27 +262,46 @@ export default function LeadsPage() {
             {sortedLeads.map((lead) => (
               <div
                 key={lead._id}
-                className="bg-white border border-gray-200 rounded-xl p-3.5 hover:border-gray-300 transition-colors"
+                className={`bg-white border border-gray-200 border-l-4 rounded-xl p-4 shadow-sm space-y-3 ${STATUS_ACCENT_MOBILE[lead.status] || 'border-l-gray-300'}`}
               >
-                <div className="flex items-start justify-between mb-2">
-                  <div>
-                    <p className="font-medium text-gray-900">{lead.name}</p>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-medium text-gray-900 truncate">{lead.name}</p>
                     {lead.companyName && (
-                      <p className="text-sm text-gray-500">{lead.companyName}</p>
+                      <p className="text-sm text-gray-500 truncate">{lead.companyName}</p>
                     )}
                   </div>
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[lead.status] || 'bg-gray-100 text-gray-700'}`}>
+                  <span className={`inline-flex items-center shrink-0 px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT_MOBILE[lead.status] || 'bg-gray-200 text-gray-800'}`}>
                     {statusLabel(lead.status)}
                   </span>
                 </div>
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400">
-                  {lead.email && <span>{lead.email}</span>}
-                  {lead.phone && <span>{lead.phone}</span>}
-                  <span className="capitalize">Origen: {lead.source}</span>
-                  <span>Asignado: {assigneeName(lead)}</span>
-                  <span>{formatDate(lead.createdAt)}</span>
+                <div className="grid grid-cols-2 gap-2">
+                  {lead.email && (
+                    <div className="bg-gray-50 rounded-lg px-3 py-2 min-w-0">
+                      <span className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400">Email</span>
+                      <span className="block text-sm font-medium text-gray-900 truncate">{lead.email}</span>
+                    </div>
+                  )}
+                  {lead.phone && (
+                    <div className="bg-gray-50 rounded-lg px-3 py-2 min-w-0">
+                      <span className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400">Teléfono</span>
+                      <span className="block text-sm font-medium text-gray-900">{lead.phone}</span>
+                    </div>
+                  )}
+                  <div className="bg-gray-50 rounded-lg px-3 py-2 min-w-0">
+                    <span className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400">Origen</span>
+                    <span className="block text-sm font-medium text-gray-900 capitalize">{lead.source}</span>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg px-3 py-2 min-w-0">
+                    <span className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400">Asignado</span>
+                    <span className="block text-sm font-medium text-gray-900">{assigneeName(lead)}</span>
+                  </div>
+                  <div className="bg-gray-50 rounded-lg px-3 py-2 min-w-0">
+                    <span className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400">Creado</span>
+                    <span className="block text-sm font-medium text-gray-900">{formatDate(lead.createdAt)}</span>
+                  </div>
                 </div>
-                <div className="mt-3 flex justify-end border-t border-gray-100 pt-3">
+                <div className="flex justify-end border-t border-gray-100 pt-3">
                   <ViewLeadLink leadId={lead._id} />
                 </div>
               </div>

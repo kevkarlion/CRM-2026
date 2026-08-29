@@ -11,6 +11,27 @@ import {
   formatCurrency,
 } from './lead-detail.constants';
 
+// Móvil: badges sólidos y acento izquierdo (la tabla desktop conserva las variantes pastel)
+const QUOTE_STATUS_VARIANT_MOBILE: Record<string, string> = {
+  draft: 'bg-gray-200 text-gray-800',
+  sent: 'bg-sky-600 text-white',
+  approved: 'bg-emerald-700 text-white',
+  rejected: 'bg-rose-600 text-white',
+  expired: 'bg-amber-500 text-gray-900',
+  cancelled: 'bg-gray-500 text-white',
+  direct_sale: 'bg-emerald-700 text-white',
+};
+
+const QUOTE_STATUS_ACCENT: Record<string, string> = {
+  draft: 'border-l-gray-300',
+  sent: 'border-l-sky-500',
+  approved: 'border-l-emerald-500',
+  rejected: 'border-l-rose-500',
+  expired: 'border-l-amber-500',
+  cancelled: 'border-l-gray-300',
+  direct_sale: 'border-l-emerald-500',
+};
+
 interface LeadQuotesTabProps {
   quotes: QuoteListItem[];
   loading: boolean;
@@ -29,7 +50,7 @@ function QuoteExpiryAlert({ validUntil }: { validUntil: string | null | undefine
   if (daysLeft < 0) {
     return (
       <span className="ml-2 text-xs text-danger-600 font-medium">
-        ⚠️ Vencido
+        Vencido
       </span>
     );
   }
@@ -37,7 +58,7 @@ function QuoteExpiryAlert({ validUntil }: { validUntil: string | null | undefine
   if (daysLeft === 0) {
     return (
       <span className="ml-2 text-xs text-danger-600 font-medium">
-        ⚠️ Vence hoy
+        Vence hoy
       </span>
     );
   }
@@ -45,7 +66,7 @@ function QuoteExpiryAlert({ validUntil }: { validUntil: string | null | undefine
   if (daysLeft <= 3) {
     return (
       <span className="ml-2 text-xs text-danger-600 font-medium">
-        ⏰ {daysLeft}d
+        Vence en {daysLeft}d
       </span>
     );
   }
@@ -53,7 +74,7 @@ function QuoteExpiryAlert({ validUntil }: { validUntil: string | null | undefine
   if (daysLeft <= 7) {
     return (
       <span className="ml-2 text-xs text-warning-600 font-medium">
-        ⏰ {daysLeft}d
+        Vence en {daysLeft}d
       </span>
     );
   }
@@ -127,7 +148,7 @@ export function LeadQuotesTab({
         </div>
       )}
 
-      <div className="overflow-hidden rounded-lg border border-gray-200">
+      <div className="hidden sm:block overflow-hidden rounded-lg border border-gray-200">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
@@ -180,6 +201,42 @@ export function LeadQuotesTab({
             ))}
           </tbody>
         </table>
+      </div>
+
+      <div className="sm:hidden space-y-3">
+        {quotes.map((quote) => (
+          <div
+            key={quote._id}
+            className={`bg-white border border-gray-200 border-l-4 rounded-xl p-4 shadow-sm space-y-3 ${QUOTE_STATUS_ACCENT[quote.status] || 'border-l-gray-300'}`}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-sm text-gray-500">#{quote.number}</p>
+                <p className="font-medium text-gray-900 truncate">{quote.title}</p>
+              </div>
+              <span
+                className={`inline-flex items-center shrink-0 px-2 py-0.5 rounded-full text-xs font-medium ${QUOTE_STATUS_VARIANT_MOBILE[quote.status] || 'bg-gray-200 text-gray-800'}`}
+              >
+                {QUOTE_STATUS_LABELS[quote.status] || quote.status}
+              </span>
+            </div>
+            {quote.status === 'sent' && <QuoteExpiryAlert validUntil={quote.validUntil} />}
+            <div className="grid grid-cols-2 gap-2">
+              <div className="bg-gray-50 rounded-lg px-3 py-2 col-span-2">
+                <span className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400">Total</span>
+                <span className="block text-sm font-medium text-gray-900">{formatCurrency(quote.total)}</span>
+              </div>
+            </div>
+            <div className="flex border-t border-gray-100 pt-3">
+              <button
+                onClick={() => onViewQuote(quote._id)}
+                className="flex-1 inline-flex items-center justify-center rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700 transition-colors cursor-pointer"
+              >
+                Ver
+              </button>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );
