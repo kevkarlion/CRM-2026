@@ -98,6 +98,30 @@ const PRIORITY_VARIANT: Record<string, string> = {
   urgent: 'bg-red-50 text-red-700',
 };
 
+const STATUS_VARIANT_MOBILE: Record<string, string> = {
+  scheduled: 'bg-sky-600 text-white',
+  confirmed: 'bg-sky-600 text-white',
+  assigned: 'bg-sky-600 text-white',
+  in_progress: 'bg-amber-500 text-gray-900',
+  paused: 'bg-amber-500 text-gray-900',
+  completed: 'bg-emerald-700 text-white',
+  closed: 'bg-gray-700 text-white',
+  draft: 'bg-gray-200 text-gray-800',
+  cancelled: 'bg-rose-600 text-white',
+};
+
+const PRIORITY_VARIANT_MOBILE: Record<string, string> = {
+  normal: 'bg-gray-200 text-gray-800',
+  high: 'bg-amber-500 text-gray-900',
+  urgent: 'bg-rose-600 text-white',
+};
+
+const PRIORITY_ACCENT_MOBILE: Record<string, string> = {
+  normal: 'border-l-sky-500',
+  high: 'border-l-amber-500',
+  urgent: 'border-l-rose-500',
+};
+
 function label<T extends { value: string; label: string }>(opts: T[], val: string): string {
   return opts.find(o => o.value === val)?.label ?? val;
 }
@@ -333,7 +357,7 @@ function AllWorkOrdersPage() {
         <div className="flex items-center gap-3">
           <a
             href="/work-orders/informes"
-            className="inline-flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+            className="inline-flex items-center gap-2 rounded-lg border border-brand-600 bg-white px-4 py-2 text-sm font-medium text-brand-700 hover:bg-brand-50 transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -511,32 +535,44 @@ function AllWorkOrdersPage() {
 
           {/* Mobile cards */}
           <div className="sm:hidden space-y-3">
-            {sortedOrders.map((wo, idx) => (
-              <div key={wo._id} className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'} border border-gray-200 rounded-xl p-4 hover:border-gray-300 transition-colors`}>
-                <div className="flex justify-between items-start mb-2">
+            {sortedOrders.map((wo) => (
+              <div key={wo._id} className={`bg-white border border-gray-200 border-l-4 rounded-xl p-4 shadow-sm space-y-3 ${PRIORITY_ACCENT_MOBILE[wo.priority] || 'border-l-sky-500'}`}>
+                <div className="flex justify-between items-start gap-2">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-gray-700">#{shortWO(wo.workOrderNumber)}</span>
                     {isTechAssigned(wo, isTechnician ? user.name : null, isTechnician ? user.email : null) && (
                       <span className="text-yellow-500 text-sm" title="Asignada a ti">★</span>
                     )}
                   </div>
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[wo.status] || 'bg-gray-100 text-gray-700'}`}>
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT_MOBILE[wo.status] || 'bg-gray-200 text-gray-800'}`}>
                     {label(STATUS_OPTIONS, wo.status)}
                   </span>
                 </div>
-                <p className="font-medium text-gray-900 mb-2">{wo.title}</p>
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400 mb-2">
-                  <span className="text-gray-700">{clientName(wo)}</span>
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${PRIORITY_VARIANT[wo.priority] || 'bg-gray-100 text-gray-700'}`}>
-                    {label(PRIORITY_OPTIONS, wo.priority)}
-                  </span>
-                  <span>Programado: {formatDate(wo.scheduledDate)}</span>
-                  <span>Técnico: {technicianName(wo)}</span>
+                <p className="font-medium text-gray-900">{wo.title}</p>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+                  <div className="flex flex-col">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">Cliente</span>
+                    <span className="text-sm text-gray-900">{clientName(wo)}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">Prioridad</span>
+                    <span className={`inline-flex items-center w-fit px-2 py-0.5 rounded-full text-xs font-medium ${PRIORITY_VARIANT_MOBILE[wo.priority] || 'bg-gray-200 text-gray-800'}`}>
+                      {label(PRIORITY_OPTIONS, wo.priority)}
+                    </span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">Programado</span>
+                    <span className="text-sm text-gray-900">{formatDate(wo.scheduledDate)}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">Técnico</span>
+                    <span className="text-sm text-gray-900">{technicianName(wo)}</span>
+                  </div>
                 </div>
-                <div className="mt-2 pt-2 border-t border-gray-100">
+                <div className="pt-2 border-t border-gray-100">
                   <button
                     onClick={() => router.push(`/work-orders/${wo._id}`)}
-                    className="inline-flex items-center justify-center gap-1.5 flex-1 text-center rounded-lg bg-brand-50 px-2.5 py-1.5 text-xs font-medium text-brand-600 hover:bg-brand-100 hover:text-brand-700 transition-colors cursor-pointer w-full"
+                    className="inline-flex items-center justify-center gap-1.5 w-full text-center rounded-lg bg-brand-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-brand-700 transition-colors cursor-pointer"
                   >
                     Ver
                   </button>
