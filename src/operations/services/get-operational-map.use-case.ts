@@ -44,6 +44,8 @@ export class GetOperationalMapUseCase {
     const query: Record<string, unknown> = {
       tenantId,
       deletedAt: null,
+      // Excluir workStatus cancelled (negocio)
+      workStatus: { $ne: 'cancelled' },
     };
     
     // Entity type filter
@@ -173,6 +175,7 @@ export class GetOperationalMapUseCase {
       title: wo.title,
       subtitle: `WO #${wo.workOrderNumber}`,
       status: wo.status,
+      workStatus: wo.workStatus,
       priority: wo.priority,
       technician: technicianNames,
       technicianId: technicianIds[0] || undefined,

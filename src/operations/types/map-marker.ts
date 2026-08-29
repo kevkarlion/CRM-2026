@@ -10,6 +10,7 @@ export interface MapMarker {
   title: string;
   subtitle: string;
   status: string;
+  workStatus?: string;
   priority: 'low' | 'normal' | 'high' | 'urgent';
   technician?: string;
   technicianId?: string;
