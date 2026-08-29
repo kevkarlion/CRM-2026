@@ -205,7 +205,7 @@ function InformesPageContent() {
       {/* Back button */}
       <button
         onClick={() => window.history.back()}
-        className="mb-4 flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 transition-colors cursor-pointer"
+        className="mb-4 flex items-center gap-1 text-sm text-gray-600 hover:text-gray-900 transition-colors cursor-pointer"
       >
         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -215,7 +215,7 @@ function InformesPageContent() {
 
       {/* Header */}
       <div className="mb-4 md:mb-6">
-        <h1 className="text-xl md:text-2xl font-bold text-gray-900">Informes Técnicos</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Informes Técnicos</h1>
         <p className="text-xs md:text-sm text-gray-500 mt-1">
           Informes de visitas técnicas y órdenes de trabajo
         </p>
@@ -223,6 +223,7 @@ function InformesPageContent() {
 
       {/* Search and Filters - Responsive */}
       <div className="mb-4 space-y-2 md:space-y-0 md:flex md:flex-wrap md:gap-2">
+        <p className="text-[10px] font-medium uppercase tracking-wider text-gray-500 md:hidden">Filtrar por:</p>
         <div className="w-full md:w-auto md:flex-1 md:min-w-[200px]">
           <SearchInput
             placeholder="Buscar..."
@@ -397,60 +398,80 @@ function InformesPageContent() {
           paginatedReports.map((report) => (
             <div 
               key={report._id} 
-              className="bg-white rounded-lg border border-gray-200 p-4 space-y-2"
+              className={`bg-white border border-gray-200 border-l-4 rounded-xl p-4 shadow-sm space-y-3 ${
+                report.entityType === 'OT' ? 'border-l-violet-500' : 'border-l-sky-500'
+              }`}
             >
               {/* Header row */}
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium ${
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
                       report.entityType === 'OT' 
-                        ? 'bg-purple-100 text-purple-700' 
-                        : 'bg-blue-100 text-blue-700'
+                        ? 'bg-violet-600 text-white' 
+                        : 'bg-sky-600 text-white'
                     }`}>
                       {report.entityType}
                     </span>
-                    <span className="text-xs font-mono text-gray-500">
+                    <span className="text-xs font-mono text-gray-600">
                       {getEntityNumber(report)}
                     </span>
                   </div>
-                  <p className="text-sm font-medium text-gray-900 mt-1 truncate">
+                  <p className="text-sm font-semibold text-gray-900 mt-1 truncate">
                     {getClientName(report)}
                   </p>
                 </div>
                 <button
                   onClick={() => handleView(report)}
-                  className="px-3 py-1.5 text-xs font-medium text-brand-700 bg-brand-50 rounded hover:bg-brand-100 shrink-0 cursor-pointer"
+                  className="px-3 py-1.5 text-xs font-medium text-white bg-brand-600 rounded-lg hover:bg-brand-700 shrink-0 cursor-pointer"
                   title="Ver detalle"
                 >
                   Ver
                 </button>
               </div>
 
-              {/* Info row */}
-              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
-                <span>{formatDate(report.finishedAt)}</span>
-                <div className="flex items-center gap-1">
-                  <span className="truncate max-w-[150px]">{report.result}</span>
-                  {!viewedIds.includes(report._id) && (
-                    <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-brand-100 text-brand-700">
-                      Nuevo
-                    </span>
-                  )}
+              {/* Info rows */}
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-gray-500">Fecha</p>
+                  <p className="text-xs font-medium text-gray-900">{formatDate(report.finishedAt)}</p>
                 </div>
-                {report.durationMinutes && (
-                  <span>
-                    {report.durationMinutes >= 60
-                      ? `${Math.floor(report.durationMinutes / 60)}h ${report.durationMinutes % 60}m`
-                      : `${report.durationMinutes}m`}
-                  </span>
-                )}
-                {report.nextVisitRecommendation && report.nextVisitRecommendation !== 'No' && (
-                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
-                    ⚠ Volver
-                  </span>
-                )}
+                <div className="min-w-0">
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-gray-500">Duración</p>
+                  <p className="text-xs font-medium text-gray-900">
+                    {report.durationMinutes ? (
+                      report.durationMinutes >= 60
+                        ? `${Math.floor(report.durationMinutes / 60)}h ${report.durationMinutes % 60}m`
+                        : `${report.durationMinutes}m`
+                    ) : '-'}
+                  </p>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-gray-500">Técnico</p>
+                  <p className="truncate text-xs font-medium text-gray-900">
+                    {report.technicianName || report.technicianEmail || '-'}
+                  </p>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-medium uppercase tracking-wider text-gray-500">Resultado</p>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    <p className="truncate text-xs font-medium text-gray-900">{report.result}</p>
+                    {!viewedIds.includes(report._id) && (
+                      <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-brand-600 text-white">
+                        Nuevo
+                      </span>
+                    )}
+                  </div>
+                </div>
               </div>
+
+              {report.nextVisitRecommendation && report.nextVisitRecommendation !== 'No' && (
+                <div>
+                  <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-rose-600 text-white">
+                    ⚠ Volver: {report.nextVisitRecommendation}
+                  </span>
+                </div>
+              )}
             </div>
           ))
         )}

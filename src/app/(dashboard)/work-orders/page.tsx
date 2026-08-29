@@ -123,22 +123,29 @@ const PRIORITY_VARIANT: Record<string, string> = {
 
 // Mobile card only; table keeps legacy variants
 const STATUS_VARIANT_MOBILE: Record<string, string> = {
-  draft: 'bg-gray-100 text-gray-700',
-  scheduled: 'bg-info-50 text-info-700',
-  confirmed: 'bg-info-50 text-info-700',
-  assigned: 'bg-info-50 text-info-700',
-  in_progress: 'bg-warning-50 text-warning-700',
-  paused: 'bg-warning-50 text-warning-700',
-  completed: 'bg-success-50 text-success-700',
-  cancelled: 'bg-danger-50 text-danger-700',
-  closed: 'bg-gray-100 text-gray-700',
+  draft: 'bg-gray-200 text-gray-800',
+  scheduled: 'bg-sky-600 text-white',
+  confirmed: 'bg-sky-600 text-white',
+  assigned: 'bg-sky-600 text-white',
+  in_progress: 'bg-amber-500 text-gray-900',
+  paused: 'bg-amber-500 text-gray-900',
+  completed: 'bg-emerald-700 text-white',
+  cancelled: 'bg-rose-600 text-white',
+  closed: 'bg-gray-700 text-white',
 };
 
 // Mobile card only; table keeps legacy variants
 const PRIORITY_VARIANT_MOBILE: Record<string, string> = {
-  normal: 'bg-info-50 text-info-700',
-  high: 'bg-warning-50 text-warning-700',
-  urgent: 'bg-danger-50 text-danger-700',
+  normal: 'bg-sky-600 text-white',
+  high: 'bg-amber-500 text-gray-900',
+  urgent: 'bg-rose-600 text-white',
+};
+
+// Mobile card only: left accent border color by priority (4px accent, not brash)
+const PRIORITY_ACCENT_MOBILE: Record<string, string> = {
+  normal: 'border-l-sky-500',
+  high: 'border-l-amber-500',
+  urgent: 'border-l-rose-500',
 };
 
 const PRIORITY_LABELS: Record<string, string> = {
@@ -184,7 +191,7 @@ function technicianName(wo: WorkOrder): string {
 }
 
 function sourceBadge(_source: string): { label: string; variant: string } {
-  return { label: 'OT', variant: 'bg-info-50 text-info-700' };
+  return { label: 'OT', variant: 'bg-gray-200 text-gray-800' };
 }
 
 export default function WorkOrdersPage() {
@@ -476,48 +483,50 @@ const fetchOrders = useCallback(async () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-3">
           <button
             onClick={() => router.back()}
-            className="p-2 rounded-lg hover:bg-gray-100 transition-colors"
+            className="mt-1 p-2 rounded-lg hover:bg-gray-100 transition-colors"
           >
             <ArrowLeft className="w-5 h-5 text-gray-600" />
           </button>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">
+          <div className="min-w-0">
+            <h1 className="text-2xl font-bold text-gray-900">
               {isTechnician ? (activeTab === 'mine' ? 'Mis Órdenes' : 'Todas las Órdenes') : 'Órdenes de Trabajo'}
             </h1>
             <p className="text-sm text-gray-500 mt-1">
               {total > 0 ? `${total} órdenes encontradas` : 'Gestiona tus órdenes de trabajo'}
             </p>
           </div>
-          {/* Filter by technician - only show for technicians */}
-          {isTechnician && (
-            <select
-              value={viewFilter}
-              onChange={(e) => {
-                setViewFilter(e.target.value);
-                setPage(1);
-              }}
-              className="text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
-            >
-              <option value="mine">Mis Órdenes</option>
-              <option value="all">Activas</option>
-              {technicians
-                .filter(t => t.email?.toLowerCase() !== user?.email?.toLowerCase())
-                .map((tech) => (
-                <option key={tech._id} value={tech._id}>
-                  {tech.name}
-                </option>
-              ))}
-            </select>
-          )}
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+          {isTechnician && (
+            <div className="flex items-center gap-1.5 flex-1 sm:flex-none min-w-[220px]">
+              <span className="text-xs font-medium text-gray-500 whitespace-nowrap">Filtrar por:</span>
+              <select
+                value={viewFilter}
+                onChange={(e) => {
+                  setViewFilter(e.target.value);
+                  setPage(1);
+                }}
+                className="flex-1 sm:flex-none text-sm border border-gray-300 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-brand-500"
+              >
+                <option value="mine">Mis Órdenes</option>
+                <option value="all">Activas</option>
+                {technicians
+                  .filter(t => t.email?.toLowerCase() !== user?.email?.toLowerCase())
+                  .map((tech) => (
+                  <option key={tech._id} value={tech._id}>
+                    {tech.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <a
             href="/work-orders/informes"
-            className="inline-flex items-center gap-2 rounded-lg bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-brand-600 bg-white px-4 py-2 text-sm font-medium text-brand-700 hover:bg-brand-50 transition-colors flex-1 sm:flex-none"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -527,7 +536,7 @@ const fetchOrders = useCallback(async () => {
           {!isTechnician && (
             <button
               onClick={handleNew}
-              className="inline-flex items-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 transition-colors"
+              className="inline-flex items-center justify-center gap-2 rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 transition-colors flex-1 sm:flex-none"
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -535,7 +544,7 @@ const fetchOrders = useCallback(async () => {
               Nueva OT
             </button>
           )}
-</div>
+        </div>
       </div>
 
       {/* No filters - just show the orders list */}
@@ -788,7 +797,7 @@ const fetchOrders = useCallback(async () => {
               return (
                 <div
                   key={wo._id}
-                  className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:border-gray-300 transition-colors"
+                  className={`bg-white border border-gray-200 border-l-4 rounded-xl p-4 shadow-sm transition-colors ${PRIORITY_ACCENT_MOBILE[wo.priority] || 'border-l-info-500'}`}
                 >
                   <div className="mb-2">
                     <div className="flex items-start justify-between gap-2">
@@ -805,7 +814,7 @@ const fetchOrders = useCallback(async () => {
                           {label(STATUS_OPTIONS, wo.status)}
                         </span>
                         {isOverdue(wo) && (
-                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold bg-danger-700 text-white whitespace-nowrap">
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold bg-rose-600 text-white whitespace-nowrap">
                             VENCIDA
                           </span>
                         )}
@@ -813,13 +822,25 @@ const fetchOrders = useCallback(async () => {
                     </div>
                     <p className="mt-2 text-base font-semibold text-gray-900 min-w-0 truncate">{wo.title}</p>
                   </div>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
-                    <span>{clientName(wo)}</span>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${PRIORITY_VARIANT_MOBILE[wo.priority] || 'bg-gray-100 text-gray-700'}`}>
-                      {label(PRIORITY_OPTIONS, wo.priority)}
-                    </span>
-                    <span>Programado: {formatDate(wo.scheduledDate)}</span>
-                    <span>Técnico: {technicianName(wo)}</span>
+                  <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-gray-500">Cliente</p>
+                      <p className="truncate text-xs font-medium text-gray-900">{clientName(wo)}</p>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-gray-500">Prioridad</p>
+                      <span className={`inline-flex items-center mt-0.5 px-2 py-0.5 rounded-full text-xs font-medium ${PRIORITY_VARIANT_MOBILE[wo.priority] || 'bg-gray-200 text-gray-800'}`}>
+                        {label(PRIORITY_OPTIONS, wo.priority)}
+                      </span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-gray-500">Programado</p>
+                      <p className="truncate text-xs font-medium text-gray-900">{formatDate(wo.scheduledDate)}</p>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-medium uppercase tracking-wider text-gray-500">Técnico</p>
+                      <p className="truncate text-xs font-medium text-gray-900">{technicianName(wo)}</p>
+                    </div>
                   </div>
                   <div className="mt-2 pt-2 border-t border-gray-100 flex gap-2">
                     <button
@@ -827,7 +848,7 @@ const fetchOrders = useCallback(async () => {
                         e.stopPropagation();
                         router.push(`/work-orders/${wo._id}`);
                       }}
-                      className="inline-flex items-center justify-center gap-1.5 flex-1 text-center rounded-lg bg-brand-50 px-2.5 py-1.5 text-xs font-medium text-brand-600 hover:bg-brand-100 hover:text-brand-700 transition-colors cursor-pointer"
+                      className="inline-flex items-center justify-center gap-1.5 flex-1 text-center rounded-lg bg-brand-600 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-brand-700 transition-colors cursor-pointer"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -843,7 +864,7 @@ const fetchOrders = useCallback(async () => {
                           setSelfAssignWO({ id: wo._id, number: wo.workOrderNumber });
                           setSelfAssignOpen(true);
                         }}
-                        className="flex-1 text-xs font-medium text-brand-600 hover:text-brand-700 transition-colors"
+                        className="inline-flex items-center justify-center flex-1 text-center rounded-lg border border-brand-600 bg-white px-2.5 py-1.5 text-xs font-medium text-brand-700 hover:bg-brand-50 transition-colors cursor-pointer"
                       >
                         Solicitar
                       </button>

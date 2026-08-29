@@ -78,23 +78,31 @@ interface VisitReport {
 const STATUS_OPTIONS: Record<string, string> = {
   draft: 'Borrador',
   scheduled: 'Programada',
+  assigned: 'Asignada',
+  confirmed: 'Confirmada',
   in_progress: 'En Ejecución',
+  paused: 'Pausada',
   completed: 'Completada',
   cancelled: 'Cancelada',
+  closed: 'Cerrada',
 };
 
 const STATUS_VARIANT: Record<string, string> = {
-  draft: 'bg-gray-100 text-gray-700',
-  scheduled: 'bg-blue-50 text-blue-700',
-  in_progress: 'bg-amber-50 text-amber-700',
-  completed: 'bg-green-50 text-green-700',
-  cancelled: 'bg-red-50 text-red-700',
+  draft: 'bg-gray-200 text-gray-800',
+  scheduled: 'bg-sky-600 text-white',
+  assigned: 'bg-sky-600 text-white',
+  confirmed: 'bg-sky-600 text-white',
+  in_progress: 'bg-amber-500 text-gray-900',
+  paused: 'bg-amber-500 text-gray-900',
+  completed: 'bg-emerald-700 text-white',
+  cancelled: 'bg-rose-600 text-white',
+  closed: 'bg-gray-700 text-white',
 };
 
 const PRIORITY_VARIANT: Record<string, string> = {
-  normal: 'bg-blue-50 text-blue-700',
-  high: 'bg-orange-50 text-orange-700',
-  urgent: 'bg-red-50 text-red-700',
+  normal: 'bg-sky-600 text-white',
+  high: 'bg-amber-500 text-gray-900',
+  urgent: 'bg-rose-600 text-white',
 };
 
 const PRIORITY_LABELS: Record<string, string> = {
@@ -523,14 +531,14 @@ export default function WorkOrderDetailPage() {
       {/* Header */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
-          <button onClick={() => router.push(isTechnician ? '/work-orders' : '/work-orders/all')} className="p-2 -ml-2 text-gray-400 hover:text-gray-600 transition-colors">
+          <button onClick={() => router.push(isTechnician ? '/work-orders' : '/work-orders/all')} className="p-2 -ml-2 text-gray-600 hover:text-gray-900 transition-colors">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
             </svg>
           </button>
           <div className="flex-1 min-w-0">
             <h1 className="text-2xl sm:text-4xl font-extrabold text-gray-900 break-words">{workOrder.title}</h1>
-            <p className="text-base text-gray-500 mt-1">#{shortWO(workOrder.workOrderNumber)}</p>
+            <p className="text-lg font-semibold text-gray-700 mt-1">#{shortWO(workOrder.workOrderNumber)}</p>
             {isAdmin && (
               <div className="flex gap-2 mt-2">
                 {workOrder.leadId && (
@@ -556,15 +564,15 @@ export default function WorkOrderDetailPage() {
         
         {/* Badges compactos */}
         <div className="flex flex-wrap gap-2 ml-10">
-          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_VARIANT[workOrder.status]}`}>
+          <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${STATUS_VARIANT[workOrder.status]}`}>
             {STATUS_OPTIONS[workOrder.status] || workOrder.status}
           </span>
           {(workOrder.workStatus === 'paused' || workOrder.workStatus === 'cancelled' || workOrder.workStatus === 'active' || workOrder.workStatus === 'completed') && (
-            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${
-              workOrder.workStatus === 'active' ? 'bg-green-100 text-green-800' :
-              workOrder.workStatus === 'paused' ? 'bg-amber-100 text-amber-800' :
-              workOrder.workStatus === 'completed' ? 'bg-blue-100 text-blue-800' :
-              'bg-red-100 text-red-800'
+            <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${
+              workOrder.workStatus === 'active' ? 'bg-emerald-700 text-white' :
+              workOrder.workStatus === 'paused' ? 'bg-amber-500 text-gray-900' :
+              workOrder.workStatus === 'completed' ? 'bg-sky-600 text-white' :
+              'bg-rose-600 text-white'
             }`}>
               {workOrder.workStatus === 'active' ? 'Activa' : 
                workOrder.workStatus === 'paused' ? 'Pausada' : 
@@ -572,7 +580,7 @@ export default function WorkOrderDetailPage() {
                'Cancelada'}
             </span>
           )}
-          <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium ${PRIORITY_VARIANT[workOrder.priority]}`}>
+          <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${PRIORITY_VARIANT[workOrder.priority]}`}>
             {PRIORITY_LABELS[workOrder.priority] || workOrder.priority}
           </span>
         </div>
@@ -593,7 +601,7 @@ export default function WorkOrderDetailPage() {
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
-            🔧 Info
+            Info
           </button>
           <button
             onClick={() => setActiveTab('cliente')}
@@ -603,7 +611,7 @@ export default function WorkOrderDetailPage() {
                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
             }`}
           >
-            👤 Cliente
+            Cliente
           </button>
           {isAdmin && (
             <button
@@ -614,8 +622,8 @@ export default function WorkOrderDetailPage() {
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
               }`}
             >
-              📋 Registro
-            </button>
+Registro
+          </button>
           )}
         </nav>
       </div>
@@ -704,38 +712,43 @@ export default function WorkOrderDetailPage() {
 
               {/* Descripción del trabajo */}
               {workOrder.description && (
-                <div className="bg-white border-2 border-gray-200 rounded-xl p-5">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center text-2xl">
-                      📋
-                    </div>
-                    <h2 className="text-lg font-bold text-gray-900">Descripción del Trabajo</h2>
+                <div className="bg-white border border-gray-200 border-l-4 border-l-sky-500 rounded-xl p-5 shadow-sm">
+                  <div className="flex items-center gap-2 mb-3">
+                    <svg className="w-5 h-5 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    <h2 className="text-base font-semibold text-gray-900">Descripción del Trabajo</h2>
                   </div>
-                  <p className="text-lg text-gray-700 leading-relaxed">{workOrder.description}</p>
+                  <p className="text-sm text-gray-700 leading-relaxed">{workOrder.description}</p>
                 </div>
               )}
 
               {/* Información para el Técnico */}
               {(workOrder.technicianNotes?.materials || workOrder.technicianNotes?.tools || workOrder.technicianNotes?.additionalNotes) && (
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                  <h2 className="text-sm font-semibold text-blue-900 mb-3">📋 Lo que necesitás saber</h2>
+                <div className="bg-white border border-gray-200 border-l-4 border-l-amber-500 rounded-xl p-5 shadow-sm">
+                  <div className="flex items-center gap-2 mb-3">
+                    <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                    </svg>
+                    <h2 className="text-base font-semibold text-gray-900">Lo que necesitás saber</h2>
+                  </div>
                   <dl className="space-y-3">
                     {workOrder.technicianNotes.materials && (
                       <div className="flex flex-col">
-                        <dt className="text-xs font-medium text-blue-700">🎒 Materiales</dt>
-                        <dd className="text-sm text-blue-900">{workOrder.technicianNotes.materials}</dd>
+                        <dt className="text-xs font-semibold uppercase tracking-wider text-gray-500">Materiales</dt>
+                        <dd className="text-sm text-gray-900">{workOrder.technicianNotes.materials}</dd>
                       </div>
                     )}
                     {workOrder.technicianNotes.tools && (
                       <div className="flex flex-col">
-                        <dt className="text-xs font-medium text-blue-700">🔧 Herramientas</dt>
-                        <dd className="text-sm text-blue-900">{workOrder.technicianNotes.tools}</dd>
+                        <dt className="text-xs font-semibold uppercase tracking-wider text-gray-500">Herramientas</dt>
+                        <dd className="text-sm text-gray-900">{workOrder.technicianNotes.tools}</dd>
                       </div>
                     )}
                     {workOrder.technicianNotes.additionalNotes && (
                       <div className="flex flex-col">
-                        <dt className="text-xs font-medium text-blue-700">📝 Notas</dt>
-                        <dd className="text-sm text-blue-900">{workOrder.technicianNotes.additionalNotes}</dd>
+                        <dt className="text-xs font-semibold uppercase tracking-wider text-gray-500">Notas</dt>
+                        <dd className="text-sm text-gray-900">{workOrder.technicianNotes.additionalNotes}</dd>
                       </div>
                     )}
                   </dl>
@@ -749,30 +762,30 @@ export default function WorkOrderDetailPage() {
             <>
               {/* Cliente */}
               {(workOrder.clientSnapshot?.name || workOrder.clientSnapshot?.phone) && (
-                <div className="bg-white border-2 border-gray-200 rounded-xl p-5">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-full bg-brand-100 flex items-center justify-center text-2xl">
-                      👤
-                    </div>
-                    <h2 className="text-lg font-bold text-gray-900">Cliente</h2>
+                <div className="bg-white border border-gray-200 border-l-4 border-l-violet-500 rounded-xl p-5 shadow-sm">
+                  <div className="flex items-center gap-2 mb-3">
+                    <svg className="w-5 h-5 text-violet-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    <h2 className="text-base font-semibold text-gray-900">Cliente</h2>
                   </div>
-                  <dl className="space-y-4">
+                  <dl className="space-y-3">
                     {workOrder.clientSnapshot?.name && (
                       <div className="flex flex-col">
-                        <dt className="text-sm font-medium text-gray-500">Nombre</dt>
-                        <dd className="text-xl font-bold text-gray-900">{workOrder.clientSnapshot.name}</dd>
+                        <dt className="text-xs font-semibold uppercase tracking-wider text-gray-500">Nombre</dt>
+                        <dd className="text-base font-semibold text-gray-900">{workOrder.clientSnapshot.name}</dd>
                       </div>
                     )}
                     {workOrder.clientSnapshot?.phone && (
                       <div className="flex flex-col">
-                        <dt className="text-sm font-medium text-gray-500">Teléfono</dt>
-                        <dd className="text-lg font-semibold text-brand-700">{workOrder.clientSnapshot.phone}</dd>
+                        <dt className="text-xs font-semibold uppercase tracking-wider text-gray-500">Teléfono</dt>
+                        <dd className="text-sm text-gray-900">{workOrder.clientSnapshot.phone}</dd>
                       </div>
                     )}
                     {workOrder.clientSnapshot?.email && (
                       <div className="flex flex-col">
-                        <dt className="text-sm font-medium text-gray-500">Email</dt>
-                        <dd className="text-base text-gray-700">{workOrder.clientSnapshot.email}</dd>
+                        <dt className="text-xs font-semibold uppercase tracking-wider text-gray-500">Email</dt>
+                        <dd className="text-sm text-gray-900">{workOrder.clientSnapshot.email}</dd>
                       </div>
                     )}
                   </dl>
@@ -781,40 +794,41 @@ export default function WorkOrderDetailPage() {
 
               {/* Ubicación */}
               {workOrder.locationSnapshot?.address && (
-                <div className="bg-gradient-to-br from-brand-50 to-brand-100 border-2 border-brand-200 rounded-xl p-5">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className="w-12 h-12 rounded-full bg-brand-200 flex items-center justify-center text-2xl">
-                      📍
-                    </div>
-                    <h2 className="text-lg font-bold text-brand-900">Dónde ir</h2>
+                <div className="bg-white border border-gray-200 border-l-4 border-l-emerald-500 rounded-xl p-5 shadow-sm">
+                  <div className="flex items-center gap-2 mb-3">
+                    <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <h2 className="text-base font-semibold text-gray-900">Dónde ir</h2>
                   </div>
-                  <dl className="space-y-4">
+                  <dl className="space-y-3">
                     {workOrder.locationSnapshot.name && (
                       <div className="flex flex-col">
-                        <dt className="text-sm font-medium text-brand-600">Lugar</dt>
-                        <dd className="text-lg font-bold text-brand-900">{workOrder.locationSnapshot.name}</dd>
+                        <dt className="text-xs font-semibold uppercase tracking-wider text-gray-500">Lugar</dt>
+                        <dd className="text-sm text-gray-900">{workOrder.locationSnapshot.name}</dd>
                       </div>
                     )}
                     <div className="flex flex-col">
-                      <dt className="text-sm font-medium text-brand-600">Dirección</dt>
-                      <dd className="text-base font-semibold text-brand-800">{workOrder.locationSnapshot.address}</dd>
+                      <dt className="text-xs font-semibold uppercase tracking-wider text-gray-500">Dirección</dt>
+                      <dd className="text-sm text-gray-900">{workOrder.locationSnapshot.address}</dd>
                     </div>
                     {workOrder.locationSnapshot.city && (
                       <div className="flex flex-col">
-                        <dt className="text-sm font-medium text-brand-600">Ciudad</dt>
-                        <dd className="text-base font-medium text-brand-800">{workOrder.locationSnapshot.city}</dd>
+                        <dt className="text-xs font-semibold uppercase tracking-wider text-gray-500">Ciudad</dt>
+                        <dd className="text-sm text-gray-900">{workOrder.locationSnapshot.city}</dd>
                       </div>
                     )}
                     {workOrder.locationSnapshot.province && (
                       <div className="flex flex-col">
-                        <dt className="text-sm font-medium text-brand-600">Provincia</dt>
-                        <dd className="text-base font-medium text-brand-800">{workOrder.locationSnapshot.province}</dd>
+                        <dt className="text-xs font-semibold uppercase tracking-wider text-gray-500">Provincia</dt>
+                        <dd className="text-sm text-gray-900">{workOrder.locationSnapshot.province}</dd>
                       </div>
                     )}
                     {workOrder.locationSnapshot.details?.reference && (
                       <div className="flex flex-col">
-                        <dt className="text-sm font-medium text-brand-600">Referencias</dt>
-                        <dd className="text-base text-brand-800">{workOrder.locationSnapshot.details.reference}</dd>
+                        <dt className="text-xs font-semibold uppercase tracking-wider text-gray-500">Referencias</dt>
+                        <dd className="text-sm text-gray-900">{workOrder.locationSnapshot.details.reference}</dd>
                       </div>
                     )}
                   </dl>
@@ -830,7 +844,7 @@ export default function WorkOrderDetailPage() {
                       <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`}
                         target="_blank" rel="noopener noreferrer"
                         className="mt-4 inline-flex items-center justify-center gap-2 px-6 py-3 text-base font-bold rounded-xl border-2 border-brand-300 bg-brand-600 text-white hover:bg-brand-700 transition-colors w-full">
-                        📍 Abrir en Google Maps
+                        Abrir en Google Maps
                       </a>
                     );
                   })()}
@@ -842,9 +856,9 @@ export default function WorkOrderDetailPage() {
           {/* Pestaña: Registro */}
           {activeTab === 'registro' && (
             <div className="bg-white border border-gray-200 rounded-xl p-6">
-              <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              <h2 className="text-base font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
                 Historial de la Orden
               </h2>
@@ -993,8 +1007,8 @@ export default function WorkOrderDetailPage() {
         </div>
 
         <div className="space-y-4">
-          <div className="bg-white border border-gray-200 rounded-xl p-5 space-y-3">
-            <h3 className="text-sm font-semibold text-gray-900 mb-2">Acciones</h3>
+          <div className="bg-white border border-gray-200 border-l-4 border-l-gray-300 rounded-xl p-5 shadow-sm space-y-3">
+            <h3 className="text-base font-semibold text-gray-900 mb-3">Acciones</h3>
 
             {/* Only allow edit when NOT completed/closed/cancelled */}
             {!['completed', 'closed', 'cancelled'].includes(workOrder.status) && isAdmin && (
@@ -1106,13 +1120,15 @@ export default function WorkOrderDetailPage() {
 
             {/* Technician info - visible to all */}
             {workOrder.assignedTechnicians && workOrder.assignedTechnicians.length > 0 ? (
-              <div className="rounded-xl bg-gradient-to-br from-brand-50 to-brand-100 border-2 border-brand-200 p-5">
-                <div className="text-center">
-                  <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-brand-200 text-brand-700 text-2xl mb-3">
-                    👷
-                  </div>
-                  <p className="text-xs font-medium text-brand-600 mb-1">Técnico Asignado</p>
-                  <p className="text-lg font-bold text-brand-900">{technicianName(workOrder)}</p>
+              <div className="bg-white border border-gray-200 border-l-4 border-l-sky-500 rounded-xl p-5 shadow-sm">
+                <div className="flex items-center gap-2 mb-3">
+                  <svg className="w-5 h-5 text-sky-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
+                  <h3 className="text-base font-semibold text-gray-900">Técnico Asignado</h3>
+                </div>
+                <div>
+                  <p className="text-base font-semibold text-gray-900">{technicianName(workOrder)}</p>
                 </div>
                 
                 {/* Botón Solicitar para técnicos que no son el asignado */}
@@ -1122,7 +1138,7 @@ export default function WorkOrderDetailPage() {
                       onClick={() => setSelfAssignOpen(true)}
                       className="w-full mt-4 rounded-lg bg-brand-600 px-4 py-3 text-base font-bold text-white hover:bg-brand-700 transition-colors"
                     >
-                      📤 Solicitar esta OT
+                      Solicitar esta OT
                     </button>
                   )
                 )}
@@ -1193,7 +1209,7 @@ export default function WorkOrderDetailPage() {
                   onClick={() => setSelfAssignOpen(true)}
                   className="w-full rounded-xl bg-brand-600 px-6 py-4 text-base font-bold text-white hover:bg-brand-700 transition-colors shadow-lg"
                 >
-                  📤 Solicitar esta OT
+                  Solicitar esta OT
                 </button>
               )
             )}
