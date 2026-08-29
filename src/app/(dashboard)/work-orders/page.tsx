@@ -121,6 +121,26 @@ const PRIORITY_VARIANT: Record<string, string> = {
   urgent: 'bg-red-50 text-red-700',
 };
 
+// Mobile card only; table keeps legacy variants
+const STATUS_VARIANT_MOBILE: Record<string, string> = {
+  draft: 'bg-gray-100 text-gray-700',
+  scheduled: 'bg-info-50 text-info-700',
+  confirmed: 'bg-info-50 text-info-700',
+  assigned: 'bg-info-50 text-info-700',
+  in_progress: 'bg-warning-50 text-warning-700',
+  paused: 'bg-warning-50 text-warning-700',
+  completed: 'bg-success-50 text-success-700',
+  cancelled: 'bg-danger-50 text-danger-700',
+  closed: 'bg-gray-100 text-gray-700',
+};
+
+// Mobile card only; table keeps legacy variants
+const PRIORITY_VARIANT_MOBILE: Record<string, string> = {
+  normal: 'bg-info-50 text-info-700',
+  high: 'bg-warning-50 text-warning-700',
+  urgent: 'bg-danger-50 text-danger-700',
+};
+
 const PRIORITY_LABELS: Record<string, string> = {
   normal: 'Normal',
   high: 'Alta',
@@ -164,7 +184,7 @@ function technicianName(wo: WorkOrder): string {
 }
 
 function sourceBadge(_source: string): { label: string; variant: string } {
-  return { label: 'OT', variant: 'bg-blue-100 text-blue-700' };
+  return { label: 'OT', variant: 'bg-info-50 text-info-700' };
 }
 
 export default function WorkOrdersPage() {
@@ -768,32 +788,34 @@ const fetchOrders = useCallback(async () => {
               return (
                 <div
                   key={wo._id}
-                  className={`${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50/60'} border border-gray-200 rounded-xl p-4 hover:border-gray-300 transition-colors`}
+                  className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm hover:border-gray-300 transition-colors"
                 >
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-1.5">
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${sourceBadge(wo.source).variant}`}>
-                        {sourceBadge(wo.source).label}
-                      </span>
-                      {isOwn && (
-                        <span className="text-yellow-500 text-sm" title="Asignada a ti">★</span>
-                      )}
-                      <p className="font-medium text-gray-900">{wo.title}</p>
-                    </div>
-                    <div className="flex gap-1">
-                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT[wo.status] || 'bg-gray-100 text-gray-700'}`}>
-                        {label(STATUS_OPTIONS, wo.status)}
-                      </span>
-                      {isOverdue(wo) && (
-                        <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold bg-red-600 text-white">
-                          VENCIDA
+                  <div className="mb-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${sourceBadge(wo.source).variant}`}>
+                          {sourceBadge(wo.source).label}
                         </span>
-                      )}
+                        {isOwn && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-medium bg-warning-50 text-warning-700" title="Asignada a ti">★</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0 whitespace-nowrap">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${STATUS_VARIANT_MOBILE[wo.status] || 'bg-gray-100 text-gray-700'}`}>
+                          {label(STATUS_OPTIONS, wo.status)}
+                        </span>
+                        {isOverdue(wo) && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-xs font-bold bg-danger-700 text-white whitespace-nowrap">
+                            VENCIDA
+                          </span>
+                        )}
+                      </div>
                     </div>
+                    <p className="mt-2 text-base font-semibold text-gray-900 min-w-0 truncate">{wo.title}</p>
                   </div>
-                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-400">
-                    <span className="text-gray-700">{clientName(wo)}</span>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${PRIORITY_VARIANT[wo.priority] || 'bg-gray-100 text-gray-700'}`}>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+                    <span>{clientName(wo)}</span>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${PRIORITY_VARIANT_MOBILE[wo.priority] || 'bg-gray-100 text-gray-700'}`}>
                       {label(PRIORITY_OPTIONS, wo.priority)}
                     </span>
                     <span>Programado: {formatDate(wo.scheduledDate)}</span>
