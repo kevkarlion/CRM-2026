@@ -147,7 +147,9 @@ async function request<T>(
 
   if (!res.ok) {
     const data: any = await res.json().catch(() => ({}));
-    throw new Error(data.error || `Request failed: ${res.status}`);
+    const error = data.error || 'Algo salió mal. Por favor, intente de nuevo.';
+    console.error('[api-client] Request failed:', res.status, url, data.error || '(no error message)');
+    throw new Error(error);
   }
 
   return res.json() as Promise<T>;

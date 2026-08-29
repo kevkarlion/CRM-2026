@@ -42,11 +42,13 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  // IMPORTANT: connect BEFORE starting a session - otherwise Mongoose buffers
+  // operations and can time out on cold starts (e.g. Vercel serverless).
+  await connectDB();
   const session = await mongoose.startSession();
   session.startTransaction();
 
   try {
-    await connectDB();
     const { id: workOrderId } = await params;
     
     const tenantId = request.headers.get('x-tenant-id') || '';

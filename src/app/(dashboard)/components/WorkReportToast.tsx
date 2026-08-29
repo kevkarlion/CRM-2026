@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, FileCheck } from 'lucide-react';
+import { X, CheckCircle2 } from 'lucide-react';
 
 const STORAGE_KEY = 'work-report-last-viewed';
 
@@ -177,26 +177,36 @@ export function WorkReportToast({ isAdmin = false }: WorkReportToastProps) {
         <div
           key={toast.id}
           onClick={() => handleToastClick(toast.report)}
-          className="group bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg shadow-lg p-4 cursor-pointer hover:shadow-xl hover:border-amber-400 dark:hover:border-amber-600 transition-all duration-200 animate-in slide-in-from-right fade-in"
+          className="group bg-white border border-gray-200 border-l-4 border-l-emerald-500 rounded-xl shadow-lg p-4 cursor-pointer hover:shadow-xl transition-all duration-200 animate-in slide-in-from-right fade-in"
         >
           <div className="flex items-start gap-3">
-            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center">
-              <FileCheck className="w-4 h-4 text-brand-600 dark:text-brand-400" />
+            <div className="flex-shrink-0 w-9 h-9 rounded-full bg-emerald-50 flex items-center justify-center">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 dark:text-slate-100">
-                Informe de OT #{toast.report.workOrderNumber} completado
+            <div className="flex-1 min-w-0 space-y-1.5">
+              <p className="text-sm font-semibold text-gray-900">
+                Orden de Trabajo terminada
               </p>
-              <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
-                por <span className="font-medium">{toast.report.technicianName}</span>
+              {toast.report.title && (
+                <p className="text-xs text-gray-600 truncate">{toast.report.title}</p>
+              )}
+              <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                Ver informe técnico
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </span>
+              <p className="text-xs text-gray-500">
+                Técnico: <span className="font-medium text-gray-700">{toast.report.technicianName}</span>
               </p>
             </div>
             <button
               onClick={(e) => handleDismiss(toast.id, e)}
-              className="flex-shrink-0 opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-gray-100 dark:hover:bg-slate-700 transition-opacity"
+              className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
               title="Cerrar"
+              aria-label="Cerrar notificación"
             >
-              <X className="w-4 h-4 text-gray-400 dark:text-slate-500" />
+              <X className="w-4 h-4" />
             </button>
           </div>
         </div>

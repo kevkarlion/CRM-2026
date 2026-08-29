@@ -161,7 +161,8 @@ export function WorkCompletionForm({
 
       onSuccess();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al guardar');
+      console.error('[WorkCompletionForm] Error al finalizar el servicio:', err);
+      setError('No pudimos guardar el informe. Por favor, intente de nuevo en unos segundos.');
     } finally {
       setSubmitting(false);
     }
