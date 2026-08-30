@@ -3,6 +3,12 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { api } from '@/lib/api-client';
 import { DOCUMENT_TYPE_OPTIONS, DOCUMENT_TYPE_LABELS, DocumentType } from '@/documents/types/document';
+import {
+  WHATSAPP_SEND_ERROR,
+  PHONE_MISSING_ERROR,
+  buildWhatsAppSendPayload,
+  resolvePhoneError,
+} from '@/leads/helpers/lead-document-delivery';
 
 interface Document {
   _id: string;
@@ -21,6 +27,7 @@ interface Document {
 interface LeadDocumentationTabProps {
   leadId: string;
   leadStatus?: string;
+  leadPhone?: string;
   onStatusChange?: (newStatus: string) => void;
 }
 
@@ -64,7 +71,7 @@ function getFileIcon(mimeType: string) {
   );
 }
 
-export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: LeadDocumentationTabProps) {
+export function LeadDocumentationTab({ leadId, leadStatus, leadPhone, onStatusChange }: LeadDocumentationTabProps) {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -82,10 +89,13 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
   
   // Quotes del lead - para saber el estado de cada documento
   const [quotes, setQuotes] = useState<{ _id: string; sourceDocumentId: string; status: string; saleType?: string; sentAt?: string; approvedAt?: string; wonAt?: string }[]>([]);
+
+  // Remitos del lead - para saber el estado de cada documento remito
+  const [remitos, setRemitos] = useState<{ _id: string; sourceDocumentId: string; status: string; sentAt?: string }[]>([]);
   
   // Confirmation modal state
   const [showConfirm, setShowConfirm] = useState(false);
-  const [confirmAction, setConfirmAction] = useState<'quote_sent' | 'approved' | 'won' | 'delete' | null>(null);
+  const [confirmAction, setConfirmAction] = useState<'quote_sent' | 'approved' | 'won' | 'delete' | 'remito_sent' | null>(null);
   const [confirmDocId, setConfirmDocId] = useState<string | null>(null);
   const [selectedSaleType, setSelectedSaleType] = useState<'product' | 'service'>('service');
   
@@ -96,6 +106,7 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
   const [filter, setFilter] = useState<'all' | 'quotes'>('all');
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const actionInFlight = useRef(false);
 
   // Load documents and quotes
   useEffect(() => {
@@ -112,6 +123,12 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
           leadId,
         });
         setQuotes(quotesRes.data || []);
+
+        // Load remitos for this lead to know their status
+        const remitosRes = await api.get<{ data: { _id: string; sourceDocumentId: string; status: string; sentAt?: string }[] }>('/api/crm/remitos', {
+          leadId,
+        });
+        setRemitos(remitosRes.data || []);
       } catch (err) {
         console.error('Error loading data:', err);
       } finally {
@@ -125,6 +142,12 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
   const getQuoteStatus = (docId: string): { status: string; saleType?: string; sentAt?: string; approvedAt?: string; wonAt?: string } | null => {
     const quote = quotes.find(q => String(q.sourceDocumentId) === docId || q.sourceDocumentId === docId);
     return quote ? { status: quote.status, saleType: quote.saleType, sentAt: quote.sentAt, approvedAt: quote.approvedAt, wonAt: quote.wonAt } : null;
+  };
+
+  // Get remito status for a document
+  const getRemitoStatus = (docId: string): { status: string; sentAt?: string } | null => {
+    const remito = remitos.find(r => String(r.sourceDocumentId) === docId || r.sourceDocumentId === docId);
+    return remito ? { status: remito.status, sentAt: remito.sentAt } : null;
   };
 
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -237,9 +260,17 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
     setShowConfirm(true);
   };
 
+  const handleRemitoSendClick = (docId: string) => {
+    setConfirmDocId(docId);
+    setConfirmAction('remito_sent');
+    setShowConfirm(true);
+  };
+
   const handleConfirmAction = async () => {
-    if (!confirmDocId || !confirmAction) return;
-    
+    if (actionInFlight.current || !confirmDocId || !confirmAction) return;
+
+    actionInFlight.current = true;
+
     const docId = confirmDocId;
     const action = confirmAction;
     
@@ -274,12 +305,76 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
       } finally {
         setActionLoading(null);
         setActionDocId(null);
+        actionInFlight.current = false;
+      }
+      return;
+    }
+
+    // Handle remito_sent - send document to WhatsApp first, then create the remito record
+    if (action === 'remito_sent') {
+      try {
+        const doc = documents.find(d => d._id === docId);
+        if (!doc) {
+          throw new Error('Documento no encontrado');
+        }
+
+        const phoneError = resolvePhoneError(leadPhone);
+        if (phoneError) {
+          throw new Error(phoneError);
+        }
+
+        const payload = buildWhatsAppSendPayload(doc, { phone: leadPhone!, leadId });
+        try {
+          await api.post('/api/webhook/whatsapp/send-document', payload);
+        } catch {
+          throw new Error(WHATSAPP_SEND_ERROR);
+        }
+
+        await api.post('/api/crm/remitos', { documentId: doc._id, leadId });
+
+        // Reload remitos to get updated status
+        const remitosRes = await api.get<{ data: { _id: string; sourceDocumentId: string; status: string; sentAt?: string }[] }>('/api/crm/remitos', {
+          leadId,
+        });
+        setRemitos(remitosRes.data || []);
+      } catch (err: any) {
+        console.error('[LeadDocumentationTab] ❌ Error en handleConfirmAction:', {
+          error: err.message || err,
+          action,
+          docId,
+          timestamp: new Date().toISOString(),
+        });
+        setError(err.message || 'Error al procesar acción');
+      } finally {
+        setActionLoading(null);
+        setActionDocId(null);
+        actionInFlight.current = false;
       }
       return;
     }
 
     // Handle quote_sent and won actions (existing document action API)
     try {
+      // quote_sent sends the document to WhatsApp first and only continues on success
+      if (action === 'quote_sent') {
+        const doc = documents.find(d => d._id === docId);
+        if (!doc) {
+          throw new Error('Documento no encontrado');
+        }
+
+        const phoneError = resolvePhoneError(leadPhone);
+        if (phoneError) {
+          throw new Error(phoneError);
+        }
+
+        const payload = buildWhatsAppSendPayload(doc, { phone: leadPhone!, leadId });
+        try {
+          await api.post('/api/webhook/whatsapp/send-document', payload);
+        } catch {
+          throw new Error(WHATSAPP_SEND_ERROR);
+        }
+      }
+
       // Build action body - include saleType only for 'won'
       const actionBody: { action: string; saleType?: 'product' | 'service' } = { action };
       if (action === 'won') {
@@ -297,9 +392,6 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
       }>(`/api/crm/leads/${leadId}/documents/${docId}/action`, actionBody);
 
       if (res.success) {
-        // Force a small delay to ensure DB is updated
-        await new Promise(resolve => setTimeout(resolve, 300));
-
         // Reload quotes to get updated status
         const quotesRes = await api.get<{ data: { _id: string; sourceDocumentId: string; status: string; saleType?: string; sentAt?: string; approvedAt?: string; wonAt?: string }[] }>('/api/crm/quotes', {
           leadId,
@@ -337,6 +429,7 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
     } finally {
       setActionLoading(null);
       setActionDocId(null);
+      actionInFlight.current = false;
     }
   };
 
@@ -659,6 +752,36 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
                     })()}
                   </div>
                 )}
+
+                {/* Remito buttons */}
+                {doc.documentType === 'remito' && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {(() => {
+                      const remitoStatus = getRemitoStatus(doc._id);
+
+                      if (remitoStatus?.status === 'sent') {
+                        const sentDate = remitoStatus.sentAt ? formatDate(remitoStatus.sentAt) : '';
+                        return (
+                          <span className="px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-100 rounded-lg">
+                            Enviado {sentDate ? `- ${sentDate}` : ''}
+                          </span>
+                        );
+                      }
+
+                      // Not sent yet - show send button
+                      return (
+                        <button
+                          onClick={() => handleRemitoSendClick(doc._id)}
+                          disabled={actionLoading !== null}
+                          className="px-3 py-1.5 text-xs font-medium text-emerald-700 bg-emerald-50 rounded-lg hover:bg-emerald-100 disabled:opacity-50 transition-colors cursor-pointer"
+                          title="Enviar remito al cliente"
+                        >
+                          {actionLoading === 'remito_sent' && actionDocId === doc._id ? '...' : 'Enviar remito'}
+                        </button>
+                      );
+                    })()}
+                  </div>
+                )}
               </div>
 
               {/* Right side - View and Delete for ALL documents */}
@@ -713,6 +836,8 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
                     ? selectedSaleType === 'product'
                       ? 'Esta acción confirmará la venta como producto (sin orden de trabajo). ¿Estás seguro de continuar?'
                       : 'Esta acción confirmará la venta y creará una orden de trabajo en estado borrador. ¿Estás seguro de continuar?'
+                    : confirmAction === 'remito_sent'
+                    ? 'Esta acción enviará el remito al chat de WhatsApp del cliente. ¿Estás seguro de continuar?'
                     : '¿Estás seguro de eliminar este documento? Esta acción no se puede deshacer.'
                   }
                 </p>
