@@ -37,6 +37,7 @@ export default function MapaOperativoPage() {
   const [error, setError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
   const mountedRef = useRef(false);
 
   // Get user location
@@ -95,6 +96,7 @@ export default function MapaOperativoPage() {
 
       const data: MapApiResponse = await response.json();
       setMarkers(data.markers);
+      setMapReady(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error desconocido');
     } finally {
@@ -221,15 +223,24 @@ export default function MapaOperativoPage() {
       )}
 
       {/* Map Container */}
-      <div className="bg-white border border-gray-200 rounded-lg overflow-hidden" style={{ height: 'calc(100vh - 320px)', minHeight: '400px' }}>
-        {loading ? (
+      <div className="relative bg-white border border-gray-200 rounded-lg overflow-hidden" style={{ height: 'calc(100vh - 320px)', minHeight: '400px' }}>
+        {loading && mapReady && (
+          <div className="absolute top-3 right-3 z-[1000] flex items-center gap-2 bg-white/90 backdrop-blur rounded-lg px-3 py-1.5 text-xs text-gray-600 shadow-sm border border-gray-200">
+            <svg className="w-3.5 h-3.5 animate-spin text-brand-600" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+            Actualizando...
+          </div>
+        )}
+        {!mapReady && loading ? (
           <div className="w-full h-full flex items-center justify-center bg-gray-50">
             <div className="text-center">
               <div className="w-8 h-8 border-4 border-brand-200 border-t-brand-600 rounded-full animate-spin mx-auto mb-2" />
               <p className="text-sm text-gray-500">Cargando mapa...</p>
             </div>
           </div>
-        ) : markers.length === 0 ? (
+        ) : !mapReady && markers.length === 0 ? (
           <div className="w-full h-full flex items-center justify-center bg-gray-50">
             <div className="text-center">
               <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">

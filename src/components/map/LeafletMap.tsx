@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { MapContainer, TileLayer, useMap, Marker } from 'react-leaflet';
 import type { MapMarker } from '@/operations/types/map-marker';
 import { MapMarkerComponent } from './MapMarker';
@@ -67,6 +67,7 @@ interface LeafletMapProps {
 
 function MapController({ markers, userLocation }: { markers: MapMarker[]; userLocation?: { lat: number; lng: number } | null }) {
   const map = useMap();
+  const hasFittedRef = useRef(false);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -75,6 +76,11 @@ function MapController({ markers, userLocation }: { markers: MapMarker[]; userLo
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const L = (window as any).L;
     if (!L) return;
+
+    // Only fit bounds once on initial load. Subsequent marker updates
+    // (refresh, filters) must NOT change the user's viewport.
+    if (hasFittedRef.current) return;
+    hasFittedRef.current = true;
 
     const allPoints: [number, number][] = [];
 

@@ -217,7 +217,6 @@ export default function ClientDetailPage() {
   const handleResolveClient = useCallback(async () => {
     if (!id) return;
     
-    console.log('[Ciclo terminado] 🔵 Botón presionado', { id });
     setResolvingClient(true);
     try {
       const res = await fetch(`/api/crm/clients/${id}/resolve`, {
