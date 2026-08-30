@@ -351,7 +351,6 @@ export function PipelineBoard() {
         return;
       }
       
-      console.log('[Resolve] Response status:', res.status);
       if (res.ok) {
         setNotification({ type: 'success', message: 'Lead descalificado' });
         // Refresh leads and gestions
@@ -374,7 +373,6 @@ export function PipelineBoard() {
 
   // Resolve conversation directly by ID (for ClientCard button)
   const handleResolveConversationWithId = useCallback(async (conversationId: string) => {
-    console.log('[Resolve] handleResolveConversationWithId called with:', conversationId);
     try {
       const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const res = await fetch(`/api/crm/conversations/${conversationId}/resolve`, {
@@ -384,7 +382,6 @@ export function PipelineBoard() {
           ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
         },
       });
-      console.log('[Resolve] handleResolveConversationWithId response:', res.status);
       if (res.ok) {
         setNotification({ type: 'success', message: 'Lead descalificado ✅' });
         refetchCustomers();
@@ -639,7 +636,6 @@ export function PipelineBoard() {
   }, [stages, visibleStageNames]);
 
   const handleLeadClick = useCallback((leadId: string) => {
-    console.log('Lead clicked:', leadId);
   }, []);
 
   // Follow-up mark handlers

@@ -330,13 +330,6 @@ export function LeadChatDrawer({ isOpen, onClose, lead, client, conversationStat
 
   const phone = isLeadMode ? (lead?.phone || '') : (client?.phone || '');
   
-  console.log('🎯 LeadChatDrawer - entity data:', { 
-    isLeadMode,
-    leadName: lead?.fullName,
-    clientName: client?.name,
-    phone
-  });
-  
   // Calcular score si no está guardado
   const calculatedScore = useMemo(() => {
     if (!lead) return null;
@@ -508,7 +501,6 @@ export function LeadChatDrawer({ isOpen, onClose, lead, client, conversationStat
               </div>
               <div className="min-w-0">
                 <h3 className="text-base font-bold text-gray-900 truncate">{entityName}</h3>
-                {isLeadMode && console.log('🎯 LEAD DATA:', lead!.score, lead!.temperature, lead)}
                 {isLeadMode && lead!.profileName && lead!.name && lead!.name !== lead!.profileName && (
                   <p className="text-sm text-gray-500 truncate">{lead!.name}</p>
                 )}

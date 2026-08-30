@@ -243,12 +243,10 @@ export default function LeadDetailPage() {
 
     setActionLoading(true);
     try {
-      console.log('[LeadDetail] Taking control of conversation:', conversation._id);
       const res = await api.post<{ success: boolean }>(
         `/api/crm/conversations/${conversation._id}/take-control`, 
         {}
       );
-      console.log('[LeadDetail] Take control response:', res);
       
       setConversation((prev) =>
         prev ? { ...prev, owner: 'OPERATOR', lifecycleState: 'IN_PROGRESS' } : null,
@@ -261,13 +259,10 @@ export default function LeadDetailPage() {
   };
 
 const handleCedeControl = async () => {
-    console.log('[LeadDetail] handleCedeControl called');
     if (!conversation?._id) {
-      console.log('[LeadDetail] No conversation id');
       return;
     }
 
-    console.log('[LeadDetail] Ceding control, conversation:', conversation._id);
     setActionLoading(true);
     try {
       const res = await fetch(`/api/crm/conversations/${conversation._id}/cede-control`, {
@@ -278,9 +273,7 @@ const handleCedeControl = async () => {
         },
       });
       
-      console.log('[LeadDetail] Response status:', res.status);
       const data = await res.json();
-      console.log('[LeadDetail] Response data:', data);
       
       if (res.ok) {
         setConversation((prev) =>

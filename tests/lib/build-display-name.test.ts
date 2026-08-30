@@ -67,4 +67,22 @@ describe('buildDisplayName', () => {
       expect(buildDisplayName('ana', 'gómez', 'ana@x.com')).toBe('ana gómez');
     });
   });
+
+  describe('email deduplication', () => {
+    it('collapses firstName and lastName when both hold the same email', () => {
+      expect(buildDisplayName('ana@x.com', 'ana@x.com', 'ana@x.com')).toBe('ana@x.com');
+    });
+
+    it('collapses an email repeated with extra surrounding whitespace', () => {
+      expect(buildDisplayName('  ana@x.com  ', 'ana@x.com', 'ana@x.com')).toBe('ana@x.com');
+    });
+
+    it('does not collapse consecutive identical non-email tokens (real repeated names stay)', () => {
+      expect(buildDisplayName('José', 'José', 'jose@x.com')).toBe('José José');
+    });
+
+    it('keeps distinct name tokens intact', () => {
+      expect(buildDisplayName('Ana', 'Gómez', 'ana@x.com')).toBe('Ana Gómez');
+    });
+  });
 });

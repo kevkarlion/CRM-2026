@@ -95,8 +95,6 @@ export default function TechnicianCalendarPage() {
         ? '/api/operations/work-orders/all-calendar'
         : '/api/operations/work-orders/technician';
 
-      console.log('[Calendar] Fetching from:', calendarEndpoint, { isTechnician, isAdmin });
-
       const [calendarResult, workOrdersResult, visitsResult] = await Promise.allSettled([
         api.get<{ data: CalendarEvent[]; total?: number; technicianId?: string }>(calendarEndpoint, {
           startDate: startDate.toISOString(),
@@ -113,7 +111,6 @@ export default function TechnicianCalendarPage() {
       if (calendarResult.status === 'fulfilled') {
         const data = calendarResult.value.data || [];
         const techId = (calendarResult.value as any).technicianId || null;
-        console.log('[Calendar] Received events:', data.length, 'technicianId:', techId);
         setEvents(data);
         setCurrentTechnicianId(techId);
       } else {
@@ -449,6 +446,7 @@ export default function TechnicianCalendarPage() {
             }}
             workOrderId={selfAssignWO.id}
             workOrderNumber={selfAssignWO.number}
+            technicianName={user.name}
             onAssigned={fetchData}
           />
         ) : (
@@ -460,6 +458,7 @@ export default function TechnicianCalendarPage() {
             }}
             visitId={selfAssignWO.id}
             visitNumber={selfAssignWO.number}
+            technicianName={user.name}
             onAssigned={fetchData}
           />
         )

@@ -94,14 +94,6 @@ export default function MapaOperativoPage() {
       }
 
       const data: MapApiResponse = await response.json();
-      console.log('[Mapa] markers received:', data.markers.map(m => ({
-        id: m.id,
-        title: m.title?.substring(0, 30),
-        status: m.status,
-        workStatus: m.workStatus,
-        scheduledDate: m.scheduledDate,
-        technician: m.technicianName
-      })));
       setMarkers(data.markers);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error desconocido');
@@ -159,7 +151,6 @@ export default function MapaOperativoPage() {
   }, [fetchMarkers]);
 
   const handleMarkerClick = useCallback((marker: MapMarker) => {
-    console.log('Marker clicked:', marker);
   }, []);
 
   // Manual refresh function

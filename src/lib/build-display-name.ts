@@ -34,12 +34,35 @@ function usableTokens(value: string | null | undefined): string[] {
     .filter((token) => token !== '' && !JUNK_TOKENS.has(token.toLowerCase()));
 }
 
+/**
+ * Collapse consecutive identical tokens that look like an email address.
+ *
+ * Historical data may hold the same email in both firstName and lastName
+ * (e.g. a repair script filled every missing field with the email), which made
+ * the header render "email email". Non-email repeated tokens are kept: a real
+ * name like "José José" is legitimate and must not be collapsed.
+ */
+function collapseConsecutiveEmailTokens(tokens: string[]): string[] {
+  const result: string[] = [];
+  for (const token of tokens) {
+    const previous = result[result.length - 1];
+    if (previous !== undefined && previous === token && token.includes('@')) {
+      continue;
+    }
+    result.push(token);
+  }
+  return result;
+}
+
 export function buildDisplayName(
   firstName?: string | null,
   lastName?: string | null,
   email?: string | null,
 ): string {
-  const nameTokens = [...usableTokens(firstName), ...usableTokens(lastName)];
+  const nameTokens = collapseConsecutiveEmailTokens([
+    ...usableTokens(firstName),
+    ...usableTokens(lastName),
+  ]);
   if (nameTokens.length > 0) return nameTokens.join(' ');
 
   const emailTokens = usableTokens(email);

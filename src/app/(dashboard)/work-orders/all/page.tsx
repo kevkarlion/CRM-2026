@@ -155,7 +155,6 @@ function AllWorkOrdersPage() {
 
   const fetchOrders = useCallback(async () => {
     try {
-      console.log('[WorkOrdersAll] fetchOrders starting');
       setLoading(true);
       setError(null);
 
@@ -192,14 +191,12 @@ function AllWorkOrdersPage() {
       const endpoint = '/api/operations/work-orders';
 
       const result = await api.get<ListResponse>(endpoint, params);
-      console.log('[WorkOrdersAll] fetchOrders got result:', (result as any).total);
       setOrders(unwrapData(result));
       setTotal((result as any).total);
     } catch (err) {
       console.error('[WorkOrdersAll] fetchOrders error:', err);
       setError(err instanceof Error ? err.message : 'Error al cargar órdenes');
     } finally {
-      console.log('[WorkOrdersAll] fetchOrders finished');
       setLoading(false);
     }
   }, [search, statusFilter, priorityFilter, fromDate, toDate, technicianFilter, page]);
@@ -209,9 +206,7 @@ function AllWorkOrdersPage() {
 
   // Initial load - loads technicians and fetches orders
   useEffect(() => {
-    console.log('[WorkOrdersAll] Initial effect running');
     if (!mountedRef.current) {
-      console.log('[WorkOrdersAll] First mount - loading techs and fetching');
       mountedRef.current = true;
       loadTechnicians();
       fetchOrders();
@@ -220,7 +215,6 @@ function AllWorkOrdersPage() {
 
   // When filters or search change, re-fetch
   useEffect(() => {
-    console.log('[WorkOrdersAll] Filter effect:', { techniciansLength: technicians.length, roleLoading, mounted: mountedRef.current });
     if (technicians.length === 0) return;
     if (roleLoading) return;
     if (!mountedRef.current) return;
@@ -240,7 +234,6 @@ function AllWorkOrdersPage() {
     // If no URL params, nothing to do
     if (urlExpired !== 'true' && !urlTechId) return;
     
-    console.log('[WorkOrdersAll] Applying URL filters:', { urlExpired, urlTechId });
     autoFiltersApplied.current = true;
     
     // Apply technician filter
@@ -254,7 +247,6 @@ function AllWorkOrdersPage() {
         t.email?.toLowerCase().includes(userEmailLower.split('@')[0])
       );
       if (myTech) {
-        console.log('[WorkOrdersAll] Auto-selected technician:', myTech.name);
         setTechnicianFilter(myTech._id);
       }
     }

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { Inbox } from 'lucide-react';
 import { useFollowUpMarks, type FollowUpMark } from '@/leads/pipeline-board/hooks/useFollowUpMarks';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 
@@ -44,6 +45,59 @@ function formatDateTime(dateStr: string): string {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+// Status labels + modern palette (matching the pipeline board semantics).
+const STATUS_LABELS: Record<string, string> = {
+  // lead
+  new: 'Nuevo',
+  contacted: 'Contactado',
+  quote_sent: 'Presupuesto enviado',
+  technical_visit: 'Visita técnica',
+  negotiation: 'Negociación',
+  qualified: 'Calificado',
+  won: 'Ganado',
+  lost: 'Perdido',
+  disqualified: 'Descalificado',
+  closed: 'Cerrado',
+  // client
+  none: 'Sin operación',
+  quote_pending: 'Presupuesto pendiente',
+  visit_scheduled: 'Visita programada',
+  sale_confirmed: 'Venta confirmada',
+  active: 'Activo',
+  inactive: 'Inactivo',
+};
+
+const STATUS_VARIANTS: Record<string, string> = {
+  // lead — solid badges, clearly separated hues
+  new: 'bg-sky-600 text-white',
+  contacted: 'bg-violet-600 text-white',
+  quote_sent: 'bg-indigo-600 text-white',
+  technical_visit: 'bg-teal-600 text-white',
+  negotiation: 'bg-amber-500 text-gray-900',
+  qualified: 'bg-emerald-600 text-white',
+  won: 'bg-emerald-700 text-white',
+  lost: 'bg-rose-600 text-white',
+  disqualified: 'bg-gray-600 text-white',
+  closed: 'bg-gray-700 text-white',
+  // client
+  none: 'bg-gray-100 text-gray-700',
+  quote_pending: 'bg-amber-500 text-gray-900',
+  visit_scheduled: 'bg-teal-600 text-white',
+  sale_confirmed: 'bg-emerald-700 text-white',
+  active: 'bg-emerald-600 text-white',
+  inactive: 'bg-gray-200 text-gray-600',
+};
+
+function getStatusLabel(status?: string): string {
+  if (!status) return '';
+  return STATUS_LABELS[status] || status;
+}
+
+function getStatusVariant(status?: string): string {
+  if (!status) return 'bg-gray-100 text-gray-700';
+  return STATUS_VARIANTS[status] || 'bg-gray-100 text-gray-700';
 }
 
 export default function AtencionPage() {
@@ -98,51 +152,54 @@ export default function AtencionPage() {
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Mi Atención</h1>
-        <p className="text-gray-500 mt-1">
-          Leads y clientes asignados para seguimiento
-        </p>
-      </div>
+    <div className="space-y-6 sm:space-y-8 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Mi Atención</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Leads y clientes asignados para seguimiento
+          </p>
+        </div>
 
-      {/* Filter Tabs */}
-      <div className="flex gap-2 mb-6">
-        <button
-          onClick={() => setFilter('all')}
-          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-            filter === 'all'
-              ? 'bg-brand-600 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          Todos ({marks.length})
-        </button>
-        <button
-          onClick={() => setFilter('lead')}
-          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-            filter === 'lead'
-              ? 'bg-brand-600 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          Leads ({marks.filter(m => m.targetType === 'lead').length})
-        </button>
-        <button
-          onClick={() => setFilter('client')}
-          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
-            filter === 'client'
-              ? 'bg-brand-600 text-white'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-        >
-          Clientes ({marks.filter(m => m.targetType === 'client').length})
-        </button>
+        {/* Filter Tabs */}
+        <div className="flex gap-2 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
+          <button
+            onClick={() => setFilter('all')}
+            className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium rounded-lg transition-colors cursor-pointer ${
+              filter === 'all'
+                ? 'bg-brand-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Todos ({marks.length})
+          </button>
+          <button
+            onClick={() => setFilter('lead')}
+            className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium rounded-lg transition-colors cursor-pointer ${
+              filter === 'lead'
+                ? 'bg-brand-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Leads ({marks.filter(m => m.targetType === 'lead').length})
+          </button>
+          <button
+            onClick={() => setFilter('client')}
+            className={`shrink-0 whitespace-nowrap px-4 py-2 text-sm font-medium rounded-lg transition-colors cursor-pointer ${
+              filter === 'client'
+                ? 'bg-brand-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            Clientes ({marks.filter(m => m.targetType === 'client').length})
+          </button>
+        </div>
       </div>
 
       {/* Error Message */}
       {error && (
-        <div className="rounded-lg bg-danger-50 px-4 py-3 text-sm text-danger-700 mb-4">
+        <div className="rounded-lg bg-rose-50 px-4 py-3 text-sm text-rose-700 mb-4">
           {error}
         </div>
       )}
@@ -156,10 +213,10 @@ export default function AtencionPage() {
 
       {/* Empty State */}
       {!loading && filteredMarks.length === 0 && (
-        <div className="text-center py-12 bg-gray-50 rounded-lg">
-          <div className="text-4xl mb-2">📋</div>
+        <div className="text-center py-12 bg-white border border-gray-200 rounded-xl shadow-sm">
+          <Inbox className="w-10 h-10 mx-auto mb-3 text-gray-300" />
           <h3 className="text-lg font-medium text-gray-900">No hay elementos</h3>
-          <p className="text-gray-500 mt-1">
+          <p className="text-sm text-gray-500 mt-1 px-6">
             {filter === 'all' 
               ? 'No tienes leads ni clientes marcados para seguimiento.'
               : filter === 'lead'
@@ -174,7 +231,7 @@ export default function AtencionPage() {
       {!loading && filteredMarks.length > 0 && (
         <>
           {/* Desktop Table */}
-          <div className="hidden md:block bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div className="hidden sm:block bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
@@ -214,7 +271,7 @@ export default function AtencionPage() {
           </div>
 
           {/* Mobile Cards */}
-          <div className="md:hidden space-y-3">
+          <div className="sm:hidden space-y-3">
             {filteredMarks.map((mark) => (
               <MarkCard
                 key={mark._id}
@@ -266,57 +323,61 @@ function MarkCard({ mark, onRequestUnmark }: MarkCardProps) {
   };
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4">
-      <div className="flex items-start justify-between">
-        <div className="flex-1 cursor-pointer" onClick={handleClick}>
-          <div className="flex items-center gap-2 mb-1 flex-wrap">
-            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+    <div className={`bg-white border border-gray-200 border-l-4 rounded-xl p-4 shadow-sm ${
+      mark.targetType === 'lead' ? 'border-l-sky-500' : 'border-l-emerald-600'
+    }`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex-1 min-w-0 cursor-pointer" onClick={handleClick}>
+          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium border ${
               mark.targetType === 'lead' 
-                ? 'bg-blue-100 text-blue-700' 
-                : 'bg-green-100 text-green-700'
+                ? 'bg-sky-50 text-sky-700 border-sky-200' 
+                : 'bg-emerald-50 text-emerald-700 border-emerald-200'
             }`}>
               {mark.targetType === 'lead' ? 'Lead' : 'Cliente'}
             </span>
             {mark.target?.status && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
-                {mark.target.status}
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium ${getStatusVariant(mark.target.status)}`}>
+                {getStatusLabel(mark.target.status)}
               </span>
             )}
           </div>
-          
-          <h3 className="text-base font-semibold text-brand-600 hover:underline">
+
+          <h3 className="text-base font-semibold text-gray-900 hover:text-brand-700 transition-colors">
             {mark.target?.name || `ID: ${mark.targetId}`}
           </h3>
-          
-          <div className="mt-2 space-y-1 text-sm text-gray-500">
-            <p>
-              <span className="text-gray-400">Para:</span>{' '}
-              {mark.markedByUser?.name || mark.assignedTo}
-            </p>
-            <p>
-              <span className="text-gray-400">Fecha:</span>{' '}
-              {mark.markedAt && formatDateTime(mark.markedAt)}
-            </p>
+
+          <div className="grid grid-cols-2 gap-2 mt-3">
+            <div className="bg-gray-50 rounded-lg px-3 py-2 min-w-0">
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Para</div>
+              <div className="text-sm font-medium text-gray-900 break-words">
+                {mark.markedByUser?.name || mark.assignedTo || '—'}
+              </div>
+            </div>
+            <div className="bg-gray-50 rounded-lg px-3 py-2 min-w-0">
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Fecha</div>
+              <div className="text-sm font-medium text-gray-900 break-words">
+                {mark.markedAt ? formatDateTime(mark.markedAt) : '—'}
+              </div>
+            </div>
           </div>
 
           {mark.note && (
-            <div className="mt-2">
-              <div className="text-xs text-gray-400 mb-1">Nota:</div>
-              <p className="text-sm text-gray-700 bg-amber-50 border border-amber-200 p-2 rounded">
-                {mark.note}
-              </p>
+            <div className="border-l-4 border-l-amber-400 bg-amber-50 rounded-r-lg px-3 py-2 mt-3">
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-amber-600">Nota</div>
+              <p className="text-sm font-medium text-gray-900 break-words">{mark.note}</p>
             </div>
           )}
         </div>
-
-        <button
-          onClick={handleUnmark}
-          disabled={unmarking}
-          className="ml-3 px-3 py-1.5 text-sm font-medium text-danger-700 bg-danger-50 rounded hover:bg-danger-100 disabled:opacity-50 transition-colors cursor-pointer"
-        >
-          {unmarking ? '...' : '✕'}
-        </button>
       </div>
+
+      <button
+        onClick={handleUnmark}
+        disabled={unmarking}
+        className="mt-3 w-full inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium text-rose-700 bg-white border border-rose-200 rounded-lg hover:bg-rose-50 disabled:opacity-50 transition-colors cursor-pointer"
+      >
+        {unmarking ? 'Quitando...' : 'Quitar seguimiento'}
+      </button>
     </div>
   );
 }
@@ -344,12 +405,12 @@ function MarkRow({ mark, onRequestUnmark }: MarkRowProps) {
   };
 
   return (
-    <tr className="hover:bg-gray-50">
+    <tr className="border-b border-gray-100 even:bg-gray-100/50 odd:bg-white hover:bg-brand-50/40 transition-colors">
       <td className="px-4 py-3 whitespace-nowrap">
-        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium border ${
           mark.targetType === 'lead' 
-            ? 'bg-blue-100 text-blue-700' 
-            : 'bg-green-100 text-green-700'
+            ? 'bg-sky-50 text-sky-700 border-sky-200' 
+            : 'bg-emerald-50 text-emerald-700 border-emerald-200'
         }`}>
           {mark.targetType === 'lead' ? 'Lead' : 'Cliente'}
         </span>
@@ -357,15 +418,15 @@ function MarkRow({ mark, onRequestUnmark }: MarkRowProps) {
       <td className="px-4 py-3">
         <button
           onClick={handleClick}
-          className="text-sm font-medium text-brand-600 hover:text-brand-800 hover:underline"
+          className="text-sm font-medium text-brand-700 hover:text-brand-800 hover:underline cursor-pointer"
         >
           {mark.target?.name || `ID: ${mark.targetId}`}
         </button>
       </td>
       <td className="px-4 py-3 whitespace-nowrap">
         {mark.target?.status && (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-700">
-            {mark.target.status}
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-medium ${getStatusVariant(mark.target.status)}`}>
+            {getStatusLabel(mark.target.status)}
           </span>
         )}
       </td>
@@ -386,7 +447,7 @@ function MarkRow({ mark, onRequestUnmark }: MarkRowProps) {
         <button
           onClick={handleUnmark}
           disabled={unmarking}
-          className="px-3 py-1.5 text-sm font-medium text-danger-700 bg-danger-50 rounded hover:bg-danger-100 disabled:opacity-50 transition-colors cursor-pointer"
+          className="px-3 py-1.5 text-sm font-medium text-rose-700 bg-white border border-rose-200 rounded-lg hover:bg-rose-50 disabled:opacity-50 transition-colors cursor-pointer"
         >
           {unmarking ? 'Quitando...' : 'Quitar'}
         </button>

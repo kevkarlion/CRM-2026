@@ -220,7 +220,6 @@ export default function ClientDetailPage() {
     console.log('[Ciclo terminado] 🔵 Botón presionado', { id });
     setResolvingClient(true);
     try {
-      console.log('[Ciclo terminado] 📤 Llamando API /resolve');
       const res = await fetch(`/api/crm/clients/${id}/resolve`, {
         method: 'POST',
         headers: {
@@ -228,20 +227,13 @@ export default function ClientDetailPage() {
         },
       });
       
-      console.log('[Ciclo terminado] 📥 Respuesta:', { status: res.status, ok: res.ok });
-      
       if (res.ok) {
         const data = await res.json();
-        console.log('[Ciclo terminado] ✅ Success:', data);
         // Refresh client to get new gestion (status will change to 'contactado')
         await loadClient();
-        console.log('[Ciclo terminado] 🔄 Cliente refreshado');
-        
-        // Force full page reload to get fresh data
         window.location.reload();
       } else {
         const data = await res.json();
-        console.log('[Ciclo terminado] ❌ Error response:', data);
         setActionError(data.error || 'Error al resolver');
       }
     } catch (error) {

@@ -227,14 +227,6 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
   };
 
   const handleDocumentActionClick = (docId: string, action: 'quote_sent' | 'approved' | 'won') => {
-    // LOG: Apertura del modal de confirmación
-    console.log('[LeadDocumentationTab] 📋 Modal abierto - acción:', {
-      docId,
-      action,
-      currentLeadStatus: leadStatus,
-      timestamp: new Date().toISOString(),
-    });
-
     // Open confirmation modal instead of native confirm
     setConfirmDocId(docId);
     setConfirmAction(action);
@@ -250,15 +242,6 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
     
     const docId = confirmDocId;
     const action = confirmAction;
-    
-    // LOG: Inicio de confirmación de acción
-    console.log('[LeadDocumentationTab] 🔔 handleConfirmAction - INICIO', {
-      docId,
-      action,
-      selectedSaleType,
-      leadId,
-      timestamp: new Date().toISOString(),
-    });
     
     // Close modal
     setShowConfirm(false);
@@ -312,18 +295,6 @@ export function LeadDocumentationTab({ leadId, leadStatus, onStatusChange }: Lea
         client?: { _id: string };
         workOrder?: { _id: string; workOrderNumber: string; status: string };
       }>(`/api/crm/leads/${leadId}/documents/${docId}/action`, actionBody);
-
-      // LOG: Respuesta de la API
-      console.log('[LeadDocumentationTab] 📡 API response:', {
-        success: res.success,
-        quoteId: res.quoteId,
-        leadId: res.leadId,
-        newStatus: res.newStatus,
-        saleType: res.saleType,
-        client: res.client,
-        workOrder: res.workOrder,
-        timestamp: new Date().toISOString(),
-      });
 
       if (res.success) {
         // Force a small delay to ensure DB is updated

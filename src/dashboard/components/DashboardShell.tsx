@@ -38,13 +38,17 @@ function HeaderBar() {
   };
 
   return (
-    <header className="sticky top-0 z-30 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
-      <div className="flex items-center gap-4">
+    <header className="sticky top-0 z-30 bg-white dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700 px-4 sm:px-6 lg:px-8 h-16 sm:h-14 flex items-center justify-between">
+      <div className="flex items-center gap-4 min-w-0">
         {mounted ? (
           <>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500 dark:text-slate-400">Hola,</span>
-              <span className="text-sm font-semibold text-gray-900 dark:text-slate-100">{user.name}</span>
+            <div className="min-w-0">
+              <p className="text-xl sm:text-base font-bold text-gray-900 dark:text-slate-100 truncate">
+                Hola, <span className="text-brand-600 dark:text-brand-400">{user.name}</span>
+              </p>
+              <p className="text-xs text-gray-400 dark:text-slate-500 capitalize truncate mt-0.5">
+                {dateStr}
+              </p>
             </div>
             <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-brand-50 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300 capitalize">
               {role}

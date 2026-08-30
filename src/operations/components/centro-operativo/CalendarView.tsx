@@ -47,7 +47,6 @@ function getWeekStart(d: Date): Date {
   const day = r.getDay(); // 0 = Sunday
   r.setDate(r.getDate() - day);
   r.setHours(0, 0, 0, 0);
-  console.log('[Calendar] getWeekStart:', d.toISOString(), '->', r.toISOString(), 'day:', day);
   return r;
 }
 

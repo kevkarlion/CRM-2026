@@ -76,7 +76,6 @@ export function WorkReportToast({ isAdmin = false }: WorkReportToastProps) {
       
       // Skip connection/keep-alive events
       if (data.status === 'connected') {
-        console.log('[WorkReportToast] SSE connected');
         return;
       }
 
@@ -132,7 +131,6 @@ export function WorkReportToast({ isAdmin = false }: WorkReportToastProps) {
         };
 
         eventSource.onopen = () => {
-          console.log('[WorkReportToast] SSE connection opened');
           isConnectedRef.current = true;
         };
       } catch (error) {

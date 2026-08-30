@@ -377,15 +377,6 @@ const fetchOrders = useCallback(async () => {
       params.page = String(page);
       params.limit = String(limit);
       
-      console.log('[WorkOrders] Fetching:', { 
-        endpoint, 
-        params: JSON.stringify(params), 
-        statusFilter, 
-        viewFilter, 
-        isTechnician,
-        activeTab 
-      });
-
       const result = await api.get<ListResponse>(endpoint, params);
       
       // Filter out cancelled workStatus on frontend (negocio)
@@ -405,11 +396,6 @@ const fetchOrders = useCallback(async () => {
   useEffect(() => {
     // Don't fetch while role is loading
     if (roleLoading) return;
-    
-    console.log('[WorkOrders] Effect triggered:', { 
-      search, statusFilter, priorityFilter, fromDate, toDate, 
-      technicianFilter, activeTab, page, roleLoading, isTechnician, viewFilter, mounted: mountedRef.current 
-    });
     
     if (!mountedRef.current) {
       mountedRef.current = true;
