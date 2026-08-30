@@ -512,7 +512,7 @@ const handleCedeControl = async () => {
           </EntityTabPanel>
 
           <EntityTabPanel id="documentacion">
-            <LeadDocumentationTab leadId={id} leadStatus={lead?.status} onStatusChange={refreshLeadAndTimeline} />
+            <LeadDocumentationTab leadId={id} leadStatus={lead?.status} leadPhone={lead?.phone || ''} onStatusChange={refreshLeadAndTimeline} />
           </EntityTabPanel>
 
           <EntityTabPanel id="actividad">
