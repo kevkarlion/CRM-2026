@@ -46,7 +46,7 @@ function HeaderBar() {
               <p className="text-xl sm:text-base font-bold text-gray-900 dark:text-slate-100 truncate">
                 Hola, <span className="text-brand-600 dark:text-brand-400">{user.name}</span>
               </p>
-              <p className="text-xs text-gray-400 dark:text-slate-500 capitalize truncate mt-0.5">
+              <p className="text-xs text-gray-400 dark:text-slate-500 capitalize truncate mt-0.5 sm:hidden">
                 {dateStr}
               </p>
             </div>
