@@ -12,7 +12,8 @@ export type WorkOrderCategory = 'installation' | 'maintenance' | 'repair' | 'ins
  * assigned - Asignada (con tecnico, puede tener o no fecha)
  * in_progress - En ejecucion
  * paused - En pausa (no cuenta como vencida)
- * completed - Completada
+ * completed - Completada (alias legacy de closed)
+ * closed - Cerrada (terminal canonico)
  * cancelled - Cancelada
  */
 export type WorkOrderStatus = 
@@ -22,6 +23,7 @@ export type WorkOrderStatus =
   | 'in_progress'      // En ejecucion
   | 'paused'           // En pausa
   | 'completed'        // Completada
+  | 'closed'           // Cerrada (terminal canonico)
   | 'cancelled';       // Cancelada
 
 // Estado de negocio - paralelo al status operativo

@@ -31,15 +31,18 @@ export const VALID_TRANSITIONS: Record<WorkOrderStatus, WorkOrderStatus[]> = {
   assigned: ['in_progress', 'paused', 'cancelled'],
   
   // 4. En ejecucion → puede pausarse, completarse o cancelarse
-  in_progress: ['paused', 'completed', 'cancelled'],
+  in_progress: ['paused', 'completed', 'cancelled', 'closed'],
   
   // 5. Pausada → puede reanudarse (in_progress) o cancelarse
   paused: ['in_progress', 'cancelled'],
   
-  // 6. Completada → estado terminal
+  // 6. Completada → estado terminal (alias legacy)
   completed: [],
   
-  // 7. Cancelada → estado terminal
+  // 7. Cerrada → estado terminal canonico
+  closed: [],
+  
+  // 8. Cancelada → estado terminal
   cancelled: [],
 };
 
@@ -53,7 +56,7 @@ export const LEGACY_TRANSITIONS: Record<string, string[]> = {
   closed: [], // terminal
 };
 
-export const TERMINAL_STATUSES: WorkOrderStatus[] = ['cancelled', 'completed'];
+export const TERMINAL_STATUSES: WorkOrderStatus[] = ['cancelled', 'closed', 'completed'];
 
 export const ACTIVE_STATUSES: WorkOrderStatus[] = [
   'draft', 'scheduled', 'in_progress',
@@ -61,7 +64,7 @@ export const ACTIVE_STATUSES: WorkOrderStatus[] = [
   'pending_assignment', 'assigned', 'confirmed', 'paused',
 ];
 
-const CANONICAL_STATUSES = ['draft', 'scheduled', 'in_progress', 'completed', 'cancelled'];
+const CANONICAL_STATUSES = ['draft', 'scheduled', 'in_progress', 'completed', 'closed', 'cancelled'];
 
 export function canTransition(from: string, to: WorkOrderStatus): boolean {
   // Si es un estado canónico, usar VALID_TRANSITIONS

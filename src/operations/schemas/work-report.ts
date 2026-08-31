@@ -105,6 +105,29 @@ export const workReportSchema = new Schema<IWorkReport>(
       type: Date,
       required: true,
     },
+    arrivalTime: {
+      type: Date,
+      default: null,
+    },
+    departureTime: {
+      type: Date,
+      default: null,
+    },
+    internalComments: {
+      type: String,
+      default: null,
+      maxlength: 5000,
+    },
+    materialsItems: {
+      type: [
+        {
+          item: { type: String, required: true },
+          quantity: { type: Number, required: true },
+          unit: { type: String, required: true },
+        },
+      ],
+      default: [],
+    },
     version: { type: Number, default: 0 },
     ...auditFields,
   },

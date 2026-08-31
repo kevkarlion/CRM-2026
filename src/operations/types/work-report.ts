@@ -55,6 +55,10 @@ export interface IWorkReport extends Document, IAuditFields {
   nextVisitRecommendation?: NextVisitRecommendation | null;
   startedAt: Date;
   finishedAt: Date;
+  arrivalTime?: Date | null;
+  departureTime?: Date | null;
+  internalComments?: string | null;
+  materialsItems?: { item: string; quantity: number; unit: string }[];
   version: number;
   createdAt: Date;
   updatedAt: Date;
@@ -90,6 +94,10 @@ export interface CreateWorkReportApiInput {
   nextVisitRecommendation?: string;
   startedAt: Date;
   finishedAt: Date;
+  arrivalTime?: Date | null;
+  departureTime?: Date | null;
+  internalComments?: string;
+  materialsItems?: { item: string; quantity: number; unit: string }[];
 }
 
 export type UpdateWorkReportInput = Partial<

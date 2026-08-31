@@ -11,8 +11,8 @@ import {
 import { WorkOrderStatus } from '../../src/operations/types/work-order';
 
 const ALL_STATUSES: WorkOrderStatus[] = [
-  'draft', 'scheduled', 'confirmed', 'assigned',
-  'en_route', 'on_site', 'paused', 'completed', 'cancelled', 'closed',
+  'draft', 'scheduled', 'assigned', 'in_progress',
+  'paused', 'completed', 'cancelled', 'closed',
 ];
 
 describe('State Machine', () => {
@@ -21,68 +21,52 @@ describe('State Machine', () => {
       expect(canTransition('draft', 'scheduled')).toBe(true);
     });
 
-    it('allows draft → cancelled', () => {
-      expect(canTransition('draft', 'cancelled')).toBe(true);
+    it('allows draft → assigned', () => {
+      expect(canTransition('draft', 'assigned')).toBe(true);
     });
 
-    it('allows scheduled → confirmed', () => {
-      expect(canTransition('scheduled', 'confirmed')).toBe(true);
+    it('allows draft → cancelled', () => {
+      expect(canTransition('draft', 'cancelled')).toBe(true);
     });
 
     it('allows scheduled → assigned', () => {
       expect(canTransition('scheduled', 'assigned')).toBe(true);
     });
 
+    it('allows scheduled → in_progress', () => {
+      expect(canTransition('scheduled', 'in_progress')).toBe(true);
+    });
+
     it('allows scheduled → cancelled', () => {
       expect(canTransition('scheduled', 'cancelled')).toBe(true);
-    });
-
-    it('allows confirmed → assigned', () => {
-      expect(canTransition('confirmed', 'assigned')).toBe(true);
-    });
-
-    it('allows confirmed → cancelled', () => {
-      expect(canTransition('confirmed', 'cancelled')).toBe(true);
-    });
-
-    it('allows assigned → en_route', () => {
-      expect(canTransition('assigned', 'en_route')).toBe(true);
     });
 
     it('allows assigned → cancelled', () => {
       expect(canTransition('assigned', 'cancelled')).toBe(true);
     });
 
-    it('allows en_route → on_site', () => {
-      expect(canTransition('en_route', 'on_site')).toBe(true);
+    it('allows in_progress → paused', () => {
+      expect(canTransition('in_progress', 'paused')).toBe(true);
     });
 
-    it('allows en_route → cancelled', () => {
-      expect(canTransition('en_route', 'cancelled')).toBe(true);
+    it('allows in_progress → completed', () => {
+      expect(canTransition('in_progress', 'completed')).toBe(true);
     });
 
-    it('allows on_site → paused', () => {
-      expect(canTransition('on_site', 'paused')).toBe(true);
+    it('allows in_progress → closed (canonical terminal)', () => {
+      expect(canTransition('in_progress', 'closed')).toBe(true);
     });
 
-    it('allows on_site → completed', () => {
-      expect(canTransition('on_site', 'completed')).toBe(true);
+    it('allows in_progress → cancelled', () => {
+      expect(canTransition('in_progress', 'cancelled')).toBe(true);
     });
 
-    it('allows on_site → cancelled', () => {
-      expect(canTransition('on_site', 'cancelled')).toBe(true);
-    });
-
-    it('allows paused → on_site', () => {
-      expect(canTransition('paused', 'on_site')).toBe(true);
+    it('allows paused → in_progress', () => {
+      expect(canTransition('paused', 'in_progress')).toBe(true);
     });
 
     it('allows paused → cancelled', () => {
       expect(canTransition('paused', 'cancelled')).toBe(true);
-    });
-
-    it('allows completed → closed', () => {
-      expect(canTransition('completed', 'closed')).toBe(true);
     });
 
     it('blocks cancelled → any status', () => {
@@ -92,19 +76,23 @@ describe('State Machine', () => {
       }
     });
 
-    it('blocks closed → any status', () => {
+    it('blocks closed → any status (terminal)', () => {
       for (const target of ALL_STATUSES) {
         if (target === 'closed') continue;
         expect(canTransition('closed', target)).toBe(false);
       }
     });
 
+    it('blocks completed → closed (completed already terminal)', () => {
+      expect(canTransition('completed', 'closed')).toBe(false);
+    });
+
     it('blocks regression: scheduled → draft', () => {
       expect(canTransition('scheduled', 'draft')).toBe(false);
     });
 
-    it('blocks regression: completed → on_site', () => {
-      expect(canTransition('completed', 'on_site')).toBe(false);
+    it('blocks regression: completed → in_progress', () => {
+      expect(canTransition('completed', 'in_progress')).toBe(false);
     });
   });
 
@@ -113,12 +101,11 @@ describe('State Machine', () => {
       hasSchedule: true,
       hasTechnicians: true,
       hasChecklist: true,
-      hasVisitReport: true,
     };
 
     it('passes valid transitions without throwing', () => {
       expect(() => validateTransition('draft', 'scheduled', ctx)).not.toThrow();
-      expect(() => validateTransition('on_site', 'completed', ctx)).not.toThrow();
+      expect(() => validateTransition('in_progress', 'closed', ctx)).not.toThrow();
     });
 
     it('throws TransitionError on invalid transition', () => {
@@ -153,9 +140,10 @@ describe('State Machine', () => {
       }
     });
 
-    it('cancelled and closed have no outgoing transitions', () => {
+    it('terminal statuses have no outgoing transitions', () => {
       expect(VALID_TRANSITIONS.cancelled).toHaveLength(0);
       expect(VALID_TRANSITIONS.closed).toHaveLength(0);
+      expect(VALID_TRANSITIONS.completed).toHaveLength(0);
     });
 
     it('terminal statuses match TERMINAL_STATUSES constant', () => {
@@ -166,9 +154,10 @@ describe('State Machine', () => {
   });
 
   describe('TERMINAL_STATUSES', () => {
-    it('includes cancelled and closed', () => {
+    it('includes cancelled, closed, and completed (alias)', () => {
       expect(TERMINAL_STATUSES).toContain('cancelled');
       expect(TERMINAL_STATUSES).toContain('closed');
+      expect(TERMINAL_STATUSES).toContain('completed');
     });
   });
 });
