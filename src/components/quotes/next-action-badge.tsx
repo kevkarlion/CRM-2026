@@ -88,19 +88,32 @@ export function getNextAction(entity: {
 }
 
 const actionStyles: Record<NextActionType, string> = {
-  send_quote: 'bg-brand-600 text-white',
-  follow_up: 'bg-amber-500 text-gray-900',
-  go_to_negotiation: 'bg-violet-600 text-white',
-  contact_client: 'bg-rose-600 text-white',
-  review_and_requote: 'bg-red-600 text-white',
-  respond_counteroffer: 'bg-violet-600 text-white',
-  confirm_sale: 'bg-emerald-700 text-white',
-  schedule_work_order: 'bg-sky-600 text-white',
-  awaiting_execution: 'bg-gray-700 text-white',
-  work_order_closed: 'bg-emerald-600 text-white',
-  work_order_cancelled: 'bg-gray-500 text-white',
-  follow_up_visit: 'bg-teal-600 text-white',
-  product_sale: 'bg-gray-800 text-white',
+  send_quote:
+    'bg-brand-500/10 text-brand-700 ring-1 ring-inset ring-brand-600/20 dark:text-brand-300 dark:ring-brand-400/20',
+  follow_up:
+    'bg-amber-500/10 text-amber-700 ring-1 ring-inset ring-amber-600/20 dark:text-amber-300 dark:ring-amber-400/20',
+  go_to_negotiation:
+    'bg-violet-500/10 text-violet-700 ring-1 ring-inset ring-violet-600/20 dark:text-violet-300 dark:ring-violet-400/20',
+  contact_client:
+    'bg-rose-500/10 text-rose-700 ring-1 ring-inset ring-rose-600/20 dark:text-rose-300 dark:ring-rose-400/20',
+  review_and_requote:
+    'bg-red-500/10 text-red-700 ring-1 ring-inset ring-red-600/20 dark:text-red-300 dark:ring-red-400/20',
+  respond_counteroffer:
+    'bg-violet-500/10 text-violet-700 ring-1 ring-inset ring-violet-600/20 dark:text-violet-300 dark:ring-violet-400/20',
+  confirm_sale:
+    'bg-emerald-500/10 text-emerald-700 ring-1 ring-inset ring-emerald-600/20 dark:text-emerald-300 dark:ring-emerald-400/20',
+  schedule_work_order:
+    'bg-sky-500/10 text-sky-700 ring-1 ring-inset ring-sky-600/20 dark:text-sky-300 dark:ring-sky-400/20',
+  awaiting_execution:
+    'bg-gray-500/10 text-gray-600 ring-1 ring-inset ring-gray-500/20 dark:text-gray-300 dark:ring-gray-400/20',
+  work_order_closed:
+    'bg-emerald-500/10 text-emerald-700 ring-1 ring-inset ring-emerald-600/20 dark:text-emerald-300 dark:ring-emerald-400/20',
+  work_order_cancelled:
+    'bg-gray-500/10 text-gray-500 ring-1 ring-inset ring-gray-400/20 dark:text-gray-400 dark:ring-gray-500/20',
+  follow_up_visit:
+    'bg-teal-500/10 text-teal-700 ring-1 ring-inset ring-teal-600/20 dark:text-teal-300 dark:ring-teal-400/20',
+  product_sale:
+    'bg-indigo-500/10 text-indigo-700 ring-1 ring-inset ring-indigo-600/20 dark:text-indigo-300 dark:ring-indigo-400/20',
   none: '',
 };
 
@@ -117,7 +130,7 @@ export function NextActionBadge({ type, label }: NextActionBadgeProps) {
   const style = actionStyles[type] || 'bg-gray-700 text-white';
   
   return (
-    <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ${style}`}>
+    <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${style}`}>
       {label}
     </span>
   );

@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api-client';
 import { ExecutiveSummary } from '@/components/quotes/executive-summary';
 import { WorkTray } from '@/components/quotes/work-tray';
-import { QuickActions } from '@/components/quotes/quick-actions';
 import { FilterBar } from '@/components/quotes/filter-bar';
 import { SmartTable } from '@/components/quotes/smart-table';
 import { SmartTableRow } from '@/components/quotes/smart-table-row';
@@ -224,7 +223,6 @@ export default function CentroOperativoContent({ initialFilters }: CentroOperati
 
       <ExecutiveSummary stats={summary} loading={loading} />
       <WorkTray items={workTrayItems} loading={loading} />
-      <QuickActions />
       <FilterBar filters={filters} onChange={handleFilterChange} />
 
       <SmartTable

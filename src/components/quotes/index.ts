@@ -1,6 +1,5 @@
 export { ExecutiveSummary } from './executive-summary';
 export { WorkTray } from './work-tray';
-export { QuickActions } from './quick-actions';
 export { FilterBar } from './filter-bar';
 export { SmartTable } from './smart-table';
 export { SmartTableRow } from './smart-table-row';

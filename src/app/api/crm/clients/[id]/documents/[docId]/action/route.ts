@@ -79,7 +79,7 @@ export async function POST(
       sourceDocumentId: documentId,
       title: document.title || `Presupuesto desde documento`,
       description: `Documento de origen: ${document.title || document.filename}`,
-      validUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days
+      validUntil: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString().split('T')[0], // 48 hours
       items: [
         {
           description: 'Item generado automáticamente desde documento',
