@@ -16,10 +16,184 @@ describe('getNextAction', () => {
     expect(result.label).toBe('Enviar cotización');
   });
 
-  it('returns convert_to_work_order for approved quote', () => {
+  it('returns confirm_sale for approved quote when lead is not won', () => {
     const result = getNextAction({ status: 'approved', entityType: 'quote' });
-    expect(result.type).toBe('convert_to_work_order');
-    expect(result.label).toBe('Convertir a orden de trabajo');
+    expect(result.type).toBe('confirm_sale');
+    expect(result.label).toBe('Confirmar Venta');
+  });
+
+  it('returns schedule_work_order for approved quote of won lead with own draft WO', () => {
+    const result = getNextAction({
+      status: 'approved',
+      entityType: 'quote',
+      leadStatus: 'won',
+      workOrderStatus: 'draft',
+    });
+    expect(result.type).toBe('schedule_work_order');
+    expect(result.label).toBe('Programar la OT');
+  });
+
+  it('returns work_order_closed for approved quote of won lead with own closed WO', () => {
+    const result = getNextAction({
+      status: 'approved',
+      entityType: 'quote',
+      leadStatus: 'won',
+      workOrderStatus: 'closed',
+    });
+    expect(result.type).toBe('work_order_closed');
+    expect(result.label).toBe('OT cerrada');
+  });
+
+  it('returns work_order_closed when own WO is completed', () => {
+    const result = getNextAction({
+      status: 'approved',
+      entityType: 'quote',
+      leadStatus: 'won',
+      workOrderStatus: 'completed',
+    });
+    expect(result.type).toBe('work_order_closed');
+    expect(result.label).toBe('OT cerrada');
+  });
+
+  it('returns work_order_cancelled for approved quote of won lead with own cancelled WO', () => {
+    const result = getNextAction({
+      status: 'approved',
+      entityType: 'quote',
+      leadStatus: 'won',
+      workOrderStatus: 'cancelled',
+    });
+    expect(result.type).toBe('work_order_cancelled');
+    expect(result.label).toBe('OT cancelada');
+  });
+
+  it('returns awaiting_execution for approved quote of won lead with own scheduled WO', () => {
+    const result = getNextAction({
+      status: 'approved',
+      entityType: 'quote',
+      leadStatus: 'won',
+      workOrderStatus: 'scheduled',
+    });
+    expect(result.type).toBe('awaiting_execution');
+    expect(result.label).toBe('Esperando ejecución');
+  });
+
+  it('returns schedule_work_order for sibling draft WO when own WO is absent', () => {
+    const result = getNextAction({
+      status: 'approved',
+      entityType: 'quote',
+      leadStatus: 'won',
+      leadHasWorkOrder: true,
+      leadWorkOrderStatus: 'draft',
+    });
+    expect(result.type).toBe('schedule_work_order');
+    expect(result.label).toBe('Programar la OT');
+  });
+
+  it('returns work_order_closed for sibling closed WO when own WO is absent', () => {
+    const result = getNextAction({
+      status: 'approved',
+      entityType: 'quote',
+      leadStatus: 'won',
+      leadHasWorkOrder: true,
+      leadWorkOrderStatus: 'closed',
+    });
+    expect(result.type).toBe('work_order_closed');
+    expect(result.label).toBe('OT cerrada');
+  });
+
+  it('returns work_order_cancelled for sibling cancelled WO when own WO is absent', () => {
+    const result = getNextAction({
+      status: 'approved',
+      entityType: 'quote',
+      leadStatus: 'won',
+      leadHasWorkOrder: true,
+      leadWorkOrderStatus: 'cancelled',
+    });
+    expect(result.type).toBe('work_order_cancelled');
+    expect(result.label).toBe('OT cancelada');
+  });
+
+  it('returns awaiting_execution for sibling scheduled WO when own WO is absent', () => {
+    const result = getNextAction({
+      status: 'approved',
+      entityType: 'quote',
+      leadStatus: 'won',
+      leadHasWorkOrder: true,
+      leadWorkOrderStatus: 'scheduled',
+    });
+    expect(result.type).toBe('awaiting_execution');
+    expect(result.label).toBe('Esperando ejecución');
+  });
+
+  it('returns none for approved quote of won lead with no WO anywhere', () => {
+    const result = getNextAction({
+      status: 'approved',
+      entityType: 'quote',
+      leadStatus: 'won',
+      leadHasWorkOrder: false,
+    });
+    expect(result.type).toBe('none');
+    expect(result.label).toBe('');
+  });
+
+  it('returns product_sale for direct_sale with product saleType and no WO', () => {
+    const result = getNextAction({
+      status: 'direct_sale',
+      entityType: 'quote',
+      saleType: 'product',
+    });
+    expect(result.type).toBe('product_sale');
+    expect(result.label).toBe('Venta por producto');
+  });
+
+  it('returns work_order_closed for direct_sale with own closed WO', () => {
+    const result = getNextAction({
+      status: 'direct_sale',
+      entityType: 'quote',
+      workOrderStatus: 'closed',
+    });
+    expect(result.type).toBe('work_order_closed');
+    expect(result.label).toBe('OT cerrada');
+  });
+
+  it('returns work_order_closed when direct_sale WO is completed', () => {
+    const result = getNextAction({
+      status: 'direct_sale',
+      entityType: 'quote',
+      workOrderStatus: 'completed',
+    });
+    expect(result.type).toBe('work_order_closed');
+    expect(result.label).toBe('OT cerrada');
+  });
+
+  it('returns work_order_cancelled for direct_sale with cancelled WO', () => {
+    const result = getNextAction({
+      status: 'direct_sale',
+      entityType: 'quote',
+      workOrderStatus: 'cancelled',
+    });
+    expect(result.type).toBe('work_order_cancelled');
+    expect(result.label).toBe('OT cancelada');
+  });
+
+  it('returns awaiting_execution for direct_sale with scheduled WO', () => {
+    const result = getNextAction({
+      status: 'direct_sale',
+      entityType: 'quote',
+      workOrderStatus: 'scheduled',
+    });
+    expect(result.type).toBe('awaiting_execution');
+    expect(result.label).toBe('Esperando ejecución');
+  });
+
+  it('returns schedule_work_order for direct_sale with draft WO', () => {
+    const result = getNextAction({
+      status: 'direct_sale',
+      entityType: 'quote',
+      workOrderStatus: 'draft',
+    });
+    expect(result.type).toBe('schedule_work_order');
+    expect(result.label).toBe('Programar la OT');
   });
 
   it('returns review_and_requote for expired quote', () => {

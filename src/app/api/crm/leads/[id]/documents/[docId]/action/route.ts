@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import { connectDB } from '@/core/db';
 import { QuoteService, ValidationError } from '@/quotes/services/quote.service';
 import DocumentModel from '@/documents/models/document';
+import QuoteModel from '@/quotes/models/quote';
 import WorkOrderModel from '@/operations/models/work-order';
 import { getNextWorkOrderNumber } from '@/operations/helpers/counter';
 import { eventBus } from '@/infrastructure/events/event-bus';
@@ -79,13 +80,25 @@ export async function POST(
       ],
     };
 
-    const quoteResult = await quoteService.createQuote(quoteInput, userId, tenantId);
-    const quoteId = String(quoteResult.quote._id);
+    let quote = await quoteService.resolveQuoteBySourceDocument({
+      sourceDocumentId: documentId,
+      leadId,
+      tenantId,
+    });
+
+    if (!quote) {
+      const quoteResult = await quoteService.createQuote(quoteInput, userId, tenantId);
+      quote = quoteResult.quote;
+    }
+
+    const quoteId = String(quote._id);
 
     // Handle quote status based on action
     if (action === 'quote_sent') {
-      // Send the quote (draft -> sent)
-      await quoteService.sendQuote(quoteId, userId, tenantId);
+      // Send the quote (draft -> sent) only on first send; re-sends are idempotent
+      if (quote.status === 'draft') {
+        await quoteService.sendQuote(quoteId, userId, tenantId);
+      }
 
       return NextResponse.json({
         success: true,
@@ -156,7 +169,6 @@ export async function POST(
         }]);
 
         // Link the work order to the quote
-        const QuoteModel = (await import('@/quotes/models/quote')).default;
         await QuoteModel.updateOne(
           { _id: new mongoose.Types.ObjectId(quoteId) },
           { $set: { convertedToWorkOrder: workOrder._id } }

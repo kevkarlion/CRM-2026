@@ -2,6 +2,13 @@
 
 import { NEXT_ACTION_LABELS, type NextActionType } from '@/quotes/types/client-quote-types';
 
+export function mapWorkOrderStatusToAction(status: string): NextActionType {
+  if (status === 'draft') return 'schedule_work_order';
+  if (status === 'closed' || status === 'completed') return 'work_order_closed';
+  if (status === 'cancelled') return 'work_order_cancelled';
+  return 'awaiting_execution';
+}
+
 export function getNextAction(entity: {
   status: string;
   entityType: string;
@@ -10,6 +17,8 @@ export function getNextAction(entity: {
   workOrderStatus?: string | null;
   leadStatus?: string | null;
   saleType?: string | null;
+  leadHasWorkOrder?: boolean;
+  leadWorkOrderStatus?: string | null;
 }): { type: NextActionType; label: string } {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -19,19 +28,22 @@ export function getNextAction(entity: {
       return { type: 'send_quote', label: NEXT_ACTION_LABELS.send_quote };
     }
     if (entity.status === 'approved') {
-      // Step 1: If lead not won yet → confirm sale first
+      // Step 1: Lead not won yet → confirm sale first
       if (entity.leadStatus !== 'won') {
         return { type: 'confirm_sale', label: NEXT_ACTION_LABELS.confirm_sale };
       }
-      // Step 2-4: Lead won — check work order status
+      // Step 2: Lead won — own work order wins (D5)
       if (entity.workOrderStatus) {
-        if (entity.workOrderStatus === 'draft') {
-          return { type: 'schedule_work_order', label: NEXT_ACTION_LABELS.schedule_work_order };
-        }
-        return { type: 'awaiting_execution', label: NEXT_ACTION_LABELS.awaiting_execution };
+        const type = mapWorkOrderStatusToAction(entity.workOrderStatus);
+        return { type, label: NEXT_ACTION_LABELS[type] };
       }
-      // Lead won but no work order → convert to OT
-      return { type: 'convert_to_work_order', label: NEXT_ACTION_LABELS.convert_to_work_order };
+      // Step 3: Lead won, no own WO → map sibling lead WO (D2)
+      if (entity.leadHasWorkOrder && entity.leadWorkOrderStatus) {
+        const type = mapWorkOrderStatusToAction(entity.leadWorkOrderStatus);
+        return { type, label: NEXT_ACTION_LABELS[type] };
+      }
+      // Step 4: Lead won, no WO anywhere → read-only degenerate (F1)
+      return { type: 'none', label: NEXT_ACTION_LABELS.none };
     }
     if (entity.status === 'expired') {
       return { type: 'review_and_requote', label: NEXT_ACTION_LABELS.review_and_requote };
@@ -63,14 +75,13 @@ export function getNextAction(entity: {
   }
 
   if (entity.entityType === 'quote' && entity.status === 'direct_sale') {
-    // Product sale - no work order or explicitly product
-    if (!entity.workOrderStatus || entity.saleType === 'product') {
-      return { type: 'product_sale', label: NEXT_ACTION_LABELS.product_sale };
+    // Own work order present → WO status wins, including product rows (D3)
+    if (entity.workOrderStatus) {
+      const type = mapWorkOrderStatusToAction(entity.workOrderStatus);
+      return { type, label: NEXT_ACTION_LABELS[type] };
     }
-    if (entity.workOrderStatus === 'draft') {
-      return { type: 'schedule_work_order', label: NEXT_ACTION_LABELS.schedule_work_order };
-    }
-    return { type: 'awaiting_execution', label: NEXT_ACTION_LABELS.awaiting_execution };
+    // No work order (or explicitly product) → product sale
+    return { type: 'product_sale', label: NEXT_ACTION_LABELS.product_sale };
   }
 
   return { type: 'none', label: NEXT_ACTION_LABELS.none };
@@ -80,13 +91,14 @@ const actionStyles: Record<NextActionType, string> = {
   send_quote: 'bg-brand-600 text-white',
   follow_up: 'bg-amber-500 text-gray-900',
   go_to_negotiation: 'bg-violet-600 text-white',
-  convert_to_work_order: 'bg-emerald-700 text-white',
   contact_client: 'bg-rose-600 text-white',
   review_and_requote: 'bg-red-600 text-white',
   respond_counteroffer: 'bg-violet-600 text-white',
   confirm_sale: 'bg-emerald-700 text-white',
   schedule_work_order: 'bg-sky-600 text-white',
   awaiting_execution: 'bg-gray-700 text-white',
+  work_order_closed: 'bg-emerald-600 text-white',
+  work_order_cancelled: 'bg-gray-500 text-white',
   follow_up_visit: 'bg-teal-600 text-white',
   product_sale: 'bg-gray-800 text-white',
   none: '',

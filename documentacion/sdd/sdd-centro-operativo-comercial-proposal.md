@@ -113,7 +113,7 @@ La página `src/app/(dashboard)/quotes/[id]/page.tsx` se rediseña con:
 
 Barra de acciones fijada al fondo (sticky bottom) que muestra las acciones disponibles según el estado actual:
 
-- Para quotes: Enviar, Aprobar, Rechazar, Cancelar, Convertir a OT.
+- Para quotes: Enviar, Aprobar, Rechazar, Cancelar.
 - Para negotiations: Agregar contraoferta, Aceptar, Rechazar.
 - Las acciones no disponibles aparecen deshabilitadas con tooltip explicativo.
 
@@ -152,7 +152,12 @@ El historial de versiones pasa a ser un acordeón colapsado por defecto dentro d
 | Quote status `draft` | "Enviar cotización" |
 | Quote status `sent`, sin cambios del cliente | "Dar seguimiento" |
 | Quote status `sent`, con Negotiation vinculada y cambios solicitados | "Ir a negociación" |
-| Quote status `approved` | "Convertir a orden de trabajo" |
+| Quote status `approved` y lead NO `won` | "Confirmar Venta" |
+| Quote status `approved`, lead `won`, OT `draft` | "Programar la OT" |
+| Quote status `approved`, lead `won`, OT `closed`/`completed` | "OT cerrada" |
+| Quote status `approved`, lead `won`, OT `cancelled` | "OT cancelada" |
+| Quote status `approved`, lead `won`, OT en ejecución | "Esperando ejecución" |
+| Quote status `approved`, lead `won`, sin OT en ningún lado | "—" (solo lectura) |
 | Quote status `sent` y `validUntil` ≤ 7 días | "Contactar cliente" |
 | Quote status `expired` | "Revisar y re-cotizar" |
 | Negotiation status `counteroffer_made` (contraoferta del lead) | "Responder contraoferta" |

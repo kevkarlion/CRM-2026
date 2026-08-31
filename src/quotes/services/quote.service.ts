@@ -195,6 +195,28 @@ export class QuoteService {
     }
   }
 
+  async resolveQuoteBySourceDocument(params: {
+    sourceDocumentId: string;
+    tenantId: string;
+    leadId?: string;
+    clientId?: string;
+  }): Promise<IQuote | null> {
+    const filter: Record<string, unknown> = {
+      sourceDocumentId: new Types.ObjectId(params.sourceDocumentId),
+      tenantId: new Types.ObjectId(params.tenantId),
+      deletedAt: null,
+    };
+    if (params.leadId) {
+      filter.leadId = new Types.ObjectId(params.leadId);
+    }
+    if (params.clientId) {
+      filter.clientId = new Types.ObjectId(params.clientId);
+    }
+
+    const quote = await QuoteModel.findOne(filter).exec();
+    return quote ? (quote as unknown as IQuote) : null;
+  }
+
   async getQuote(quoteId: string, tenantId: string): Promise<GetQuoteResult> {
     const quote = await QuoteModel.findOne({
       _id: new Types.ObjectId(quoteId),
@@ -1033,22 +1055,34 @@ export class QuoteService {
     tenantId: string,
     saleType: 'product' | 'service' | null = null,
   ): Promise<IQuote> {
+    const DIRECT_SALE_STATUSES = ['draft', 'sent', 'approved'];
+
     const quote = await QuoteModel.findOne({
       _id: new Types.ObjectId(quoteId),
       tenantId: new Types.ObjectId(tenantId),
-      status: 'draft',
+      status: { $in: DIRECT_SALE_STATUSES },
       deletedAt: null,
     }).exec();
 
     if (!quote) {
-      throw new ValidationError('Cotización en borrador no encontrada');
+      const existing = await QuoteModel.findOne({
+        _id: new Types.ObjectId(quoteId),
+        tenantId: new Types.ObjectId(tenantId),
+        deletedAt: null,
+      }).exec();
+
+      if (existing && existing.status === 'direct_sale') {
+        return existing as unknown as IQuote;
+      }
+
+      throw new ValidationError('Cotización no encontrada en un estado válido para confirmar la venta');
     }
 
     const updated = await QuoteModel.findOneAndUpdate(
       {
         _id: new Types.ObjectId(quoteId),
         tenantId: new Types.ObjectId(tenantId),
-        status: 'draft',
+        status: { $in: DIRECT_SALE_STATUSES },
         deletedAt: null,
       },
       {

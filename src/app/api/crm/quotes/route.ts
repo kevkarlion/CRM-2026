@@ -64,6 +64,48 @@ export async function GET(request: NextRequest) {
           })) as unknown as typeof result.data;
         }
       }
+
+      // Bulk lookup lead-level work orders (sibling quotes) — best-effort, never break the list
+      const leadIds = result.data
+        .map(q => {
+          const lead = (q as any).leadId;
+          return lead && typeof lead === 'object' ? lead._id : lead;
+        })
+        .filter(Boolean)
+        .map(id => new mongoose.Types.ObjectId(String(id)));
+
+      if (leadIds.length > 0) {
+        const WorkOrderModel = mongoose.models.WorkOrder;
+        if (WorkOrderModel) {
+          const leadWorkOrders = await WorkOrderModel.find({
+            tenantId: new mongoose.Types.ObjectId(tenantId),
+            leadId: { $in: leadIds },
+            deletedAt: null,
+          })
+            .select('_id leadId status')
+            .lean();
+          const leadStatusMap: Record<string, string> = {};
+          for (const wo of leadWorkOrders) {
+            const leadKey = String((wo as any).leadId);
+            if (!leadStatusMap[leadKey]) {
+              leadStatusMap[leadKey] = (wo as any).status;
+            }
+          }
+          enrichedData = (enrichedData as unknown as Record<string, unknown>[]).map(
+            q => {
+              const ownStatus = (q as any).workOrderStatus ?? null;
+              if (ownStatus != null) return q; // own WO wins (D5)
+              const lead = (q as any).leadId;
+              const leadId = lead && typeof lead === 'object' ? lead._id : lead;
+              return {
+                ...q,
+                leadHasWorkOrder: leadStatusMap[String(leadId)] != null,
+                leadWorkOrderStatus: leadStatusMap[String(leadId)] ?? null,
+              };
+            },
+          ) as unknown as typeof result.data;
+        }
+      }
     } catch (e) {
       console.error('[quotes-list] Work order enrichment failed:', e);
     }

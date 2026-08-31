@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
 import { ConversionService, ConversionError } from '@/quotes/services';
+import { requireAdmin } from '@/rbac/api-helpers';
 
 const service = new ConversionService();
 
@@ -8,6 +9,7 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  console.warn('[DEPRECATED] POST /api/crm/quotes/[id]/convert');
   try {
     await connectDB();
     const { id } = await params;
@@ -15,6 +17,11 @@ export async function POST(
     const userId = request.headers.get('x-user-id');
     if (!tenantId || !userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const guard = await requireAdmin(request);
+    if (guard.error) {
+      return NextResponse.json({ error: guard.error }, { status: guard.status ?? 403 });
     }
 
     const body = await request.json() as { priority?: string; category?: string };

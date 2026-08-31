@@ -32,6 +32,7 @@ export class ConversionService {
     tenantId: string,
     options?: ConvertToWorkOrderOptions,
   ): Promise<ConvertToWorkOrderResult> {
+    console.warn('[DEPRECATED] ConversionService.convertToWorkOrder — use the confirm-sale flow instead (doc-action creates the draft WO)');
     const quote = await QuoteModel.findOne({
       _id: new Types.ObjectId(quoteId),
       tenantId: new Types.ObjectId(tenantId),

@@ -200,7 +200,8 @@ export type NextActionType =
   | 'send_quote'
   | 'follow_up'
   | 'go_to_negotiation'
-  | 'convert_to_work_order'
+  | 'work_order_closed'
+  | 'work_order_cancelled'
   | 'contact_client'
   | 'review_and_requote'
   | 'respond_counteroffer'
@@ -210,7 +211,8 @@ export const NEXT_ACTION_LABELS: Record<NextActionType, string> = {
   send_quote: 'Enviar cotización',
   follow_up: 'Dar seguimiento',
   go_to_negotiation: 'Ir a negociación',
-  convert_to_work_order: 'Convertir a orden de trabajo',
+  work_order_closed: 'OT cerrada',
+  work_order_cancelled: 'OT cancelada',
   contact_client: 'Contactar cliente',
   review_and_requote: 'Revisar y re-cotizar',
   respond_counteroffer: 'Responder contraoferta',
@@ -298,12 +300,19 @@ export function mergeQuotesAndNegotiations(
 ```
 if entityType === 'quote':
   if status === 'draft'                               → 'send_quote'
-  if status === 'approved'                            → 'convert_to_work_order'
+  if status === 'approved':
+    if leadStatus !== 'won'                           → 'confirm_sale'
+    if own workOrderStatus                            → mapWO(own)   // draft→schedule; closed/completed→work_order_closed; cancelled→work_order_cancelled; otro→awaiting_execution
+    if leadHasWorkOrder + leadWorkOrderStatus         → mapWO(sibling)
+    else                                              → 'none' (read-only, lead won sin OT)
   if status === 'expired'                             → 'review_and_requote'
   if status === 'sent':
     if validUntil && validUntil <= today+7             → 'contact_client'
     if hasNegotiationWithCounteroffer                  → 'go_to_negotiation'
     else                                               → 'follow_up'
+  if status === 'direct_sale':
+    if own workOrderStatus                            → mapWO(own)
+    else (no WO o saleType product)                    → 'product_sale'
 if entityType === 'negotiation':
   if status === 'counteroffer_made'                   → 'respond_counteroffer'
 return 'none'

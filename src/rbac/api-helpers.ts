@@ -6,6 +6,8 @@ import { Permissions, type PermissionKey, type TenantRoleName } from '@/rbac/per
 
 const ASSIGNABLE_ROLES: TenantRoleName[] = ['Owner', 'Administrator', 'Supervisor', 'Dispatcher'];
 
+const ADMIN_ROLES: TenantRoleName[] = ['Owner', 'Administrator'];
+
 const ROLE_PERMISSIONS: Record<TenantRoleName, PermissionKey[]> = {
   Owner: Object.values(Permissions),
   Administrator: [
@@ -104,4 +106,26 @@ export async function requireAssignPermission(request: NextRequest): Promise<{ e
 export function canAssignTechnician(role: TenantRoleName | null): boolean {
   if (!role) return false;
   return ASSIGNABLE_ROLES.includes(role);
+}
+
+export function isAdminRole(role: TenantRoleName | null): boolean {
+  if (!role) return false;
+  return ADMIN_ROLES.includes(role);
+}
+
+export async function requireAdmin(request: NextRequest): Promise<{ error?: string; status?: number }> {
+  const role = await getUserRole(request);
+
+  if (!role) {
+    return { error: 'No se pudo verificar el rol del usuario', status: 401 };
+  }
+
+  if (!isAdminRole(role)) {
+    return {
+      error: 'No tienes permiso para realizar esta acción. Solo propietarios y administradores pueden ejecutarla.',
+      status: 403,
+    };
+  }
+
+  return {};
 }

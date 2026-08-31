@@ -117,6 +117,17 @@ vi.mock('@/core/models/tenant', () => ({
   },
 }));
 
+vi.mock('@/leads/models/lead', () => ({
+  default: {
+    findOne: vi.fn(() => hoisted.chain),
+    updateOne: vi.fn(),
+  },
+}));
+
+vi.mock('@/core/models/user', () => ({}));
+
+vi.mock('@/crm/models/client', () => ({}));
+
 vi.mock('@/infrastructure/events/event-bus', () => ({
   eventBus: { publish: hoisted.mockPublish },
 }));
@@ -228,5 +239,18 @@ describe('QuoteService publishes clientId in payloads', () => {
     );
 
     expect(publishedPayload(DOMAIN_EVENTS.QUOTE_CREATED)?.clientId).toBeNull();
+  });
+
+  it('resolveQuoteBySourceDocument scopes lookup to the client and returns the found quote', async () => {
+    hoisted.chain.exec.mockResolvedValueOnce(quoteDoc({ sourceDocumentId: 'doc1' }));
+
+    const result = await service.resolveQuoteBySourceDocument({
+      sourceDocumentId: '651ab1c2d3e4f506071b0801',
+      tenantId: TENANT_ID,
+      clientId: CLIENT_ID,
+    });
+
+    expect(result).not.toBeNull();
+    expect(result?._id).toBe('quote1');
   });
 });

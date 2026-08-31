@@ -38,6 +38,8 @@ const hoisted = vi.hoisted(() => {
     mockCursorPage: vi.fn(),
     mockTenantFindById: vi.fn(),
     mockUpdateMany: vi.fn(),
+    mockLeadFindOne: vi.fn(),
+    mockLeadUpdateOne: vi.fn(),
   };
 });
 
@@ -74,6 +76,7 @@ vi.mock('../../src/quotes/models/quote', () => ({
     countDocuments: vi.fn(() => hoisted.chain),
     findOneAndUpdate: vi.fn(() => hoisted.chain),
     updateMany: hoisted.mockUpdateMany,
+    populate: vi.fn((docs: any) => Promise.resolve(docs)),
   },
 }));
 
@@ -110,6 +113,17 @@ vi.mock('../../src/quotes/helpers/calculator', () => ({
 vi.mock('../../src/audit/activity-logger', () => ({
   logActivity: hoisted.mockLogActivity,
 }));
+
+vi.mock('../../src/leads/models/lead', () => ({
+  default: {
+    findOne: hoisted.mockLeadFindOne,
+    updateOne: hoisted.mockLeadUpdateOne,
+  },
+}));
+
+vi.mock('../../src/core/models/user', () => ({}));
+
+vi.mock('../../src/crm/models/client', () => ({}));
 
 vi.mock('../../src/crm/helpers/cursor-pagination', () => ({
   cursorPage: hoisted.mockCursorPage,
@@ -198,6 +212,7 @@ describe('QuoteService', () => {
     hoisted.chain.sort.mockReturnValue(hoisted.chain);
     hoisted.chain.populate.mockReturnValue(hoisted.chain);
     hoisted.mockTenantFindById.mockReturnValue(hoisted.chain);
+    hoisted.mockLeadFindOne.mockReturnValue(hoisted.chain);
   });
 
   describe('createQuote', () => {
@@ -783,6 +798,103 @@ describe('QuoteService', () => {
       const result = await service.expireBatch('tenant1');
 
       expect(result).toBe(3);
+    });
+  });
+
+  describe('resolveQuoteBySourceDocument', () => {
+    it('returns the quote found for the source document', async () => {
+      const quoteDoc = makeQuote({ sourceDocumentId: '651ab1c2d3e4f506071b0801' });
+      hoisted.chain.exec.mockResolvedValueOnce(quoteDoc);
+
+      const result = await service.resolveQuoteBySourceDocument({
+        sourceDocumentId: '651ab1c2d3e4f506071b0801',
+        tenantId: 'tenant1',
+        leadId: 'lead1',
+      });
+
+      expect(result).not.toBeNull();
+      expect(result?._id).toBe('quote1');
+      expect(hoisted.chain.exec).toHaveBeenCalled();
+    });
+
+    it('returns null when no quote exists for the source document', async () => {
+      hoisted.chain.exec.mockResolvedValueOnce(null);
+
+      const result = await service.resolveQuoteBySourceDocument({
+        sourceDocumentId: '651ab1c2d3e4f506071b0801',
+        tenantId: 'tenant1',
+        clientId: 'client1',
+      });
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('markAsDirectSale', () => {
+    it('transitions a draft quote to direct_sale', async () => {
+      const draftDoc = makeQuote({ status: 'draft' });
+      const directDoc = makeQuote({ status: 'direct_sale', approvedAt: new Date(), wonAt: new Date(), convertedAt: new Date() });
+      hoisted.chain.exec
+        .mockResolvedValueOnce(draftDoc)
+        .mockResolvedValueOnce(directDoc);
+      hoisted.mockQuoteVersionCreate.mockResolvedValue([makeVersion()]);
+
+      const result = await service.markAsDirectSale('quote1', 'user1', 'tenant1');
+
+      expect(result.status).toBe('direct_sale');
+      expect(hoisted.mockQuoteVersionCreate).toHaveBeenCalled();
+      expect(hoisted.mockLogActivity).toHaveBeenCalled();
+    });
+
+    it('transitions a sent quote to direct_sale', async () => {
+      const sentDoc = makeQuote({ status: 'sent' });
+      const directDoc = makeQuote({ status: 'direct_sale' });
+      hoisted.chain.exec
+        .mockResolvedValueOnce(sentDoc)
+        .mockResolvedValueOnce(directDoc);
+      hoisted.mockQuoteVersionCreate.mockResolvedValue([makeVersion()]);
+
+      const result = await service.markAsDirectSale('quote1', 'user1', 'tenant1');
+
+      expect(result.status).toBe('direct_sale');
+    });
+
+    it('transitions an approved quote to direct_sale', async () => {
+      const approvedDoc = makeQuote({ status: 'approved' });
+      const directDoc = makeQuote({ status: 'direct_sale' });
+      hoisted.chain.exec
+        .mockResolvedValueOnce(approvedDoc)
+        .mockResolvedValueOnce(directDoc);
+      hoisted.mockQuoteVersionCreate.mockResolvedValue([makeVersion()]);
+
+      const result = await service.markAsDirectSale('quote1', 'user1', 'tenant1');
+
+      expect(result.status).toBe('direct_sale');
+    });
+
+    it('is a silent no-op when the quote is already direct_sale', async () => {
+      const directDoc = makeQuote({ status: 'direct_sale' });
+      hoisted.chain.exec
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(directDoc);
+      hoisted.mockQuoteVersionCreate.mockReset();
+
+      const result = await service.markAsDirectSale('quote1', 'user1', 'tenant1');
+
+      expect(result.status).toBe('direct_sale');
+      expect(hoisted.mockQuoteVersionCreate).not.toHaveBeenCalled();
+      expect(hoisted.mockLogActivity).not.toHaveBeenCalled();
+    });
+
+    it('still throws ValidationError when the quote is rejected', async () => {
+      const rejectedDoc = makeQuote({ status: 'rejected' });
+      hoisted.chain.exec
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(rejectedDoc);
+
+      await expect(
+        service.markAsDirectSale('quote1', 'user1', 'tenant1'),
+      ).rejects.toThrow(ValidationError);
     });
   });
 });

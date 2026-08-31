@@ -41,6 +41,14 @@ describe('Quote State Machine', () => {
       expect(canTransition('sent', 'cancelled')).toBe(true);
     });
 
+    it('allows sent → direct_sale', () => {
+      expect(canTransition('sent', 'direct_sale')).toBe(true);
+    });
+
+    it('allows approved → direct_sale', () => {
+      expect(canTransition('approved', 'direct_sale')).toBe(true);
+    });
+
     it('blocks draft → approved', () => {
       expect(canTransition('draft', 'approved')).toBe(false);
     });
@@ -49,9 +57,9 @@ describe('Quote State Machine', () => {
       expect(canTransition('sent', 'draft')).toBe(false);
     });
 
-    it('blocks approved → any status', () => {
+    it('blocks approved → any status except direct_sale', () => {
       for (const target of ALL_STATUSES) {
-        if (target === 'approved') continue;
+        if (target === 'approved' || target === 'direct_sale') continue;
         expect(canTransition('approved', target)).toBe(false);
       }
     });
@@ -74,6 +82,13 @@ describe('Quote State Machine', () => {
       for (const target of ALL_STATUSES) {
         if (target === 'cancelled') continue;
         expect(canTransition('cancelled', target)).toBe(false);
+      }
+    });
+
+    it('blocks direct_sale → direct_sale (and any other status)', () => {
+      for (const target of ALL_STATUSES) {
+        if (target === 'direct_sale') continue;
+        expect(canTransition('direct_sale', target)).toBe(false);
       }
     });
   });
@@ -135,11 +150,15 @@ describe('Quote State Machine', () => {
       }
     });
 
-    it('terminal statuses have no outgoing transitions', () => {
-      expect(VALID_TRANSITIONS.approved).toHaveLength(0);
+    it('terminal statuses (except approved) have no outgoing transitions', () => {
       expect(VALID_TRANSITIONS.rejected).toHaveLength(0);
       expect(VALID_TRANSITIONS.expired).toHaveLength(0);
       expect(VALID_TRANSITIONS.cancelled).toHaveLength(0);
+      expect(VALID_TRANSITIONS.direct_sale).toHaveLength(0);
+    });
+
+    it('approved has exactly one outgoing transition (direct_sale)', () => {
+      expect(VALID_TRANSITIONS.approved).toEqual(['direct_sale']);
     });
   });
 

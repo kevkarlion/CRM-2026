@@ -434,12 +434,16 @@ Lógica de negocio para calcular la próxima acción sugerida para cada entidad.
 
 **Prioridad**: Must have
 
-#### REQ-NA-04: Approved → "Convertir a orden de trabajo"
+#### REQ-NA-04: Approved → próxima acción según lead y estado de la OT
 
-**Descripción**: El sistema DEBE sugerir "Convertir a orden de trabajo" cuando el Quote está `approved`.
+**Descripción**: El sistema DEBE sugerir la próxima acción correcta para un Quote `approved` según el estado del lead y de las órdenes de trabajo vinculadas (propias y del lead).
 
 **Criterios de aceptación**:
-- Si `entityType === 'quote'` y `status === 'approved'`, la acción DEBE ser "Convertir a orden de trabajo".
+- Si `entityType === 'quote'`, `status === 'approved'` y `leadStatus !== 'won'`, la acción DEBE ser "Confirmar Venta".
+- Si el lead está `won` y el Quote tiene OT propia (`workOrderStatus`), la acción DEBE mapearse según el estado de la OT: `draft` → "Programar la OT"; `closed`/`completed` → "OT cerrada"; `cancelled` → "OT cancelada"; otros estados no terminales → "Esperando ejecución".
+- Si el lead está `won`, el Quote no tiene OT propia pero existe OT del lead (`leadHasWorkOrder === true`), la acción DEBE mapearse con la misma tabla usando el estado de la OT del lead (`leadWorkOrderStatus`).
+- Si el lead está `won` y no existe OT en ningún lado (`leadHasWorkOrder === false`), el Quote DEBE quedar en modo solo lectura (acción `none`, sin label accionable).
+- La acción `convert_to_work_order` fue removida: una venta de servicio confirmada SIEMPRE crea una OT en `draft` vía doc-action, por lo que la conversión manual es inalcanzable en el flujo normal.
 
 **Prioridad**: Must have
 
@@ -495,7 +499,7 @@ Rediseño de la página de detalle con layout de dos columnas, action bar persis
 **Descripción**: El sistema DEBE mostrar una barra de acciones fijada al fondo (sticky bottom) con acciones disponibles según el estado actual.
 
 **Criterios de aceptación**:
-- Para Quotes: DEBE mostrar botones Enviar, Aprobar, Rechazar, Cancelar, Convertir a OT según el estado.
+- Para Quotes: DEBE mostrar botones Enviar, Aprobar, Rechazar, Cancelar según el estado.
 - Para Negotiations: DEBE mostrar botones Agregar contraoferta, Aceptar, Rechazar según el estado.
 - Las acciones no disponibles DEBEN aparecer deshabilitadas con tooltip explicativo.
 - La barra DEBE ser sticky al fondo de la ventana.
@@ -579,7 +583,7 @@ Tipos compartidos de UI para garantizar consistencia entre componentes.
 **Descripción**: El sistema DEBE definir un tipo `NextAction` como string union con los valores posibles de próxima acción.
 
 **Criterios de aceptación**:
-- DEBE incluir: `'send_quote' | 'follow_up' | 'go_to_negotiation' | 'convert_to_work_order' | 'contact_client' | 'review_and_requote' | 'respond_counteroffer' | 'none'`.
+- DEBE incluir: `'send_quote' | 'follow_up' | 'go_to_negotiation' | 'contact_client' | 'review_and_requote' | 'respond_counteroffer' | 'confirm_sale' | 'schedule_work_order' | 'awaiting_execution' | 'work_order_closed' | 'work_order_cancelled' | 'follow_up_visit' | 'product_sale' | 'none'`.
 - DEBE incluir un label legible para cada valor.
 
 **Prioridad**: Must have
@@ -635,9 +639,15 @@ Tipos compartidos de UI para garantizar consistencia entre componentes.
 - **Given** un Quote en estado `sent` sin negociación vinculada
 - **When** se renderiza la columna "Próxima Acción"
 - **Then** DEBE mostrar "Dar seguimiento"
-- **Given** un Quote en estado `approved`
+- **Given** un Quote en estado `approved` de un lead que NO está `won` (o sin lead)
 - **When** se renderiza la columna "Próxima Acción"
-- **Then** DEBE mostrar "Convertir a orden de trabajo"
+- **Then** DEBE mostrar "Confirmar Venta"
+- **Given** un Quote en estado `approved` de un lead `won` con OT `closed`/`completed`
+- **When** se renderiza la columna "Próxima Acción"
+- **Then** DEBE mostrar "OT cerrada"
+- **Given** un Quote en estado `approved` de un lead `won` sin OT en ningún lado
+- **When** se renderiza la columna "Próxima Acción"
+- **Then** DEBE quedar en modo solo lectura ("—")
 
 ### SCEN-05: Usuario ve colores de expiry badge correctamente
 

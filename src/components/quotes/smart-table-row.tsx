@@ -77,6 +77,8 @@ export function SmartTableRow({ row }: SmartTableRowProps) {
     workOrderStatus: row.workOrderStatus,
     leadStatus: row.leadStatus,
     saleType: row.saleType,
+    leadHasWorkOrder: row.leadHasWorkOrder,
+    leadWorkOrderStatus: row.leadWorkOrderStatus,
   });
   const statusColor = getStatusColor(row.status);
   const validDate = row.validUntil ? formatDateShort(row.validUntil) : null;
@@ -159,6 +161,8 @@ export function QuoteMobileCard({ row }: SmartTableRowProps) {
     workOrderStatus: row.workOrderStatus,
     leadStatus: row.leadStatus,
     saleType: row.saleType,
+    leadHasWorkOrder: row.leadHasWorkOrder,
+    leadWorkOrderStatus: row.leadWorkOrderStatus,
   });
   const statusColor = getStatusColor(row.status);
   const validDate = row.validUntil ? formatDateShort(row.validUntil) : null;

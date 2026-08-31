@@ -2,8 +2,8 @@ import { QuoteStatus } from '../types/quote';
 
 export const VALID_TRANSITIONS: Record<QuoteStatus, QuoteStatus[]> = {
   draft: ['sent', 'cancelled'],
-  sent: ['approved', 'rejected', 'expired', 'cancelled'],
-  approved: [],
+  sent: ['approved', 'rejected', 'expired', 'cancelled', 'direct_sale'],
+  approved: ['direct_sale'],
   rejected: [],
   expired: [],
   cancelled: [],

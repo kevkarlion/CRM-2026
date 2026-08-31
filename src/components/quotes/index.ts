@@ -12,7 +12,6 @@ export { mergeQuotesAndNegotiations } from './data-utils';
 export { DetailInfoPanel } from './detail-info-panel';
 export { VersionHistory } from './version-history';
 export { ActivityTimeline } from './activity-timeline';
-export { DetailActionBar } from './detail-action-bar';
 export type {
   QuoteTableRow,
   QuoteSummaryStats,

@@ -2,13 +2,14 @@ export type NextActionType =
   | 'send_quote'
   | 'follow_up'
   | 'go_to_negotiation'
-  | 'convert_to_work_order'
   | 'contact_client'
   | 'review_and_requote'
   | 'respond_counteroffer'
   | 'confirm_sale'
   | 'schedule_work_order'
   | 'awaiting_execution'
+  | 'work_order_closed'
+  | 'work_order_cancelled'
   | 'follow_up_visit'
   | 'product_sale'
   | 'none';
@@ -17,13 +18,14 @@ export const NEXT_ACTION_LABELS: Record<NextActionType, string> = {
   send_quote: 'Enviar cotización',
   follow_up: 'Dar seguimiento',
   go_to_negotiation: 'Ir a negociación',
-  convert_to_work_order: 'Convertir a orden de trabajo',
   contact_client: 'Contactar cliente',
   review_and_requote: 'Revisar y re-cotizar',
   respond_counteroffer: 'Responder contraoferta',
   confirm_sale: 'Confirmar Venta',
   schedule_work_order: 'Programar la OT',
   awaiting_execution: 'Esperando ejecución',
+  work_order_closed: 'OT cerrada',
+  work_order_cancelled: 'OT cancelada',
   follow_up_visit: 'Seguimiento de visita',
   product_sale: 'Venta por producto',
   none: '',
@@ -52,6 +54,8 @@ export interface QuoteTableRow {
   entityStatus: string;
   workOrderStatus?: string | null;
   leadStatus?: string | null;
+  leadHasWorkOrder?: boolean;
+  leadWorkOrderStatus?: string | null;
 }
 
 export interface QuoteSummaryStats {
@@ -100,6 +104,8 @@ export interface ApiQuote {
   leadName?: string;
   leadStatus?: string;
   workOrderStatus?: string | null;
+  leadHasWorkOrder?: boolean;
+  leadWorkOrderStatus?: string | null;
 }
 
 export interface ApiNegotiation {

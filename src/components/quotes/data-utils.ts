@@ -37,6 +37,8 @@ function mapQuoteToRow(quote: ApiQuote): QuoteTableRow {
     entityStatus: quote.status,
     workOrderStatus: (quote as any).workOrderStatus ?? null,
     leadStatus: (quote as any).leadStatus ?? null,
+    leadHasWorkOrder: (quote as any).leadHasWorkOrder,
+    leadWorkOrderStatus: (quote as any).leadWorkOrderStatus ?? null,
   };
 }
 

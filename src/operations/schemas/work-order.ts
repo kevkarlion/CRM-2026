@@ -135,6 +135,7 @@ export const workOrderSchema = new Schema<IWorkOrder>(
 workOrderSchema.index({ tenantId: 1, status: 1, scheduledDate: -1 });
 workOrderSchema.index({ tenantId: 1, workOrderNumber: 1 }, { unique: true });
 workOrderSchema.index({ tenantId: 1, clientId: 1, status: 1 });
+workOrderSchema.index({ tenantId: 1, leadId: 1 });
 workOrderSchema.index({ tenantId: 1, assignedTechnicians: 1, status: 1 });
 workOrderSchema.index({ tenantId: 1, scheduledDate: 1, status: 1 });
 workOrderSchema.index({ tenantId: 1, status: 1, closedAt: 1 });
