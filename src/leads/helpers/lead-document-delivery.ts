@@ -19,6 +19,6 @@ export function buildWhatsAppSendPayload(
 }
 
 export function resolvePhoneError(phone: string | null | undefined): string | null {
-  if (!phone) return PHONE_MISSING_ERROR;
+  if (!phone || phone.trim() === '') return PHONE_MISSING_ERROR;
   return null;
 }

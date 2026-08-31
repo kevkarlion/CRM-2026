@@ -82,6 +82,7 @@ export function LeadDocumentationTab({ leadId, leadStatus, leadPhone, onStatusCh
   const [uploadType, setUploadType] = useState<DocumentType>('otro');
   const [uploadDescription, setUploadDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [deliveryError, setDeliveryError] = useState<string | null>(null);
 
   // Action states
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -282,6 +283,7 @@ export function LeadDocumentationTab({ leadId, leadStatus, leadPhone, onStatusCh
     setActionLoading(action);
     setActionDocId(docId);
     setError(null);
+    setDeliveryError(null);
 
     // Handle approve action (separate API call)
     if (action === 'approved') {
@@ -320,14 +322,16 @@ export function LeadDocumentationTab({ leadId, leadStatus, leadPhone, onStatusCh
 
         const phoneError = resolvePhoneError(leadPhone);
         if (phoneError) {
-          throw new Error(phoneError);
+          setDeliveryError(phoneError);
+          return;
         }
 
         const payload = buildWhatsAppSendPayload(doc, { phone: leadPhone!, leadId });
         try {
           await api.post('/api/webhook/whatsapp/send-document', payload);
         } catch {
-          throw new Error(WHATSAPP_SEND_ERROR);
+          setDeliveryError(WHATSAPP_SEND_ERROR);
+          return;
         }
 
         await api.post('/api/crm/remitos', { documentId: doc._id, leadId });
@@ -364,14 +368,16 @@ export function LeadDocumentationTab({ leadId, leadStatus, leadPhone, onStatusCh
 
         const phoneError = resolvePhoneError(leadPhone);
         if (phoneError) {
-          throw new Error(phoneError);
+          setDeliveryError(phoneError);
+          return;
         }
 
         const payload = buildWhatsAppSendPayload(doc, { phone: leadPhone!, leadId });
         try {
           await api.post('/api/webhook/whatsapp/send-document', payload);
         } catch {
-          throw new Error(WHATSAPP_SEND_ERROR);
+          setDeliveryError(WHATSAPP_SEND_ERROR);
+          return;
         }
       }
 
@@ -935,6 +941,24 @@ export function LeadDocumentationTab({ leadId, leadStatus, leadPhone, onStatusCh
           <span>{error}</span>
           <button 
             onClick={() => setError(null)}
+            className="ml-2 hover:text-red-200"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {/* Delivery Error Notification (toast only, kept separate from the inline panel) */}
+      {deliveryError && (
+        <div className="fixed bottom-4 right-4 bg-red-600 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-2 z-50">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+          <span>{deliveryError}</span>
+          <button 
+            onClick={() => setDeliveryError(null)}
             className="ml-2 hover:text-red-200"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

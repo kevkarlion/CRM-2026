@@ -354,4 +354,64 @@ describe('LeadDocumentationTab — remito delivery', () => {
     expect(callsFor(hoisted.apiPost, u => String(u).includes(REMITOS_POST_URL))).toHaveLength(0);
     expect(screen.queryByRole('button', { name: 'Enviar remito' })).not.toBeNull();
   });
+
+  it('renders the WhatsApp failure only once as a floating toast, not inside the inline error panel', async () => {
+    const user = userEvent.setup();
+    const remitoDoc = makeDoc({ _id: 'doc-rem', documentType: 'remito', title: 'Remito 0001' });
+    setupApi({
+      documents: [remitoDoc],
+      quotes: [],
+      remitos: [],
+      sendDocumentResult: 'server-error',
+    });
+    render(<LeadDocumentationTab leadId="lead-1" leadPhone="+5491123456789" />);
+
+    await user.click(await screen.findByRole('button', { name: 'Enviar remito' }));
+    await user.click(screen.getByRole('button', { name: 'Confirmar' }));
+
+    const errors = await screen.findAllByText(WHATSAPP_SEND_ERROR);
+    expect(errors).toHaveLength(1);
+  });
+
+  it('shows the missing-phone error and calls neither send-document nor remito POST when the lead has no phone', async () => {
+    const user = userEvent.setup();
+    const remitoDoc = makeDoc({ _id: 'doc-rem', documentType: 'remito', title: 'Remito 0001' });
+    setupApi({ documents: [remitoDoc], quotes: [], remitos: [] });
+    render(<LeadDocumentationTab leadId="lead-1" leadPhone="" />);
+
+    await user.click(await screen.findByRole('button', { name: 'Enviar remito' }));
+    await user.click(screen.getByRole('button', { name: 'Confirmar' }));
+
+    const phoneErrors = await screen.findAllByText(PHONE_MISSING_ERROR);
+    expect(phoneErrors.length).toBeGreaterThan(0);
+    expect(callsFor(hoisted.apiPost, u => u === SEND_DOCUMENT_URL)).toHaveLength(0);
+    expect(callsFor(hoisted.apiPost, u => String(u).includes(REMITOS_POST_URL))).toHaveLength(0);
+  });
+
+  it('double-tap on Confirm triggers exactly one send-document and one remito POST', async () => {
+    const user = userEvent.setup();
+    const deferred = createDeferred<unknown>();
+    const remitoDoc = makeDoc({ _id: 'doc-rem', documentType: 'remito', title: 'Remito 0001' });
+    setupApi({
+      documents: [remitoDoc],
+      quotes: [],
+      remitos: [],
+      sendDocumentResult: 'deferred',
+      deferred,
+    });
+    render(<LeadDocumentationTab leadId="lead-1" leadPhone="+5491123456789" />);
+
+    await user.click(await screen.findByRole('button', { name: 'Enviar remito' }));
+    const confirmButton = screen.getByRole('button', { name: 'Confirmar' });
+    await user.dblClick(confirmButton);
+
+    await act(async () => {
+      deferred.resolve({ message: {} });
+    });
+
+    const badge = await screen.findByText(/^Enviado/);
+    expect(badge.textContent).toMatch(/\d{2}\/\d{2}\/\d{4}/);
+    expect(callsFor(hoisted.apiPost, u => u === SEND_DOCUMENT_URL)).toHaveLength(1);
+    expect(callsFor(hoisted.apiPost, u => String(u).includes(REMITOS_POST_URL))).toHaveLength(1);
+  });
 });

@@ -38,6 +38,10 @@ describe('lead-document-delivery helper', () => {
     it('returns an empty string when input has no digits or plus', () => {
       expect(sanitizePhone('abc-def')).toBe('');
     });
+
+    it('returns an empty string when input is whitespace-only', () => {
+      expect(sanitizePhone('   ')).toBe('');
+    });
   });
 
   describe('buildWhatsAppSendPayload', () => {
@@ -83,6 +87,10 @@ describe('lead-document-delivery helper', () => {
 
     it('returns the missing-phone error when phone is an empty string', () => {
       expect(resolvePhoneError('')).toBe(PHONE_MISSING_ERROR);
+    });
+
+    it('returns the missing-phone error when phone is whitespace-only', () => {
+      expect(resolvePhoneError('   ')).toBe(PHONE_MISSING_ERROR);
     });
 
     it('returns null when a phone is provided', () => {
