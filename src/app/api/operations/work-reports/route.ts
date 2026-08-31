@@ -153,6 +153,7 @@ export async function GET(request: Request) {
             workOrderId: 1,
             technicalVisitId: 1,
             technicianId: 1,
+            viewedAt: 1,
             workOrderNumber: '$workOrder.workOrderNumber',
             visitNumber: '$technicalVisit.visitNumber',
             clientName: {
@@ -229,7 +230,8 @@ export async function GET(request: Request) {
       }
       const technicianEmail = tech?.email || '';
       
-      return { ...r, durationMinutes, technicianName, technicianEmail };
+      // Un informe es "nuevo" mientras nadie lo haya visto (viewedAt null).
+      return { ...r, durationMinutes, technicianName, technicianEmail, isNew: !r.viewedAt };
     });
 
     // Get total count

@@ -129,6 +129,8 @@ export const workReportSchema = new Schema<IWorkReport>(
       default: [],
     },
     version: { type: Number, default: 0 },
+    // Marca cuando CUALQUIER usuario vio el informe (global). null = "nuevo".
+    viewedAt: { type: Date, default: null },
     ...auditFields,
   },
   { timestamps: true }

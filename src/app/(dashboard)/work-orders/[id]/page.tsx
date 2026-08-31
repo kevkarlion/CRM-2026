@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Component, useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { api, unwrapData } from '@/lib/api-client';
 import { Drawer } from '@/lib/components/Drawer';
@@ -14,6 +14,31 @@ import { WORK_ORDER_STATUS_LABELS } from '@/operations/constants/status-labels';
 function shortWO(number: string): string {
   if (!number) return '';
   return number.slice(-7);
+}
+
+// ErrorBoundary para depurar el blanco del drawer de edición
+class ReportErrorBoundary extends Component<{ children: React.ReactNode }, { error: unknown }> {
+  state = { error: null as unknown };
+
+  static getDerivedStateFromError(error: unknown) {
+    return { error };
+  }
+
+  componentDidCatch(error: unknown, info: unknown) {
+    console.error('[ReportErrorBoundary] ERROR al renderizar el formulario de edición:', error, info);
+  }
+
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          <p className="font-semibold mb-1">Error al renderizar el formulario:</p>
+          <pre className="whitespace-pre-wrap text-xs">{String(this.state.error)}</pre>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }
 
 interface WorkOrder {
@@ -169,6 +194,9 @@ export default function WorkOrderDetailPage() {
   // Work Report Drawer state - reuse existing loadingReport state
   const [showReportDrawer, setShowReportDrawer] = useState(false);
   const [workReport, setWorkReport] = useState<any>(null);
+  const [showEditReport, setShowEditReport] = useState(false);
+  // Copia del informe al momento de abrir la edición (no depende de workReport, que puede resetearse).
+  const [editReportData, setEditReportData] = useState<any>(null);
 
   // Work execution state
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -373,6 +401,12 @@ export default function WorkOrderDetailPage() {
   function handleOpenReport() {
     loadWorkReport();
     setShowReportDrawer(true);
+  }
+
+  function handleEditReportSuccess() {
+    setShowEditReport(false);
+    setEditReportData(null);
+    loadWorkReport();
   }
 
   async function handleDelete() {
@@ -1367,12 +1401,74 @@ Registro
                 </p>
               </div>
             )}
+
+            {workReport.canEdit && (
+              <div className="pt-2 border-t border-gray-200">
+                <p className="text-xs text-gray-400 mb-3">
+                  Podés editar el informe hasta{' '}
+                  {workReport.editExpiresAt
+                    ? new Date(workReport.editExpiresAt).toLocaleString('es-CL')
+                    : 'las próximas horas'}.
+                </p>
+                <button
+                  onClick={() => {
+                    console.log('[EditReport] click Editar Informe. workReport:', workReport);
+                    setEditReportData(workReport);
+                    setShowEditReport(true);
+                  }}
+                  className="w-full rounded-lg bg-brand-600 py-3 text-sm font-semibold text-white hover:bg-brand-700 transition-colors"
+                >
+                  Editar Informe
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="text-center py-8 text-gray-500">
             No hay reporte disponible
           </div>
         )}
+      </Drawer>
+
+      {/* Work Report Edit Drawer */}
+      <Drawer
+        isOpen={showEditReport}
+        onClose={() => {
+          setShowEditReport(false);
+          setEditReportData(null);
+        }}
+        title="Editar Informe Técnico"
+      >
+        {(() => {
+          console.log('[EditReport] render drawer. showEditReport:', showEditReport, 'editReportData:', editReportData, 'version:', editReportData?.version);
+          return showEditReport && editReportData ? (
+          <ReportErrorBoundary>
+          <WorkCompletionForm
+            workOrderId={id}
+            mode="edit"
+            version={editReportData.version}
+            initialData={{
+              result: editReportData.result,
+              workPerformed: editReportData.workPerformed,
+              workPerformedOther: editReportData.workPerformedOther,
+              hasObservations: editReportData.hasObservations,
+              observationsText: editReportData.observationsText,
+              hasAdditionalIssues: editReportData.hasAdditionalIssues,
+              additionalIssues: editReportData.additionalIssues,
+              additionalIssuesText: editReportData.additionalIssuesText,
+              nextVisitRecommendation: editReportData.nextVisitRecommendation,
+              internalComments: editReportData.internalComments,
+              materialsItems: editReportData.materialsItems,
+            }}
+            onSuccess={handleEditReportSuccess}
+            onCancel={() => {
+              setShowEditReport(false);
+              setEditReportData(null);
+            }}
+          />
+          </ReportErrorBoundary>
+          ) : null;
+        })()}
       </Drawer>
       
       {/* Confirmation Modal for Start/Complete */}

@@ -31,6 +31,7 @@ interface WorkReport {
   leadName?: string;
   leadPhone?: string;
   entityType: 'OT' | 'VT';
+  isNew?: boolean;
 }
 
 type SortField = 'finishedAt' | 'clientName' | 'result';
@@ -52,27 +53,17 @@ function InformesPageContent() {
   const [filterType, setFilterType] = useState<string>('');
   const [filterTechnician, setFilterTechnician] = useState<string>('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [viewedIds, setViewedIds] = useState<string[]>([]);
 
-  // Load viewed IDs from sessionStorage on mount
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const stored = sessionStorage.getItem('work-reports-viewed');
-      if (stored) {
-        setViewedIds(JSON.parse(stored));
-      }
-    }
-  }, []);
-
-  // Mark as viewed when drawer opens
+  // Mark as viewed when drawer opens (global: un solo usuario lo marca para todos)
   const handleView = (report: WorkReport) => {
     setSelectedReport(report);
     setShowDrawer(true);
-    // Mark as viewed
-    if (!viewedIds.includes(report._id)) {
-      const newViewed = [...viewedIds, report._id];
-      setViewedIds(newViewed);
-      sessionStorage.setItem('work-reports-viewed', JSON.stringify(newViewed));
+    if (report.isNew) {
+      setReports(prev => prev.map(r => r._id === report._id ? { ...r, isNew: false } : r));
+      api.patch(`/api/operations/work-reports/${report._id}/view`, {}).catch(() => {
+        // Si la API falla, revertimos el badge local para reintentar después.
+        setReports(prev => prev.map(r => r._id === report._id ? { ...r, isNew: true } : r));
+      });
     }
   };
 
@@ -338,7 +329,7 @@ function InformesPageContent() {
                     <td className="px-3 py-2 text-xs text-gray-700 max-w-[150px] truncate">
                       <div className="flex items-center gap-1">
                         <span className="truncate max-w-[120px]">{report.result}</span>
-                        {!viewedIds.includes(report._id) && (
+                        {report.isNew && (
                           <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-brand-100 text-brand-700">
                             Nuevo
                           </span>
@@ -456,7 +447,7 @@ function InformesPageContent() {
                   <p className="text-[10px] font-medium uppercase tracking-wider text-gray-500">Resultado</p>
                   <div className="flex items-center gap-1.5 min-w-0">
                     <p className="truncate text-xs font-medium text-gray-900">{report.result}</p>
-                    {!viewedIds.includes(report._id) && (
+                    {report.isNew && (
                       <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-brand-600 text-white">
                         Nuevo
                       </span>

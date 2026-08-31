@@ -107,7 +107,21 @@ export class WorkReportService {
     tenantId: string,
     userId: string,
   ): Promise<IWorkReport | null> {
-    const { version, ...fields } = data;
+    const { version, ...rest } = data;
+
+    // Defense in depth: never allow editing dates, times or identity fields.
+    const IMMUTABLE_FIELDS = [
+      'startedAt', 'finishedAt', 'arrivalTime', 'departureTime',
+      'tenantId', 'workOrderId', 'technicalVisitId', 'technicianId',
+      'createdBy',
+    ] as const;
+
+    const fields: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(rest)) {
+      if (!(IMMUTABLE_FIELDS as readonly string[]).includes(key)) {
+        fields[key] = value;
+      }
+    }
 
     const updated = await WorkReportModel.findOneAndUpdate(
       {

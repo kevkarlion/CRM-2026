@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
 import mongoose from 'mongoose';
+import { TechnicianModel } from '@/operations/models/technician';
+
+const EDIT_WINDOW_HOURS = 12;
 
 export async function GET(
   request: NextRequest,
@@ -9,7 +12,8 @@ export async function GET(
   try {
     await connectDB();
     const { id } = await params;
-    
+    const tenantId = request.headers.get('x-tenant-id') || '';
+    const userId = request.headers.get('x-user-id') || '';
     const db = mongoose.connection.db;
     
     // Find the workOrder to get workReportId
@@ -58,12 +62,42 @@ export async function GET(
       const tech = await db.collection('platformusers').findOne({ _id: report.technicianId });
       if (tech) technicianName = `${tech.firstName || ''} ${tech.lastName || ''}`.trim() || tech.email || 'Técnico';
     }
+
+    // Compute edit eligibility: only the technician who owns the OT, within 12h window.
+    let canEdit = false;
+    let editExpiresAt: string | null = null;
+    if (tenantId && userId) {
+      try {
+        const technician = await TechnicianModel.findOne({
+          userId: new mongoose.Types.ObjectId(userId),
+          tenantId: new mongoose.Types.ObjectId(tenantId),
+          deletedAt: null,
+        }).lean();
+
+        const isAuthor = technician && report.technicianId
+          ? String(report.technicianId) === String(technician._id)
+          : false;
+
+        const baseTime = report.finishedAt
+          ? new Date(report.finishedAt).getTime()
+          : new Date(report.createdAt).getTime();
+        const expiresAt = baseTime + EDIT_WINDOW_HOURS * 60 * 60 * 1000;
+
+        canEdit = isAuthor && Date.now() <= expiresAt;
+        editExpiresAt = new Date(expiresAt).toISOString();
+      } catch {
+        // If technician lookup fails, default to not editable (deny).
+        canEdit = false;
+      }
+    }
     
     return NextResponse.json({
       data: {
         ...report,
         technicianName,
         duration,
+        canEdit,
+        editExpiresAt,
       }
     });
   } catch (error) {

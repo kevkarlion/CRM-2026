@@ -60,6 +60,7 @@ export interface IWorkReport extends Document, IAuditFields {
   internalComments?: string | null;
   materialsItems?: { item: string; quantity: number; unit: string }[];
   version: number;
+  viewedAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
