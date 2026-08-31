@@ -68,7 +68,6 @@ export async function POST(
       hasTechnicians: workOrder.assignedTechnicians && workOrder.assignedTechnicians.length > 0,
       hasSchedule: !!(workOrder.scheduledDate || workOrder.scheduledStart),
       hasChecklist: false, // Will be validated separately
-      hasVisitReport: false,
     };
 
     // Validate the transition

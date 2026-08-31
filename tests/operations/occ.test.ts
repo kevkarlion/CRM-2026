@@ -46,9 +46,6 @@ vi.mock('../../src/operations/models', () => ({
   WorkOrderEventModel: {
     create: vi.fn(),
   },
-  VisitReportModel: {
-    exists: vi.fn(),
-  },
 }));
 
 vi.mock('../../src/audit/activity-logger', () => ({

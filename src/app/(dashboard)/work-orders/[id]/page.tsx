@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { api, unwrapData } from '@/lib/api-client';
 import { Drawer } from '@/lib/components/Drawer';
-import { VisitReportForm } from '@/operations/components/VisitReportForm';
 import { SelfAssignmentDrawer } from '@/operations/components/SelfAssignmentDrawer';
 import { WorkCompletionForm } from '@/operations/components/WorkCompletionForm';
 import { formatDateLong as formatDate } from '@/operations/helpers/date-utils';
@@ -56,23 +55,6 @@ interface ChecklistItem {
   _id: string;
   description: string;
   completed: boolean;
-}
-
-interface VisitReport {
-  _id: string;
-  workOrderId: string;
-  technicianId?: string;
-  arrivalTime?: string;
-  departureTime?: string;
-  workPerformed?: string;
-  observations?: string;
-  recommendations?: string;
-  materialsUsed?: string;
-  materialsItems?: { item: string; quantity: number; unit: string }[];
-  needsNextVisit?: boolean;
-  internalComments?: string;
-  attachments?: { filename: string; url: string; type: string; uploadedAt: string }[];
-  version?: number;
 }
 
 const STATUS_OPTIONS: Record<string, string> = {
@@ -168,9 +150,7 @@ export default function WorkOrderDetailPage() {
   const [loadingChecklist, setLoadingChecklist] = useState(false);
   const [newCheckItem, setNewCheckItem] = useState('');
   const [addingCheckItem, setAddingCheckItem] = useState(false);
-  const [report, setReport] = useState<VisitReport | null>(null);
   const [loadingReport, setLoadingReport] = useState(false);
-  const [showReportForm, setShowReportForm] = useState(false);
   // Self-assignment drawer
   const [selfAssignOpen, setSelfAssignOpen] = useState(false);
   const [selfAssigning, setSelfAssigning] = useState(false);
@@ -304,9 +284,6 @@ export default function WorkOrderDetailPage() {
     if (!workOrder) return;
     loadChecklist();
     loadTechnicians(); // Always pre-load for assign/reassign
-    if (workOrder.status === 'completed') {
-      loadReport();
-    }
   }, [workOrder?._id]);
 
   // Load timeline whenRegistro tab is active
@@ -365,18 +342,6 @@ export default function WorkOrderDetailPage() {
       loadChecklist();
     } catch {
       setError('Error al actualizar item');
-    }
-  }
-
-  async function loadReport() {
-    setLoadingReport(true);
-    try {
-      const result = await api.get<{ data: VisitReport | null }>(`/api/operations/work-orders/${id}/report`);
-      setReport(unwrapData(result));
-    } catch {
-      // silently ignore
-    } finally {
-      setLoadingReport(false);
     }
   }
 

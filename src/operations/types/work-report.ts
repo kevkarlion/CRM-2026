@@ -94,8 +94,8 @@ export interface CreateWorkReportApiInput {
   nextVisitRecommendation?: string;
   startedAt: Date;
   finishedAt: Date;
-  arrivalTime?: Date | null;
-  departureTime?: Date | null;
+  arrivalTime?: string | Date | null;
+  departureTime?: string | Date | null;
   internalComments?: string;
   materialsItems?: { item: string; quantity: number; unit: string }[];
 }

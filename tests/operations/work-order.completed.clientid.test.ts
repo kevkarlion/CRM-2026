@@ -42,7 +42,6 @@ vi.mock('@/operations/models', () => ({
   WorkOrderEventModel: {
     create: hoisted.mockEventCreate,
   },
-  VisitReportModel: {},
 }));
 
 vi.mock('@/crm/models', () => ({

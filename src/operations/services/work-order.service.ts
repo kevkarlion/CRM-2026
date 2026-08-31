@@ -1,5 +1,5 @@
 import mongoose, { Types } from 'mongoose';
-import { WorkOrderModel, WorkOrderEventModel, VisitReportModel } from '../models';
+import { WorkOrderModel, WorkOrderEventModel, WorkReportModel } from '../models';
 import WorkOrderAssignmentModel from '../models/work-order-assignment';
 import { IWorkOrder, CreateWorkOrderInput, UpdateWorkOrderInput, WorkOrderStatus } from '../types/work-order';
 import { getNextWorkOrderNumber } from '../helpers/counter';
@@ -596,7 +596,6 @@ export class WorkOrderService {
         hasSchedule: true,
         hasChecklist: false,
         hasTechnicians: false,
-        hasVisitReport: false,
       });
 
       // Sync scheduledDate from scheduledStart (single source of truth)
@@ -688,15 +687,14 @@ export class WorkOrderService {
       );
     }
 
-    const visitReportExists = await VisitReportModel.exists({
+    const workReportExists = await WorkReportModel.exists({
       workOrderId: id,
       tenantId,
-      deletedAt: null,
     });
 
-    if (visitReportExists) {
+    if (workReportExists) {
       throw new ValidationError(
-        'Cannot delete WorkOrder with an existing VisitReport.',
+        'Cannot delete WorkOrder with an existing WorkReport.',
       );
     }
 

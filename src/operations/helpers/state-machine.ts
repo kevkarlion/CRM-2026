@@ -2,7 +2,6 @@ import { WorkOrderStatus } from '../types/work-order';
 
 export interface TransitionContext {
   hasChecklist?: boolean;
-  hasVisitReport?: boolean;
   hasTechnicians?: boolean;
   hasSchedule?: boolean;
 }
@@ -124,14 +123,6 @@ export function validateTransition(
       `Debes completar el checklist antes de iniciar el trabajo`,
       from, to,
       'PreVisitChecklist must be completed before transitioning to in_progress.',
-    );
-  }
-
-  if (from === 'in_progress' && to === 'completed' && !context.hasVisitReport) {
-    throw new TransitionError(
-      `Debes completar el reporte de trabajo antes de finalizar`,
-      from, to,
-      'VisitReport must exist before transitioning to completed.',
     );
   }
 

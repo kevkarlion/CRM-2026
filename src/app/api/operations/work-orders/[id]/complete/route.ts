@@ -23,6 +23,10 @@ interface WorkReportInput {
   additionalIssues?: string[];
   additionalIssuesText?: string;
   nextVisitRecommendation?: string;
+  arrivalTime?: string | null;
+  departureTime?: string | null;
+  internalComments?: string;
+  materialsItems?: { item: string; quantity: number; unit: string }[];
 }
 
 /**
@@ -143,6 +147,10 @@ export async function POST(
       additionalIssues: body.additionalIssues,
       additionalIssuesText: body.additionalIssuesText,
       nextVisitRecommendation: body.nextVisitRecommendation,
+      arrivalTime: body.arrivalTime,
+      departureTime: body.departureTime,
+      internalComments: body.internalComments,
+      materialsItems: body.materialsItems,
       startedAt: startedAt,
       finishedAt: now,
       technicianId: technicianId.toString(),

@@ -3,7 +3,6 @@ import WorkOrderModel from '../models/work-order';
 import WorkOrderAssignmentModel from '../models/work-order-assignment';
 import { TechnicianModel } from '../models/technician';
 import { TechnicalVisitModel } from '../models/technical-visit';
-import VisitReportModel from '../models/visit-report';
 
 export interface OperativeDashboardMetrics {
   summary: {

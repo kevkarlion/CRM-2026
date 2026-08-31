@@ -44,7 +44,6 @@ import '@/operations/models/work-order';
 import '@/operations/models/work-order-assignment';
 import '@/operations/models/work-order-event';
 import '@/operations/models/pre-visit-checklist';
-import '@/operations/models/visit-report';
 import '@/operations/models/technician';
 import '@/operations/models/technical-visit';
 import '@/operations/models/work-report';

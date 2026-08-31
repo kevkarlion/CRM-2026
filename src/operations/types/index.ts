@@ -28,12 +28,6 @@ export type {
 } from './work-order-event';
 
 export type {
-  IVisitReport,
-  CreateVisitReportInput,
-  UpdateVisitReportInput,
-} from './visit-report';
-
-export type {
   IWorkReport,
   WorkResult,
   WorkPerformed,
