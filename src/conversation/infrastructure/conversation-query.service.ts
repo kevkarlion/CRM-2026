@@ -69,14 +69,8 @@ export class ConversationQueryService {
 
     const matchFilter: Record<string, unknown> = {
       tenantId: tid,
-      // Include active conversations OR recently closed (last 24h) for "Nueva actividad" badge
-      $or: [
-        { state: { $nin: ['closed'] } },
-        { 
-          state: 'closed',
-          closedAt: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Closed in last 24h
-        }
-      ],
+      // Include ALL conversation states (active, closed, human_assigned)
+      // Badge logic is handled by the frontend: lastInboundMessageAt > lastReadAt
       lifecycleState: { $in: ['ACTIVE_LEAD', 'ACTIVE_CLIENT', 'WAITING_OPERATOR', 'WAITING_CLIENT', 'IN_PROGRESS', 'COMPLETED'] },
     };
 
