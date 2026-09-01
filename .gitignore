@@ -7,3 +7,5 @@ coverage
 .DS_Store
 *.log
 .env.local
+# Local AI runtime state
+.atl/
