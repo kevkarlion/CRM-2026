@@ -435,6 +435,20 @@ export class HandleIncomingMessageUseCase {
     }
     // ===== FIN SPECIAL HANDLING =====
 
+    // FIX: En estado urgency, el input debe ser 1, 2 o 3.
+    // Si no lo es, reenviar el mensaje de urgencia sin avanzar (el state machine
+    // pasaría directo a detail porque mapea urgency -> detail sin validar).
+    if (conversation.state === 'urgency' && !/^[1-3]$/.test(input.messageContent.trim())) {
+      const userInput = input.messageContent.trim();
+      const isNumber = /^\d+$/.test(userInput);
+      const message = isNumber
+        ? '⚠️ Por favor, elegí una opción del 1 al 3:\n\n1️⃣ Urgente (hoy)\n2️⃣ Esta semana\n3️⃣ Sin apuro'
+        : replyComposer.compose('urgency', {}).content;
+
+      actions.push({ type: 'send_message', content: message });
+      return actions;
+    }
+
     // FIX: Si es cliente (customer) y está en idle, forzar a greeting_personalized
     // El state machine elegiría 'greeting' (legacy) pero necesitamos el nuevo flow de cliente
     let transition;
