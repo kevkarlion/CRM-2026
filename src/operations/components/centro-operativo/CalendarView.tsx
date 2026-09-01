@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, User, MapPin } from 'lucide-react';
+import { Drawer } from '@/lib/components/Drawer';
 import { CALENDAR_PRIORITY_COLORS } from '@/operations/constants/status-colors';
 import { parseLocalDate } from '@/operations/helpers/date-utils';
 import type { CalendarEvent, TechnicianWorkload } from '@/operations/types/centro-operativo';
@@ -31,6 +32,48 @@ const MONTH_NAMES = [
 
 const HOUR_START = 6;
 const HOUR_END = 22;
+
+// Alternate background tints by column index so side-by-side events in the
+// day view read as distinct blocks. Static classes (never built dynamically)
+// so Tailwind's content scan keeps them.
+const COLUMN_TINTS = [
+  'bg-sky-100 dark:bg-sky-900/30',
+  'bg-violet-100 dark:bg-violet-900/30',
+  'bg-amber-100 dark:bg-amber-900/30',
+  'bg-teal-100 dark:bg-teal-900/30',
+  'bg-rose-100 dark:bg-rose-900/30',
+  'bg-indigo-100 dark:bg-indigo-900/30',
+];
+
+const TECH_TINTS = [
+  'bg-violet-100 dark:bg-violet-900/40',
+  'bg-teal-100 dark:bg-teal-900/40',
+  'bg-amber-100 dark:bg-amber-900/40',
+  'bg-rose-100 dark:bg-rose-900/40',
+  'bg-sky-100 dark:bg-sky-900/40',
+  'bg-emerald-100 dark:bg-emerald-900/40',
+  'bg-indigo-100 dark:bg-indigo-900/40',
+  'bg-pink-100 dark:bg-pink-900/40',
+];
+
+function hashString(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
+  }
+  return hash;
+}
+
+// Manual per-technician assignments take priority over the hash fallback.
+// Key = technician name exactly as it appears in the data (case-sensitive).
+const TECH_NAME_TINTS: Record<string, string> = {
+  Conrado: 'bg-emerald-100 dark:bg-emerald-900/40',
+};
+
+function techTintFor(name: string): string {
+  if (TECH_NAME_TINTS[name]) return TECH_NAME_TINTS[name];
+  return TECH_TINTS[Math.abs(hashString(name)) % TECH_TINTS.length];
+}
 
 function startOfDay(d: Date): Date {
   const r = new Date(d);
@@ -86,7 +129,7 @@ function getEventPosition(event: CalendarEvent): { top: number; height: number }
   return { top, height: Math.max(height, 2) };
 }
 
-function EventBlock({ event, onClick, compact, currentTechnicianId }: { event: CalendarEvent; onClick: () => void; compact?: boolean; currentTechnicianId?: string | null }) {
+function EventBlock({ event, onClick, compact, currentTechnicianId, column = 0, totalColumns = 1, tintBase = 0 }: { event: CalendarEvent; onClick: () => void; compact?: boolean; currentTechnicianId?: string | null; column?: number; totalColumns?: number; tintBase?: number }) {
   const colors = CALENDAR_PRIORITY_COLORS[event.priority] || CALENDAR_PRIORITY_COLORS.normal;
   const timeRange = event.scheduledStart
     ? `${formatTimeShort(event.scheduledStart)}${event.scheduledEnd ? ` - ${formatTimeShort(event.scheduledEnd)}` : ''}`
@@ -121,6 +164,13 @@ function EventBlock({ event, onClick, compact, currentTechnicianId }: { event: C
   const typeColors = isVisit
     ? { border: 'border-l-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-900/10', text: 'text-emerald-800 dark:text-emerald-200' }
     : { border: 'border-l-blue-500', bg: 'bg-blue-50 dark:bg-blue-900/10', text: 'text-blue-800 dark:text-blue-200' };
+
+  // Color per technician: deterministic tint based on technician name.
+  // Unassigned events get a fixed red-rose so they read as their own
+  // category and never match an assigned technician's color.
+  const bg = techName
+    ? techTintFor(techName)
+    : 'bg-rose-100 dark:bg-rose-900/40';
 
   // Priority badge
   const priorityInfo = (() => {
@@ -162,7 +212,7 @@ function EventBlock({ event, onClick, compact, currentTechnicianId }: { event: C
     return (
       <button
         onClick={onClick}
-        className={`w-full text-left px-1.5 py-0.5 rounded border-l-2 ${typeColors.border} ${typeColors.bg} ${typeColors.text} hover:opacity-80 transition-opacity cursor-pointer`}
+        className={`w-full text-left px-1.5 py-0.5 rounded border-l-2 ${typeColors.border} ${bg} ${typeColors.text} hover:opacity-80 transition-opacity cursor-pointer`}
       >
         <div className="flex items-center gap-1">
           <span className="text-[9px] font-bold">{shortNumber || typeBadge.label}</span>
@@ -170,9 +220,17 @@ function EventBlock({ event, onClick, compact, currentTechnicianId }: { event: C
           {statusInfo && <span className={`text-[8px] px-1 rounded ${statusInfo.bg} ${statusInfo.color}`}>{statusInfo.label}</span>}
           {priorityInfo && <span className={`w-1.5 h-1.5 rounded-full ${priorityInfo.bg.replace('bg-', 'bg-').replace(/\/\d+/, '')}`} />}
         </div>
-        {timeRange && <p className="text-[9px] truncate opacity-75">{timeRange}</p>}
-        <p className="text-[9px] truncate opacity-75">{clientName}</p>
-        {techName && <p className="text-[8px] truncate opacity-60">{techName}</p>}
+        {timeRange && (
+          <p className={`inline-block text-[10px] font-bold tracking-wide rounded px-1 py-0.5 mt-0.5 ${typeColors.text} bg-white/70 dark:bg-slate-950/40`}>
+            {timeRange}
+          </p>
+        )}
+        <p className="text-[9px] truncate opacity-75 mt-0.5">{clientName}</p>
+        {techName && (
+          <p className="text-[11px] font-semibold text-gray-700 dark:text-slate-300 truncate">
+            <User className="inline w-3.5 h-3.5 shrink-0 text-gray-400 dark:text-slate-500 mr-0.5" /> {techName}
+          </p>
+        )}
       </button>
     );
   }
@@ -180,7 +238,7 @@ function EventBlock({ event, onClick, compact, currentTechnicianId }: { event: C
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left px-2 py-1 rounded border-l-2 ${typeColors.border} ${typeColors.bg} ${typeColors.text} hover:opacity-80 transition-opacity cursor-pointer`}
+      className={`w-full text-left px-2 py-1 rounded border-l-2 ${typeColors.border} ${bg} ${typeColors.text} hover:opacity-80 transition-opacity cursor-pointer`}
     >
       <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
         <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${typeBadge.bg} ${typeBadge.text}`}>
@@ -201,22 +259,164 @@ function EventBlock({ event, onClick, compact, currentTechnicianId }: { event: C
             {priorityInfo.label}
           </span>
         )}
-        {techName && (
-          <span className="text-[8px] px-1 py-0.5 rounded bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300">
-            {techName}
-          </span>
-        )}
       </div>
-      {timeRange && <p className="text-[10px] font-medium">{timeRange}</p>}
       <p className="text-xs font-bold truncate">{event.title}</p>
+      {techName && (
+        <p className="text-[13px] font-bold text-gray-800 dark:text-slate-100 truncate mt-0.5">
+          <User className="inline w-4 h-4 shrink-0 text-brand-500 mr-1" /> {techName}
+        </p>
+      )}
+      {timeRange && (
+        <p className={`inline-block text-[11px] font-bold tracking-wide rounded px-1.5 py-0.5 mt-0.5 mb-1 ${typeColors.text} bg-white/70 dark:bg-slate-950/40`}>
+          {timeRange}
+        </p>
+      )}
       {clientName && <p className="text-[10px] truncate opacity-75">{clientName}</p>}
       {address && <p className="text-[9px] truncate opacity-60">{address}</p>}
     </button>
   );
 }
 
+interface PositionedEvent {
+  event: CalendarEvent;
+  top: number;
+  height: number;
+  column: number;
+  totalColumns: number;
+  tintBase: number;
+}
+
+function eventsOverlap(a: CalendarEvent, b: CalendarEvent): boolean {
+  const posA = getEventPosition(a);
+  const posB = getEventPosition(b);
+  if (!posA || !posB) return false;
+  return posA.top < posB.top + posB.height && posB.top < posA.top + posA.height;
+}
+
+function layoutDayEvents(events: CalendarEvent[]): PositionedEvent[] {
+  if (events.length === 0) return [];
+
+  // 1. Sort by scheduledStart (earliest first)
+  const sorted = [...events].sort((a, b) => {
+    const aTime = a.scheduledStart ? new Date(a.scheduledStart).getTime() : 0;
+    const bTime = b.scheduledStart ? new Date(b.scheduledStart).getTime() : 0;
+    return aTime - bTime;
+  });
+
+  // 2. Group into overlapping clusters (transitive closure).
+  //    Sweep through sorted events; each event extends any existing
+  //    cluster whose last event overlaps with it, otherwise starts a new cluster.
+  const clusters: CalendarEvent[][] = [];
+  for (const event of sorted) {
+    let placed = false;
+    for (const cluster of clusters) {
+      // Check if this event overlaps with any event already in the cluster
+      if (cluster.some((e) => eventsOverlap(e, event))) {
+        cluster.push(event);
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) {
+      clusters.push([event]);
+    }
+  }
+
+  // Merge clusters that became transitively connected via a later event.
+  // If cluster B's event overlaps with cluster A's event, merge B into A.
+  let merged = true;
+  while (merged) {
+    merged = false;
+    for (let i = 0; i < clusters.length; i++) {
+      for (let j = i + 1; j < clusters.length; j++) {
+        const crossOverlap = clusters[i].some((ei) =>
+          clusters[j].some((ej) => eventsOverlap(ei, ej))
+        );
+        if (crossOverlap) {
+          clusters[i].push(...clusters[j]);
+          clusters.splice(j, 1);
+          merged = true;
+          break;
+        }
+      }
+      if (merged) break;
+    }
+  }
+
+  // 3. For each cluster, assign column indices using a greedy algorithm:
+  //    - Iterate events sorted by start time.
+  //    - Track which columns are currently occupied by ongoing events.
+  //    - For each event, pick the lowest-numbered free column.
+  //    - Release columns when their events end.
+  // 4. Assign a tint "tanda" (tintBase) across the whole day so that
+  //    chronologically consecutive, non-overlapping events get DIFFERENT
+  //    colors even when they share the same column (greedy reuses column 0
+  //    for back-to-back events). tintBase increments whenever an event does
+  //    not overlap the previous event in sorted order.
+  const result: PositionedEvent[] = [];
+  let dayTint = 0;
+  let prevEvent: CalendarEvent | null = null;
+  for (const cluster of clusters) {
+    const clusterSorted = [...cluster].sort((a, b) => {
+      const aTime = a.scheduledStart ? new Date(a.scheduledStart).getTime() : 0;
+      const bTime = b.scheduledStart ? new Date(b.scheduledStart).getTime() : 0;
+      return aTime - bTime;
+    });
+
+    // Track: column index → end position (% height) of the event occupying it
+    const occupied: { column: number; endsAt: number }[] = [];
+    const assignments = new Map<CalendarEvent, number>();
+
+    for (const event of clusterSorted) {
+      const pos = getEventPosition(event);
+      if (!pos) continue;
+
+      // Advance the day-wide cycle when this event doesn't overlap the previous one
+      if (prevEvent && !eventsOverlap(prevEvent, event)) {
+        dayTint += 1;
+      }
+
+      // Release columns whose events have ended before this one starts
+      const filtered = occupied.filter((o) => o.endsAt > pos.top);
+      occupied.length = 0;
+      occupied.push(...filtered);
+
+      // Find lowest free column
+      const usedColumns = new Set(occupied.map((o) => o.column));
+      let col = 0;
+      while (usedColumns.has(col)) col++;
+
+      occupied.push({ column: col, endsAt: pos.top + pos.height });
+      assignments.set(event, col);
+      prevEvent = event;
+    }
+
+    const totalColumns = Math.max(
+      1,
+      // Guard against >4 columns — clamp visual width but don't crash
+      Math.max(...Array.from(assignments.values()).map((c) => c + 1), 1)
+    );
+
+    for (const [event, col] of assignments) {
+      const pos = getEventPosition(event);
+      if (!pos) continue;
+      result.push({
+        event,
+        top: pos.top,
+        height: pos.height,
+        column: col,
+        totalColumns,
+        tintBase: dayTint,
+      });
+    }
+  }
+
+  return result;
+}
+
 function DayView({ events, date, onEventClick, currentTechnicianId }: { events: CalendarEvent[]; date: Date; onEventClick: (event: CalendarEvent) => void; currentTechnicianId?: string | null }) {
   const dayEvents = useMemo(() => getEventsForDay(events, date), [events, date]);
+  const positioned = useMemo(() => layoutDayEvents(dayEvents), [dayEvents]);
   const hours = useMemo(() => {
     const arr: number[] = [];
     for (let h = HOUR_START; h < HOUR_END; h++) arr.push(h);
@@ -237,16 +437,22 @@ function DayView({ events, date, onEventClick, currentTechnicianId }: { events: 
           ))}
 
           <div className="absolute top-0 left-14 right-0 bottom-0 pointer-events-none">
-            {dayEvents.map((event) => {
-              const pos = getEventPosition(event);
-              if (!pos) return null;
+            {positioned.map(({ event, top, height, column, totalColumns, tintBase }) => {
+              const widthPct = totalColumns === 1 ? 100 : 100 / totalColumns;
+              const leftPct = totalColumns === 1 ? 0 : column * (100 / totalColumns);
+              const gutterPx = totalColumns > 1 ? 1 : 0;
               return (
                 <div
                   key={event._id}
-                  className="absolute left-1 right-1 pointer-events-auto"
-                  style={{ top: `${pos.top}%`, height: `${pos.height}%` }}
+                  className="absolute pointer-events-auto overflow-hidden"
+                  style={{
+                    top: `${top}%`,
+                    height: `${height}%`,
+                    left: `calc(${leftPct}% + ${gutterPx}px)`,
+                    width: `calc(${widthPct}% - ${gutterPx}px)`,
+                  }}
                 >
-                  <EventBlock event={event} onClick={() => onEventClick(event)} currentTechnicianId={currentTechnicianId} />
+                  <EventBlock event={event} onClick={() => onEventClick(event)} currentTechnicianId={currentTechnicianId} column={column} totalColumns={totalColumns} tintBase={tintBase} />
                 </div>
               );
             })}
@@ -309,7 +515,7 @@ function WeekView({ events, date, onEventClick, currentTechnicianId }: { events:
                     {dayEvts.length === 0 && (
                       <div className="h-6 sm:h-8" />
                     )}
-                    {dayEvts.slice(0, 4).map((event) => (
+                    {dayEvts.map((event) => (
                       <EventBlock
                         key={event._id}
                         event={event}
@@ -318,11 +524,6 @@ function WeekView({ events, date, onEventClick, currentTechnicianId }: { events:
                         currentTechnicianId={currentTechnicianId}
                       />
                     ))}
-                    {dayEvts.length > 4 && (
-                      <p className="text-[9px] text-gray-400 dark:text-slate-500 text-center font-medium">
-                        +{dayEvts.length - 4}
-                      </p>
-                    )}
                   </div>
                 </div>
               );
@@ -334,7 +535,7 @@ function WeekView({ events, date, onEventClick, currentTechnicianId }: { events:
   );
 }
 
-function MonthView({ events, date, onEventClick, currentTechnicianId }: { events: CalendarEvent[]; date: Date; onEventClick: (event: CalendarEvent) => void; currentTechnicianId?: string | null }) {
+function MonthView({ events, date, onEventClick, currentTechnicianId, onDayClick }: { events: CalendarEvent[]; date: Date; onEventClick: (event: CalendarEvent) => void; currentTechnicianId?: string | null; onDayClick: (day: Date) => void }) {
   const today = new Date();
   const year = date.getFullYear();
   const month = date.getMonth();
@@ -393,7 +594,13 @@ function MonthView({ events, date, onEventClick, currentTechnicianId }: { events
               key={i}
               className={`min-h-[72px] sm:min-h-[80px] border-b border-r border-gray-100 dark:border-slate-700 last:border-r-0 p-1 ${
                 !currentMonth ? 'bg-gray-50/50 dark:bg-slate-800/50' : ''
-              } ${isToday ? 'bg-blue-50/40 dark:bg-blue-900/10' : ''}`}
+              } ${isToday ? 'bg-blue-50/40 dark:bg-blue-900/10' : ''} ${
+                dayEvts.length > 0 && currentMonth ? 'cursor-pointer hover:ring-1 hover:ring-brand-300 dark:hover:ring-brand-600 transition-shadow' : ''
+              }`}
+              onClick={dayEvts.length > 0 && currentMonth ? () => onDayClick(day) : undefined}
+              role={dayEvts.length > 0 && currentMonth ? 'button' : undefined}
+              tabIndex={dayEvts.length > 0 && currentMonth ? 0 : undefined}
+              onKeyDown={dayEvts.length > 0 && currentMonth ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onDayClick(day); } } : undefined}
             >
               <p className={`text-xs font-medium mb-1 ${
                 isToday ? 'text-blue-600 dark:text-blue-400 font-bold' : currentMonth ? 'text-gray-700 dark:text-slate-300' : 'text-gray-300 dark:text-slate-600'
@@ -419,7 +626,7 @@ function MonthView({ events, date, onEventClick, currentTechnicianId }: { events
                   return (
                     <button
                       key={event._id}
-                      onClick={() => onEventClick(event)}
+                      onClick={(e) => { e.stopPropagation(); onEventClick(event); }}
                       className={`w-full text-left px-1 py-0.5 rounded text-[9px] font-medium truncate border-l-2 ${typeColors.border} ${typeColors.bg} ${typeColors.text} hover:opacity-80 cursor-pointer`}
                     >
                       <span className="font-bold">{isVisit ? 'VT' : 'OT'}</span>
@@ -429,7 +636,7 @@ function MonthView({ events, date, onEventClick, currentTechnicianId }: { events
                   );
                 })}
                 {dayEvts.length > 3 && (
-                  <p className="text-[9px] text-gray-400 dark:text-slate-500 text-center font-medium">
+                  <p className="text-[9px] text-brand-600 dark:text-brand-400 text-center font-semibold hover:underline cursor-pointer" onClick={(e) => { e.stopPropagation(); onDayClick(day); }}>
                     +{dayEvts.length - 3}
                   </p>
                 )}
@@ -442,10 +649,75 @@ function MonthView({ events, date, onEventClick, currentTechnicianId }: { events
   );
 }
 
+function DayDetailDrawer({ day, events, onEventClick, onClose, currentTechnicianId }: { day: Date; events: CalendarEvent[]; onEventClick: (event: CalendarEvent) => void; onClose: () => void; currentTechnicianId?: string | null }) {
+  const dayEvents = useMemo(() => getEventsForDay(events, day), [events, day]);
+  const dayLabel = `${DAY_NAMES_LONG[day.getDay()]} ${day.getDate()} de ${MONTH_NAMES[day.getMonth()]}`;
+
+  return (
+    <Drawer isOpen onClose={onClose} title={`${dayLabel} — ${dayEvents.length} ${dayEvents.length === 1 ? 'trabajo' : 'trabajos'}`}>
+      <div className="space-y-2">
+        {dayEvents.length === 0 ? (
+          <p className="text-sm text-gray-500 dark:text-slate-400 text-center py-8">No hay trabajos programados para este día.</p>
+        ) : (
+          dayEvents.map((event) => {
+            const isVT = event.type === 'technical_visit';
+            const shortNumber = isVT
+              ? (event as any).visitNumber?.slice(-7) || event.workOrderNumber?.slice(-7) || ''
+              : event.workOrderNumber?.slice(-7) || '';
+            const timeStr = formatTimeShort(event.scheduledStart);
+            const clientName = event.clientSnapshot?.name || '';
+            const address = event.locationSnapshot?.address || '';
+            const techName = isVT ? event.technician?.name || '' : event.technicians?.[0]?.name || '';
+
+            const typeBadge = isVT
+              ? { bg: 'bg-teal-600', label: 'VT' }
+              : { bg: 'bg-violet-600', label: 'OT' };
+
+            return (
+              <button
+                key={event._id}
+                onClick={() => { onEventClick(event); onClose(); }}
+                className="w-full text-left p-3 rounded-lg border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-800 hover:bg-gray-50 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold text-white shrink-0 ${typeBadge.bg}`}>
+                    {typeBadge.label}
+                  </span>
+                  {shortNumber && (
+                    <span className="text-[10px] text-gray-500 dark:text-slate-400 font-mono">{shortNumber}</span>
+                  )}
+                  {timeStr && (
+                    <span className="text-xs font-semibold text-gray-900 dark:text-slate-100 ml-auto whitespace-nowrap">{timeStr}</span>
+                  )}
+                </div>
+                <p className="text-xs font-medium text-gray-900 dark:text-slate-100 truncate">{event.title}</p>
+                {clientName && <p className="text-[11px] text-gray-500 dark:text-slate-400 truncate mt-0.5">{clientName}</p>}
+                {address && (
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <MapPin className="w-3 h-3 shrink-0 text-gray-400" />
+                    <span className="text-[10px] text-gray-500 dark:text-slate-400 truncate">{address}</span>
+                  </div>
+                )}
+                {techName && (
+                  <p className="flex items-center gap-1 text-[10px] font-semibold text-brand-700 dark:text-brand-400 truncate mt-1">
+                    <User className="w-3 h-3 shrink-0" />
+                    <span className="truncate">Técnico asignado: {techName}</span>
+                  </p>
+                )}
+              </button>
+            );
+          })
+        )}
+      </div>
+    </Drawer>
+  );
+}
+
 export function CalendarView({ events, onEventClick, className = '', currentTechnicianId }: CalendarViewProps) {
   // Start with 'week' on server, then use useEffect to detect mobile after mount
   const [viewMode, setViewMode] = useState<ViewMode>('week');
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedDay, setSelectedDay] = useState<Date | null>(null);
 
   // Detect mobile after mount to avoid hydration mismatch
   useEffect(() => {
@@ -551,7 +823,17 @@ export function CalendarView({ events, onEventClick, className = '', currentTech
         <WeekView events={events} date={selectedDate} onEventClick={onEventClick} currentTechnicianId={currentTechnicianId} />
       )}
       {viewMode === 'month' && (
-        <MonthView events={events} date={selectedDate} onEventClick={onEventClick} currentTechnicianId={currentTechnicianId} />
+        <MonthView events={events} date={selectedDate} onEventClick={onEventClick} currentTechnicianId={currentTechnicianId} onDayClick={setSelectedDay} />
+      )}
+
+      {selectedDay && (
+        <DayDetailDrawer
+          day={selectedDay}
+          events={events}
+          onEventClick={onEventClick}
+          onClose={() => setSelectedDay(null)}
+          currentTechnicianId={currentTechnicianId}
+        />
       )}
 
       {events.length === 0 && (
