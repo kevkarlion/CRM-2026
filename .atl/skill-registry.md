@@ -38,7 +38,6 @@ Last updated: 2026-09-01
 | `go-testing` | Trigger: Go tests, go test coverage, Bubbletea teatest, golden files. Apply focused Go testing patterns. | user | `/home/kriq/.config/opencode/skills/go-testing/SKILL.md` |
 | `issue-creation` | Create Gentle AI issues with issue-first checks. Trigger: creating GitHub issues, bug reports, or feature requests. | user | `/home/kriq/.config/opencode/skills/issue-creation/SKILL.md` |
 | `judgment-day` | Trigger: judgment day, dual review, adversarial review, juzgar. Run blind dual review, fix confirmed issues, then re-judge. | user | `/home/kriq/.config/opencode/skills/judgment-day/SKILL.md` |
-| `principal-mentor` | Trigger: implementar código, revisar solución, explicar concepto, mentoría. Actúa como Principal Software Engineer y mentor: código limpio tipado y explicación pedagógica. | project | `/home/kriq/mis-proyectos/CRM 2026/.claude/skills/principal-mentor/SKILL.md` |
 | `skill-creator` | Trigger: new skills, agent instructions, documenting AI usage patterns. Create LLM-first skills with valid frontmatter. | user | `/home/kriq/.config/opencode/skills/skill-creator/SKILL.md` |
 | `skill-improver` | Trigger: improve skills, audit skills, refactor skills, skill quality. Audit and upgrade existing LLM-first skills. | user | `/home/kriq/.config/opencode/skills/skill-improver/SKILL.md` |
 | `work-unit-commits` | Plan commits as reviewable work units. Trigger: implementation, commit splitting, chained PRs, or keeping tests and docs with code. | user | `/home/kriq/.config/opencode/skills/work-unit-commits/SKILL.md` |

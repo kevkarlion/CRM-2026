@@ -5,6 +5,7 @@ import { ConversationLeadScoringService } from '../domain/lead-scoring';
 import { HandoffPolicy } from '../domain/handoff-policy';
 import { BotReplyComposer } from '../domain/reply-composer';
 import { ConversationService } from './conversation.service';
+import { SERVICE_TYPE_LABELS } from '../utils/service-type-mapping';
 import type { Conversation, BotAction, UpdateConversationInput } from './types';
 
 /**
@@ -655,6 +656,25 @@ export class HandleIncomingMessageUseCase {
       });
 
       // Actualizar lead con score y datos de contacto (incluyendo dirección)
+      // Resumen MSJ: guarda en notes lo que respondió el lead, solo al cerrar el flujo.
+      const urgencyLabels: Record<string, string> = {
+        high: 'Urgente',
+        medium: 'Esta semana',
+        low: 'Sin apuro',
+      };
+      const summaryParts: string[] = [];
+      if (updatedContext.needType) {
+        summaryParts.push(`Servicio: ${SERVICE_TYPE_LABELS[updatedContext.needType] ?? updatedContext.needType}`);
+      }
+      if (updatedContext.urgency) {
+        summaryParts.push(`Necesidad: ${urgencyLabels[updatedContext.urgency] ?? updatedContext.urgency}`);
+      }
+      if (updatedContext.detail) {
+        summaryParts.push(`Descripción: ${updatedContext.detail}`);
+      }
+      const botSummary = summaryParts.length > 0 ? summaryParts.join(' | ') : undefined;
+      console.log('[💡 RESUMEN-MSJ-real] isLead:', isLead, '| botSummary:', JSON.stringify(botSummary), '| updatedContext keys:', Object.keys(updatedContext || {}));
+
       actions.push({
         type: 'update_lead',
         leadId: input.leadId,
@@ -664,6 +684,7 @@ export class HandleIncomingMessageUseCase {
           inquiryReason: updatedContext.needType ?? undefined,
           customerType: updatedContext.customerType ?? undefined,
           status: 'contacted',
+          ...(isLead && botSummary ? { notes: botSummary } : {}),
           address: (updatedContext as any).address ?? (updatedContext as any).customerAddress ?? (updatedContext as any).location ?? undefined,
           locality: (updatedContext as any).locality ?? (updatedContext as any).customerLocality ?? undefined,
           province: (updatedContext as any).province ?? (updatedContext as any).customerProvince ?? undefined,

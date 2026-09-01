@@ -853,15 +853,19 @@ export class WhatsAppService {
               if (locality) updateData.locality = locality;
               if (province) updateData.province = province;
               
-              // Save bot summary as notes
-              const notesParts: string[] = [];
-              if (needType) notesParts.push(`Servicio: ${needType}`);
-              if (priorityDisplayLabel) notesParts.push(`Necesidad: ${priorityDisplayLabel}`);
-              if (description) notesParts.push(`Descripción: ${description}`);
-              
-              if (notesParts.length > 0) {
-                updateData.notes = notesParts.join(' | ');
-                console.log('[WhatsApp] Updating notes with:', updateData.notes);
+              // Save bot summary as notes ONLY when the flow is complete.
+              // If the lead did not complete the flow, notes is not touched
+              // (the Resumen MSJ card shows a placeholder instead).
+              if (isFlowComplete) {
+                const notesParts: string[] = [];
+                if (needType) notesParts.push(`Servicio: ${needType}`);
+                if (priorityDisplayLabel) notesParts.push(`Necesidad: ${priorityDisplayLabel}`);
+                if (description) notesParts.push(`Descripción: ${description}`);
+                
+                if (notesParts.length > 0) {
+                  updateData.notes = notesParts.join(' | ');
+                  console.log('[WhatsApp] Updating notes with:', updateData.notes);
+                }
               }
               
               if (Object.keys(updateData).length > 0) {
