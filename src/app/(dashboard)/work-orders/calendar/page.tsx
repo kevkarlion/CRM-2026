@@ -89,11 +89,10 @@ export default function TechnicianCalendarPage() {
       const startDate = startOfMonth < startOfWeek ? startOfMonth : startOfWeek;
       const endDate = endOfMonth > endOfWeek ? endOfMonth : endOfWeek;
 
-      // Always use the all-calendar endpoint for technicians and admins
-      // This shows ALL work orders and technical visits
-      const calendarEndpoint = (isTechnician || isAdmin)
-        ? '/api/operations/work-orders/all-calendar'
-        : '/api/operations/work-orders/technician';
+      // Always use the all-calendar endpoint. It shows ALL work orders and
+      // technical visits for both admins and technicians, and never requires a
+      // technician profile (the /technician route 404s for non-technicians).
+      const calendarEndpoint = '/api/operations/work-orders/all-calendar';
 
       const [calendarResult, workOrdersResult, visitsResult] = await Promise.allSettled([
         api.get<{ data: CalendarEvent[]; total?: number; technicianId?: string }>(calendarEndpoint, {
