@@ -152,11 +152,6 @@ function EventBlock({ event, onClick, compact, currentTechnicianId, column = 0, 
     return event.technicians?.some(t => t._id === currentTechnicianId);
   })();
   
-  // Get short number (last 7 chars for WO, last 7 for VT)
-  const shortNumber = isVisit 
-    ? (event as any).visitNumber?.slice(-7) || event.workOrderNumber?.slice(-7) || ''
-    : event.workOrderNumber?.slice(-7) || '';
-  
   // Different styling for OT vs VT
   const typeBadge = isVisit 
     ? { bg: 'bg-emerald-100 dark:bg-emerald-900/40', text: 'text-emerald-700 dark:text-emerald-300', label: 'VT' }
@@ -215,7 +210,7 @@ function EventBlock({ event, onClick, compact, currentTechnicianId, column = 0, 
         className={`w-full text-left px-1.5 py-0.5 rounded border-l-2 ${typeColors.border} ${bg} ${typeColors.text} hover:opacity-80 transition-opacity cursor-pointer`}
       >
         <div className="flex items-center gap-1">
-          <span className="text-[9px] font-bold">{shortNumber || typeBadge.label}</span>
+          <span className="text-[9px] font-bold">{typeBadge.label}</span>
           {isMyEvent && <span className="text-[8px] px-1 rounded bg-yellow-400 text-yellow-900 font-bold">MÍA</span>}
           {statusInfo && <span className={`text-[8px] px-1 rounded ${statusInfo.bg} ${statusInfo.color}`}>{statusInfo.label}</span>}
           {priorityInfo && <span className={`w-1.5 h-1.5 rounded-full ${priorityInfo.bg.replace('bg-', 'bg-').replace(/\/\d+/, '')}`} />}
@@ -225,9 +220,9 @@ function EventBlock({ event, onClick, compact, currentTechnicianId, column = 0, 
             {timeRange}
           </p>
         )}
-        <p className="text-[9px] truncate opacity-75 mt-0.5">{clientName}</p>
+        <p className="text-[11px] font-bold truncate mt-0.5">{clientName || event.title}</p>
         {techName && (
-          <p className="text-[11px] font-semibold text-gray-700 dark:text-slate-300 truncate">
+          <p className="text-[10px] font-semibold text-gray-700 dark:text-slate-300 truncate">
             <User className="inline w-3.5 h-3.5 shrink-0 text-gray-400 dark:text-slate-500 mr-0.5" /> {techName}
           </p>
         )}
@@ -242,7 +237,7 @@ function EventBlock({ event, onClick, compact, currentTechnicianId, column = 0, 
     >
       <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
         <span className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${typeBadge.bg} ${typeBadge.text}`}>
-          {shortNumber || typeBadge.label}
+          {typeBadge.label}
         </span>
         {isMyEvent && (
           <span className="text-[8px] px-1.5 py-0.5 rounded bg-yellow-400 text-yellow-900 font-bold">
@@ -260,9 +255,9 @@ function EventBlock({ event, onClick, compact, currentTechnicianId, column = 0, 
           </span>
         )}
       </div>
-      <p className="text-xs font-bold truncate">{event.title}</p>
+      <p className="text-sm font-bold truncate">{clientName || event.title}</p>
       {techName && (
-        <p className="text-[13px] font-bold text-gray-800 dark:text-slate-100 truncate mt-0.5">
+        <p className="text-[12px] font-semibold text-gray-800 dark:text-slate-100 truncate mt-0.5">
           <User className="inline w-4 h-4 shrink-0 text-brand-500 mr-1" /> {techName}
         </p>
       )}
@@ -271,8 +266,7 @@ function EventBlock({ event, onClick, compact, currentTechnicianId, column = 0, 
           {timeRange}
         </p>
       )}
-      {clientName && <p className="text-[10px] truncate opacity-75">{clientName}</p>}
-      {address && <p className="text-[9px] truncate opacity-60">{address}</p>}
+      {address && <p className="text-[10px] truncate opacity-70 mt-0.5">{address}</p>}
     </button>
   );
 }
@@ -448,6 +442,7 @@ function DayView({ events, date, onEventClick, currentTechnicianId }: { events: 
                   style={{
                     top: `${top}%`,
                     height: `${height}%`,
+                    minHeight: '72px',
                     left: `calc(${leftPct}% + ${gutterPx}px)`,
                     width: `calc(${widthPct}% - ${gutterPx}px)`,
                   }}
