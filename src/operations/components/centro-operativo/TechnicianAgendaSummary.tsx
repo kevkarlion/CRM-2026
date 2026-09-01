@@ -67,7 +67,7 @@ export function TechnicianAgendaSummary({ todayCount, weekCount, todayJobs, clas
                           }`}>
                             {isVT ? 'VT' : 'OT'}
                           </span>
-                          <span className="text-xs font-medium text-gray-900 dark:text-slate-100 truncate">{job.title}</span>
+                          <span className="text-xs font-medium text-gray-900 dark:text-slate-100 truncate">{job.client || job.title}</span>
                         </div>
                       </td>
                       <td className="py-2 px-3">
@@ -107,7 +107,7 @@ export function TechnicianAgendaSummary({ todayCount, weekCount, todayJobs, clas
                     </span>
                     <span className="text-xs font-semibold text-gray-900 dark:text-slate-100 whitespace-nowrap">{job.time}</span>
                   </div>
-                  <p className="text-xs font-medium text-gray-900 dark:text-slate-100 truncate mt-1">{job.title}</p>
+                  <p className="text-xs font-medium text-gray-900 dark:text-slate-100 truncate mt-1">{job.client || job.title}</p>
                   <p className="flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-brand-700 dark:text-brand-400 truncate mt-1">
                     <User className="w-3.5 h-3.5 shrink-0 text-brand-500" />
                     <span className="truncate">Técnico asignado: {job.technician || 'Sin asignar'}</span>

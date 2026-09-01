@@ -266,23 +266,23 @@ export default function TechnicianCalendarPage() {
           </div>
         </div>
         <div className="p-4 space-y-4">
-          <div className="bg-white border border-gray-200 rounded-xl p-3 sm:p-4">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-              <div className="flex items-center gap-4 flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-gray-100 animate-pulse" />
-                  <div className="h-4 w-20 bg-gray-100 rounded animate-pulse" />
+          <div className="bg-white dark:bg-slate-800/60 border border-gray-200 dark:border-slate-700 rounded-xl p-3 sm:p-4">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3 flex-shrink-0">
+                <div className="w-11 h-11 rounded-xl bg-sky-100 dark:bg-sky-500/20 flex items-center justify-center flex-shrink-0 animate-pulse" />
+                <div className="leading-tight">
+                  <div className="h-4 w-24 bg-gray-200 dark:bg-slate-600 rounded animate-pulse" />
                 </div>
-                <div className="w-px h-6 bg-gray-200" />
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-gray-100 animate-pulse" />
-                  <div className="h-4 w-20 bg-gray-100 rounded animate-pulse" />
-                </div>
+              </div>
+              <div className="w-px h-8 bg-gray-200 dark:bg-slate-600 flex-shrink-0" />
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <div className="w-7 h-7 rounded-lg bg-violet-50 dark:bg-violet-500/20 flex items-center justify-center flex-shrink-0 animate-pulse" />
+                <div className="h-4 w-20 bg-gray-200 dark:bg-slate-600 rounded animate-pulse" />
               </div>
             </div>
           </div>
-          <div className="bg-white border border-gray-200 rounded-xl p-4">
-            <div className="h-[500px] bg-gray-100 rounded-xl animate-pulse" />
+          <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl p-4">
+            <div className="h-[500px] bg-gray-100 dark:bg-slate-700 rounded-xl animate-pulse" />
           </div>
         </div>
       </div>
