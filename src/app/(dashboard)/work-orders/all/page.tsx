@@ -297,10 +297,28 @@ function AllWorkOrdersPage() {
   }, [orders, sortField, sortDir]);
 
   const isOverdue = (wo: WorkOrder) => {
-    if (!wo.scheduledDate || wo.status === 'closed' || wo.status === 'completed' || wo.status === 'cancelled') return false;
+    if (!wo.scheduledDate) return false;
+    // No es vencida si: completed, closed, cancelled, o si workStatus es paused/cancelled/completed
+    if (['completed', 'closed', 'cancelled'].includes(wo.status)) return false;
+    if ((wo as any).workStatus === 'paused' || (wo as any).workStatus === 'cancelled' || (wo as any).workStatus === 'completed') return false;
+
+    // Parse date
+    const dateStr = String(wo.scheduledDate);
+    const parts = dateStr.split('-').map(Number);
+    const year = parts[0];
+    const month = parts[1];
+    const day = parts[2];
+
+    // Calcular "hoy" en timezone Argentina (UTC-3)
     const now = new Date();
-    const scheduled = new Date(wo.scheduledDate);
-    return scheduled < now;
+    const argentinaOffset = -3 * 60;
+    const localNow = new Date(now.getTime() + (now.getTimezoneOffset() + argentinaOffset) * 60000);
+    localNow.setHours(0, 0, 0, 0);
+
+    const scheduled = new Date(year, month - 1, day);
+    scheduled.setHours(0, 0, 0, 0);
+
+    return scheduled < localNow;
   };
 
   function SortIcon({ field }: { field: 'scheduledDate' | 'createdAt' | 'workOrderNumber' }) {
