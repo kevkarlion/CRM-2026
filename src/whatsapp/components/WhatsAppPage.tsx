@@ -80,18 +80,21 @@ export function WhatsAppPage() {
   );
 
   const handleDownload = useCallback(
-    async (messageId: string, filename: string) => {
+    async (messageId: string, filename: string): Promise<string | void> => {
       const result = await downloadMedia({
         messageId,
         filename,
         leadId: selectedLead?._id,
       });
 
-      if (result.success) {
-        refetchMessages();
-      }
+      // NOTA: NO refetchMessages() aquí. Para el audio, AudioMessage ya recibe
+      // la cloudinaryUrl via el retorno y la muestra al instante (setSrc). El
+      // refetch inmediato re-montaba cada AudioMessage y cancelaba la descarga
+      // en vuelo, dejando las "3 pelotitas" colgadas hasta salir/entrar. El
+      // polling de 5s ya refresca la lista con la URL persistida.
+      return result.cloudinaryUrl;
     },
-    [selectedLead, downloadMedia, refetchMessages]
+    [selectedLead, downloadMedia]
   );
 
   useChatPolling({

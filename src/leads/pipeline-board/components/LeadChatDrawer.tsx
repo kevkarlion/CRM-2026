@@ -405,7 +405,7 @@ export function LeadChatDrawer({ isOpen, onClose, lead, client, conversationStat
     }
   };
 
-  const handleDownload = async (messageId: string, filename: string) => {
+  const handleDownload = async (messageId: string, filename: string): Promise<string | void> => {
     if (!phone) return;
     const entityId = isLeadMode 
       ? (lead?._id ? String(lead._id) : undefined)
@@ -415,10 +415,12 @@ export function LeadChatDrawer({ isOpen, onClose, lead, client, conversationStat
       filename,
       leadId: entityId,
     });
-    if (result.success) {
-      // Refrescar mensajes para ver el archivo descargado
-      setTimeout(() => refetch(), 300);
-    }
+    // NOTA: NO hacemos refetch() aquí. Para el audio, AudioMessage ya recibe
+    // la cloudinaryUrl via el retorno y la muestra al instante (setSrc). El
+    // refetch inmediato re-montaba cada AudioMessage y cancelaba la descarga
+    // en vuelo (cleanup pone cancelled=true), dejando las "3 pelotitas"
+    // colgadas hasta salir/entrar. El polling de 5s ya refresca la lista.
+    return result.cloudinaryUrl;
   };
 
   const handleTakeControl = useCallback(async () => {

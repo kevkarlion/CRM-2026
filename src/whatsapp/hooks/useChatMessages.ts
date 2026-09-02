@@ -13,6 +13,18 @@ interface UseChatMessagesReturn {
   refetch: () => Promise<void>;
 }
 
+/** Elimina mensajes duplicados por _id conservando el orden. Evita que el
+ *  mismo audio/documento se renderice (y re-descarque) varias veces. */
+function dedupeMessages(msgs: ChatMessage[]): ChatMessage[] {
+  const seen = new Set<string>();
+  return msgs.filter((m) => {
+    if (!m._id) return true;
+    if (seen.has(m._id)) return false;
+    seen.add(m._id);
+    return true;
+  });
+}
+
 export function useChatMessages(phone: string | null): UseChatMessagesReturn {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(false);
@@ -36,12 +48,12 @@ export function useChatMessages(phone: string | null): UseChatMessagesReturn {
 
       if (before) {
         // Loading older messages - prepend to list (chronological order)
-        setMessages((prev) => [...result.messages, ...prev]);
+        setMessages((prev) => dedupeMessages([...result.messages, ...prev]));
       } else {
         // Fetching latest messages (polling or initial load)
         // API returns newest first, but we want oldest first in the array
         const reversed = [...result.messages].reverse();
-        setMessages(reversed);
+        setMessages(dedupeMessages(reversed));
       }
 
       setHasMore(result.messages.length === 50);

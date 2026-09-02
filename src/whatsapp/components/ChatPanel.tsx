@@ -17,7 +17,7 @@ interface ChatPanelProps {
   onLoadMore: () => void;
   onSend: (content: string) => void;
   onAttach?: (file: File) => Promise<void>;
-  onDownload?: (messageId: string, filename: string) => Promise<void>;
+  onDownload?: (messageId: string, filename: string) => Promise<string | void>;
   sending: boolean;
   selectedPhone: string | null;
   selectedName?: string;

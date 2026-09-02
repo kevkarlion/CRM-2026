@@ -22,7 +22,7 @@ interface LeadActivityTabsProps {
   onLoadMore: () => void;
   onSendChat: (content: string) => void;
   onAttachChat?: (file: File) => void;
-  onDownloadChat?: (messageId: string, filename: string) => Promise<void>;
+  onDownloadChat?: (messageId: string, filename: string) => Promise<string | void>;
   handoffPending: boolean;
   timelineRefreshKey: number;
 }

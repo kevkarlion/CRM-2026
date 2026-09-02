@@ -1,11 +1,24 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import WaveSurfer from 'wavesurfer.js';
 import type { ChatMessage as ChatMessageType } from '../types/chat';
+
+/**
+ * Cache de URLs de audio ya descargadas, por messageId.
+ * Evita que el refetch de mensajes (que re-monta cada AudioMessage) vuelva a
+ * descargar el audio y/o dispare un loop de descarga+refetch que deja las
+ * "3 pelotitas" cargando hasta refrescar la página.
+ */
+const audioUrlCache = new Map<string, string>();
 
 interface ChatMessageProps {
   message: ChatMessageType;
-  onDownload?: (messageId: string, filename: string) => Promise<void>;
+  /**
+   * Descarga media on-demand. Debe resolver con la cloudinaryUrl del archivo
+   * cuando está disponible (para poder reproducirlo sin esperar el refetch).
+   */
+  onDownload?: (messageId: string, filename: string) => Promise<string | void>;
   clientId?: string;
   leadId?: string;
 }
@@ -15,6 +28,14 @@ function formatTime(dateStr: string): string {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+/** Formatea segundos a m:ss (0:43, 1:05). */
+function formatDuration(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return '0:00';
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
 function StatusIcon({ status }: { status: ChatMessageType['status'] }) {
@@ -208,6 +229,249 @@ function DocumentMessage({
   );
 }
 
+/**
+ * Reproductor de audio estilo WhatsApp usando wavesurfer.js.
+ * Renderiza la onda real del audio (trazo continuo y suave), con play/pausa
+ * al hacer clic en la onda (interact) y un botón custom a la izquierda.
+ */
+function AudioWavePlayer({ src, isOutbound }: { src: string; isOutbound: boolean }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const wsRef = useRef<WaveSurfer | null>(null);
+  const [playing, setPlaying] = useState(false);
+  const [state, setState] = useState<{ currentTime: number; duration: number }>({
+    currentTime: 0,
+    duration: 0,
+  });
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    const el = containerRef.current;
+
+    const waveColor = isOutbound ? 'rgba(255,255,255,0.55)' : 'rgba(17,24,39,0.30)';
+    const progressColor = isOutbound ? '#ffffff' : '#111827';
+
+    const ws = WaveSurfer.create({
+      container: el,
+      url: src,
+      height: 40,
+      width: '100%',
+      waveColor,
+      progressColor,
+      cursorColor: 'transparent',
+      cursorWidth: 0,
+      barWidth: 2,
+      barGap: 2,
+      barRadius: 2,
+      normalize: true,
+      fillParent: true,
+      interact: true,
+    });
+
+    wsRef.current = ws;
+
+    const s = ws.getState();
+    const unsubs = [
+      s.isPlaying.subscribe(setPlaying),
+      s.currentTime.subscribe((t) => setState((prev) => ({ ...prev, currentTime: t }))),
+      s.duration.subscribe((d) => setState((prev) => ({ ...prev, duration: d }))),
+    ];
+
+    const onReady = () => {
+      // La onda cargó. No logueamos para no ensuciar (puede haber varios audios).
+    };
+    const onError = () => {
+      // Si falla la carga del audio, no dejamos la UI colgada.
+      console.error('[wavesurfer] error al cargar audio');
+      setPlaying(false);
+    };
+    ws.on('ready', onReady);
+    ws.on('error', onError);
+
+    return () => {
+      unsubs.forEach((u) => u());
+      ws.un('ready', onReady);
+      ws.un('error', onError);
+      ws.destroy();
+      wsRef.current = null;
+    };
+  }, [src, isOutbound]);
+
+  const toggle = () => {
+    const ws = wsRef.current;
+    if (!ws) return;
+    if (ws.isPlaying()) ws.pause();
+    else void ws.play();
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={toggle}
+        aria-label={playing ? 'Pausar audio' : 'Reproducir audio'}
+        className={`shrink-0 rounded-full p-2 transition-colors ${
+          isOutbound ? 'bg-white/20 hover:bg-white/30 text-white' : 'bg-brand-600 text-white hover:bg-brand-700'
+        }`}
+      >
+        {playing ? (
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M6 4h4v16H6zM14 4h4v16h-4z" />
+          </svg>
+        ) : (
+          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+            <path d="M8 5v14l11-7z" />
+          </svg>
+        )}
+      </button>
+      <div
+        ref={containerRef}
+        className="flex-1 min-w-0 cursor-pointer"
+        style={{ minWidth: '140px', maxWidth: '220px' }}
+      />
+      {state.duration > 0 && (
+        <span className={`text-xs shrink-0 tabular-nums ${isOutbound ? 'text-white/80' : 'text-gray-500'}`}>
+          {/* WhatsApp: al inicio muestra la duración total; al reproducir, el
+              tiempo transcurrido. Sin progreso aún → duración. */}
+          {formatDuration(playing || state.currentTime > 0 ? state.currentTime : state.duration)}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Componente para reproducir audio en el chat.
+ * Quiere dejar el reproductor <audio> siempre visible en la ventana.
+ * - Si ya hay cloudinaryUrl → player directo.
+ * - Si no, descarga automáticamente al montar (vía onDownload) y muestra el
+ *   player apenas se tiene la URL. Mientras carga → breve indicador.
+ * - Si falla (audio fuera de la ventana de 24h de WhatsApp) → mensaje claro.
+ */
+function AudioMessage({
+  message,
+  isOutbound,
+  onDownload,
+}: {
+  message: ChatMessageType;
+  isOutbound: boolean;
+  onDownload?: (messageId: string, filename: string) => Promise<string | void>;
+}) {
+  // Priorizamos la URL ya descargada en esta sesión (cache) para que, cuando el
+  // refetch re-monte este componente, no vuelva a la pantalla de "cargando".
+  const cachedUrl = message.messageId ? audioUrlCache.get(message.messageId) : undefined;
+  const [loading, setLoading] = useState(
+    !(message.metadata?.cloudinaryUrl ?? cachedUrl) && !!message.metadata?.mediaId,
+  );
+  const [error, setError] = useState<string | null>(null);
+  const [src, setSrc] = useState<string | undefined>(
+    message.metadata?.cloudinaryUrl ?? cachedUrl,
+  );
+  const [retryKey, setRetryKey] = useState(0);
+  const attempted = useRef<boolean>(
+    !!(message.metadata?.cloudinaryUrl ?? cachedUrl) || !message.metadata?.mediaId,
+  );
+
+  // Sincroniza el estado local con el mensaje: si el prop trae cloudinaryUrl
+  // (el polling refrescó y el backend ya persistió la URL) o el cache de otra
+  // ventana ya la tiene, actualizamos src para que el audio deje de mostrar
+  // "pelotitas" y muestre la onda.
+  useEffect(() => {
+    const latestUrl = message.metadata?.cloudinaryUrl ?? audioUrlCache.get(message.messageId);
+    if (latestUrl && latestUrl !== src) {
+      setSrc(latestUrl);
+      setLoading(false);
+      setError(null);
+    }
+  }, [message.messageId, message.metadata?.cloudinaryUrl, src]);
+
+  // Descarga automática al montar si el audio no tiene URL pero sí mediaId.
+  useEffect(() => {
+    if (src || attempted.current || !message.metadata?.mediaId || !onDownload) return;
+    const messageId = message.messageId;
+    const filename = message.metadata?.filename || `audio_${message.createdAt}.ogg`;
+    attempted.current = true;
+    setLoading(true);
+    setError(null);
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const url = await onDownload(messageId, filename);
+        // Guardamos en el cache ANTES de comprobar cancelación: aunque este
+        // montaje se desmonte (refetch del polling re-monta), la URL queda
+        // disponible para que el siguiente montaje del mismo mensaje la lea y
+        // muestre el player sin volver a descargar ni quedar colgado.
+        if (url) audioUrlCache.set(messageId, url);
+        if (cancelled) return;
+        if (url) {
+          setSrc(url);
+        } else {
+          setError('Audio no disponible (podría estar vencido: solo se puede descargar dentro de 24h).');
+        }
+      } catch (e) {
+        if (!cancelled) {
+          console.error('[audio] error al descargar', e);
+          setError('Error al cargar el audio');
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [message.messageId, message.createdAt, message.metadata?.filename, message.metadata?.mediaId, onDownload, src, retryKey]);
+
+  const handleRetry = () => setRetryKey((k) => k + 1);
+
+  // Tiene player disponible → mostrar reproductor tipo WhatsApp (play + onda).
+  if (src) {
+    return (
+      <div className="mt-1 w-full">
+        <AudioWavePlayer src={src} isOutbound={isOutbound} />
+      </div>
+    );
+  }
+
+  // Cargando la descarga → indicador breve con 3 puntitos.
+  if (loading) {
+    return (
+      <div className="mt-1 w-full">
+        <div className={`flex items-center gap-1.5 text-sm ${isOutbound ? 'text-brand-100' : 'text-gray-500'}`}>
+          <span>🎤</span>
+          <span className="inline-flex gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-current animate-bounce" />
+            <span className="w-1.5 h-1.5 rounded-full bg-current animate-bounce [animation-delay:120ms]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-current animate-bounce [animation-delay:240ms]" />
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  // No descargable o falló.
+  return (
+    <div className="mt-1 w-full">
+      <div className="flex flex-col gap-1">
+        <span className={`text-sm ${isOutbound ? 'text-brand-100' : 'text-gray-500'}`}>🎤 Audio</span>
+        {error && (
+          <span className={`text-xs flex items-center gap-1 ${isOutbound ? 'text-brand-100' : 'text-red-500'}`}>
+            {error}
+            <button
+              type="button"
+              onClick={handleRetry}
+              className={`underline hover:opacity-80 ${isOutbound ? 'text-brand-100' : 'text-red-600'}`}
+            >
+              Reintentar
+            </button>
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function ChatMessage({ message, onDownload, clientId, leadId }: ChatMessageProps) {
   const isOutbound = message.direction === 'outbound';
   const [downloading, setDownloading] = useState(false);
@@ -237,7 +501,6 @@ export function ChatMessage({ message, onDownload, clientId, leadId }: ChatMessa
 
   const handleDownloadConfirm = async () => {
     if (!downloadFilename.trim() || !onDownload) {
-      console.log('[ChatMessage] No se puede descargar - filename:', downloadFilename, 'onDownload:', !!onDownload);
       return;
     }
     
@@ -254,7 +517,9 @@ export function ChatMessage({ message, onDownload, clientId, leadId }: ChatMessa
 
   // Si hay multimedia pendiente de descarga, mostrar UI especial
   // (es tipo multimedia, tiene mediaId, y no tiene cloudinaryUrl = no descargado)
-  if (pendingDownload && !isOutbound) {
+  // Excluimos audio: su flujo es reproducir (AudioMessage → descarga on-demand),
+  // no "guardar en documentos".
+  if (pendingDownload && !isOutbound && message.type !== 'audio') {
     return (
       <div className={`flex ${isOutbound ? 'justify-end' : 'justify-start'} mb-2`}>
         <div
@@ -360,14 +625,13 @@ export function ChatMessage({ message, onDownload, clientId, leadId }: ChatMessa
           <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
         )}
 
-        {/* Solo mostrar label para tipos especiales si no hay contenido visual */}
+        {/* Mensajes de audio: player directo o descarga on-demand */}
         {message.type === 'audio' && (
-          <div className={`flex items-center gap-2 text-sm ${isOutbound ? 'text-brand-100' : 'text-gray-500'}`}>
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-            </svg>
-            <span>Audio</span>
-          </div>
+          <AudioMessage
+            message={message}
+            isOutbound={isOutbound}
+            onDownload={onDownload}
+          />
         )}
 
         <div

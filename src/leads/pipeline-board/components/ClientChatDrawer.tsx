@@ -312,13 +312,16 @@ export function ClientChatDrawer({ isOpen, onClose, client, conversationStatus, 
     }
   };
 
-  const handleDownload = async (messageId: string, filename: string) => {
+  const handleDownload = async (messageId: string, filename: string): Promise<string | void> => {
     if (!phone) return;
-    await downloadMedia({
+    const result = await downloadMedia({
       messageId,
       filename,
       leadId: client.id,
     });
+    // Devolvemos la URL para que el player de audio la muestre al instante
+    // sin esperar el refetch (evita quedar colgado en "3 pelotitas").
+    return result.cloudinaryUrl;
   };
 
   return (

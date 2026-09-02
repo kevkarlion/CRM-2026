@@ -227,7 +227,7 @@ export default function LeadDetailPage() {
   };
 
   const handleDownloadChat = async (messageId: string, filename: string) => {
-    if (!lead?.phone) return;
+    if (!lead?.phone) return undefined;
     const result = await downloadMedia({
       messageId,
       filename,
@@ -235,7 +235,10 @@ export default function LeadDetailPage() {
     });
     if (result.success) {
       refetchChat();
+      return result.cloudinaryUrl;
     }
+    console.error(`[download-media] Falló descarga audio (${filename}):`, result.error);
+    return undefined;
   };
 
   const handleTakeControl = async () => {

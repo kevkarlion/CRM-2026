@@ -123,7 +123,7 @@ export default function ClientDetailPage() {
   }, [phone, sendMedia, id, refetchChat]);
 
   const handleDownloadChat = useCallback(async (messageId: string, filename: string) => {
-    if (!phone) return;
+    if (!phone) return undefined;
     const result = await downloadMedia({
       messageId,
       filename,
@@ -131,7 +131,10 @@ export default function ClientDetailPage() {
     });
     if (result.success) {
       refetchChat();
+      return result.cloudinaryUrl;
     }
+    console.error(`[download-media] Falló descarga audio (${filename}):`, result.error);
+    return undefined;
   }, [phone, downloadMedia, id, refetchChat]);
 
   // Bot control state (same as lead)

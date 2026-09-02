@@ -143,50 +143,55 @@ export async function POST(request: NextRequest) {
 
     console.log('[download-media] Uploaded to Cloudinary:', cloudinaryResult.publicId);
 
-    // Buscar cliente y lead asociados para crear el documento
-    let clientId = providedClientId;
-    let leadId = providedLeadId;
+    const isAudio = mediaInfo.mimeType.startsWith('audio/');
 
-    if (!clientId) {
-      const clientInfo = await whatsappMediaService.findClientByPhone(message.phone);
-      clientId = clientInfo?.clientId;
-      
-      const leadInfo = await whatsappMediaService.findLeadByPhone(message.phone);
-      leadId = leadInfo?.leadId;
+    // No creamos documento para audios: solo se reproducen en el chat y
+    // quedan en Cloudinary (evita llenar "Documentación" con audios).
+    let doc: { _id: any } | null = null;
+    if (!isAudio) {
+      // Buscar cliente y lead asociados para crear el documento
+      let clientId = providedClientId;
+      let leadId = providedLeadId;
+
+      if (!clientId) {
+        const clientInfo = await whatsappMediaService.findClientByPhone(message.phone);
+        clientId = clientInfo?.clientId;
+
+        const leadInfo = await whatsappMediaService.findLeadByPhone(message.phone);
+        leadId = leadInfo?.leadId;
+      }
+
+      // Crear documento en la documentación
+      const { default: documentService } = await import('@/documents/services/document.service');
+      const documentType = mediaInfo.mimeType.startsWith('image/') ? 'imagen' :
+                          mediaInfo.mimeType === 'application/pdf' ? 'presupuesto' : 'otro';
+
+      const conversationId = await whatsappMediaService.findConversationByPhone(message.phone);
+
+      doc = await documentService.create({
+        tenantId,
+        clientId,
+        leadId,
+        conversationId,
+        whatsappMessageId: messageId,
+        filename: fullFilename,
+        title: fullFilename.replace(/\.[^/.]+$/, ''),
+        description: `Recibido por WhatsApp: ${fullFilename}`,
+        documentType,
+        cloudinaryPublicId: cloudinaryResult.publicId,
+        cloudinaryUrl: cloudinaryResult.url,
+        secureUrl: cloudinaryResult.secureUrl,
+        mimeType: mediaInfo.mimeType,
+        fileSize: cloudinaryResult.bytes,
+        format: cloudinaryResult.format,
+        source: 'whatsapp',
+        mediaId: metadata.mediaId,
+      });
+
+      console.log('[download-media] Document created:', doc._id);
     }
 
-    console.log('[download-media] Creating document - clientId:', clientId, 'leadId:', leadId);
-
-    // Crear documento en la documentación
-    const { default: documentService } = await import('@/documents/services/document.service');
-    const documentType = mediaInfo.mimeType.startsWith('image/') ? 'imagen' : 
-                        mediaInfo.mimeType === 'application/pdf' ? 'presupuesto' : 'otro';
-
-    const conversationId = await whatsappMediaService.findConversationByPhone(message.phone);
-
-    const doc = await documentService.create({
-      tenantId,
-      clientId,
-      leadId,
-      conversationId,
-      whatsappMessageId: messageId,
-      filename: fullFilename,
-      title: fullFilename.replace(/\.[^/.]+$/, ''),
-      description: `Recibido por WhatsApp: ${fullFilename}`,
-      documentType,
-      cloudinaryPublicId: cloudinaryResult.publicId,
-      cloudinaryUrl: cloudinaryResult.url,
-      secureUrl: cloudinaryResult.secureUrl,
-      mimeType: mediaInfo.mimeType,
-      fileSize: cloudinaryResult.bytes,
-      format: cloudinaryResult.format,
-      source: 'whatsapp',
-      mediaId: metadata.mediaId,
-    });
-
-    console.log('[download-media] Document created:', doc._id);
-
-    // Actualizar el mensaje con la URL de Cloudinary
+    // Actualizar el mensaje con la URL de Cloudinary (siempre, también audio)
     await whatsappService.updateMessageMetadata(messageId, {
       pendingDownload: false,
       downloadedAt: new Date(),
@@ -198,7 +203,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      documentId: doc._id,
+      documentId: doc?._id ?? null,
       cloudinaryUrl: cloudinaryResult.secureUrl,
       filename: fullFilename,
     });
