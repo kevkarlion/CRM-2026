@@ -77,13 +77,19 @@ export async function POST(req: NextRequest) {
     // Clean filename - same as DocumentService
     const cleanFilename = file.name.replace(/[^a-zA-Z0-9.-]/g, '_').replace(/\.+/g, '.');
     
+    // publicId único: prefijo teléfono + timestamp. El nombre de archivo que
+    // envía el operador es genérico y se repite (ej. foto.jpg), lo que
+    // sobrescribía el asset en Cloudinary y corrompía media de otros chats.
+    const phoneSuffix = (to || '').replace(/[^\d]/g, '');
+    const uniquePublicId = `${phoneSuffix}_${Date.now()}_${cleanFilename}`;
+    
     const cloudinaryResult = await cloudinaryService.uploadBuffer(
       buffer,
       file.name,
       {
         folder: `crm/${tenantId}/whatsapp`,
         resourceType: resourceType as 'image' | 'raw',
-        publicId: cleanFilename,
+        publicId: uniquePublicId,
       }
     );
 

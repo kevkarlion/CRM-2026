@@ -134,7 +134,10 @@ export async function POST(request: NextRequest) {
       {
         folder: `crm/${tenantId}/whatsapp`,
         resourceType: resourceType as 'image' | 'video' | 'raw',
-        publicId: fullFilename, // Mantener extensión en publicId
+        // publicId único: prefijo teléfono + timestamp. El nombre genérico
+        // (ej. IMAG_2.jpeg) se repite y sobrescribía el asset en Cloudinary,
+        // corrompiendo media de otros chats.
+        publicId: `${(message.phone || '').replace(/[^\d]/g, '')}_${Date.now()}_${fullFilename}`,
       }
     );
 

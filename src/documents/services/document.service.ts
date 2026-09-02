@@ -187,15 +187,18 @@ export class DocumentService {
         : 'crm/temp';
 
 // Upload to Cloudinary (use "raw" for PDFs and other documents)
-    // Use original filename as public_id to keep the name
+    // Prefijo timestamp al publicId para evitar sobrescribir assets con el
+    // mismo nombre dentro del mismo lead/client (ej. subir dos veces
+    // "presupuesto.pdf" a un mismo cliente).
     const cleanFilename = file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const uniquePublicId = `${Date.now()}_${cleanFilename}`;
     const uploadResult = await cloudinaryService.uploadBuffer(
       file.buffer,
       file.originalname,
       {
         folder: `crm/${options.tenantId}`,
         resourceType: 'raw',
-        publicId: cleanFilename,
+        publicId: uniquePublicId,
       }
     );
 

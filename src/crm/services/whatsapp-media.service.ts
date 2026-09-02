@@ -297,8 +297,12 @@ export class WhatsAppMediaService {
       const resourceType = mediaInfo.mimeType.startsWith('image/') ? 'image' : 
                            mediaInfo.mimeType.startsWith('video/') ? 'video' : 'raw';
       
-      // Mantener extensión en publicId para que Cloudinary guarde correctamente
-      const cleanPublicId = filename;
+      // Mantener extensión en publicId para que Cloudinary guarde correctamente.
+      // Prefijar con teléfono + timestamp para garantizar unidad: el nombre
+      // original que envía WhatsApp es genérico (ej. IMAG_2.jpeg) y se repite
+      // entre usuarios, lo que sobrescribía el asset en Cloudinary y corrompía
+      // la imagen mostrada en chats de otros leads/clientes.
+      const cleanPublicId = `${normalizePhone(phone)}_${Date.now()}_${filename}`;
       
       cloudinaryResult = await cloudinaryService.uploadBuffer(
         buffer,
