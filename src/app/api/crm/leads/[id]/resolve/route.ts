@@ -59,6 +59,7 @@ export async function POST(
         console.log('[leads/resolve] ℹ️ Using existing client:', clientId);
       } else {
         // Crear cliente desde el lead
+        console.log('[leads/resolve] 🐛 inheritNotes check - lead.adminNotes:', JSON.stringify((lead as any).adminNotes));
         const newClient = await ClientModel.create({
           tenantId: new Types.ObjectId(tenantId),
           fullName: lead.name,
@@ -71,11 +72,12 @@ export async function POST(
           source: lead.source,
           status: 'active',
           operationStatus: 'none',
+          inheritNotes: (lead as any).adminNotes || undefined,
           createdBy: new Types.ObjectId(userId),
           updatedBy: new Types.ObjectId(userId),
         });
         clientId = String(newClient._id);
-        console.log('[leads/resolve] ✅ Created new client:', clientId);
+        console.log('[leads/resolve] ✅ Created new client:', clientId, '| inheritNotes:', JSON.stringify(newClient.inheritNotes));
       }
 
       // Actualizar lead con el clientId

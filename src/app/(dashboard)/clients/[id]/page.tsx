@@ -11,6 +11,7 @@ import {
   ClientConfirmSaleDrawer,
   ClientDocumentationTab,
   ClientInfoCard,
+  ClientInheritNotesCard,
   ClientMetadataCard,
   ClientNotesCard,
   ClientQuotesTab,
@@ -473,6 +474,9 @@ export default function ClientDetailPage() {
                     <ClientInfoCard client={client} />
                     
                     {/* Notas + Historial en filas separadas */}
+                    <div className="w-full">
+                      <ClientInheritNotesCard inheritNotes={client.inheritNotes} />
+                    </div>
                     <div className="w-full">
                       <ClientNotesCard notes={client.notes} clientId={id} />
                     </div>

@@ -335,6 +335,7 @@ export const gestionSyncHandler = {
             source: lead.source,
             status: 'active',
             operationStatus: 'none',
+            inheritNotes: (lead as any).adminNotes || undefined,
             createdBy: new Types.ObjectId(resolvedBy),
             updatedBy: new Types.ObjectId(resolvedBy),
           });

@@ -40,6 +40,7 @@ export interface IClient extends Document, IAuditFields {
   province?: string;
   source?: LeadSource;
   notes?: string;
+  inheritNotes?: string; // Notas heredadas del lead (read-only, no editables)
   tags: string[];
   blockHistory?: BlockHistoryEntry[];
   operationStatus?: ClientOperationStatus;

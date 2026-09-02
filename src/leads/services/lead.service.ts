@@ -571,6 +571,7 @@ export class LeadService {
         address: lead.address || undefined,
         locality: lead.locality || undefined,
         province: lead.province || undefined,
+        inheritNotes: (lead as any).adminNotes || undefined,
         createdBy: userId,
         updatedBy: userId,
       }], { session });

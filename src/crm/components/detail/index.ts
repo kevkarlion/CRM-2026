@@ -1,5 +1,6 @@
 export { ClientInfoCard } from './ClientInfoCard';
 export { ClientNotesCard } from './ClientNotesCard';
+export { ClientInheritNotesCard } from './ClientInheritNotesCard';
 export { ClientMetadataCard } from './ClientMetadataCard';
 export { ClientBlockHistoryCard } from './ClientBlockHistoryCard';
 export { ClientConfirmSaleDrawer } from './ClientConfirmSaleDrawer';

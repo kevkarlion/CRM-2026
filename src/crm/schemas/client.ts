@@ -36,6 +36,7 @@ export const clientSchema = new Schema<IClient>(
       enum: ['whatsapp', 'call', 'form', 'referral', 'walk_in', 'other'],
     },
     notes: String,
+    inheritNotes: { type: String, trim: true }, // Notas heredadas del lead (read-only, no editables)
     tags: { type: [String], default: [] },
     blockHistory: [
       {

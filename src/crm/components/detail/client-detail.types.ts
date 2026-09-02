@@ -25,6 +25,7 @@ export interface ClientDetail {
   province?: string;
   source?: string;
   notes?: string;
+  inheritNotes?: string;
   tags: string[];
   blockHistory?: BlockHistoryEntry[];
   operationStatus?: string;
