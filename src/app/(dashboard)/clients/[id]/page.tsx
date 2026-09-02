@@ -54,7 +54,7 @@ export default function ClientDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Entity tabs
-  const [activeTab, setActiveTab] = useState<DetailTabId>('documentacion');
+  const [activeTab, setActiveTab] = useState<DetailTabId>('resumen');
 
   // Quotes fetched by clientId through the existing /api/crm/quotes endpoint
   const [quotes, setQuotes] = useState<QuoteListItem[]>([]);
@@ -174,28 +174,6 @@ export default function ClientDetailPage() {
       );
     } catch (err) {
       console.error('Error taking control:', err);
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const handleMarkResolved = async () => {
-    if (!conversation?._id) return;
-    setActionLoading(true);
-    try {
-      await api.post(`/api/crm/conversations/${conversation._id}/resolve`, {});
-      setConversation((prev: any) =>
-        prev
-          ? {
-              ...prev,
-              owner: 'OPERATOR',
-              lifecycleState: 'RESOLVED',
-              resolvedAt: new Date().toISOString(),
-            }
-          : null,
-      );
-    } catch (err) {
-      console.error('Error marking resolved:', err);
     } finally {
       setActionLoading(false);
     }
@@ -534,7 +512,6 @@ export default function ClientDetailPage() {
                       loading={loadingConversation}
                       actionLoading={actionLoading}
                       onTakeControl={handleTakeControl}
-                      onMarkResolved={handleMarkResolved}
                     />
                     <LeadCommercialActionsCard
                       onOpenQuoteDrawer={() => setShowQuoteDrawer(true)}
