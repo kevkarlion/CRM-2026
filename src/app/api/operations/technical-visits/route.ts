@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import { connectDB } from '@/core/db';
 import { TechnicalVisitService } from '@/operations/services/technical-visit.service';
 import { ValidationError } from '@/core/errors';
@@ -56,7 +57,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Datos inválidos' }, { status: 400 });
     }
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 }
     );
   }
@@ -85,7 +86,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Datos inválidos' }, { status: 400 });
     }
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 }
     );
   }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import { connectDB } from '@/core/db';
 import WorkOrderModel from '@/operations/models/work-order';
 import { TechnicalVisitModel } from '@/operations/models/technical-visit';
@@ -351,7 +352,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 },
     );
   }

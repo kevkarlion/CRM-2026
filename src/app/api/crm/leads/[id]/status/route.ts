@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import { connectDB } from '@/core/db';
 import { LeadService, ConflictError } from '@/leads/services/lead.service';
 import type { LeadStatus } from '@/leads/types/lead';
@@ -37,7 +38,7 @@ export async function PATCH(
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 },
     );
   }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import { connectDB } from '@/core/db';
 import { documentService } from '@/documents/services/document.service';
 import { Types } from 'mongoose';
@@ -46,7 +47,7 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error('[Documents GET] Error:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 }
     );
   }

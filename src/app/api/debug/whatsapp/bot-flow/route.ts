@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import { connectDB } from '@/core/db';
 import whatsappService from '@/crm/services/whatsapp.service';
 
@@ -65,7 +66,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('Error in debug bot flow:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal error', stack: error instanceof Error ? error.stack : null },
+      { error: errorMessage(error, 'Internal error'), stack: error instanceof Error ? error.stack : null },
       { status: 500 }
     );
   }

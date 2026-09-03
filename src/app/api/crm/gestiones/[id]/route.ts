@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import { connectDB } from '@/core/db';
 import { GestionService, ValidationError } from '@/gestion/services/gestion.service';
 import type { UpdateGestionInput } from '@/gestion/types/gestion';
@@ -25,7 +26,7 @@ export async function GET(
     return NextResponse.json(gestion);
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 },
     );
   }
@@ -57,7 +58,7 @@ export async function PATCH(
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 },
     );
   }
@@ -87,7 +88,7 @@ export async function DELETE(
       return NextResponse.json({ error: error.message }, { status: 422 });
     }
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 },
     );
   }

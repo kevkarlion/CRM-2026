@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import bcrypt from 'bcryptjs';
 import { generateToken } from '@/core/auth/jwt-provider';
 import { connectDB } from '@/core/db';
@@ -96,7 +97,7 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 },
     );
   }

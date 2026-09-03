@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import { connectDB } from '@/core/db';
 import WhatsAppMessageModel from '@/crm/models/whatsapp-message';
 import { Types } from 'mongoose';
@@ -37,7 +38,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('Error injecting message:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal error' },
+      { error: errorMessage(error, 'Internal error') },
       { status: 500 }
     );
   }
@@ -59,7 +60,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ messages });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal error' },
+      { error: errorMessage(error, 'Internal error') },
       { status: 500 }
     );
   }

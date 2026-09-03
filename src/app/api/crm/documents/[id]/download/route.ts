@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import { connectDB } from '@/core/db';
 import { documentService } from '@/documents/services/document.service';
 
@@ -41,7 +42,7 @@ export async function GET(
   } catch (error) {
     console.error('[Document Download] Error:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Download failed' },
+      { error: errorMessage(error, 'Download failed') },
       { status: 500 }
     );
   }

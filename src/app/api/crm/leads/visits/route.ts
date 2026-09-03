@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import { connectDB } from '@/core/db';
 import { Types } from 'mongoose';
 import LeadModel from '@/leads/models/lead';
@@ -98,7 +99,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Error creating visit:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 }
     );
   }

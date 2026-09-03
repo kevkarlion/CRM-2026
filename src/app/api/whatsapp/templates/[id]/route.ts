@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import { whatsappTemplateService, TemplateNotFoundError } from '@/crm/services/whatsapp-template.service';
 import type { UpdateWhatsAppTemplateInput, WhatsAppTemplateCategory } from '@/crm/types/whatsapp-template';
 import { Types } from 'mongoose';
@@ -26,7 +27,7 @@ export async function GET(
     }
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 }
     );
   }
@@ -83,7 +84,7 @@ export async function PUT(
     }
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 }
     );
   }
@@ -112,7 +113,7 @@ export async function DELETE(
     }
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 }
     );
   }

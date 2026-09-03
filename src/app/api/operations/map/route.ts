@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import { connectDB } from '@/core/db';
 import { getOperationalMapUseCase } from '@/operations/services/get-operational-map.use-case';
 import { MapFilters } from '@/operations/types/map-marker';
@@ -48,7 +49,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error in GET /api/operations/map:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 }
     );
   }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import { connectDB } from '@/core/db';
 import { documentService } from '@/documents/services/document.service';
 
@@ -65,7 +66,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('[Document Upload] Error:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Upload failed' },
+      { error: errorMessage(error, 'Upload failed') },
       { status: 500 }
     );
   }

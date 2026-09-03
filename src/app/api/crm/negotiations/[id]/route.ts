@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import { connectDB } from '@/core/db';
 import { NegotiationService, TransitionError } from '@/negotiation/services/negotiation.service';
 import { CounterOfferService } from '@/negotiation/services/counter-offer.service';
@@ -26,7 +27,7 @@ export async function GET(
     return NextResponse.json(negotiation);
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 },
     );
   }
@@ -85,7 +86,7 @@ export async function PUT(
       return NextResponse.json({ error: error.message }, { status: 422 });
     }
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 },
     );
   }
@@ -112,7 +113,7 @@ export async function DELETE(
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 },
     );
   }

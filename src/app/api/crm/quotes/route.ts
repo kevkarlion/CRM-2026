@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import mongoose from 'mongoose';
 import { connectDB } from '@/core/db';
 import { QuoteService, ValidationError } from '@/quotes/services';
@@ -113,7 +114,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ ...result, data: enrichedData });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 },
     );
   }
@@ -155,7 +156,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 },
     );
   }

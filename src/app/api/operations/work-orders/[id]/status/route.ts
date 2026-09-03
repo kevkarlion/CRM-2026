@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import { connectDB } from '@/core/db';
 import { WorkOrderService, ValidationError, ConflictError } from '@/operations/services/work-order.service';
 import { TransitionError, validateTransition } from '@/operations/helpers/state-machine';
@@ -102,7 +103,7 @@ export async function POST(
       return NextResponse.json({ error: error.message, reason: error.reason }, { status: 422 });
     }
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 },
     );
   }

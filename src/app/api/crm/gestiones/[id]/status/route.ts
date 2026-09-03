@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import { connectDB } from '@/core/db';
 import { GestionService, ConflictError } from '@/gestion/services/gestion.service';
 import type { GestionStatus } from '@/gestion/types/gestion';
@@ -33,7 +34,7 @@ export async function PATCH(
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 },
     );
   }

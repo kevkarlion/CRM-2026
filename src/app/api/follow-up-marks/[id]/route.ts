@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import { connectDB } from '@/core/db';
 import { followUpMarkService, NotFoundError } from '@/crm/services/follow-up-mark.service';
 
@@ -24,7 +25,7 @@ export async function DELETE(
       return NextResponse.json({ error: error.message }, { status: 404 });
     }
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Error interno del servidor' },
+      { error: errorMessage(error, 'Error interno del servidor') },
       { status: 500 }
     );
   }

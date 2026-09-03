@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import { connectDB } from '@/core/db';
 import { ConversationQueryService } from '@/conversation/infrastructure/conversation-query.service';
 
@@ -23,7 +24,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ conversations });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 }
     );
   }

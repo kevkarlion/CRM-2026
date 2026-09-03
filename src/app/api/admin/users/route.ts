@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import bcrypt from 'bcryptjs';
 import mongoose from 'mongoose';
 import { connectDB } from '@/core/db';
@@ -34,7 +35,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: true, message: 'Usuario eliminado' });
   } catch (error) {
     console.error('Delete user error:', error);
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Error' }, { status: 500 });
+    return NextResponse.json({ error: errorMessage(error, 'Error') }, { status: 500 });
   }
 }
 
@@ -124,7 +125,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Create user error:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Error al crear usuario' },
+      { error: errorMessage(error, 'Error al crear usuario') },
       { status: 500 }
     );
   }

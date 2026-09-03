@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import { connectDB } from '@/core/db';
 import { technicalVisitService } from '@/operations/services/technical-visit.service';
 
@@ -46,7 +47,7 @@ export async function POST(
     }
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       error instanceof Error && error.message.includes('not found') ? { status: 404 }
         : { status: 500 },
     );

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import bcrypt from 'bcryptjs';
 import { connectDB } from '@/core/db';
 import { TenantModel, UserModel, RoleModel, UserRoleModel } from '@/core/models';
@@ -68,7 +69,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('Seed error:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Seed failed' },
+      { error: errorMessage(error, 'Seed failed') },
       { status: 500 }
     );
   }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import { connectDB } from '@/core/db';
 import { whatsappTemplateService } from '@/crm/services/whatsapp-template.service';
 import whatsappService from '@/crm/services/whatsapp.service';
@@ -121,7 +122,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('[WhatsApp Template Send] Error:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 }
     );
   }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import whatsappService from '@/crm/services/whatsapp.service';
 import '@/crm/models/whatsapp-message';
 import '@/leads/models/lead';
@@ -69,7 +70,7 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error('Error simulating message:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Error' },
+      { error: errorMessage(error, 'Error') },
       { status: 500 }
     );
   }

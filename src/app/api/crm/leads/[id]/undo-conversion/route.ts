@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import { connectDB } from '@/core/db';
 import LeadModel from '@/leads/models/lead';
 import { Types } from 'mongoose';
@@ -52,7 +53,7 @@ export async function POST(
   } catch (error) {
     console.error('[UndoConversion] Error:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 }
     );
   }

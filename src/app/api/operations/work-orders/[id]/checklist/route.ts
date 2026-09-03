@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import { connectDB } from '@/core/db';
 import { ChecklistService } from '@/operations/services/checklist.service';
 
@@ -24,7 +25,7 @@ export async function GET(
     return NextResponse.json({ data });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 },
     );
   }
@@ -47,7 +48,7 @@ export async function POST(
     return NextResponse.json({ data }, { status: 201 });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: error instanceof Error && error.message.includes('already exists') ? 409 : 500 },
     );
   }
@@ -83,7 +84,7 @@ export async function PATCH(
     return NextResponse.json({ data });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 },
     );
   }

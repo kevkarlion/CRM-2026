@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import { connectDB } from '@/core/db';
 import chatService from '@/crm/services/chat.service';
 import type { WhatsAppMessageStatus } from '@/crm/types/whatsapp-message';
@@ -45,7 +46,7 @@ export async function PATCH(
     return NextResponse.json({ message });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 }
     );
   }

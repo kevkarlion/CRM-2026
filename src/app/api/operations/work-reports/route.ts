@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import mongoose from 'mongoose';
 import { connectDB } from '@/core/db';
 
@@ -260,7 +261,7 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error('[WorkReports GET] Error:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal error' },
+      { error: errorMessage(error, 'Internal error') },
       { status: 500 }
     );
   }

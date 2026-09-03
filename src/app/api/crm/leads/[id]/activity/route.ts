@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import { connectDB } from '@/core/db';
 import TimelineEventModel from '@/timeline/models/timeline-event';
 import '@/core/models/user'; // Register User model for ref resolution
@@ -60,7 +61,7 @@ export async function GET(
   } catch (error) {
     console.error('Error fetching timeline events:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 },
     );
   }

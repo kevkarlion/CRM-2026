@@ -1,3 +1,5 @@
+import { toUserFriendlyMessage } from '@/core/error-message';
+
 interface ApiClient {
   get<T>(path: string, params?: Record<string, string>): Promise<T>;
   post<T>(path: string, body: unknown, isFormData?: boolean): Promise<T>;
@@ -147,7 +149,7 @@ async function request<T>(
 
   if (!res.ok) {
     const data: any = await res.json().catch(() => ({}));
-    const error = data.error || 'Algo salió mal. Por favor, intente de nuevo.';
+    const error = toUserFriendlyMessage(data.error);
     console.error('[api-client] Request failed:', res.status, url, data.error || '(no error message)');
     throw new Error(error);
   }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import { connectDB } from '@/core/db';
 import ClientModel from '@/crm/models/client';
 import LeadModel from '@/leads/models/lead';
@@ -35,7 +36,7 @@ export async function GET() {
     return NextResponse.json({ results });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 }
     );
   }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import { connectDB } from '@/core/db';
 import { workAssignmentService } from '@/operations/services/work-assignment.service';
 import { eventBus } from '@/infrastructure/events/event-bus';
@@ -94,7 +95,7 @@ export async function POST(
     return NextResponse.json({ data: assignment }, { status: 201 });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       error instanceof Error && error.message.includes('not found') ? { status: 404 }
         : { status: 500 },
     );

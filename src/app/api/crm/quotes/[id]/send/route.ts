@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import { connectDB } from '@/core/db';
 import { QuoteService, NotFoundError, ConflictError } from '@/quotes/services';
 import { TransitionError } from '@/quotes/helpers/state-machine';
@@ -32,7 +33,7 @@ export async function POST(
       return NextResponse.json({ error: error.message }, { status: 409 });
     }
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 },
     );
   }

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import { connectDB } from '@/core/db';
+import mongoose from 'mongoose';
 import { WorkOrderService, ValidationError } from '@/operations/services/work-order.service';
 import type { CreateWorkOrderInput } from '@/operations/types/work-order';
 
@@ -74,7 +76,7 @@ if (expired === 'true') {
       const TechnicianModel = (await import('@/operations/models/technician')).TechnicianModel;
       const matchingTechs = await TechnicianModel.find({
         name: techRegex,
-        tenantId: new Types.ObjectId(tenantId),
+        tenantId: new mongoose.Types.ObjectId(tenantId),
         deletedAt: null,
       }).select('_id').lean();
       const techIds = matchingTechs.map(t => t._id);
@@ -117,7 +119,7 @@ if (expired === 'true') {
     return NextResponse.json({ data: result.data, total: result.total, page, limit });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 },
     );
   }
@@ -145,7 +147,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Datos inválidos' }, { status: 400 });
     }
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 },
     );
   }

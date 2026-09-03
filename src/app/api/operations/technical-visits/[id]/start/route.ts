@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import { connectDB } from '@/core/db';
 import { TechnicalVisitModel } from '@/operations/models/technical-visit';
 import { TechnicianModel } from '@/operations/models/technician';
@@ -130,7 +131,7 @@ export async function POST(
   } catch (error) {
     console.error('[TechnicalVisit Start] Error:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 }
     );
   }

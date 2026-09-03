@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import { connectDB } from '@/core/db';
 import { workAssignmentService } from '@/operations/services/work-assignment.service';
 import WorkOrderModel from '@/operations/models/work-order';
@@ -36,7 +37,7 @@ export async function GET(
     return NextResponse.json({ data });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 },
     );
   }
@@ -119,7 +120,7 @@ export async function POST(
     }
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       error instanceof Error && error.message.includes('already') ? { status: 409 }
         : error instanceof Error && error.message.includes('not found') ? { status: 404 }
         : { status: 500 },

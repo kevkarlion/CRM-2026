@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import mongoose from 'mongoose';
 import { connectDB } from '@/core/db';
 import { QuoteService, ValidationError } from '@/quotes/services/quote.service';
@@ -224,7 +225,7 @@ export async function POST(
     }
     console.error('[document-action] Error:', error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Internal server error' },
+      { error: errorMessage(error, 'Internal server error') },
       { status: 500 }
     );
   }

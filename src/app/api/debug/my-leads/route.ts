@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { errorMessage } from '@/core/error-message';
 import { connectDB } from '@/core/db';
 import LeadModel from '@/leads/models/lead';
 
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest) {
     });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Error' },
+      { error: errorMessage(error, 'Error') },
       { status: 500 }
     );
   }
