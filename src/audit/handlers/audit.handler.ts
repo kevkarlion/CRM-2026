@@ -25,6 +25,16 @@ export const auditHandler = {
    * Handle any Domain Event by creating an ActivityLog.
    */
   async onAnyEvent(event: DomainEvent): Promise<void> {
+    // Skip if we can't attribute the log to an entity. Some events are
+    // published without aggregateType/aggregateId (e.g. legacy PUBLISH calls),
+    // which would make ActivityLog validation fail (entityType is required).
+    if (!event.aggregateType || !event.aggregateId) {
+      console.log(
+        `[AuditHandler] Skipping activity log for ${event.type}: missing aggregateType/aggregateId`,
+      );
+      return;
+    }
+
     const action = mapEventToAction(event.type);
     const payload = typeof event.payload === 'object' && event.payload !== null
       ? event.payload as Record<string, unknown>

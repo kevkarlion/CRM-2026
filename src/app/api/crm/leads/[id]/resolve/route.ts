@@ -101,6 +101,8 @@ export async function POST(
       type: DOMAIN_EVENTS.LEAD_RESOLVED,
       tenantId,
       userId,
+      aggregateType: 'lead',
+      aggregateId: leadId,
       payload: {
         leadId,
         clientId: String(clientId),

@@ -42,6 +42,8 @@ export async function POST(
       type: DOMAIN_EVENTS.CLIENT_RESOLVED,
       tenantId,
       userId,
+      aggregateType: 'client',
+      aggregateId: clientId,
       payload: {
         clientId,
         resolvedBy: String(userId),
