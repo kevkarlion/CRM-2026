@@ -25,6 +25,46 @@ const STATE_VALID_OPTIONS: Record<string, string[]> = {
   suppliers_info: ['1', '2'],
 };
 
+// Labels de urgencia para el resumen de notas (coinciden con el flujo lead)
+const URGENCY_LABELS: Record<string, string> = {
+  high: 'Urgente',
+  medium: 'Esta semana',
+  low: 'Sin apuro',
+};
+
+/**
+ * Construye el resumen de opciones elegidas por el lead en el flujo del bot.
+ * Se guarda en el campo `notes` del lead. Extraído para poder reutilizarlo
+ * tanto en el estado evaluate (rama servicios) como al cerrar las ramas
+ * rápidas (cotización, repuestos, otra consulta). NO toca el flujo del bot.
+ */
+function buildBotSummary(context: ConversationContext): string | undefined {
+  const parts: string[] = [];
+  if (context.needType) {
+    parts.push(`Servicio: ${SERVICE_TYPE_LABELS[context.needType] ?? context.needType}`);
+  }
+  if (context.urgency) {
+    parts.push(`Necesidad: ${URGENCY_LABELS[context.urgency] ?? context.urgency}`);
+  }
+  if (context.detail) {
+    parts.push(`Descripción: ${context.detail}`);
+  }
+  // Ramas rápidas: capturan el detalle en campos propios (repuesto, consulta, cotización)
+  // que no están declarados en el tipo ConversationContext pero sí en runtime.
+  const extra = context as unknown as Record<string, unknown>;
+  const sparePart = extra.sparePart;
+  const quoteWork = extra.quoteWork;
+  const generalQuery = extra.generalQuery;
+  if (sparePart && !context.detail) {
+    parts.push(`Repuesto: ${sparePart as string}`);
+  } else if (quoteWork && !context.detail) {
+    parts.push(`Cotización: ${quoteWork as string}`);
+  } else if (generalQuery && !context.detail) {
+    parts.push(`Consulta: ${generalQuery as string}`);
+  }
+  return parts.length > 0 ? parts.join(' | ') : undefined;
+}
+
 export interface HandleIncomingMessageInput {
   tenantId: string;
   leadId?: string;
@@ -233,6 +273,24 @@ export class HandleIncomingMessageUseCase {
     ) {
       updatedContext.location = userInput;
       console.log('[HandleIncoming] Location captured:', userInput);
+    }
+
+    // Ramas rápidas (cotización, repuestos, otra consulta): capturar el detalle escrito
+    // por el lead y reconstruir needType desde el estado. FIX quirúrgico: hoy ese texto
+    // se perdía y needType nunca se guardaba, por lo que el resumen en notes y el
+    // inquiryReason quedaban vacíos. NO cambia el flujo del bot ni sus mensajes.
+    if (conversation.state === 'spare_part' && userInput.length > 0) {
+      updatedContext.needType = 'spare_parts' as never;
+      (updatedContext as any).sparePart = userInput;
+      console.log('[HandleIncoming] Spare part captured:', userInput);
+    } else if (conversation.state === 'quote_work' && userInput.length > 0) {
+      updatedContext.needType = 'quote' as never;
+      (updatedContext as any).quoteWork = userInput;
+      console.log('[HandleIncoming] Quote work captured:', userInput);
+    } else if (conversation.state === 'general_query' && userInput.length > 0) {
+      updatedContext.needType = 'other' as never;
+      (updatedContext as any).generalQuery = userInput;
+      console.log('[HandleIncoming] General query captured:', userInput);
     }
 
     // 3.2. Si estamos en estado 'name' y el usuario respondió algo, usar ese texto como nombre
@@ -671,22 +729,7 @@ export class HandleIncomingMessageUseCase {
 
       // Actualizar lead con score y datos de contacto (incluyendo dirección)
       // Resumen MSJ: guarda en notes lo que respondió el lead, solo al cerrar el flujo.
-      const urgencyLabels: Record<string, string> = {
-        high: 'Urgente',
-        medium: 'Esta semana',
-        low: 'Sin apuro',
-      };
-      const summaryParts: string[] = [];
-      if (updatedContext.needType) {
-        summaryParts.push(`Servicio: ${SERVICE_TYPE_LABELS[updatedContext.needType] ?? updatedContext.needType}`);
-      }
-      if (updatedContext.urgency) {
-        summaryParts.push(`Necesidad: ${urgencyLabels[updatedContext.urgency] ?? updatedContext.urgency}`);
-      }
-      if (updatedContext.detail) {
-        summaryParts.push(`Descripción: ${updatedContext.detail}`);
-      }
-      const botSummary = summaryParts.length > 0 ? summaryParts.join(' | ') : undefined;
+      const botSummary = buildBotSummary(updatedContext);
       console.log('[💡 RESUMEN-MSJ-real] isLead:', isLead, '| botSummary:', JSON.stringify(botSummary), '| updatedContext keys:', Object.keys(updatedContext || {}));
 
       actions.push({
