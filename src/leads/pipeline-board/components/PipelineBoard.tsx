@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useSearchParams } from 'next/navigation';
 import { usePipelineLeads } from '../hooks/usePipelineLeads';
 import { usePipelineBoard } from '../hooks/usePipelineBoard';
@@ -738,6 +739,7 @@ export function PipelineBoard() {
                 </div>
               </div>
               <div className="p-2 space-y-2 overflow-y-auto flex-1">
+                <AnimatePresence mode="popLayout">
                 {customers.map((customer) => {
                   const typeLabel = customer.type === 'gestion' ? 'Gestión' : customer.type === 'client' ? 'Cliente' : 'Lead';
                   const typeBadge = customer.type === 'gestion' ? 'bg-green-100 text-green-700 border-green-200' : 
@@ -767,8 +769,14 @@ export function PipelineBoard() {
                   const showFollowUpBadge = !!customerMark;
                   
                   return (
-                    <div
+                    <motion.div
                       key={customer.id}
+                      layout
+                      layoutId={customer.id}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ type: 'spring', damping: 25, stiffness: 300 }}
                       className={`bg-white rounded-lg border-2 border-l-4 border-l-green-500 border-gray-200 p-2.5 cursor-pointer shadow-sm hover:shadow-md transition-shadow w-full ${
                         hasNewActivity ? 'border-blue-300' : ''
                       }`}
@@ -950,9 +958,10 @@ export function PipelineBoard() {
                           );
                         })()}
                       </div>
-                    </div>
+                    </motion.div>
                   );
                 })}
+                </AnimatePresence>
               </div>
             </div>
           )}

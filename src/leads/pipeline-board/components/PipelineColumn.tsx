@@ -1,4 +1,5 @@
 import React, { memo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import type { ILead } from '../../types/lead';
 import type { IPipelineStage } from '../../types/pipeline';
 import type { ConversationStatus } from '../hooks/useConversationStatus';
@@ -67,33 +68,41 @@ export const PipelineColumn = memo(function PipelineColumn({
             No hay leads en esta etapa
           </p>
         ) : (
-            leads.map((lead) => {
-            // Check if this is a Gestion by looking at the source field or custom property
-            const isGestion = (lead as any).source === 'gestion' || (lead as any).isFromGestion === true;
-            // Get conversation status - use getConversationStatus if available (supports originalLeadId)
-            const conversationStatus = getConversationStatus 
-              ? getConversationStatus(lead)
-              : conversationStatusMap?.get(String(lead._id));
-            // Get follow-up mark for this lead/client (use targetId which is a string)
-            const followUpMark = followUpMarks?.find(m => m.targetId === String(lead._id));
-            
-            return (
-            <LeadCard
-              key={String(lead._id)}
-              lead={lead}
-              entityType={isGestion ? 'gestion' : 'lead'}
-              onClick={onLeadClick}
-              onWhatsAppClick={onWhatsAppClick}
-              conversationStatus={conversationStatus}
-              onTakeCase={onTakeCase}
-              onQuickReply={onQuickReply}
-              onOpenChat={onOpenChat}
-              onResolve={onResolve}
-              followUpMark={followUpMark}
-              onMarkForFollowUp={onMarkForFollowUp}
-            />
-            );
-          })
+          <AnimatePresence mode="popLayout">
+            {leads.map((lead) => {
+              const isGestion = (lead as any).source === 'gestion' || (lead as any).isFromGestion === true;
+              const conversationStatus = getConversationStatus 
+                ? getConversationStatus(lead)
+                : conversationStatusMap?.get(String(lead._id));
+              const followUpMark = followUpMarks?.find(m => m.targetId === String(lead._id));
+              
+              return (
+                <motion.div
+                  key={String(lead._id)}
+                  layout
+                  layoutId={String(lead._id)}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                >
+                  <LeadCard
+                    lead={lead}
+                    entityType={isGestion ? 'gestion' : 'lead'}
+                    onClick={onLeadClick}
+                    onWhatsAppClick={onWhatsAppClick}
+                    conversationStatus={conversationStatus}
+                    onTakeCase={onTakeCase}
+                    onQuickReply={onQuickReply}
+                    onOpenChat={onOpenChat}
+                    onResolve={onResolve}
+                    followUpMark={followUpMark}
+                    onMarkForFollowUp={onMarkForFollowUp}
+                  />
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
         )}
       </div>
     </div>

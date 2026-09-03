@@ -88,7 +88,37 @@ export function usePipelineLeads(): UsePipelineLeadsReturn {
     if (!res.ok) throw new Error('Error al cargar leads del pipeline');
     const data: GroupedResponse = await res.json();
     setPipeline(data.pipeline);
-    setGroups(data.groups);
+
+    // Smart diffing: only update stages whose leads actually changed.
+    // This prevents React from re-rendering every card on every poll tick.
+    setGroups((prev) => {
+      const prevKeys = Object.keys(prev);
+      const nextKeys = Object.keys(data.groups);
+      // If key set changed (new/removed stages), full replace
+      if (prevKeys.length !== nextKeys.length || prevKeys.some((k) => !nextKeys.includes(k))) {
+        return data.groups;
+      }
+      // Compare each stage: same lead IDs in same order = no change
+      const merged: typeof data.groups = { ...data.groups };
+      let changed = false;
+      for (const key of nextKeys) {
+        const prevLeads = prev[key]?.leads;
+        const nextLeads = data.groups[key].leads;
+        const prevIds = prevLeads?.map((l) => String(l._id)) ?? [];
+        const nextIds = nextLeads.map((l) => String(l._id));
+        if (
+          prevIds.length !== nextIds.length ||
+          prevIds.some((id, i) => id !== nextIds[i])
+        ) {
+          changed = true;
+        } else {
+          // Stage unchanged — keep the old object reference to skip re-renders
+          merged[key] = prev[key];
+        }
+      }
+      return changed ? data.groups : prev;
+    });
+
     setUnmatched(data.unmatched);
     setTruncated(data.truncated);
   }, []);
