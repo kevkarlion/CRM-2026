@@ -52,6 +52,7 @@ vi.mock('@/crm/models', () => ({
 
 vi.mock('@/operations/helpers/state-machine', () => ({
   validateTransition: hoisted.mockValidateTransition,
+  CANONICAL_STATUSES: ['draft', 'scheduled', 'assigned', 'in_progress', 'paused', 'completed', 'closed', 'cancelled'],
 }));
 
 vi.mock('@/operations/helpers/counter', () => ({

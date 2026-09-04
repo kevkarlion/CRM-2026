@@ -3,7 +3,7 @@ import { WorkOrderModel, WorkOrderEventModel, WorkReportModel } from '../models'
 import WorkOrderAssignmentModel from '../models/work-order-assignment';
 import { IWorkOrder, CreateWorkOrderInput, UpdateWorkOrderInput, WorkOrderStatus } from '../types/work-order';
 import { getNextWorkOrderNumber } from '../helpers/counter';
-import { validateTransition, TransitionContext, TransitionError } from '../helpers/state-machine';
+import { validateTransition, TransitionContext, TransitionError, CANONICAL_STATUSES } from '../helpers/state-machine';
 import { logActivity } from '../../audit/activity-logger';
 import { ClientModel, LocationModel, EquipmentModel } from '../../crm/models';
 import { eventBus } from '@/infrastructure/events/event-bus';
@@ -471,7 +471,6 @@ export class WorkOrderService {
       const currentStatus = current.status as string;
 
       // Skip validation for legacy statuses - just allow the transition
-      const CANONICAL_STATUSES = ['draft', 'scheduled', 'in_progress', 'completed', 'cancelled'];
       if (!CANONICAL_STATUSES.includes(currentStatus)) {
         // Legacy status - allow transition to scheduled if has schedule
         console.log(`[changeStatus] Legacy status detected: ${currentStatus} → ${targetStatus}, allowing transition`);
