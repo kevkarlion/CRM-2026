@@ -9,7 +9,6 @@ import { useRole } from '@/dashboard/context/role-context';
 import type { TenantRoleName } from '@/rbac/permissions';
 import {
   LayoutDashboard,
-  Wrench,
   BarChart3,
   Users,
   Settings,
@@ -36,7 +35,7 @@ interface NavItem {
 
 const iconMap: Record<string, LucideIcon> = {
   Resumen: LayoutDashboard,
-  'Mi Panel': Wrench,
+  'Mi Panel': ClipboardList,
   Operaciones: Building2,
   Comercial: BarChart3,
   Pipeline: ClipboardList,
@@ -46,7 +45,8 @@ const iconMap: Record<string, LucideIcon> = {
   'Centro Operativo Comercial': FileText,
   'Centro Operativo Técnico': ClipboardCheck,
   Clientes: Contact,
-  'Mis Órdenes': Wrench,
+  'Mis Órdenes': ClipboardCheck,
+  'Todas las Órdenes': Building2,
   'Mi Calendario': Calendar,
   'Visitas Técnicas': ClipboardCheck,
   Mapa: Map,
@@ -54,7 +54,7 @@ const iconMap: Record<string, LucideIcon> = {
 };
 
 const navItems: NavItem[] = [
-  { label: 'Resumen', href: '/dashboard', icon: iconMap['Resumen'], roles: ['Owner', 'Administrator', 'Supervisor', 'Technician', 'Sales', 'Accounting', 'Dispatcher'] },
+  { label: 'Resumen', href: '/dashboard', icon: iconMap['Resumen'], roles: ['Owner', 'Administrator', 'Supervisor', 'Sales', 'Accounting', 'Dispatcher'] },
   { label: 'Mi Panel', href: '/dashboard/technician', icon: iconMap['Mi Panel'], roles: ['Technician'] },
   { label: 'Operaciones', href: '/dashboard/supervisor', icon: iconMap['Operaciones'], roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher'] },
   { label: 'Comercial', href: '/dashboard/commercial', icon: iconMap['Comercial'], roles: ['Owner', 'Administrator', 'Sales', 'Supervisor'] },
@@ -65,10 +65,10 @@ const navItems: NavItem[] = [
   { label: 'Leads', href: '/leads', icon: iconMap['Leads'], roles: ['Sales', 'Administrator', 'Owner', 'Supervisor'] },
   { label: 'Clientes', href: '/clients', icon: iconMap['Clientes'], roles: ['Owner', 'Administrator', 'Supervisor', 'Sales', 'Accounting'] },
   { label: 'Centro Operativo Comercial', href: '/quotes', icon: iconMap['Centro Operativo Comercial'], roles: ['Sales', 'Administrator', 'Owner', 'Supervisor'] },
-  // Order for technicians/operations
-  { label: 'Centro Operativo Técnico', href: '/centro-operativo', icon: iconMap['Centro Operativo Técnico'], roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Technician'] },
+  // Order for technicians/operations - removed Centro Operativo Técnico for technicians
+  { label: 'Centro Operativo Técnico', href: '/centro-operativo', icon: iconMap['Centro Operativo Técnico'], roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher'] },
   { label: 'Mis Órdenes', href: '/work-orders', icon: iconMap['Mis Órdenes'], roles: ['Technician'] },
-  { label: 'Todas las Órdenes', href: '/work-orders/all', icon: iconMap['Mis Órdenes'], roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Technician'] },
+  { label: 'Todas las Órdenes', href: '/work-orders/all', icon: iconMap['Todas las Órdenes'], roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Technician'] },
   { label: 'Visitas Técnicas', href: '/technical-visits', icon: iconMap['Visitas Técnicas'], roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Sales', 'Technician'] },
   { label: 'Mi Calendario', href: '/work-orders/calendar', icon: iconMap['Mi Calendario'], roles: ['Technician', 'Supervisor', 'Dispatcher', 'Owner', 'Administrator'] },
   { label: 'Mapa Operativo', href: '/mapa', icon: iconMap['Mapa'], roles: ['Owner', 'Administrator', 'Supervisor', 'Dispatcher', 'Technician'] },
