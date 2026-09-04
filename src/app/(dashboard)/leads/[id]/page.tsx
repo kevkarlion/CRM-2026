@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { MessageSquare } from 'lucide-react';
 
 import { api } from '@/lib/api-client';
 import { EntityDetailLayout, EntityTab, EntityTabPanel, EntityTabs } from '@/components/entity-detail';
@@ -11,14 +12,13 @@ import {
   LeadActivityTabs,
   LeadAdminNotesCard,
   LeadBotControlCard,
-  LeadCommercialActionsCard,
   LeadDocumentationTab,
-  LeadEditActionCard,
   LeadInfoCard,
   LeadQuotesTab,
   LeadSummaryNoteCard,
   LeadVisitsTab,
   LeadWorkOrdersTab,
+  QuickMessagesCard,
   STATUS_DOT_COLOR,
   STATUS_OPTIONS,
   STATUS_VARIANT,
@@ -58,7 +58,6 @@ export default function LeadDetailPage() {
 
   // Entity tabs
   const [activeTab, setActiveTab] = useState<DetailTabId>('resumen');
-  const [activeDetailTab, setActiveDetailTab] = useState<'chat' | 'timeline'>('chat');
 
   // Drawer states
   const [showQuoteDrawer, setShowQuoteDrawer] = useState(false);
@@ -103,7 +102,7 @@ export default function LeadDetailPage() {
 
   useChatPolling({
     interval: 5000,
-    enabled: activeDetailTab === 'chat',
+    enabled: true,
     onPoll: refetchChat,
   });
 
@@ -266,36 +265,20 @@ const handleCedeControl = async () => {
       return;
     }
 
-    setActionLoading(true);
-    try {
-      const res = await fetch(`/api/crm/conversations/${conversation._id}/cede-control`, {
-        method: 'POST',
-        headers: {
-          'x-tenant-id': localStorage.getItem('tenantId') || '',
-          'Authorization': `Bearer ${localStorage.getItem('token') || ''}`,
-        },
-      });
-      
-      const data = await res.json();
-      
-      if (res.ok) {
-        setConversation((prev) =>
-          prev
-            ? {
-                ...prev,
-                owner: 'BOT',
-                lifecycleState: 'ACTIVE_LEAD',
-                lastActivityAt: new Date().toISOString(),
-              }
-            : null
-        );
-        refetchChat();
-      }
-    } catch (err) {
-      console.error('[LeadDetail] Error:', err);
-    } finally {
-      setActionLoading(false);
-    }
+    // NOTE: LeadBotControlCard ya hace el POST a cede-control internamente.
+    // Este callback solo sincroniza el estado local del padre sin repetir el request,
+    // para evitar que el mensaje "bot retomó" se envíe dos veces.
+    setConversation((prev) =>
+      prev
+        ? {
+            ...prev,
+            owner: 'BOT',
+            lifecycleState: 'ACTIVE_LEAD',
+            lastActivityAt: new Date().toISOString(),
+          }
+        : null
+    );
+    refetchChat();
   };
 
   async function handleSendQuote(quoteId: string) {
@@ -411,25 +394,29 @@ const handleCedeControl = async () => {
           <EntityTab id="documentacion" label="Documentación" />
           <EntityTab id="actividad" label="Actividad" />
 
-          <EntityTabPanel id="resumen">
-            <div className="space-y-6">
-              <LeadInfoCard
-                lead={lead}
-                isConverted={isConverted}
-                saleDetail={saleDetail}
-                loadingSaleDetail={loadingSaleDetail}
-                onViewQuote={handleViewQuoteDetail}
-              />
-              <LeadSummaryNoteCard notes={lead.notes} />
-              <LeadAdminNotesCard notes={lead.adminNotes} onSave={saveNotes} />
+          <EntityTabPanel id="resumen" className="!p-0">
+            <div className="flex flex-col gap-6">
+              <div className="p-3 md:p-5">
+                <div className="space-y-6">
+                  <LeadInfoCard
+                    lead={lead}
+                    isConverted={isConverted}
+                    saleDetail={saleDetail}
+                    loadingSaleDetail={loadingSaleDetail}
+                    onViewQuote={handleViewQuoteDetail}
+                  />
+                  <LeadSummaryNoteCard notes={lead.notes} />
+                  <LeadAdminNotesCard notes={lead.adminNotes} onSave={saveNotes} />
+                </div>
+              </div>
 
-              {/* Chat + Bot Control + Commercial - side by side on desktop, stacked on mobile */}
-              <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-                {/* Chat - first on desktop */}
-                <div className="lg:col-span-3 order-2 lg:order-1">
+              {/* Chat + Sidebar - side by side on desktop, stacked on mobile. Kept outside
+                  the padded wrapper so the chat sits edge-to-edge on mobile.
+                  md:pb-5 lifts the chat off the bottom edge on desktop. */}
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 pb-4 md:pb-5">
+                {/* Chat - left on desktop, first on mobile */}
+                <div className="order-1 lg:col-span-3">
                   <LeadActivityTabs
-                    activeTab={activeDetailTab}
-                    onActiveTabChange={setActiveDetailTab}
                     leadId={id}
                     phone={phone}
                     messages={messages}
@@ -442,25 +429,11 @@ const handleCedeControl = async () => {
                     onAttachChat={handleAttachChat}
                     onDownloadChat={handleDownloadChat}
                     handoffPending={conversationStatus?.isHandoffPending ?? false}
-                    timelineRefreshKey={timelineRefreshKey}
                   />
                 </div>
-                
-                {/* Right sidebar: Commercial + Bot - on desktop they stack here */}
-                <div className="lg:col-span-1 order-1 lg:order-2 space-y-4">
-                  {/* Commercial Actions - first on mobile */}
-                  {canCreateQuoteOrVisit && (
-                    <LeadCommercialActionsCard
-                      onOpenQuoteDrawer={() => setShowQuoteDrawer(true)}
-                      onOpenVisitDrawer={() => setShowVisitDrawer(true)}
-                      onOpenQuickSaleDrawer={() => setShowQuickSaleDrawer(true)}
-                      leadId={id}
-                      currentStatus={lead?.status}
-                      onSendQuotePdf={refreshLeadAndTimeline}
-                      onConfirmSalePdf={refreshLeadAndTimeline}
-                    />
-                  )}
-                  {/* Bot Control - second on mobile */}
+
+                {/* Sidebar: Bot Control + Quick Messages - right on desktop, below chat on mobile */}
+                <div className="order-2 lg:col-span-1 space-y-4">
                   <LeadBotControlCard
                     conversation={conversation}
                     loading={loadingConversation}
@@ -468,25 +441,19 @@ const handleCedeControl = async () => {
                     onTakeControl={handleTakeControl}
                     onCedeControl={handleCedeControl}
                   />
-                  {/* WhatsApp Template Selector Button */}
+                  <QuickMessagesCard onSend={handleSendChat} phone={phone} />
                   {lead?.phone && (
                     <button
                       onClick={() => setShowWhatsAppTemplateDrawer(true)}
-                      className="w-full mt-3 inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      className="w-full inline-flex items-center justify-center gap-2.5 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-md shadow-emerald-200 hover:bg-emerald-700 hover:shadow-lg hover:shadow-emerald-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
                     >
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                      </svg>
+                      <MessageSquare className="h-5 w-5 shrink-0" aria-hidden="true" />
                       Enviar plantilla WhatsApp
                     </button>
                   )}
                 </div>
               </div>
             </div>
-
-            <aside className="space-y-4 mt-6">
-              <LeadEditActionCard onEdit={() => router.push(`/leads/${id}/edit`)} />
-            </aside>
           </EntityTabPanel>
 
           <EntityTabPanel id="presupuestos">

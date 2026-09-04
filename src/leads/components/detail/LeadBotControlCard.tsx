@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Bot, UserRound, Focus, ArrowLeftRight } from 'lucide-react';
 import type { ConversationDetail } from './lead-detail.types';
 
 interface LeadBotControlCardProps {
@@ -20,24 +21,24 @@ export function LeadBotControlCard({
   onCedeControl,
 }: LeadBotControlCardProps) {
   const [localLoading, setLocalLoading] = useState(false);
-  const [localOwner, setLocalOwner] = useState<string | null>(null);
-  
-  // Usar estado local si existe, sino usar conversation
-  const isOperatorControl = localOwner === 'OPERATOR' || 
-    (localOwner === null && conversation?.owner === 'OPERATOR' && conversation?.lifecycleState === 'IN_PROGRESS');
-  
+
+  // Solo usar conversation (fuente de verdad del padre) para el estado real.
+  // El operador tiene control cuando owner === OPERATOR y está IN_PROGRESS.
+  const isOperatorControl =
+    conversation?.owner === 'OPERATOR' && conversation?.lifecycleState === 'IN_PROGRESS';
+
   const isLoading = externalLoading || localLoading;
 
   // Función interna para ceder control
   const handleCedeToBot = async () => {
     if (!conversation?._id) return;
-    
+
     setLocalLoading(true);
-    
+
     try {
       const tenantId = localStorage.getItem('tenantId');
       const token = localStorage.getItem('token');
-      
+
       const res = await fetch(`/api/crm/conversations/${conversation._id}/cede-control`, {
         method: 'POST',
         headers: {
@@ -45,11 +46,9 @@ export function LeadBotControlCard({
           'Authorization': `Bearer ${token || ''}`,
         },
       });
-      
+
       if (res.ok) {
-        // Actualizar estado local sin recargar página
-        setLocalOwner('BOT');
-        // También llamar al callback del padre si existe
+        // Sincronizar el estado con el padre (no dejar estado local stale)
         onCedeControl?.();
       }
     } catch (err) {
@@ -87,13 +86,17 @@ export function LeadBotControlCard({
           ? 'bg-green-50 border border-green-200' 
           : 'bg-blue-50 border border-blue-200'
       }`}>
-        <span className="text-xl">
-          {isOperatorControl ? '👤' : '🤖'}
+        <span className="flex items-center">
+          {isOperatorControl ? (
+            <UserRound className="h-5 w-5 text-green-600" aria-hidden="true" />
+          ) : (
+            <Bot className="h-5 w-5 text-blue-600" aria-hidden="true" />
+          )}
         </span>
         <span className={`font-semibold ${
           isOperatorControl ? 'text-green-700' : 'text-blue-700'
         }`}>
-          {isOperatorControl ? 'Operador' : 'Bot'}
+          {isOperatorControl ? 'Operador' : 'BOT'}
         </span>
       </div>
 
@@ -120,16 +123,12 @@ export function LeadBotControlCard({
           <span className="flex items-center gap-2">
             {isOperatorControl ? (
               <>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
+                <ArrowLeftRight className="h-4 w-4" aria-hidden="true" />
                 Ceder al Bot
               </>
             ) : (
               <>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
+                <Focus className="h-4 w-4" aria-hidden="true" />
                 Tomar Control
               </>
             )}

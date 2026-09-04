@@ -51,7 +51,7 @@ export async function POST(
     try {
       const adapter = new WhatsAppBotAdapter();
       await adapter.sendMessage(
-        '🤖 He retomado la conversación. ¿En qué puedo ayudarte?',
+        '🤖 He retomado la conversación.',
         conversation.phoneNumber,
         tenantId
       );

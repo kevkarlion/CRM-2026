@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { MessageSquare } from 'lucide-react';
 
 import { api, unwrapData } from '@/lib/api-client';
 import { EntityDetailLayout, EntityTab, EntityTabPanel, EntityTabs } from '@/components/entity-detail';
@@ -28,7 +29,7 @@ import {
   GESTION_STATUS_DOT_COLOR,
   clientName,
 } from '@/crm/components/detail';
-import { LeadCommercialActionsCard, LeadBotControlCard } from '@/leads/components/detail';
+import { LeadBotControlCard, QuickMessagesCard } from '@/leads/components/detail';
 import { CreateQuoteDrawer } from '@/leads/components/CreateQuoteDrawer';
 import { CreateVisitDrawer } from '@/leads/components/CreateVisitDrawer';
 import { ChatPanel } from '@/whatsapp/components/ChatPanel';
@@ -87,8 +88,6 @@ export default function ClientDetailPage() {
   const [showWhatsAppTemplateDrawer, setShowWhatsAppTemplateDrawer] = useState(false);
 
   // Chat state
-  const [activeDetailTab, setActiveDetailTab] = useState<'chat' | 'timeline'>('chat');
-  const [timelineRefreshKey, setTimelineRefreshKey] = useState(0);
   const phone = client?.phone || null;
   const {
     messages,
@@ -102,7 +101,7 @@ export default function ClientDetailPage() {
 
   useChatPolling({
     interval: 5000,
-    enabled: activeDetailTab === 'chat',
+    enabled: true,
     onPoll: refetchChat,
   });
 
@@ -448,93 +447,76 @@ export default function ClientDetailPage() {
             <EntityTab id="actividad" label="Actividad" />
             <EntityTab id="resueltas" label="Conversaciones resueltas" />
 
-<EntityTabPanel id="resumen">
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                  <div className="space-y-6 lg:col-span-2">
-                    <ClientInfoCard client={client} />
-                    
-                    {/* Notas + Historial en filas separadas */}
-                    <div className="w-full">
-                      <ClientInheritNotesCard inheritNotes={client.inheritNotes} />
+<EntityTabPanel id="resumen" className="!p-0">
+              <div className="flex flex-col gap-6">
+                <div className="p-3 md:p-5">
+                  <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                    <div className="space-y-6 lg:col-span-2">
+                      <ClientInfoCard client={client} />
+
+                      {/* Notas + Historial en filas separadas */}
+                      <div className="w-full">
+                        <ClientInheritNotesCard inheritNotes={client.inheritNotes} />
+                      </div>
+                      <div className="w-full">
+                        <ClientNotesCard notes={client.notes} clientId={id} />
+                      </div>
+                      <div className="w-full">
+                        <ClientBlockHistoryCard
+                          client={client}
+                          isBlocked={client.status === 'blocked'}
+                          onBlock={() => setBlockModalOpen(true)}
+                          onUnblock={() => setUnblockModalOpen(true)}
+                          loading={submitting}
+                        />
+                      </div>
                     </div>
-                    <div className="w-full">
-                      <ClientNotesCard notes={client.notes} clientId={id} />
-                    </div>
-                    <div className="w-full">
-                      <ClientBlockHistoryCard 
-                        client={client} 
-                        isBlocked={client.status === 'blocked'}
-                        onBlock={() => setBlockModalOpen(true)}
-                        onUnblock={() => setUnblockModalOpen(true)}
-                        loading={submitting}
+
+                    <aside className="space-y-4">
+                      <ClientMetadataCard client={client} />
+                    </aside>
+                  </div>
+                </div>
+
+                {/* Chat + Sidebar - side by side on desktop, stacked on mobile. Kept outside
+                    the padded wrapper so the chat sits edge-to-edge on mobile.
+                    md:pb-5 lifts the chat off the bottom edge on desktop. */}
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 px-0 md:px-0 pb-4 md:pb-5">
+                  {/* Chat - left on desktop, first on mobile */}
+                  <div className="order-1 lg:col-span-3">
+                    <div className="h-[calc(100vh-320px)] md:h-[500px] overflow-hidden rounded-lg border border-gray-200">
+                      <ChatPanel
+                        messages={messages}
+                        loading={chatLoading}
+                        error={chatError}
+                        hasMore={hasMore}
+                        onLoadMore={loadMore}
+                        onSend={handleSendChat}
+                        onAttach={handleAttachChat}
+                        onDownload={handleDownloadChat}
+                        sending={chatSending}
+                        selectedPhone={phone}
+                        clientId={id}
                       />
                     </div>
                   </div>
 
-                  <aside className="space-y-4">
-                    <ClientMetadataCard client={client} />
-                  </aside>
-                </div>
-
-                {/* Chat + Bot Control - full width, same proportions as lead */}
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-                  <div className="lg:col-span-3">
-                    <EntityTabs
-                      activeId={activeDetailTab}
-                      onChange={(id) => setActiveDetailTab(id as 'chat' | 'timeline')}
-                      aria-label="Comunicación y actividad del cliente"
-                    >
-                      <EntityTab id="chat" label="Chat WhatsApp" />
-                      <EntityTab id="timeline" label="Actividad" />
-
-                      <EntityTabPanel id="chat" className="h-[500px] p-0">
-                        <ChatPanel
-                          messages={messages}
-                          loading={chatLoading}
-                          error={chatError}
-                          hasMore={hasMore}
-                          onLoadMore={loadMore}
-                          onSend={handleSendChat}
-                          onAttach={handleAttachChat}
-                          onDownload={handleDownloadChat}
-                          sending={chatSending}
-                          selectedPhone={phone}
-                          clientId={id}
-                        />
-                      </EntityTabPanel>
-
-                      <EntityTabPanel id="timeline" className="p-6">
-                        <ClientActivityTab clientId={id} />
-                      </EntityTabPanel>
-                    </EntityTabs>
-                  </div>
-                  <div className="lg:col-span-1">
+                  {/* Sidebar: Bot Control + Quick Messages - right on desktop, below chat on mobile */}
+                  <div className="order-2 lg:col-span-1 space-y-4">
                     <LeadBotControlCard
                       conversation={conversation}
                       loading={loadingConversation}
                       actionLoading={actionLoading}
                       onTakeControl={handleTakeControl}
                     />
-                    <LeadCommercialActionsCard
-                      onOpenQuoteDrawer={() => setShowQuoteDrawer(true)}
-                      onOpenVisitDrawer={() => setShowVisitDrawer(true)}
-                      onOpenQuickSaleDrawer={() => setShowConfirmSaleDrawer(true)}
-                      disabled={client.status === 'blocked'}
-                      clientId={id}
-                      clientOperationStatus={client.operationStatus}
-                      onSendQuotePdf={refreshClient}
-                      onConfirmSalePdf={refreshClient}
-                    />
+                    <QuickMessagesCard onSend={handleSendChat} phone={phone} />
                     {/* WhatsApp Template Selector Button */}
                     <button
                       onClick={() => setShowWhatsAppTemplateDrawer(true)}
                       disabled={client.status === 'blocked' || !client.phone}
-                      className="w-full mt-3 inline-flex items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      className="w-full inline-flex items-center justify-center gap-2.5 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white shadow-md shadow-emerald-200 hover:bg-emerald-700 hover:shadow-lg hover:shadow-emerald-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-all cursor-pointer"
                     >
-                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                      </svg>
+                      <MessageSquare className="h-5 w-5 shrink-0" aria-hidden="true" />
                       Enviar plantilla WhatsApp
                     </button>
                   </div>
