@@ -437,8 +437,8 @@ export const timelineHandler = {
       performedBy: event.userId,
       metadata: {
         number: p.number,
-        status: 'completed',
-        statusLabel: 'Completado',
+        status: 'closed',
+        statusLabel: 'Cerrado',
       },
     });
   },

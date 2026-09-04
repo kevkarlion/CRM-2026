@@ -9,7 +9,6 @@ import { useRole } from '@/dashboard/context/role-context';
 import { SelfAssignmentDrawer } from '@/operations/components/SelfAssignmentDrawer';
 import { formatDateShort as formatDate } from '@/operations/helpers/date-utils';
 import { Loader2, ArrowLeft } from 'lucide-react';
-import { WORK_ORDER_STATUS_LABELS } from '@/operations/constants/status-labels';
 import { SearchInput } from '@/components/ui/SearchInput';
 
 type Tab = 'all' | 'mine';
@@ -56,42 +55,38 @@ interface ListResponse {
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Todos' },
-  ...Object.entries(WORK_ORDER_STATUS_LABELS).map(([value, label]) => ({ value, label })),
-];
-
-// Canonical statuses only for filtering
-// status = operativo (flujo del técnico)
-// workStatus = negocio (control de vencidas)
-const CANONICAL_STATUS_OPTIONS = [
-  { value: '', label: 'Todos' },
   { value: 'draft', label: 'Borrador' },
-  { value: 'scheduled_only', label: 'Programada' }, // Solo programadas sin técnico
-  { value: 'assigned_only', label: 'Asignada' }, // Solo asignadas sin fecha
-  { value: 'scheduled_assigned', label: 'Programada + Asignada' }, // Tiene ambas
+  { value: 'scheduled', label: 'Programada' },
+  { value: 'assigned', label: 'Asignada' },
   { value: 'in_progress', label: 'En Ejecucion' },
+  { value: 'paused', label: 'Pausada' },
+  { value: 'completed', label: 'Completada' },
   { value: 'closed', label: 'Cerrada' },
-  { value: 'paused', label: 'Pausada (operativo)' },
-  { value: 'paused_negocio', label: 'Pausada (negocio)' },
-  { value: 'cancelled_negocio', label: 'Cancelada (negocio)' },
-  { value: 'active', label: 'Activa (negocio)' },
+  { value: 'cancelled', label: 'Cancelada' },
   { value: 'expired', label: 'Vencidas' },
 ];
 
-// Status label helper - groups multiple internal statuses into simplified view
+// Status label helper - canonical statuses only
 function getStatusLabel(status: string): string {
   switch (status) {
+    case 'draft':
+      return 'Borrador';
     case 'scheduled':
-    case 'confirmed':
-    case 'assigned':
       return 'Programada';
+    case 'assigned':
+      return 'Asignada';
+    case 'in_progress':
+      return 'En Ejecución';
     case 'paused':
       return 'Pausada';
-    case 'cancelled':
-      return 'Cancelada';
+    case 'completed':
+      return 'Completada';
     case 'closed':
       return 'Cerrada';
+    case 'cancelled':
+      return 'Cancelada';
     default:
-      return WORK_ORDER_STATUS_LABELS[status as keyof typeof WORK_ORDER_STATUS_LABELS] || status;
+      return status;
   }
 }
 
@@ -99,13 +94,12 @@ function getStatusLabel(status: string): string {
 const STATUS_VARIANT: Record<string, string> = {
   draft: 'bg-gray-100 text-gray-700',
   scheduled: 'bg-blue-50 text-blue-700',
-  confirmed: 'bg-blue-50 text-blue-700',
-  assigned: 'bg-blue-50 text-blue-700',
+  assigned: 'bg-purple-50 text-purple-700',
   in_progress: 'bg-amber-50 text-amber-700',
   paused: 'bg-yellow-50 text-yellow-700',
   completed: 'bg-green-50 text-green-700',
-  cancelled: 'bg-red-50 text-red-700',
   closed: 'bg-slate-50 text-slate-700',
+  cancelled: 'bg-red-50 text-red-700',
 };
 
 const PRIORITY_OPTIONS = [
@@ -157,9 +151,8 @@ const PRIORITY_LABELS: Record<string, string> = {
 // Check if work order is overdue (past scheduled date and not completed/closed/paused)
 function isOverdue(wo: WorkOrder): boolean {
   if (!wo.scheduledDate) return false;
-  // No es vencida si: completed, closed, cancelled, o si workStatus es paused/cancelled
-  if (['completed', 'closed', 'cancelled'].includes(wo.status)) return false;
-  if ((wo as any).workStatus === 'paused' || (wo as any).workStatus === 'cancelled' || (wo as any).workStatus === 'completed') return false;
+  // No es vencida si: completed, closed, cancelled, o paused
+  if (['completed', 'closed', 'cancelled', 'paused'].includes(wo.status)) return false;
   
   // Parse date
   const dateStr = String(wo.scheduledDate);
@@ -252,10 +245,6 @@ function WorkOrdersContent() {
   const [selfAssignOpen, setSelfAssignOpen] = useState(false);
   const [selfAssignWO, setSelfAssignWO] = useState<{ id: string; number: string } | null>(null);
 
-  // WorkStatus dropdown state (negocio)
-  const [workStatusDropdown, setWorkStatusDropdown] = useState<string | null>(null);
-  const [changingWorkStatus, setChangingWorkStatus] = useState<string | null>(null);
-
   // When tab changes, update status filter
   useEffect(() => {
     if (activeTab === 'mine') {
@@ -271,41 +260,7 @@ function WorkOrdersContent() {
   // Reset page to 1 when filters change
   useEffect(() => {
     setPage(1);
-  }, [statusFilter, priorityFilter, fromDate, toDate, technicianFilter, search, workStatusDropdown]);
-
-  // Cerrar dropdowns al hacer click fuera
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (workStatusDropdown && dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setWorkStatusDropdown(null);
-      }
-    };
-    
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, [workStatusDropdown]);
-
-  // Cambiar workStatus desde la lista (solo actualiza esa fila, no recarga toda la tabla)
-  const handleWorkStatusChange = async (woId: string, newWorkStatus: string, version: number) => {
-    setChangingWorkStatus(woId);
-    try {
-      await api.patch(`/api/operations/work-orders/${woId}`, {
-        workStatus: newWorkStatus,
-        version: version,
-      });
-      // Actualizar solo la fila affected
-      setOrders(prev => prev.map(wo => 
-        wo._id === woId ? { ...wo, workStatus: newWorkStatus, version: version + 1 } : wo
-      ));
-      setWorkStatusDropdown(null);
-    } catch (err) {
-      console.error('Error changing workStatus:', err);
-    } finally {
-      setChangingWorkStatus(null);
-    }
-  };
+  }, [statusFilter, priorityFilter, fromDate, toDate, technicianFilter, search]);
 
   const mountedRef = useRef(false);
 
@@ -320,16 +275,7 @@ const fetchOrders = useCallback(async () => {
       // Handle special filters
       if (statusFilter === 'expired') {
         params.expired = 'true';
-      } else if (statusFilter === 'paused_negocio') {
-        // Filter by workStatus === 'paused' (negocio)
-        params.workStatus = 'paused';
-      } else if (statusFilter === 'cancelled_negocio') {
-        // Filter by workStatus === 'cancelled' (negocio)
-        params.workStatus = 'cancelled';
-      } else if (statusFilter === 'active') {
-        // Filter by workStatus === 'active' (negocio)
-        params.workStatus = 'active';
-} else if (statusFilter === 'scheduled_assigned') {
+      } else if (statusFilter === 'scheduled_assigned') {
         // Programada + Asignada (tiene scheduledDate Y técnico asignado)
         // No filtramos por status, solo por los campos
         params.hasScheduledDate = 'true';
@@ -350,7 +296,6 @@ const fetchOrders = useCallback(async () => {
       }
       
       // For 'mine' tab or when viewFilter is not empty, always pass status=not_closed to include expired
-      // But also exclude workStatus: cancelled
       if ((activeTab === 'mine' || viewFilter !== '') && !statusFilter) {
         params.status = 'not_closed';
       }
@@ -379,12 +324,10 @@ const fetchOrders = useCallback(async () => {
       
       const result = await api.get<ListResponse>(endpoint, params);
       
-      // Filter out cancelled workStatus on frontend (negocio)
       const allOrders = unwrapData(result);
-      const filteredOrders = allOrders.filter((wo: any) => wo.workStatus !== 'cancelled');
       
-      setOrders(filteredOrders);
-      setTotal(filteredOrders.length);
+      setOrders(allOrders);
+      setTotal(allOrders.length);
     } catch (err) {
       setError(err instanceof Error ? err.message: 'Error al cargar órdenes');
     } finally {
@@ -634,7 +577,6 @@ const fetchOrders = useCallback(async () => {
                   <th className="min-w-[120px] px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Titulo</th>
                   <th className="min-w-[100px] px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Cliente</th>
                   <th className="w-20 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Estado</th>
-                  <th className="w-20 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Negocio</th>
                   <th className="w-20 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Prioridad</th>
                   <th className="w-24 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-brand-600" onClick={() => handleSort('createdAt')}>Creacion <SortIcon field="createdAt" /></th>
                   <th className="w-24 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-brand-600" onClick={() => handleSort('scheduledDate')}>Fecha <SortIcon field="scheduledDate" /></th>
@@ -688,79 +630,6 @@ const fetchOrders = useCallback(async () => {
                             </span>
                           )}
                         </div>
-                      </td>
-                      {/* Columna de estado de negocio (workStatus) */}
-                      <td className="px-2 py-1.5 align-middle">
-                        {(() => {
-                          // Si el status operativo es 'closed', mostrar como completed aunque workStatus sea 'active'
-                          const effectiveWorkStatus = wo.status === 'closed' ? 'completed' : (wo.workStatus || 'active');
-                          const canChange = !['closed', 'cancelled', 'in_progress'].includes(wo.status) && effectiveWorkStatus !== 'completed';
-                          
-                          if (changingWorkStatus === wo._id) {
-                            return <span className="text-xs text-gray-400">Cambiando...</span>;
-                          }
-                          
-                          return (
-                            <div className="relative" ref={dropdownRef}>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (canChange) {
-                                    setWorkStatusDropdown(workStatusDropdown === wo._id ? null : wo._id);
-                                  }
-                                }}
-                                className={`inline-flex items-center justify-between px-2 py-0.5 rounded-md text-xs font-medium w-20 ${
-                                  canChange ? 'cursor-pointer hover:opacity-80' : 'cursor-not-allowed opacity-60'
-                                } ${
-                                  effectiveWorkStatus === 'active' ? 'bg-green-100 text-green-800' :
-                                  effectiveWorkStatus === 'paused' ? 'bg-amber-100 text-amber-800' :
-                                  effectiveWorkStatus === 'cancelled' ? 'bg-red-100 text-red-800' :
-                                  effectiveWorkStatus === 'completed' ? 'bg-blue-100 text-blue-800' :
-                                  'bg-gray-100 text-gray-700'
-                                }`}
-                              >
-                                <span className="truncate">
-                                  {effectiveWorkStatus === 'active' ? 'Activa' : 
-                                   effectiveWorkStatus === 'paused' ? 'Pausada' : 
-                                   effectiveWorkStatus === 'cancelled' ? 'Cancelada' : 
-                                   effectiveWorkStatus === 'completed' ? 'Completada' : 
-                                   effectiveWorkStatus}
-                                </span>
-                                {canChange && (
-                                  <svg className="w-3 h-3 ml-1 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                  </svg>
-                                )}
-                              </button>
-                              
-                              {/* Dropdown menu - solo muestra opciones distintas al actual */}
-                              {workStatusDropdown === wo._id && canChange && (() => {
-                                const currentWs = effectiveWorkStatus;
-                                const options = [];
-                                if (currentWs !== 'active') options.push({ value: 'active', label: 'Activa', color: 'green' });
-                                if (currentWs !== 'paused') options.push({ value: 'paused', label: 'Pausar', color: 'amber' });
-                                if (currentWs !== 'cancelled') options.push({ value: 'cancelled', label: 'Cancelada', color: 'red' });
-                                
-                                return options.length > 0 ? (
-                                  <div className="absolute z-10 mt-1 w-28 bg-white border border-gray-200 rounded-lg shadow-lg" onClick={(e) => e.stopPropagation()}>
-                                    {options.map(opt => (
-                                      <button
-                                        key={opt.value}
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleWorkStatusChange(wo._id, opt.value, wo.version);
-                                        }}
-                                        className={`block w-full text-left px-3 py-1.5 text-xs hover:bg-${opt.color}-100 cursor-pointer transition-colors text-${opt.color}-700`}
-                                      >
-                                        {opt.label}
-                                      </button>
-                                    ))}
-                                  </div>
-                                ) : null;
-                              })()}
-                            </div>
-                          );
-                        })()}
                       </td>
                       <td className="px-2 py-1.5 align-middle">
                         <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-medium ${PRIORITY_VARIANT[wo.priority] || 'bg-gray-100 text-gray-700'}`}>

@@ -86,24 +86,22 @@ const STATUS_OPTIONS: Record<string, string> = {
   draft: 'Borrador',
   scheduled: 'Programada',
   assigned: 'Asignada',
-  confirmed: 'Confirmada',
   in_progress: 'En Ejecución',
   paused: 'Pausada',
   completed: 'Completada',
-  cancelled: 'Cancelada',
   closed: 'Cerrada',
+  cancelled: 'Cancelada',
 };
 
 const STATUS_VARIANT: Record<string, string> = {
   draft: 'bg-gray-200 text-gray-800',
   scheduled: 'bg-sky-600 text-white',
-  assigned: 'bg-sky-600 text-white',
-  confirmed: 'bg-sky-600 text-white',
+  assigned: 'bg-purple-600 text-white',
   in_progress: 'bg-amber-500 text-gray-900',
   paused: 'bg-amber-500 text-gray-900',
   completed: 'bg-emerald-700 text-white',
-  cancelled: 'bg-rose-600 text-white',
   closed: 'bg-gray-700 text-white',
+  cancelled: 'bg-rose-600 text-white',
 };
 
 const PRIORITY_VARIANT: Record<string, string> = {
@@ -566,19 +564,6 @@ export default function WorkOrderDetailPage() {
           <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${STATUS_VARIANT[workOrder.status]}`}>
             {STATUS_OPTIONS[workOrder.status] || workOrder.status}
           </span>
-          {(workOrder.workStatus === 'paused' || workOrder.workStatus === 'cancelled' || workOrder.workStatus === 'active' || workOrder.workStatus === 'completed') && (
-            <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${
-              workOrder.workStatus === 'active' ? 'bg-emerald-700 text-white' :
-              workOrder.workStatus === 'paused' ? 'bg-amber-500 text-gray-900' :
-              workOrder.workStatus === 'completed' ? 'bg-sky-600 text-white' :
-              'bg-rose-600 text-white'
-            }`}>
-              {workOrder.workStatus === 'active' ? 'Activa' : 
-               workOrder.workStatus === 'paused' ? 'Pausada' : 
-               workOrder.workStatus === 'completed' ? 'Completada' : 
-               'Cancelada'}
-            </span>
-          )}
           <span className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium ${PRIORITY_VARIANT[workOrder.priority]}`}>
             {PRIORITY_LABELS[workOrder.priority] || workOrder.priority}
           </span>

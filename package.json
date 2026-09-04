@@ -44,5 +44,8 @@
     "react-dom": "^19.2.7",
     "react-leaflet": "^5.0.0",
     "wavesurfer.js": "^7.12.11"
+  },
+  "optionalDependencies": {
+    "opencode-linux-x64": "^1.18.28"
   }
 }

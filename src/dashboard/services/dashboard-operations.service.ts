@@ -34,7 +34,7 @@ export class DashboardOperationsService {
       }),
       WorkOrderModel.countDocuments({
         tenantId, deletedAt: null,
-        status: 'completed',
+        status: { $in: ['closed', 'completed'] },
         updatedAt: { $gte: todayStart, $lt: todayEnd },
       }),
       WorkOrderModel.countDocuments({
@@ -63,7 +63,7 @@ export class DashboardOperationsService {
 
     const completed = await WorkOrderModel.find({
       tenantId, deletedAt: null,
-      status: 'completed',
+      status: { $in: ['closed', 'completed'] },
       updatedAt: { $gte: thirtyDaysAgo },
     })
       .select('createdAt updatedAt')

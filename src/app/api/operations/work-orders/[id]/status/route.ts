@@ -55,7 +55,7 @@ export async function POST(
       return NextResponse.json({ error: 'status is required' }, { status: 400 });
     }
 
-    const validStatuses: WorkOrderStatus[] = ['scheduled', 'in_progress', 'completed', 'cancelled'];
+    const validStatuses: WorkOrderStatus[] = ['scheduled', 'assigned', 'in_progress', 'paused', 'completed', 'closed', 'cancelled'];
     if (!validStatuses.includes(targetStatus)) {
       return NextResponse.json({ 
         error: `Invalid status. Must be one of: ${validStatuses.join(', ')}` 

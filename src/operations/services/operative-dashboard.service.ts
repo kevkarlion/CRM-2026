@@ -216,7 +216,7 @@ export class OperativeDashboardService {
         const completedToday = await WorkOrderModel.countDocuments({
           tenantId: tenantObjectId,
           assignedTechnicians: tech._id,
-          status: 'completed',
+          status: { $in: ['closed', 'completed'] },
           updatedAt: {
             $gte: new Date(new Date().setHours(0, 0, 0, 0)),
             $lt: new Date(new Date().setHours(23, 59, 59, 999)),

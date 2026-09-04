@@ -231,15 +231,16 @@ const [form, setForm] = useState({
   // Use browser GPS to get current location
   // Removed - not needed without geocoding API
 
-  // Cambiar workStatus (estado de negocio)
-  async function handleWorkStatusChange(newWorkStatus: string) {
+  // Cambiar status (estado canónico)
+  async function handleStatusChange(newStatus: string) {
     setSaving(true);
     setError(null);
     try {
       const version = workOrder?.version ?? 0;
       
-      await api.patch<{ data: any }>(`/api/operations/work-orders/${id}`, {
-        workStatus: newWorkStatus,
+      // Use the status endpoint for canonical status changes
+      await api.post<{ data: any }>(`/api/operations/work-orders/${id}/status`, {
+        status: newStatus,
         version: version,
       });
       
@@ -376,17 +377,33 @@ const [form, setForm] = useState({
   const inputClass = 'w-full rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none';
   const readonlyClass = 'w-full rounded-lg bg-gray-50 border border-gray-200 px-3 py-2 text-sm text-gray-600';
 
-  // WorkStatus control logic
-  // workStatus: campo de negocio (active/paused/cancelled)
-  // status: campo operativo (draft/scheduled/assigned/in_progress/paused/completed/cancelled/closed)
-  const currentWorkStatus = workOrder?.workStatus || 'active';
-  const isWorkCancelled = currentWorkStatus === 'cancelled';
-  const isWorkPaused = currentWorkStatus === 'paused';
-  const isWorkActive = currentWorkStatus === 'active';
-  const isWorkCompleted = currentWorkStatus === 'completed';
+  // Canonical status control logic
+  const currentStatus = workOrder?.status || 'draft';
+  const isPaused = currentStatus === 'paused';
+  const isCancelled = currentStatus === 'cancelled';
+  const isCompleted = currentStatus === 'completed';
+  const isClosed = currentStatus === 'closed';
+  const isInProgress = currentStatus === 'in_progress';
+  const isTerminal = isCancelled || isCompleted || isClosed;
   
-  // No se puede cambiar workStatus si el status operativo es closed, cancelled o in_progress
-  const canChangeWorkStatus = !['closed', 'cancelled', 'in_progress'].includes(workOrder?.status || '') && !isWorkCompleted;
+  // Can pause: scheduled, assigned, in_progress
+  const canPause = ['scheduled', 'assigned', 'in_progress'].includes(currentStatus);
+  // Can resume: paused
+  const canResume = currentStatus === 'paused';
+  // Can cancel: any non-terminal
+  const canCancel = !isTerminal;
+
+  // Badge label based on canonical status
+  const statusLabel: Record<string, string> = {
+    draft: 'Borrador',
+    scheduled: 'Programada',
+    assigned: 'Asignada',
+    in_progress: 'En Ejecución',
+    paused: 'Pausada',
+    completed: 'Completada',
+    closed: 'Cerrada',
+    cancelled: 'Cancelada',
+  };
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -396,46 +413,50 @@ const [form, setForm] = useState({
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Editar Orden de Trabajo</h1>
           {/* Badge de estado al lado del titulo */}
           <span className={`px-3 py-1 text-sm rounded-lg font-medium ${
-            isWorkActive ? 'bg-green-100 text-green-800' : 
-            isWorkPaused ? 'bg-amber-100 text-amber-800' : 
-            isWorkCompleted ? 'bg-blue-100 text-blue-800' : 
-            'bg-red-100 text-red-800'
+            isPaused ? 'bg-amber-100 text-amber-800' : 
+            isInProgress ? 'bg-blue-100 text-blue-800' : 
+            isCompleted ? 'bg-green-100 text-green-800' : 
+            isClosed ? 'bg-slate-100 text-slate-800' : 
+            isCancelled ? 'bg-red-100 text-red-800' : 
+            'bg-gray-100 text-gray-800'
           }`}>
-            {isWorkActive ? 'Activa' : isWorkPaused ? 'Pausada' : isWorkCompleted ? 'Completada' : 'Cancelada'}
+            {statusLabel[currentStatus] || currentStatus}
           </span>
         </div>
         
         {/* Botones de accion al lado opuesto */}
-        {!isWorkCancelled && canChangeWorkStatus && (
+        {!isCancelled && !isTerminal && (
           <div className="flex gap-2">
-            {isWorkActive && (
+            {canPause && (
               <button
                 type="button"
-                onClick={() => handleWorkStatusChange('paused')}
+                onClick={() => handleStatusChange('paused')}
                 disabled={saving}
                 className="px-3 py-1.5 bg-amber-500 text-white text-sm rounded-lg hover:bg-amber-600 transition-colors disabled:opacity-50"
               >
                 Pausar
               </button>
             )}
-            {isWorkPaused && (
+            {canResume && (
               <button
                 type="button"
-                onClick={() => handleWorkStatusChange('active')}
+                onClick={() => handleStatusChange('in_progress')}
                 disabled={saving}
                 className="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
               >
-                Iniciar
+                Reanudar
               </button>
             )}
-            <button
-              type="button"
-              onClick={() => handleWorkStatusChange('cancelled')}
-              disabled={saving}
-              className="px-3 py-1.5 bg-red-500 text-white text-sm rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
-            >
-              Cancelar
-            </button>
+            {canCancel && (
+              <button
+                type="button"
+                onClick={() => handleStatusChange('cancelled')}
+                disabled={saving}
+                className="px-3 py-1.5 bg-red-500 text-white text-sm rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+            )}
           </div>
         )}
       </div>

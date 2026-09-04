@@ -9,7 +9,6 @@ import { useRole } from '@/dashboard/context/role-context';
 import { SelfAssignmentDrawer } from '@/operations/components/SelfAssignmentDrawer';
 import { formatDateShort as formatDate } from '@/operations/helpers/date-utils';
 import { Loader2, ArrowLeft } from 'lucide-react';
-import { WORK_ORDER_STATUS_LABELS } from '@/operations/constants/status-labels';
 import { SearchInput } from '@/components/ui/SearchInput';
 
 // Helper to get short WO number (last 7 chars)
@@ -53,24 +52,14 @@ interface ListResponse {
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Todos' },
-  ...Object.entries(WORK_ORDER_STATUS_LABELS).map(([value, label]) => ({ value, label })),
-];
-
-const CANONICAL_STATUS_OPTIONS = [
-  { value: '', label: 'Todos' },
   { value: 'draft', label: 'Borrador' },
-  { value: 'scheduled_only', label: 'Programada' },
-  { value: 'assigned_only', label: 'Asignada' },
-  { value: 'scheduled_assigned', label: 'Prog. y Asignadas' },
+  { value: 'scheduled', label: 'Programada' },
+  { value: 'assigned', label: 'Asignada' },
   { value: 'in_progress', label: 'En Ejecución' },
   { value: 'paused', label: 'Pausada' },
   { value: 'completed', label: 'Completada' },
   { value: 'closed', label: 'Cerrada' },
   { value: 'cancelled', label: 'Cancelada' },
-  { value: 'expired', label: 'Vencidas' },
-  { value: 'active', label: 'Negocio Activo' },
-  { value: 'paused_negocio', label: 'Negocio Pausado' },
-  { value: 'cancelled_negocio', label: 'Negocio Cancelado' },
 ];
 
 const PRIORITY_OPTIONS = [
@@ -81,14 +70,13 @@ const PRIORITY_OPTIONS = [
 ];
 
 const STATUS_VARIANT: Record<string, string> = {
+  draft: 'bg-gray-50 text-gray-600',
   scheduled: 'bg-blue-50 text-blue-700',
-  confirmed: 'bg-green-50 text-green-700',
   assigned: 'bg-purple-50 text-purple-700',
   in_progress: 'bg-amber-50 text-amber-700',
   paused: 'bg-yellow-50 text-yellow-700',
   completed: 'bg-green-50 text-green-700',
   closed: 'bg-slate-50 text-slate-700',
-  draft: 'bg-gray-50 text-gray-600',
   cancelled: 'bg-red-50 text-red-700',
 };
 
@@ -99,14 +87,13 @@ const PRIORITY_VARIANT: Record<string, string> = {
 };
 
 const STATUS_VARIANT_MOBILE: Record<string, string> = {
+  draft: 'bg-gray-200 text-gray-800',
   scheduled: 'bg-sky-600 text-white',
-  confirmed: 'bg-sky-600 text-white',
   assigned: 'bg-sky-600 text-white',
   in_progress: 'bg-amber-500 text-gray-900',
   paused: 'bg-amber-500 text-gray-900',
   completed: 'bg-emerald-700 text-white',
   closed: 'bg-gray-700 text-white',
-  draft: 'bg-gray-200 text-gray-800',
   cancelled: 'bg-rose-600 text-white',
 };
 
@@ -148,7 +135,6 @@ function AllWorkOrdersPage() {
 
   const [selfAssignOpen, setSelfAssignOpen] = useState(false);
   const [selfAssignWO, setSelfAssignWO] = useState<{ id: string; number: string } | null>(null);
-  const [workStatusDropdown, setWorkStatusDropdown] = useState<string | null>(null);
   const [changingWorkStatus, setChangingWorkStatus] = useState<string | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const mountedRef = useRef(false);
@@ -163,20 +149,6 @@ function AllWorkOrdersPage() {
       
       if (statusFilter === 'expired') {
         params.expired = 'true';
-      } else if (statusFilter === 'paused_negocio') {
-        params.workStatus = 'paused';
-      } else if (statusFilter === 'cancelled_negocio') {
-        params.workStatus = 'cancelled';
-      } else if (statusFilter === 'active') {
-        params.workStatus = 'active';
-      } else if (statusFilter === 'scheduled_assigned') {
-        params.hasScheduledDate = 'true';
-        params.hasTechnician = 'true';
-      } else if (statusFilter === 'scheduled_only') {
-        params.status = 'scheduled';
-      } else if (statusFilter === 'assigned_only') {
-        params.status = 'in_progress';
-        params.scheduledDate = 'none';
       } else if (statusFilter) {
         params.status = statusFilter;
       }
@@ -298,9 +270,8 @@ function AllWorkOrdersPage() {
 
   const isOverdue = (wo: WorkOrder) => {
     if (!wo.scheduledDate) return false;
-    // No es vencida si: completed, closed, cancelled, o si workStatus es paused/cancelled/completed
-    if (['completed', 'closed', 'cancelled'].includes(wo.status)) return false;
-    if ((wo as any).workStatus === 'paused' || (wo as any).workStatus === 'cancelled' || (wo as any).workStatus === 'completed') return false;
+    // No es vencida si: completed, closed, cancelled, o paused
+    if (['completed', 'closed', 'cancelled', 'paused'].includes(wo.status)) return false;
 
     // Parse date
     const dateStr = String(wo.scheduledDate);
@@ -418,7 +389,7 @@ function AllWorkOrdersPage() {
             onChange={(e) => setStatusFilter((e.target as any).value)}
             className="w-full relative z-10 rounded-lg border border-gray-200 px-3 py-2 text-sm shadow-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none bg-white"
           >
-            {CANONICAL_STATUS_OPTIONS.map((opt) => (
+            {STATUS_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
@@ -479,7 +450,6 @@ function AllWorkOrdersPage() {
                   <th className="min-w-[120px] px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Título</th>
                   <th className="min-w-[100px] px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Cliente</th>
                   <th className="w-20 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Estado</th>
-                  <th className="w-20 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Negocio</th>
                   <th className="w-20 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Prioridad</th>
                   <th className="w-24 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-brand-600" onClick={() => handleSort('createdAt')}>Creación <SortIcon field="createdAt" /></th>
                   <th className="w-24 px-2 py-2 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider cursor-pointer hover:text-brand-600" onClick={() => handleSort('scheduledDate')}>Fecha <SortIcon field="scheduledDate" /></th>
@@ -514,19 +484,6 @@ function AllWorkOrdersPage() {
                             </span>
                           )}
                         </div>
-                      </td>
-                      <td className="px-2 py-1.5 align-middle">
-                        <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-medium ${
-                          wo.workStatus === 'active' ? 'bg-green-100 text-green-800' :
-                          wo.workStatus === 'paused' ? 'bg-amber-100 text-amber-800' :
-                          wo.workStatus === 'completed' ? 'bg-blue-100 text-blue-800' :
-                          'bg-gray-100 text-gray-700'
-                        }`}>
-                          {wo.workStatus === 'active' ? 'Activa' :
-                           wo.workStatus === 'paused' ? 'Pausada' :
-                           wo.workStatus === 'completed' ? 'Completada' :
-                           'Activa'}
-                        </span>
                       </td>
                       <td className="px-2 py-1.5 align-middle">
                         <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-medium ${PRIORITY_VARIANT[wo.priority] || 'bg-gray-100 text-gray-700'}`}>
@@ -591,6 +548,31 @@ function AllWorkOrdersPage() {
             ))}
           </div>
         </>
+      )}
+
+      {/* Pagination */}
+      {total > limit && (
+        <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+          <p className="text-sm text-gray-500">
+            Página {page} de {Math.ceil(total / limit)}
+          </p>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage(page - 1)}
+              disabled={page === 1}
+              className="px-3 py-1.5 text-sm rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Anterior
+            </button>
+            <button
+              onClick={() => setPage(page + 1)}
+              disabled={page >= Math.ceil(total / limit)}
+              className="px-3 py-1.5 text-sm rounded-lg border border-gray-200 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Siguiente
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );
