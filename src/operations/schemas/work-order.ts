@@ -121,6 +121,7 @@ export const workOrderSchema = new Schema<IWorkOrder>(
     startedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null }, // Quién lo inició
     finishedAt: { type: Date, default: null },       // Cuándo se terminó
     closedAt: { type: Date, default: null },        // Cuándo se cerró la OT
+    cancelledAt: { type: Date, default: null },     // Cuándo se canceló la OT
     duration: { type: Number, default: null },       // Duración en minutos (calculada automáticamente)
     
     // Referencia al WorkReport

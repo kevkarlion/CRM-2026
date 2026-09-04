@@ -27,7 +27,7 @@ export type WorkOrderStatus =
   | 'cancelled';       // Cancelada
 
 // Estado de negocio - paralelo al status operativo
-export type WorkStatus = 'active' | 'paused' | 'cancelled';
+export type WorkStatus = 'active' | 'paused' | 'cancelled' | 'completed';
 
 export interface IClientSnapshot {
   name?: string;
@@ -110,7 +110,7 @@ export interface IWorkOrder extends Document, IAuditFields {
   priority: WorkOrderPriority;
   category: WorkOrderCategory;
   status: WorkOrderStatus;
-  workStatus: 'active' | 'paused' | 'cancelled' | 'completed';
+  workStatus: WorkStatus;
   scheduledDate?: string;
   scheduledStart?: Date;
   scheduledEnd?: Date;
@@ -123,6 +123,7 @@ export interface IWorkOrder extends Document, IAuditFields {
   startedBy?: Types.ObjectId | null;
   finishedAt?: Date | null;
   closedAt?: Date | null;
+  cancelledAt?: Date | null;
   duration?: number | null;
   // Referencia al WorkReport
   workReportId?: Types.ObjectId | null;

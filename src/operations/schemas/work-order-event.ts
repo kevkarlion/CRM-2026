@@ -7,7 +7,7 @@ export const workOrderEventSchema = new Schema<IWorkOrderEvent>(
     workOrderId: { type: Schema.Types.ObjectId, ref: 'WorkOrder', required: true },
     eventType: {
       type: String,
-      enum: ['created', 'assigned', 'status_changed', 'checklist_completed', 'technician_changed', 'visit_started', 'visit_completed', 'attachment_uploaded', 'note_added', 'closed', 'rescheduled'],
+      enum: ['created', 'assigned', 'status_changed', 'checklist_completed', 'technician_changed', 'visit_started', 'visit_completed', 'attachment_uploaded', 'note_added', 'closed', 'rescheduled', 'cancelled', 'paused', 'completed'],
       required: true,
     },
     description: { type: String, required: true },

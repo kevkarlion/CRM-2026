@@ -1,6 +1,6 @@
 import { Document, Types } from 'mongoose';
 
-export type WorkOrderEventType = 'created' | 'assigned' | 'status_changed' | 'checklist_completed' | 'technician_changed' | 'visit_started' | 'visit_completed' | 'attachment_uploaded' | 'note_added' | 'closed' | 'rescheduled';
+export type WorkOrderEventType = 'created' | 'assigned' | 'status_changed' | 'checklist_completed' | 'technician_changed' | 'visit_started' | 'visit_completed' | 'attachment_uploaded' | 'note_added' | 'closed' | 'rescheduled' | 'cancelled' | 'paused' | 'completed';
 
 export interface IWorkOrderEvent extends Document {
   _id: Types.ObjectId;

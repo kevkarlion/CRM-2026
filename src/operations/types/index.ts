@@ -2,6 +2,7 @@ export type {
   WorkOrderPriority,
   WorkOrderCategory,
   WorkOrderStatus,
+  WorkStatus,
   IClientSnapshot,
   ILocationSnapshot,
   IEquipmentSnapshot,
