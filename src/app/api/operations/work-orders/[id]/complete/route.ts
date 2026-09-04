@@ -9,6 +9,7 @@ import { logActivity } from '@/audit/activity-logger';
 import { eventBus } from '@/infrastructure/events/event-bus';
 import { DOMAIN_EVENTS, WorkOrderCompletedPayload } from '@/infrastructure/events/event.types';
 import { broadcastWorkReportCompleted } from '@/lib/sse-broadcast';
+import { NotificationModel } from '@/operations/models/notification';
 import mongoose from 'mongoose';
 
 const VALID_STATUSES = ['in_progress'] as const;
@@ -216,6 +217,29 @@ export async function POST(
       });
     } catch (broadcastError) {
       console.error('[WorkOrder Complete] Failed to broadcast SSE:', broadcastError);
+    }
+
+    // Persist notification to database (for polling fallback + missed events)
+    try {
+      const sevenDaysFromNow = new Date();
+      sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+      
+      await NotificationModel.create([{
+        tenantId: new mongoose.Types.ObjectId(tenantId),
+        type: 'work_report_completed',
+        title: 'Orden de Trabajo terminada',
+        message: `${techName} completó ${workOrder.workOrderNumber}: ${workOrder.title}`,
+        data: {
+          workOrderId: workOrderId.toString(),
+          workReportId: workReport._id.toString(),
+          workOrderNumber: workOrder.workOrderNumber,
+          technicianName: techName,
+          clientId: (workOrder as any).clientId?.toString(),
+        },
+        expiresAt: sevenDaysFromNow,
+      }]);
+    } catch (notifyError) {
+      console.error('[WorkOrder Complete] Failed to create notification:', notifyError);
     }
 
     // Publish WORK_ORDER_COMPLETED event for timeline
