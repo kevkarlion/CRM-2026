@@ -224,7 +224,9 @@ export async function POST(
       const sevenDaysFromNow = new Date();
       sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
       
-      await NotificationModel.create([{
+      console.log('[Complete] Creating notification for tenant:', tenantId, 'workOrder:', workOrder.workOrderNumber);
+      
+      const notification = await NotificationModel.create([{
         tenantId: new mongoose.Types.ObjectId(tenantId),
         type: 'work_report_completed',
         title: 'Orden de Trabajo terminada',

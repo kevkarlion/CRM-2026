@@ -54,23 +54,37 @@ export function WorkReportToast({ isAdmin = false }: WorkReportToastProps) {
     if (!isAdmin) return;
     
     try {
+      console.log('[Toast] Fetching notifications via polling...');
       const result = await api.get<{ data: NotificationData[]; unreadCount: number }>('/api/notifications', {
         limit: '20',
         unreadOnly: 'true',
       });
       
+      console.log('[Toast] Got notifications:', result.data?.length || 0, 'unread:', result.unreadCount);
+      
       const notifications = result.data || [];
       
-      // Get IDs we've already shown
+      // Get IDs we've already shown (both notification._id and workOrderId)
       const shownIds = new Set(toasts.map(t => t.id));
+      const shownWorkOrderIds = new Set(toasts.map(t => t.data?.data?.workOrderId));
       
-      // Add new notifications
+      // Add new notifications - use workOrderId as id for consistency with SSE
       const newToasts = notifications
-        .filter(n => !shownIds.has(n._id))
-        .map(n => ({
-          id: n._id,
-          data: n,
-        }));
+        .filter(n => {
+          const workOrderId = n.data?.workOrderId;
+          // Skip if we already have this notification by _id OR by workOrderId
+          return !shownIds.has(n._id) && !shownWorkOrderIds.has(workOrderId);
+        })
+        .map(n => {
+          const workOrderId = n.data?.workOrderId || n._id;
+          console.log('[Toast] Polling: adding toast for', workOrderId);
+          return {
+            id: workOrderId,
+            data: n,
+          };
+        });
+      
+      console.log('[Toast] New toasts:', newToasts.length);
       
       if (newToasts.length > 0) {
         setToasts(prev => [...prev, ...newToasts]);
@@ -78,7 +92,7 @@ export function WorkReportToast({ isAdmin = false }: WorkReportToastProps) {
       
       setConnectionStatus('connected');
     } catch (error) {
-      console.error('[WorkReportToast] Polling fetch failed:', error);
+      console.error('[Toast] Polling fetch failed:', error);
       setConnectionStatus('disconnected');
     }
   }, [isAdmin, toasts]);
@@ -95,22 +109,32 @@ export function WorkReportToast({ isAdmin = false }: WorkReportToastProps) {
       }
       
       // Add new notification from SSE
-      setToasts(prev => [...prev, {
-        id: data.workReportId || `sse-${Date.now()}`,
-        data: {
-          _id: data.workReportId,
-          type: 'work_report_completed',
-          title: 'Orden de Trabajo terminada',
-          message: `${data.technicianName} completó ${data.workOrderNumber}`,
+      // Use workOrderId as ID for consistency with polling deduplication
+      const toastId = data.workOrderId || `sse-${Date.now()}`;
+      setToasts(prev => {
+        // Prevent duplicates
+        if (prev.some(t => t.id === toastId)) {
+          console.log('[Toast] SSE: duplicate ignored for', toastId);
+          return prev;
+        }
+        console.log('[Toast] SSE: adding toast for', toastId);
+        return [...prev, {
+          id: toastId,
           data: {
-            workOrderId: data.workOrderId,
-            workReportId: data.workReportId,
-            workOrderNumber: data.workOrderNumber,
-            technicianName: data.technicianName,
+            _id: toastId,
+            type: 'work_report_completed',
+            title: 'Orden de Trabajo terminada',
+            message: `${data.technicianName} completó ${data.workOrderNumber}`,
+            data: {
+              workOrderId: data.workOrderId,
+              workReportId: data.workReportId,
+              workOrderNumber: data.workOrderNumber,
+              technicianName: data.technicianName,
+            },
+            createdAt: new Date().toISOString(),
           },
-          createdAt: new Date().toISOString(),
-        },
-      }]);
+        }];
+      });
       
       setConnectionStatus('connected');
     } catch (error) {
@@ -122,9 +146,10 @@ export function WorkReportToast({ isAdmin = false }: WorkReportToastProps) {
   useEffect(() => {
     if (!isAdmin) return;
 
+    console.log('[Toast] Setting up SSE connection, isAdmin:', isAdmin);
+    setConnectionStatus('connecting');
+    
     const connectSSE = () => {
-      setConnectionStatus('connecting');
-      
       try {
         const eventSource = new EventSource('/api/sse/work-reports');
         eventSourceRef.current = eventSource;
@@ -161,20 +186,29 @@ export function WorkReportToast({ isAdmin = false }: WorkReportToastProps) {
     };
   }, [isAdmin]);
 
-  // Set up polling fallback
+  // Set up polling fallback - runs ALWAYS as backup
   useEffect(() => {
     if (!isAdmin) return;
 
     // Initial fetch
     fetchNotifications();
 
-    // Poll every 30 seconds as fallback
+    // Fast polling: every 3 seconds for 60 seconds, then slow to 30 seconds
+    let elapsed = 0;
     pollingIntervalRef.current = setInterval(() => {
-      if (!isConnectedRef.current) {
-        console.log('[WorkReportToast] Using polling fallback');
-        fetchNotifications();
+      elapsed += 3000;
+      console.log('[Toast] Polling tick, elapsed:', elapsed, 'ms');
+      fetchNotifications();
+      
+      // After 60 seconds, slow down to 30s intervals
+      if (elapsed >= 60000 && pollingIntervalRef.current) {
+        clearInterval(pollingIntervalRef.current);
+        pollingIntervalRef.current = setInterval(() => {
+          console.log('[Toast] Slow polling tick (30s)');
+          fetchNotifications();
+        }, 30000);
       }
-    }, 30000);
+    }, 3000);
 
     return () => {
       if (pollingIntervalRef.current) {
