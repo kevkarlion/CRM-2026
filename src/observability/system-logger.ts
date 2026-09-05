@@ -2,6 +2,7 @@ import { Types } from 'mongoose';
 import SystemLogModel from '../core/models/system-log';
 import { LogLevel } from '../core/types/system-log';
 import type { ErrorContext } from './types';
+import { shouldPersistSystemLog } from '../lib/config';
 
 export interface SystemLogEntry {
   level: LogLevel;
@@ -19,6 +20,7 @@ export interface SystemLogEntry {
  * SMTP errors, WhatsApp errors, and any service-level events.
  */
 export async function logSystemEvent(entry: SystemLogEntry): Promise<void> {
+  if (!shouldPersistSystemLog()) return;
   try {
     await SystemLogModel.create({
       level: entry.level,

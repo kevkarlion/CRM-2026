@@ -1,5 +1,6 @@
 import { Types } from 'mongoose';
 import RequestLogModel from '../core/models/request-log';
+import { shouldPersistSystemLog } from '../lib/config';
 
 export interface RequestLogEntry {
   method: string;
@@ -21,6 +22,7 @@ export interface RequestLogEntry {
  * Use as middleware in Next.js API routes or route handlers.
  */
 export async function logRequest(entry: RequestLogEntry): Promise<void> {
+  if (!shouldPersistSystemLog()) return;
   try {
     await RequestLogModel.create({
       method: entry.method,
