@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { X, CheckCircle2, Bell, BellOff } from 'lucide-react';
+import { X, CheckCircle2 } from 'lucide-react';
 import { api } from '@/lib/api-client';
-
-const STORAGE_KEY = 'work-report-last-viewed';
+import { useVisiblePolling } from '@/lib/use-visible-polling';
 
 interface NotificationData {
   _id: string;
@@ -32,27 +31,21 @@ interface WorkReportToastProps {
 }
 
 /**
- * WorkReportToast - Robust notifications for completed work reports
- * 
- * Features:
- * - SSE for real-time updates (primary)
- * - Polling fallback every 30s (backup)
- * - Visual connection indicator
- * - Persists in DB for missed events
+ * WorkReportToast - Notifications for completed work reports
+ *
+ * Single visibility-aware 15s polling path via useVisiblePolling: polls only
+ * while the tab is visible+focused and pauses while hidden/blurred. No SSE and
+ * no backup loop — one loop, keyed `notifications:work-reports`. Persists in
+ * DB for missed events so polling reconciliation surfaces them.
  */
 export function WorkReportToast({ isAdmin = false }: WorkReportToastProps) {
   const router = useRouter();
   const [toasts, setToasts] = useState<ToastNotification[]>([]);
-  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
-  const eventSourceRef = useRef<EventSource | null>(null);
-  const isConnectedRef = useRef(false);
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const lastFetchRef = useRef<string>('');
 
   // Fetch notifications via polling
   const fetchNotifications = useCallback(async () => {
     if (!isAdmin) return;
-    
+
     try {
       const result = await api.get<{ data: NotificationData[]; unreadCount: number }>('/api/notifications', {
         limit: '20',
@@ -60,12 +53,12 @@ export function WorkReportToast({ isAdmin = false }: WorkReportToastProps) {
       });
 
       const notifications = result.data || [];
-      
+
       // Get IDs we've already shown (both notification._id and workOrderId)
       const shownIds = new Set(toasts.map(t => t.id));
       const shownWorkOrderIds = new Set(toasts.map(t => t.data?.data?.workOrderId));
-      
-      // Add new notifications - use workOrderId as id for consistency with SSE
+
+      // Add new notifications - use workOrderId as id for consistency
       const newToasts = notifications
         .filter(n => {
           const workOrderId = n.data?.workOrderId;
@@ -83,128 +76,19 @@ export function WorkReportToast({ isAdmin = false }: WorkReportToastProps) {
       if (newToasts.length > 0) {
         setToasts(prev => [...prev, ...newToasts]);
       }
-      
-      setConnectionStatus('connected');
     } catch (error) {
       console.error('[Toast] Polling fetch failed:', error);
-      setConnectionStatus('disconnected');
     }
   }, [isAdmin, toasts]);
 
-  // Handle SSE event
-  const handleSSEEvent = (event: MessageEvent) => {
-    try {
-      const data = JSON.parse(event.data);
-      
-      // Skip connection/keep-alive events
-      if (data.status === 'connected') {
-        setConnectionStatus('connected');
-        return;
-      }
-      
-      // Add new notification from SSE
-      // Use workOrderId as ID for consistency with polling deduplication
-      const toastId = data.workOrderId || `sse-${Date.now()}`;
-      setToasts(prev => {
-        // Prevent duplicates
-        if (prev.some(t => t.id === toastId)) {
-          return prev;
-        }
-        return [...prev, {
-          id: toastId,
-          data: {
-            _id: toastId,
-            type: 'work_report_completed',
-            title: 'Orden de Trabajo terminada',
-            message: `${data.technicianName} completó ${data.workOrderNumber}`,
-            data: {
-              workOrderId: data.workOrderId,
-              workReportId: data.workReportId,
-              workOrderNumber: data.workOrderNumber,
-              technicianName: data.technicianName,
-            },
-            createdAt: new Date().toISOString(),
-          },
-        }];
-      });
-      
-      setConnectionStatus('connected');
-    } catch (error) {
-      console.error('[WorkReportToast] Failed to parse SSE event:', error);
-    }
-  };
-
-  // Set up SSE connection
-  useEffect(() => {
-    if (!isAdmin) return;
-
-    console.log('[Toast] Setting up SSE connection, isAdmin:', isAdmin);
-    setConnectionStatus('connecting');
-    
-    const connectSSE = () => {
-      try {
-        const eventSource = new EventSource('/api/sse/work-reports');
-        eventSourceRef.current = eventSource;
-
-        eventSource.addEventListener('workReportCompleted', handleSSEEvent as EventListener);
-        eventSource.onmessage = handleSSEEvent;
-
-        eventSource.onerror = () => {
-          eventSource.close();
-          eventSourceRef.current = null;
-          isConnectedRef.current = false;
-          setConnectionStatus('disconnected');
-        };
-
-        eventSource.onopen = () => {
-          isConnectedRef.current = true;
-          setConnectionStatus('connected');
-        };
-      } catch (error) {
-        console.error('[WorkReportToast] SSE connection failed:', error);
-        setConnectionStatus('disconnected');
-      }
-    };
-
-    connectSSE();
-
-    // Cleanup
-    return () => {
-      if (eventSourceRef.current) {
-        eventSourceRef.current.close();
-        eventSourceRef.current = null;
-      }
-    };
-  }, [isAdmin]);
-
-  // Set up polling fallback - runs ALWAYS as backup
-  useEffect(() => {
-    if (!isAdmin) return;
-
-    // Initial fetch
-    fetchNotifications();
-
-    // Fast polling: every 3 seconds for 60 seconds, then slow to 30 seconds
-    let elapsed = 0;
-    pollingIntervalRef.current = setInterval(() => {
-      elapsed += 3000;
-      fetchNotifications();
-      
-      // After 60 seconds, slow down to 30s intervals
-      if (elapsed >= 60000 && pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-        pollingIntervalRef.current = setInterval(() => {
-          fetchNotifications();
-        }, 30000);
-      }
-    }, 3000);
-
-    return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-      }
-    };
-  }, [isAdmin, fetchNotifications]);
+  // Single polling path: 15s while visible, paused while hidden (no SSE).
+  // enabled=isAdmin so non-admin mounts contribute nothing to the loop.
+  useVisiblePolling({
+    key: 'notifications:work-reports',
+    interval: 15_000,
+    fetcher: fetchNotifications,
+    enabled: isAdmin,
+  });
 
   // Mark as read when clicking
   const handleToastClick = async (toast: ToastNotification) => {
@@ -215,13 +99,13 @@ export function WorkReportToast({ isAdmin = false }: WorkReportToastProps) {
     } catch (error) {
       console.error('[WorkReportToast] Failed to mark as read:', error);
     }
-    
+
     router.push(`/work-orders/informes?workOrderId=${toast.data.data?.workOrderId}`);
   };
 
   const handleDismiss = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    
+
     try {
       await api.patch('/api/notifications', {
         notificationIds: [id],
@@ -229,7 +113,7 @@ export function WorkReportToast({ isAdmin = false }: WorkReportToastProps) {
     } catch (error) {
       console.error('[WorkReportToast] Failed to dismiss:', error);
     }
-    
+
     setToasts(prev => prev.filter(t => t.id !== id));
   };
 
