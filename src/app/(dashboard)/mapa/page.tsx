@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import { useRole } from '@/dashboard/context/role-context';
+import { useVisiblePolling } from '@/lib/use-visible-polling';
 import type { MapMarker, MapFilters as MapFiltersType, MapApiResponse } from '@/operations/types/map-marker';
 import { MapFilters } from '@/components/map/MapFilters';
 import { getTechniciansWithColors } from '@/operations/config/technician-colors';
@@ -142,15 +143,12 @@ export default function MapaOperativoPage() {
     }
   }, [filters, fetchMarkers]);
 
-  // Auto-refresh every 30 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      if (mountedRef.current) {
-        fetchMarkers();
-      }
-    }, 30000);
-    return () => clearInterval(interval);
-  }, [fetchMarkers]);
+  // Auto-refresh every 30 seconds — visibility-aware (pauses when hidden).
+  useVisiblePolling({
+    key: 'map:markers',
+    interval: 30_000,
+    fetcher: fetchMarkers,
+  });
 
   const handleMarkerClick = useCallback((marker: MapMarker) => {
   }, []);

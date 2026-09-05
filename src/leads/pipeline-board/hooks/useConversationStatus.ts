@@ -78,7 +78,14 @@ interface ConversationWithLead {
   };
 }
 
-export function useConversationStatus(leadIds: string[]) {
+interface UseConversationStatusOptions {
+  /** When false, the hook fetches once but does NOT schedule its own interval,
+   *  letting an external polling trigger own the cadence. @default true */
+  pollEnabled?: boolean;
+}
+
+export function useConversationStatus(leadIds: string[], options: UseConversationStatusOptions = {}) {
+  const { pollEnabled = true } = options;
   const [statusMap, setStatusMap] = useState<Map<string, ConversationStatus>>(new Map());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -151,15 +158,16 @@ export function useConversationStatus(leadIds: string[]) {
     fetchStatuses();
   }, [fetchStatuses]);
 
-  // Poll every 5 seconds
+  // Poll every 5 seconds — only when this hook owns the cadence.
   useEffect(() => {
+    if (!pollEnabled) return;
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible') {
         fetchStatuses();
       }
     }, 5000);
     return () => clearInterval(interval);
-  }, [fetchStatuses]);
+  }, [fetchStatuses, pollEnabled]);
 
   return { statusMap, loading, error, refetch: fetchStatuses };
 }

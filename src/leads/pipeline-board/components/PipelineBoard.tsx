@@ -10,6 +10,7 @@ import { usePendingHandoffs } from '../hooks/usePendingHandoffs';
 import { useBotClients } from '../hooks/useBotClients';
 import { useCustomerConversations, type CustomerEntry } from '../hooks/useCustomerConversations';
 import { useFollowUpMarks } from '../hooks/useFollowUpMarks';
+import { usePipelineBoardPolling } from '../hooks/usePipelineBoardPolling';
 import { MarkForFollowUpModal } from '@/components/follow-up/MarkForFollowUpModal';
 
 // Relative time helper
@@ -175,19 +176,23 @@ export function PipelineBoard() {
     fetchMarks();
   }, [fetchMarks]);
 
-  // Polling para actualizar marks en tiempo real (para todos los usuarios)
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchMarks();
-    }, 15000); // Cada 15 segundos
-
-    return () => clearInterval(interval);
-  }, [fetchMarks]);
-
-  const { statusMap: conversationStatusMap } = useConversationStatus(allLeadIds);
-  const { count: pendingHandoffs, handoffs: handoffList } = usePendingHandoffs();
+  const { statusMap: conversationStatusMap, refetch: refetchConversationStatus } = useConversationStatus(allLeadIds, { pollEnabled: false });
+  const { count: pendingHandoffs, handoffs: handoffList, refetch: refetchHandoffs } = usePendingHandoffs({ pollEnabled: false });
   const { clients: botClients, refetch: refetchBotClients } = useBotClients();
   const { customers, loading: loadingCustomers, refetch: refetchCustomers } = useCustomerConversations();
+
+  // UNIFIED visibility-aware polling: ONE 15s loop replaces the previous 4-5
+  // parallel timers (marks 15s, conversation status 5s, pending handoffs 15s,
+  // and a 5s main loop). The combined fetcher fires every board-wide refresh
+  // in one pass, and the page refresh pauses entirely while the tab is hidden.
+  usePipelineBoardPolling({
+    refetchPipeline: refetch,
+    refetchBotClients,
+    refetchCustomers,
+    fetchMarks,
+    fetchConversationStatus: refetchConversationStatus,
+    fetchHandoffs: refetchHandoffs,
+  });
 
   // Map Gestion status to pipeline stage name (Spanish names from DB)
   const mapGestionStatusToStage = (status: string): string => {
@@ -491,16 +496,6 @@ export function PipelineBoard() {
       // Silent fail — polling will retry
     }
   }, [conversationStatusMap]);
-
-  // Real-time polling: refetch every 5 seconds for live WhatsApp leads
-  useEffect(() => {
-    const interval = setInterval(() => {
-      refetch();
-      refetchBotClients();
-      refetchCustomers();
-    }, 5000);
-    return () => clearInterval(interval);
-  }, [refetch, refetchBotClients, refetchCustomers]);
 
   const hasData = Object.keys(groups).length > 0;
 

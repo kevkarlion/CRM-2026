@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Inbox } from 'lucide-react';
+import { useVisiblePolling } from '@/lib/use-visible-polling';
 import { useFollowUpMarks, type FollowUpMark } from '@/leads/pipeline-board/hooks/useFollowUpMarks';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 
@@ -117,16 +118,24 @@ export default function AtencionPage() {
     fetchMarks(user.email);
   }, [router, fetchMarks]);
 
-  // Polling para actualizaciones en tiempo real (para todos los usuarios)
-  useEffect(() => {
-    if (!currentUser) return;
+  // Polling para actualizaciones en tiempo real — visibility-aware 15s loop.
+  // Per-user key dedupes against the global toast loop (`follow-up-marks:all`)
+  // only when appropriate: this page filters by the signed-in user's email
+  // (`userEmail=<email>`), while AttentionToast fetches all marks with
+  // `userAll=true` and filters client-side by assignedTo. Different payloads,
+  // different loops — they coexist without double-fetching the same URL.
+  const currentUserEmail = currentUser?.email ?? '';
+  const fetchCurrentUserMarks = useCallback(async () => {
+    if (!currentUserEmail) return;
+    await fetchMarks(currentUserEmail);
+  }, [currentUserEmail, fetchMarks]);
 
-    const interval = setInterval(() => {
-      fetchMarks(currentUser.email);
-    }, 15000); // Cada 15 segundos
-
-    return () => clearInterval(interval);
-  }, [currentUser, fetchMarks]);
+  useVisiblePolling({
+    key: `follow-up-marks:user:${currentUserEmail}`,
+    interval: 15_000,
+    fetcher: fetchCurrentUserMarks,
+    enabled: !!currentUser,
+  });
 
   const handleUnmark = useCallback(async (markId: string) => {
     await deleteMark(markId);

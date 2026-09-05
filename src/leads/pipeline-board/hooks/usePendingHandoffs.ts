@@ -32,6 +32,12 @@ interface ConversationWithLead {
   } | null;
 }
 
+interface UsePendingHandoffsOptions {
+  /** When false, the hook fetches once but does NOT schedule its own interval,
+   *  letting an external polling trigger own the cadence. @default true */
+  pollEnabled?: boolean;
+}
+
 interface UsePendingHandoffsReturn {
   count: number;
   handoffs: HandoffInfo[];
@@ -40,7 +46,8 @@ interface UsePendingHandoffsReturn {
   refetch: () => Promise<void>;
 }
 
-export function usePendingHandoffs(): UsePendingHandoffsReturn {
+export function usePendingHandoffs(options: UsePendingHandoffsOptions = {}): UsePendingHandoffsReturn {
+  const { pollEnabled = true } = options;
   const [handoffs, setHandoffs] = useState<HandoffInfo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,15 +86,16 @@ export function usePendingHandoffs(): UsePendingHandoffsReturn {
     fetchHandoffs();
   }, [fetchHandoffs]);
 
-  // Poll every 15 seconds
+  // Poll every 15 seconds — only when this hook owns the cadence.
   useEffect(() => {
+    if (!pollEnabled) return;
     const interval = setInterval(() => {
       if (document.visibilityState === 'visible') {
         fetchHandoffs();
       }
     }, 15000);
     return () => clearInterval(interval);
-  }, [fetchHandoffs]);
+  }, [fetchHandoffs, pollEnabled]);
 
   return {
     count: handoffs.length,
