@@ -6,8 +6,28 @@ import { isMaintenanceMode, isMaintenanceBypassEmail } from '@/lib/maintenance';
 // Paths que NUNCA requieren autenticación
 const PUBLIC_PATHS = ['/api/webhook', '/api/admin/seed', '/api/admin/users', '/api/debug', '/_next/', '/favicon.ico', '/mantenimiento'];
 
+/**
+ * Debug routes are publicly reachable via PUBLIC_PATHS. When DEBUG_ROUTES_ENABLED
+ * is falsy (production default), block them with a 404 BEFORE the public-path
+ * pass-through so they never leak. Returns true when the request should be blocked.
+ */
+export function shouldBlockDebugRoute(pathname: string, debugEnabled: boolean): boolean {
+  if (debugEnabled) return false;
+  return pathname.startsWith('/api/debug') || pathname === '/api/admin/seed';
+}
+
+function isDebugRoutesEnabled(): boolean {
+  const raw = process.env.DEBUG_ROUTES_ENABLED;
+  return raw === 'true' || raw === '1';
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Debug/seed routes are blocked unless explicitly enabled (must come before PUBLIC_PATHS).
+  if (shouldBlockDebugRoute(pathname, isDebugRoutesEnabled())) {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  }
 
   // Allow truly public paths without any check
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
