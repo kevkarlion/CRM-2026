@@ -12,6 +12,17 @@ import { Types } from 'mongoose';
 const WEBHOOK_VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN || 'mi_token_secreto_crm';
 
 /**
+ * Outcome summary for an incoming webhook body: mode + entry count, never the body.
+ * Replaces the previous full-body dump to cut hot-path log volume.
+ */
+export function buildWebhookSummary(body: unknown): string {
+  const obj = (body ?? {}) as { object?: unknown; entry?: unknown[] };
+  const mode = obj.object ?? 'unknown';
+  const entryCount = Array.isArray(obj.entry) ? obj.entry.length : 0;
+  return `[Webhook] POST ${String(mode)} entries=${entryCount}`;
+}
+
+/**
  * GET: Meta llama a este método para validar tu Webhook cuando lo registras.
  */
 export async function GET(req: NextRequest) {
@@ -43,7 +54,7 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
 
-    console.log('📨 Webhook POST recibido - body:', JSON.stringify(body, null, 2));
+    console.log(buildWebhookSummary(body));
 
     if (body.object === 'whatsapp_business_account' || body.object === 'whatsapp') {
       const entry = body.entry?.[0];
