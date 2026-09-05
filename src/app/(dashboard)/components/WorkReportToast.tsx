@@ -54,14 +54,11 @@ export function WorkReportToast({ isAdmin = false }: WorkReportToastProps) {
     if (!isAdmin) return;
     
     try {
-      console.log('[Toast] Fetching notifications via polling...');
       const result = await api.get<{ data: NotificationData[]; unreadCount: number }>('/api/notifications', {
         limit: '20',
         unreadOnly: 'true',
       });
-      
-      console.log('[Toast] Got notifications:', result.data?.length || 0, 'unread:', result.unreadCount);
-      
+
       const notifications = result.data || [];
       
       // Get IDs we've already shown (both notification._id and workOrderId)
@@ -77,15 +74,12 @@ export function WorkReportToast({ isAdmin = false }: WorkReportToastProps) {
         })
         .map(n => {
           const workOrderId = n.data?.workOrderId || n._id;
-          console.log('[Toast] Polling: adding toast for', workOrderId);
           return {
             id: workOrderId,
             data: n,
           };
         });
-      
-      console.log('[Toast] New toasts:', newToasts.length);
-      
+
       if (newToasts.length > 0) {
         setToasts(prev => [...prev, ...newToasts]);
       }
@@ -114,10 +108,8 @@ export function WorkReportToast({ isAdmin = false }: WorkReportToastProps) {
       setToasts(prev => {
         // Prevent duplicates
         if (prev.some(t => t.id === toastId)) {
-          console.log('[Toast] SSE: duplicate ignored for', toastId);
           return prev;
         }
-        console.log('[Toast] SSE: adding toast for', toastId);
         return [...prev, {
           id: toastId,
           data: {
@@ -158,7 +150,6 @@ export function WorkReportToast({ isAdmin = false }: WorkReportToastProps) {
         eventSource.onmessage = handleSSEEvent;
 
         eventSource.onerror = () => {
-          console.log('[WorkReportToast] SSE disconnected, using polling fallback');
           eventSource.close();
           eventSourceRef.current = null;
           isConnectedRef.current = false;
@@ -197,14 +188,12 @@ export function WorkReportToast({ isAdmin = false }: WorkReportToastProps) {
     let elapsed = 0;
     pollingIntervalRef.current = setInterval(() => {
       elapsed += 3000;
-      console.log('[Toast] Polling tick, elapsed:', elapsed, 'ms');
       fetchNotifications();
       
       // After 60 seconds, slow down to 30s intervals
       if (elapsed >= 60000 && pollingIntervalRef.current) {
         clearInterval(pollingIntervalRef.current);
         pollingIntervalRef.current = setInterval(() => {
-          console.log('[Toast] Slow polling tick (30s)');
           fetchNotifications();
         }, 30000);
       }
