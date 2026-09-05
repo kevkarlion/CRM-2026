@@ -1,0 +1,10 @@
+docs/
+documentacion/
+documentos/
+openspec/
+sdd/
+scripts-debug-tmp/
+atl/
+2026/
+dist/
+db cluster.txt
