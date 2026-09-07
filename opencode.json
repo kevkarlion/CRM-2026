@@ -1,0 +1,10 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "crm-readonly": {
+      "type": "local",
+      "command": ["node", "mcp/crm-readonly/dist/server.js"],
+      "enabled": true
+    }
+  }
+}
