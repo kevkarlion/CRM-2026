@@ -802,7 +802,7 @@ export function PipelineBoard() {
                           conversationState: customer.lifecycleState as any || null,
                           isBotActive: customer.lifecycleState === 'ACTIVE_CLIENT' && customer.owner === 'BOT',
                           isHandoffPending: false,
-                          isHumanAssigned: customer.lifecycleState === 'IN_PROGRESS',
+                          isHumanAssigned: customer.owner === 'OPERATOR',
                           lastMessageAt: customer.lastMessageAt ? new Date(customer.lastMessageAt) : null,
                           lastReadAt: customer.lastReadAt ? new Date(customer.lastReadAt) : null,
                           lastInboundMessageAt: customer.lastInboundMessageAt ? new Date(customer.lastInboundMessageAt) : undefined,
@@ -869,7 +869,7 @@ export function PipelineBoard() {
                                     conversationState: customer.lifecycleState as any || null,
                                     isBotActive: customer.lifecycleState === 'ACTIVE_CLIENT' && customer.owner === 'BOT',
                                     isHandoffPending: false,
-                                    isHumanAssigned: customer.lifecycleState === 'IN_PROGRESS',
+                                    isHumanAssigned: customer.owner === 'OPERATOR',
                                     lastMessageAt: customer.lastMessageAt ? new Date(customer.lastMessageAt) : null,
                                     lastReadAt: customer.lastReadAt ? new Date(customer.lastReadAt) : null,
                                     lastInboundMessageAt: customer.lastInboundMessageAt ? new Date(customer.lastInboundMessageAt) : undefined,
@@ -914,19 +914,21 @@ export function PipelineBoard() {
                             )}
 
                             {/* Indicadores de estado */}
-                            {customer.lifecycleState === 'IN_PROGRESS' && customer.owner === 'OPERATOR' && (
+                            {/* En atención: un operador tiene el control (owner=OPERATOR).
+                                El bot NO responde en estas conversaciones (mismo criterio que el webhook). */}
+                            {customer.owner === 'OPERATOR' && (
                               <div className="flex items-center gap-1.5 text-sm text-amber-600">
                                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
                                 <span>En atención</span>
                               </div>
                             )}
-                            {customer.lifecycleState === 'ACTIVE_CLIENT' && (
+                            {customer.lifecycleState === 'ACTIVE_CLIENT' && customer.owner !== 'OPERATOR' && (
                               <div className="flex items-center gap-1.5 text-sm text-blue-600">
                                 <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
                                 <span>Bot activo</span>
                               </div>
                             )}
-                            {customer.lifecycleState === 'WAITING_CLIENT' && (
+                            {customer.lifecycleState === 'WAITING_CLIENT' && customer.owner !== 'OPERATOR' && (
                               <div className="flex items-center gap-1.5 text-sm text-gray-500">
                                 <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
                                 <span>Esperando</span>

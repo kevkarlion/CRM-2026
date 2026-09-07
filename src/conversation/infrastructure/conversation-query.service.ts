@@ -9,6 +9,8 @@ export interface ConversationWithLead {
   tenantId: string;
   leadId: string;
   state: string;
+  lifecycleState?: string;
+  owner?: string;
   previousState?: string;
   handoffStatus?: string;
   handoffReason?: string;
@@ -143,6 +145,8 @@ export class ConversationQueryService {
         tenantId: String(c.tenantId),
         leadId: String(c.leadId),
         state: c.state,
+        lifecycleState: c.lifecycleState,
+        owner: c.owner,
         previousState: c.previousState,
         handoffStatus: c.handoffStatus,
         handoffReason: c.handoffReason,

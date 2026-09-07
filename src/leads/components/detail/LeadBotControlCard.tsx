@@ -23,9 +23,11 @@ export function LeadBotControlCard({
   const [localLoading, setLocalLoading] = useState(false);
 
   // Solo usar conversation (fuente de verdad del padre) para el estado real.
-  // El operador tiene control cuando owner === OPERATOR y está IN_PROGRESS.
-  const isOperatorControl =
-    conversation?.owner === 'OPERATOR' && conversation?.lifecycleState === 'IN_PROGRESS';
+  // El operador tiene control cuando owner === OPERATOR (mismo criterio que el webhook:
+  // webhook-integration.ts usa owner === OPERATOR para saltarse el bot).
+  // NO se exige lifecycleState === IN_PROGRESS: los clientes convertidos usan
+  // ACTIVE_CLIENT, y exigirlo mostraba "BOT" en conversaciones atendidas por operador.
+  const isOperatorControl = conversation?.owner === 'OPERATOR';
 
   const isLoading = externalLoading || localLoading;
 

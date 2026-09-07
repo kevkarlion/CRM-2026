@@ -53,11 +53,15 @@ interface ConversationWithLead {
   tenantId: string;
   leadId: string;
   state: string;
+  lifecycleState?: string;
+  owner?: string;
   previousState?: string;
   handoffStatus?: string;
   handoffReason?: string;
   assignedToUserId?: string;
   lastMessageAt: Date;
+  lastReadAt?: Date;
+  lastInboundMessageAt?: Date;
   startedAt: Date;
   closedAt?: Date;
   createdAt: Date;
@@ -114,7 +118,10 @@ export function useConversationStatus(leadIds: string[], options: UseConversatio
           conv.lifecycleState === 'WAITING_CLIENT'
         );
         const isHandoffPending = conv.handoffStatus === 'pending';
-        const isHumanAssigned = conv.handoffStatus === 'assigned' || state === 'human_assigned' || state === 'IN_PROGRESS';
+        // Quién controla la conversación: owner es la fuente de verdad.
+        // (Antes exigía state === 'IN_PROGRESS', que nunca aplica porque IN_PROGRESS
+        //  es un lifecycleState de clientes convertidos, no un state de diálogo.)
+        const isHumanAssigned = conv.owner === 'OPERATOR' || conv.handoffStatus === 'assigned' || state === 'human_assigned';
 
         const lastMsg = conv.lastMessage;
         const preview = lastMsg
