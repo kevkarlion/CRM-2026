@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   normalizePhone,
   phoneMatchQuery,
+  samePhoneNumber,
   isActiveLead,
   isActiveClient,
 } from './phone';
@@ -86,5 +87,38 @@ describe('isActiveClient', () => {
 
   it('returns false when deleted', () => {
     expect(isActiveClient({ deletedAt: new Date() })).toBe(false);
+  });
+});
+
+describe('samePhoneNumber', () => {
+  it('matches 13-digit WhatsApp number against 10-digit local with separators', () => {
+    expect(samePhoneNumber('2995 24-8670', '5492995248670')).toBe(true);
+  });
+
+  it('matches 13-digit WhatsApp number against 10-digit local', () => {
+    expect(samePhoneNumber('2995464405', '5492995464405')).toBe(true);
+  });
+
+  it('matches another interior cellphone pair', () => {
+    expect(samePhoneNumber('3513974222', '5493513974222')).toBe(true);
+  });
+
+  it('matches a 12-digit vs 13-digit variant of the same number', () => {
+    expect(samePhoneNumber('542996300680', '5492996300680')).toBe(true);
+  });
+
+  it('matches identical strings', () => {
+    expect(samePhoneNumber('5492995248670', '5492995248670')).toBe(true);
+  });
+
+  it('returns false for clearly different numbers', () => {
+    expect(samePhoneNumber('2995464405', '2995702283')).toBe(false);
+    expect(samePhoneNumber('5492995248670', '5492996300680')).toBe(false);
+  });
+
+  it('returns false for null/undefined inputs', () => {
+    expect(samePhoneNumber(null, '5492995248670')).toBe(false);
+    expect(samePhoneNumber('2995248670', undefined)).toBe(false);
+    expect(samePhoneNumber(null, null)).toBe(false);
   });
 });

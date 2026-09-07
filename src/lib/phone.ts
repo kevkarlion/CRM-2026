@@ -66,6 +66,22 @@ export function normalizePhoneForWhatsApp(phone: string): string {
   return normalized;
 }
 
+/**
+ * True when two phone strings refer to the same Argentine number.
+ * Uses normalizePhone equality first, then falls back to comparing the
+ * last 10 digits (handles 13-digit WhatsApp numbers vs 10-digit local
+ * numbers, e.g. '5492995248670' vs '2995 24-8670').
+ */
+export function samePhoneNumber(a: string | null | undefined, b: string | null | undefined): boolean {
+  const na = normalizePhone(a ?? '');
+  const nb = normalizePhone(b ?? '');
+  if (na && na === nb) return true;
+  const da = (a ?? '').replace(/\D/g, '');
+  const db = (b ?? '').replace(/\D/g, '');
+  if (!da || !db) return false;
+  return da.slice(-10) === db.slice(-10) && da.length >= 10 && db.length >= 10;
+}
+
 export function phoneMatchQuery(normalized: string): { $regex: RegExp } {
   if (!normalized) {
     return { $regex: /(?!)/ };

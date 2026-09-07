@@ -1,4 +1,5 @@
 import { Types } from 'mongoose';
+import type { FilterQuery, Model } from 'mongoose';
 import LeadModel from '@/leads/models/lead';
 import ContactModel from '@/crm/models/contact';
 import ConversationModel from '../models/conversation';
@@ -8,7 +9,7 @@ import { WhatsAppBotAdapter } from './whatsapp-adapter';
 import type { BotAction } from '../application/types';
 import type { ILead } from '@/leads/types/lead';
 import { calculateLeadScore } from '@/leads/services/lead-score.service';
-import { normalizePhone, phoneMatchQuery } from '@/lib/phone';
+import { normalizePhone, phoneMatchQuery, samePhoneNumber } from '@/lib/phone';
 import { buildInboundMessageClaimDoc } from '@/crm/helpers/whatsapp-message-claim';
 
 export interface WebhookMessageInput {
@@ -48,6 +49,43 @@ function isDuplicateKeyError(error: unknown): boolean {
 }
 
 /**
+ * Finds a document by phone, matching on normalized phone on BOTH sides.
+ * References the regex fast-path (handles separator/normalization variants) and, if
+ * nothing matches, falls back to a sweep over the tenant's docs using samePhoneNumber
+ * (covers interior cellphones stored as 10-digit local numbers vs a 13-digit WhatsApp
+ * number via the last-10-digits fallback, a case phoneMatchQuery cannot reconcile).
+ */
+async function findEntityByPhone<T>(
+  model: Model<T>,
+  tenantId: string,
+  incomingPhone: string,
+  extra: Record<string, unknown> = {}
+): Promise<T | null> {
+  const normalized = normalizePhone(incomingPhone);
+
+  const regexCandidates = (await model
+    .find({
+      tenantId: new Types.ObjectId(tenantId),
+      phone: phoneMatchQuery(normalized),
+      ...extra,
+    } as FilterQuery<T>)
+    .lean()) as unknown as T[];
+
+  if (regexCandidates.length > 0) {
+    return regexCandidates[0];
+  }
+
+  const allCandidates = (await model
+    .find({
+      tenantId: new Types.ObjectId(tenantId),
+      ...extra,
+    } as FilterQuery<T>)
+    .lean()) as unknown as Array<T & { phone?: string | null }>;
+
+  return allCandidates.find((c) => samePhoneNumber(c.phone, incomingPhone)) ?? null;
+}
+
+/**
  * Finds or creates a lead or client by phone number for a given tenant.
  * Priority: client (via contacts) > lead > new lead
  */
@@ -66,11 +104,7 @@ async function findOrCreateEntity(
 
   try {
     // 1. First, search in contacts for a client (highest priority)
-    const contact = await ContactModel.findOne({
-      tenantId: new Types.ObjectId(tenantId),
-      phone: phoneMatchQuery(normalizedPhone),
-      deletedAt: null,
-    }).lean();
+    const contact = await findEntityByPhone(ContactModel, tenantId, phone, { deletedAt: null });
 
     if (contact?.clientId) {
       console.log('[findOrCreateEntity] Found client via contact - clientId:', contact.clientId);
@@ -87,11 +121,7 @@ async function findOrCreateEntity(
 
   // 2. If no client, search in leads
   try {
-    const existing = await LeadModel.findOne({
-      tenantId: new Types.ObjectId(tenantId),
-      phone: phoneMatchQuery(normalizedPhone),
-      deletedAt: null,
-    });
+    const existing = await findEntityByPhone(LeadModel, tenantId, phone, { deletedAt: null });
 
     if (existing) {
       console.log('[findOrCreateEntity] Found lead - leadId:', existing._id, 'status:', existing.status, 'convertedToClient:', existing.convertedToClient);
@@ -186,11 +216,7 @@ async function findOrCreateEntity(
       throw error;
     }
 
-    const existingWinner = await LeadModel.findOne({
-      tenantId: new Types.ObjectId(tenantId),
-      phone: phoneMatchQuery(normalizedPhone),
-      deletedAt: null,
-    });
+    const existingWinner = await findEntityByPhone(LeadModel, tenantId, phone, { deletedAt: null });
 
     if (!existingWinner) {
       console.error(

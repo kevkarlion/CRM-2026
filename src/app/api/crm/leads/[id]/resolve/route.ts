@@ -4,6 +4,7 @@ import { DOMAIN_EVENTS } from '@/infrastructure/events/event.types';
 import LeadModel from '@/leads/models/lead';
 import ClientModel from '@/crm/models/client';
 import { Types } from 'mongoose';
+import { normalizePhone, phoneMatchQuery, samePhoneNumber } from '@/lib/phone';
 
 export async function POST(
   request: NextRequest,
@@ -47,12 +48,32 @@ export async function POST(
     if (!clientId) {
       console.log('[leads/resolve] ℹ️ No clientId found, searching/creating...');
       
-      // Buscar si ya existe cliente con ese teléfono
-      const existingClient = await ClientModel.findOne({
+      // Buscar si ya existe cliente con ese teléfono, comparando normalizado en ambos lados
+      // (evita duplicar clientes cuando el número está guardado en otro formato, ej. "2995 24-8670"
+      // frente a entrante "5492995248670").
+      const normalizedLeadPhone = normalizePhone(lead.phone ?? '');
+
+      let existingClient = await ClientModel.findOne({
         tenantId: new Types.ObjectId(tenantId),
-        phone: lead.phone,
+        phone: phoneMatchQuery(normalizedLeadPhone),
         deletedAt: null,
       }).lean();
+
+      // Fallback: phoneMatchQuery no reconcilia celulares de interior de 13 dígitos contra
+      // versiones locales de 10 dígitos. Barrer candidatos y comparar normalizePhone en ambos lados.
+      if (!existingClient && normalizedLeadPhone) {
+        const candidateClients = await ClientModel.find({
+          tenantId: new Types.ObjectId(tenantId),
+          deletedAt: null,
+        })
+          .select('_id phone')
+          .lean();
+
+        existingClient =
+          candidateClients.find(
+            (c) => samePhoneNumber(c.phone, lead.phone)
+          ) ?? null;
+      }
 
       if (existingClient) {
         clientId = String(existingClient._id);
