@@ -1,4 +1,5 @@
 import { LeadModel } from '../models';
+import { normalizePhone } from '@/lib/phone';
 
 export function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -8,6 +9,7 @@ export async function findDuplicates(
   tenantId: string,
   email?: string,
   companyName?: string,
+  phone?: string,
 ): Promise<unknown[]> {
   const conditions: Record<string, unknown>[] = [];
 
@@ -21,6 +23,11 @@ export async function findDuplicates(
     conditions.push({
       companyName: { $regex: new RegExp(`^${escapeRegex(companyName.trim())}$`, 'i') },
     });
+  }
+
+  if (phone) {
+    const normalized = normalizePhone(phone);
+    conditions.push({ phone: normalized });
   }
 
   if (conditions.length === 0) return [];

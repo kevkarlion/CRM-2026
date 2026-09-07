@@ -3,6 +3,7 @@ import LeadModel from '../models/lead';
 import { LeadAssignmentService } from './lead-assignment.service';
 import { validateTransition, TransitionError } from '../helpers/lead-state-machine';
 import { findDuplicates } from '../helpers/duplicate-detection';
+import { normalizePhone } from '@/lib/phone';
 import { logActivity } from '../../audit/activity-logger';
 import ActivityModel from '../../crm/models/activity';
 import ClientModel from '../../crm/models/client';
@@ -86,18 +87,34 @@ export class LeadService {
     const warnings: DuplicateWarning[] = [];
 
     if (data.email || data.phone || data.companyName) {
-      const duplicates = await findDuplicates(tenantId, data.email, data.companyName);
+      const duplicates = await findDuplicates(tenantId, data.email, data.companyName, data.phone);
       for (const dup of duplicates) {
         const d = dup as Record<string, unknown>;
         if (data.email && String(d.email).toLowerCase() === data.email.toLowerCase()) {
           warnings.push({ leadId: String(d._id), matchedField: 'email', matchedValue: data.email });
         }
-        if (data.phone && d.phone === data.phone) {
+        if (data.phone && d.phone === normalizePhone(data.phone)) {
           warnings.push({ leadId: String(d._id), matchedField: 'phone', matchedValue: data.phone });
         }
         if (data.companyName && String(d.companyName).toLowerCase() === data.companyName.toLowerCase()) {
           warnings.push({ leadId: String(d._id), matchedField: 'companyName', matchedValue: data.companyName });
         }
+      }
+    }
+
+    if (data.phone) {
+      const normalizedPhone = normalizePhone(data.phone);
+      const existingClient = await ClientModel.findOne({
+        tenantId: new Types.ObjectId(tenantId),
+        phone: normalizedPhone,
+        deletedAt: null,
+      }).lean();
+      if (existingClient) {
+        warnings.push({
+          leadId: String(existingClient._id),
+          matchedField: 'phone',
+          matchedValue: data.phone,
+        });
       }
     }
 
@@ -210,6 +227,7 @@ export class LeadService {
       status: 'active',
       fullName: lead.name,
       companyName: lead.companyName || undefined,
+      phone: lead.phone || undefined,
       source: lead.source,
       address: lead.address || undefined,
       locality: lead.locality || undefined,

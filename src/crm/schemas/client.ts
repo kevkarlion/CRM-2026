@@ -77,6 +77,16 @@ clientSchema.index(
   }
 );
 clientSchema.index({ tenantId: 1, tags: 1 });
+clientSchema.index(
+  { tenantId: 1, phone: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      deletedAt: null,
+      phone: { $exists: true, $ne: null },
+    },
+  }
+);
 
 clientSchema.pre('save', function (next) {
   if (this.phone) {

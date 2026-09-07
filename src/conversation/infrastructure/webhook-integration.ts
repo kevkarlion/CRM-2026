@@ -105,6 +105,36 @@ async function findOrCreateEntity(
             updatedBy: 'whatsapp-bot',
           },
         });
+
+        // Reactivar también la conversación que quedó RESOLVED al descalificar,
+        // para que el lead vuelva a aparecer en el pipeline con flujo normal
+        // (badge + tope de columna). Solo reactiva conversaciones de tipo lead
+        // que el webhook ya reutilizaría (state no closed/timeout); no toca state:
+        // el FSM del bot continúa desde donde estaba. No afecta conversaciones de
+        // cliente (conversationType 'customer') — esas se manejan en otro flujo.
+        try {
+          const convRes = await ConversationModel.updateMany(
+            {
+              tenantId: new Types.ObjectId(tenantId),
+              leadId: existing._id,
+              conversationType: 'lead',
+              lifecycleState: 'RESOLVED',
+              state: { $nin: ['closed', 'timeout'] },
+            },
+            {
+              $set: {
+                lifecycleState: 'ACTIVE_LEAD',
+                closedAt: null,
+                resolvedAt: null,
+              },
+            }
+          );
+          if (convRes.modifiedCount > 0) {
+            console.log('[findOrCreateEntity] Reactivated lead conversation(s):', existing._id, '→', convRes.modifiedCount);
+          }
+        } catch (convError) {
+          console.error('[findOrCreateEntity] Error reactivating conversation:', convError);
+        }
       }
       
       // Si el lead ya fue convertido a cliente, devolver el cliente

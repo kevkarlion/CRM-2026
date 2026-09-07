@@ -6,6 +6,8 @@ import { cursorPage } from '../helpers/cursor-pagination';
 import { IClient, ClientStatus, CustomerType, CreateClientInput, UpdateClientInput } from '../types/client';
 import { eventBus } from '@/infrastructure/events/event-bus';
 import { DOMAIN_EVENTS, ClientCreatedPayload, ClientStatusChangedPayload } from '@/infrastructure/events/event.types';
+import { normalizePhone } from '@/lib/phone';
+import LeadModel from '@/leads/models/lead';
 
 function clientDisplayName(client: { fullName?: string; companyName?: string }): string | undefined {
   return client.fullName || client.companyName || undefined;
@@ -120,6 +122,18 @@ export class ClientService {
   ): Promise<IClient> {
     const { status, blockHistory, ...safeData } = data as CreateClientInput &
       Partial<Pick<IClient, 'status' | 'blockHistory'>>;
+
+    if (data.phone) {
+      const existingLead = await LeadModel.findOne({
+        tenantId: new Types.ObjectId(tenantId),
+        phone: normalizePhone(data.phone),
+        deletedAt: null,
+      }).lean();
+      if (existingLead) {
+        console.warn('[ClientService] Lead with same phone exists:', String(existingLead._id));
+      }
+    }
+
     const client = await ClientModel.create({
       ...safeData,
       tenantId,
@@ -145,7 +159,7 @@ export class ClientService {
     // Crear conversación vacía para WhatsApp (si tiene teléfono)
     if (doc.phone) {
       // Normalizar teléfono para WhatsApp
-      const phoneForWhatsApp = doc.phone.startsWith('549') ? doc.phone : '549' + doc.phone;
+      const phoneForWhatsApp = normalizePhone(doc.phone);
       
       // Verificar si ya existe conversación por teléfono
       const existingConversation = await ConversationModel.findOne({
@@ -185,7 +199,7 @@ export class ClientService {
         console.log('[ClientService] Creating contact for client:', doc._id, 'phone:', doc.phone);
         
         // Normalizar teléfono para que coincida con WhatsApp (agregar 549 si no tiene)
-        const phoneForWhatsApp = doc.phone.startsWith('549') ? doc.phone : '549' + doc.phone;
+        const phoneForWhatsApp = normalizePhone(doc.phone);
         console.log('[ClientService] Phone for WhatsApp:', phoneForWhatsApp);
         
         const firstName = doc.fullName?.split(' ')[0] || 'Cliente';

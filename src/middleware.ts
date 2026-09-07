@@ -4,7 +4,7 @@ import { jwtVerify } from 'jose';
 import { isMaintenanceMode, isMaintenanceBypassEmail } from '@/lib/maintenance';
 
 // Paths que NUNCA requieren autenticación
-const PUBLIC_PATHS = ['/api/webhook', '/api/admin/seed', '/api/admin/users', '/api/debug', '/_next/', '/favicon.ico', '/mantenimiento'];
+const PUBLIC_PATHS = ['/api/webhook', '/api/admin/seed', '/api/admin/users', '/api/debug', '/_next/', '/favicon.ico', '/mantenimiento', '/demo/'];
 
 /**
  * Debug routes are publicly reachable via PUBLIC_PATHS. When DEBUG_ROUTES_ENABLED

@@ -1,4 +1,5 @@
 import { Schema } from 'mongoose';
+import { normalizePhone } from '@/lib/phone';
 import { IContact } from '../types/contact';
 
 const auditFields = {
@@ -36,3 +37,38 @@ contactSchema.index(
     },
   }
 );
+contactSchema.index(
+  { tenantId: 1, phone: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      deletedAt: null,
+      phone: { $exists: true, $ne: null },
+    },
+  }
+);
+
+contactSchema.pre('save', function (next) {
+  if (this.phone) {
+    this.phone = normalizePhone(this.phone);
+  }
+  next();
+});
+
+contactSchema.pre('findOneAndUpdate', function (next) {
+  const update = this.getUpdate() as {
+    phone?: unknown;
+    $set?: { phone?: unknown };
+    $setOnInsert?: { phone?: unknown };
+  } | null;
+  if (update && update.phone) {
+    update.phone = normalizePhone(String(update.phone));
+  }
+  if (update && update.$set && update.$set.phone) {
+    update.$set.phone = normalizePhone(String(update.$set.phone));
+  }
+  if (update && update.$setOnInsert && update.$setOnInsert.phone) {
+    update.$setOnInsert.phone = normalizePhone(String(update.$setOnInsert.phone));
+  }
+  next();
+});
