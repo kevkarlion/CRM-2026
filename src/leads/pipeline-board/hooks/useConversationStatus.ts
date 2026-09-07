@@ -24,8 +24,13 @@ export interface ConversationStatus {
   context?: Record<string, unknown>;
 }
 
+// Estados donde el bot tiene el control y está conversando activamente.
+// Fuente de verdad: ConversationState en src/conversation/domain/conversation.ts.
+// NO incluir: handoff_pending (borde rojo), human_assigned (borde naranja),
+// closed/timeout/fallback (terminales), waiting_operator (cubierto por lifecycleState WAITING_OPERATOR).
 const BOT_ACTIVE_STATES = new Set<string>([
   'greeting',
+  'greeting_personalized',
   'need_type_asked',
   'need_type_captured',
   'detail_asked',
@@ -40,12 +45,28 @@ const BOT_ACTIVE_STATES = new Set<string>([
   'equipment_captured',
   'evaluate',
   'scored',
-  'idle', // Bot está esperandoinput
+  'idle', // Bot está esperando input
   'address',
   'priority',
   'description',
   'service',
   'confirmation',
+  // Flow de 7 ramas
+  'urgency',
+  'detail',
+  'name',
+  'name_captured',
+  'address_confirm',
+  'address_confirmed',
+  'priority_captured',
+  'quote_work',
+  'quote_work_captured',
+  'spare_part',
+  'spare_part_captured',
+  'general_query',
+  'general_query_captured',
+  'suppliers_info',
+  'summary',
 ]);
 
 interface ConversationWithLead {
