@@ -578,13 +578,14 @@ export function PipelineBoard() {
     const result: Record<string, ILead[]> = {};
     for (const [stageName, leads] of Object.entries(columns)) {
       result[stageName] = leads.filter((lead) => {
-        // Search by name, profileName or company
+        // Search by name, profileName, company or phone
         if (f.search) {
           const q = f.search;
           const nameMatch = lead.name?.toLowerCase().includes(q);
           const profileMatch = lead.profileName?.toLowerCase().includes(q);
           const companyMatch = lead.companyName?.toLowerCase().includes(q);
-          if (!nameMatch && !profileMatch && !companyMatch) return false;
+          const phoneMatch = lead.phone?.toLowerCase().includes(q);
+          if (!nameMatch && !profileMatch && !companyMatch && !phoneMatch) return false;
         }
 
         // Source

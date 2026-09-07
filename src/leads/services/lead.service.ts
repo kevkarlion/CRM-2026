@@ -342,7 +342,9 @@ export class LeadService {
       const escaped = filters.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       filter.$or = [
         { name: { $regex: escaped, $options: 'i' } },
+        { profileName: { $regex: escaped, $options: 'i' } },
         { companyName: { $regex: escaped, $options: 'i' } },
+        { phone: { $regex: escaped, $options: 'i' } },
       ];
     }
 
@@ -744,7 +746,9 @@ export class LeadService {
       const escaped = filters.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       filter.$or = [
         { name: { $regex: escaped, $options: 'i' } },
+        { profileName: { $regex: escaped, $options: 'i' } },
         { companyName: { $regex: escaped, $options: 'i' } },
+        { phone: { $regex: escaped, $options: 'i' } },
       ];
     }
 
