@@ -316,7 +316,7 @@ export const LeadCard = React.memo(function LeadCard({
         <div className="mt-1.5">
           <button
             onClick={(e) => { e.stopPropagation(); onResolve?.(lead); }}
-            className="px-2 py-0.5 text-[10px] font-medium bg-emerald-100 text-emerald-800 rounded hover:bg-emerald-200 transition-colors"
+            className="px-2 py-0.5 text-[10px] font-medium bg-emerald-100 text-emerald-800 rounded hover:bg-emerald-200 transition-colors cursor-pointer"
           >
             ✓ Resuelto
           </button>

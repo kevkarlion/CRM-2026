@@ -148,6 +148,7 @@ export function PipelineBoard() {
   const [resolveConversationId, setResolveConversationId] = useState<string | null>(null);
   const [resolveConversationName, setResolveConversationName] = useState<string>('');
   const [resolveLeadId, setResolveLeadId] = useState<string | null>(null); // For leads without conversation
+  const [resolveWonLead, setResolveWonLead] = useState<ILead | null>(null); // Won lead pending confirmation to convert to client
   
   // Notification state
   const [notification, setNotification] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -400,50 +401,62 @@ export function PipelineBoard() {
     setTimeout(() => setNotification(null), 5000);
   }, [refetchCustomers]);
 
-  // Resolve lead - works with or without conversation
-  const handleLeadResolve = useCallback(async (lead: ILead) => {
-    // If lead is won, resolve it (close lead and create new Gestion)
-    if (lead.status === 'won') {
-      try {
-        // Determine if it's a Lead or Gestion
-        const isGestion = (lead as any).isFromGestion === true || lead.source === 'gestion';
-        
-        let endpoint: string;
-        if (isGestion) {
-          // For Gestion, use client endpoint with clientId
-          const clientId = (lead as any).clientId;
-          endpoint = `/api/crm/clients/${clientId}/resolve`;
-        } else {
-          // For Lead, use lead endpoint
-          endpoint = `/api/crm/leads/${lead._id}/resolve`;
-        }
-        
-        const res = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(() => {
-              if (typeof window === 'undefined') return {};
-              const token = localStorage.getItem('token');
-              const tenantId = localStorage.getItem('tenantId');
-              const headers: Record<string, string> = {};
-              if (token) headers['Authorization'] = `Bearer ${token}`;
-              if (tenantId) headers['x-tenant-id'] = tenantId;
-              return headers;
-            })(),
-          },
-        });
-        
-        if (res.ok) {
-          // Refresh data
-          refetch();
-          refetchCustomers?.();
-        } else {
-          console.error('[Resolve] Failed:', res.status);
-        }
-      } catch (error) {
-        console.error('[Resolve] Error:', error);
+  // Convert a won lead to client (close lead + create new Gestion)
+  const handleConvertWonLead = useCallback(async (lead: ILead) => {
+    try {
+      // Determine if it's a Lead or Gestion
+      const isGestion = (lead as any).isFromGestion === true || lead.source === 'gestion';
+
+      let endpoint: string;
+      if (isGestion) {
+        // For Gestion, use client endpoint with clientId
+        const clientId = (lead as any).clientId;
+        endpoint = `/api/crm/clients/${clientId}/resolve`;
+      } else {
+        // For Lead, use lead endpoint
+        endpoint = `/api/crm/leads/${lead._id}/resolve`;
       }
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(() => {
+            if (typeof window === 'undefined') return {};
+            const token = localStorage.getItem('token');
+            const tenantId = localStorage.getItem('tenantId');
+            const headers: Record<string, string> = {};
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+            if (tenantId) headers['x-tenant-id'] = tenantId;
+            return headers;
+          })(),
+        },
+      });
+
+      if (res.ok) {
+        setNotification({ type: 'success', message: 'Lead convertido a cliente correctamente' });
+        // Refresh data
+        refetch();
+        refetchCustomers?.();
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        setNotification({ type: 'error', message: errorData.error || 'Error al convertir el lead en cliente' });
+        console.error('[Resolve] Failed:', res.status);
+      }
+    } catch (error) {
+      setNotification({ type: 'error', message: 'Error al convertir el lead en cliente' });
+      console.error('[Resolve] Error:', error);
+    } finally {
+      setResolveWonLead(null);
+      setTimeout(() => setNotification(null), 5000);
+    }
+  }, [refetch, refetchCustomers]);
+
+  // Resolve lead - works with or without conversation
+  const handleLeadResolve = useCallback((lead: ILead) => {
+    // If lead is won, ask for confirmation before converting to client
+    if (lead.status === 'won') {
+      setResolveWonLead(lead);
       return;
     }
     
@@ -455,7 +468,7 @@ export function PipelineBoard() {
     setResolveLeadId(String(lead._id));
     setResolveConversationName(lead.profileName || lead.name || lead.companyName || 'este lead');
     setResolveConfirmOpen(true);
-  }, [conversationStatusMap, refetch, refetchCustomers]);
+  }, [getConversationStatus]);
 
   // Take case — assign the current user to the conversation
   const handleTakeCase = useCallback(async (lead: ILead) => {
@@ -1028,6 +1041,41 @@ export function PipelineBoard() {
                 className="px-4 py-2 text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
               >
                 Confirmar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Modal for converting a won lead to client */}
+      {resolveWonLead && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full mx-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Convertir lead en cliente</h3>
+                <p className="text-sm text-gray-500">
+                  Esta acción convierte el lead <strong>{resolveWonLead.profileName || resolveWonLead.name || 'este lead'}</strong> en cliente y crea una nueva gestión. ¿Estás seguro?
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setResolveWonLead(null)}
+                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                No, cancelar
+              </button>
+              <button
+                onClick={() => handleConvertWonLead(resolveWonLead)}
+                className="px-4 py-2 text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors"
+              >
+                Sí, convertir
               </button>
             </div>
           </div>
