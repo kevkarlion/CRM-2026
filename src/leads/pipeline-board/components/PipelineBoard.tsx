@@ -578,12 +578,13 @@ export function PipelineBoard() {
     const result: Record<string, ILead[]> = {};
     for (const [stageName, leads] of Object.entries(columns)) {
       result[stageName] = leads.filter((lead) => {
-        // Search by name or company
+        // Search by name, profileName or company
         if (f.search) {
           const q = f.search;
           const nameMatch = lead.name?.toLowerCase().includes(q);
+          const profileMatch = lead.profileName?.toLowerCase().includes(q);
           const companyMatch = lead.companyName?.toLowerCase().includes(q);
-          if (!nameMatch && !companyMatch) return false;
+          if (!nameMatch && !profileMatch && !companyMatch) return false;
         }
 
         // Source
@@ -635,6 +636,18 @@ export function PipelineBoard() {
     }
     return result;
   }, [columnsWithGestions, filterParams, conversationStatusMap]);
+
+  // Filter the "Clientes" column (customers with active conversations) by the same search
+  const filteredCustomers = useMemo(() => {
+    if (!filterParams.search) return customers;
+    const q = filterParams.search;
+    return customers.filter((c) => {
+      const nameMatch = c.name?.toLowerCase().includes(q);
+      const profileMatch = c.profileName?.toLowerCase().includes(q);
+      const phoneMatch = c.phone?.toLowerCase().includes(q);
+      return nameMatch || profileMatch || phoneMatch;
+    });
+  }, [customers, filterParams.search]);
 
   const visibleColumns = filteredColumns;
 
@@ -733,8 +746,8 @@ export function PipelineBoard() {
             );
           })}
 
-          {/* Columna Clientes - solo aparece si hay clientes */}
-          {customers.length > 0 && (
+          {/* Columna Clientes - solo aparece si hay clientes (filtrados por búsqueda) */}
+          {filteredCustomers.length > 0 && (
             <div className="bg-green-50 rounded-lg border border-green-200 min-w-[85vw] md:min-w-[280px] md:flex-1 snap-start flex flex-col max-h-[calc(100vh-180px)]">
               <div className="flex items-center justify-between px-3 py-2 border-b border-green-200 bg-green-50 rounded-t-lg shrink-0">
                 <div className="flex items-center gap-2">
@@ -742,13 +755,13 @@ export function PipelineBoard() {
                     Clientes
                   </h3>
                   <span className="badge badge-success text-xs shrink-0">
-                    {customers.length}
+                    {filteredCustomers.length}
                   </span>
                 </div>
               </div>
               <div className="p-2 space-y-2 overflow-y-auto flex-1">
                 <AnimatePresence mode="popLayout">
-                {customers.map((customer) => {
+                {filteredCustomers.map((customer) => {
                   const typeLabel = customer.type === 'gestion' ? 'Gestión' : customer.type === 'client' ? 'Cliente' : 'Lead';
                   const typeBadge = customer.type === 'gestion' ? 'bg-green-100 text-green-700 border-green-200' : 
                                    customer.type === 'client' ? 'bg-blue-100 text-blue-700 border-blue-200' : 
