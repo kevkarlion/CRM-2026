@@ -89,6 +89,7 @@ export class WhatsAppBotAdapter {
     try {
       const setFields: Record<string, unknown> = { updatedBy: 'whatsapp-bot' };
 
+      if (updates.name !== undefined) setFields.name = updates.name;
       if (updates.score !== undefined) setFields.score = updates.score;
       if (updates.temperature !== undefined) setFields.temperature = updates.temperature;
       if (updates.inquiryReason !== undefined) setFields.inquiryReason = updates.inquiryReason;

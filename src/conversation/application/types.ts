@@ -87,6 +87,7 @@ export type BotAction =
 
 // Campos del Lead que el bot puede actualizar
 export interface LeadUpdate {
+  name?: string;
   inquiryReason?: InquiryReason;
   customerType?: CustomerType;
   temperature?: Temperature;

@@ -742,6 +742,7 @@ export class HandleIncomingMessageUseCase {
           customerType: updatedContext.customerType ?? undefined,
           status: 'contacted',
           ...(isLead && botSummary ? { notes: botSummary } : {}),
+          name: (updatedContext as any).userName ?? (updatedContext as any).customerName ?? undefined,
           address: (updatedContext as any).address ?? (updatedContext as any).customerAddress ?? (updatedContext as any).location ?? undefined,
           locality: (updatedContext as any).locality ?? (updatedContext as any).customerLocality ?? undefined,
           province: (updatedContext as any).province ?? (updatedContext as any).customerProvince ?? undefined,
