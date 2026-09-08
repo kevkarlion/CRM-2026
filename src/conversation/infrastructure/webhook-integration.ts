@@ -136,19 +136,20 @@ async function findOrCreateEntity(
           },
         });
 
-        // Reactivar también la conversación que quedó RESOLVED al descalificar,
-        // para que el lead vuelva a aparecer en el pipeline con flujo normal
-        // (badge + tope de columna). Solo reactiva conversaciones de tipo lead
-        // que el webhook ya reutilizaría (state no closed/timeout); no toca state:
-        // el FSM del bot continúa desde donde estaba. No afecta conversaciones de
-        // cliente (conversationType 'customer') — esas se manejan en otro flujo.
+        // Reactivar también la conversación que quedó RESOLVED/EXPIRED al
+        // descalificar, para que el lead vuelva a aparecer en el pipeline con
+        // flujo normal (badge + tope de columna). No se reactivan conversaciones
+        // IN_PROGRESS (operador en control) ni ACTIVE_LEAD (ya activas). No afecta
+        // conversaciones de cliente (conversationType 'customer') — esas se
+        // manejan en otro flujo.
         try {
+          // Caso A: conversación con state vivo (bot puede continuar donde quedó)
           const convRes = await ConversationModel.updateMany(
             {
               tenantId: new Types.ObjectId(tenantId),
               leadId: existing._id,
               conversationType: 'lead',
-              lifecycleState: 'RESOLVED',
+              lifecycleState: { $in: ['RESOLVED', 'EXPIRED'] },
               state: { $nin: ['closed', 'timeout'] },
             },
             {
@@ -161,6 +162,44 @@ async function findOrCreateEntity(
           );
           if (convRes.modifiedCount > 0) {
             console.log('[findOrCreateEntity] Reactivated lead conversation(s):', existing._id, '→', convRes.modifiedCount);
+          }
+
+          // Caso B: conversación con state closed/timeout (el flujo del bot ya había
+          // terminado, ej. summary → closed). Reactivar Y reiniciar el flow a
+          // greeting_personalized para que el bot salude de nuevo como lead fresco.
+          // Sin este reset, el bot respondería "tu solicitud ya fue registrada" o
+          // no retomaría el flujo — el lead descalificado quedaría "medio muerto".
+          const closedRes = await ConversationModel.updateMany(
+            {
+              tenantId: new Types.ObjectId(tenantId),
+              leadId: existing._id,
+              conversationType: 'lead',
+              lifecycleState: { $in: ['RESOLVED', 'EXPIRED'] },
+              state: { $in: ['closed', 'timeout'] },
+            },
+            {
+              $set: {
+                lifecycleState: 'ACTIVE_LEAD',
+                state: 'greeting_personalized',
+                previousState: 'closed',
+                step: 0,
+                fallbackCount: 0,
+                timeoutCount: 0,
+                exchangesInSameState: 0,
+                closedAt: null,
+                resolvedAt: null,
+                updatedAt: new Date(),
+                context: {
+                  hasEmergencyKeywords: false,
+                  hasProjectKeywords: false,
+                  messageContainsData: false,
+                  userAskedForHuman: false,
+                },
+              },
+            }
+          );
+          if (closedRes.modifiedCount > 0) {
+            console.log('[findOrCreateEntity] Reactivated CLOSED lead conversation(s) with fresh flow:', existing._id, '→', closedRes.modifiedCount);
           }
         } catch (convError) {
           console.error('[findOrCreateEntity] Error reactivating conversation:', convError);
