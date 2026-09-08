@@ -94,7 +94,7 @@ export function WorkReportToast({ isAdmin = false }: WorkReportToastProps) {
   const handleToastClick = async (toast: ToastNotification) => {
     try {
       await api.patch('/api/notifications', {
-        notificationIds: [toast.id],
+        notificationIds: [toast.data._id],
       });
     } catch (error) {
       console.error('[WorkReportToast] Failed to mark as read:', error);
@@ -103,18 +103,18 @@ export function WorkReportToast({ isAdmin = false }: WorkReportToastProps) {
     router.push(`/work-orders/informes?workOrderId=${toast.data.data?.workOrderId}`);
   };
 
-  const handleDismiss = async (id: string, e: React.MouseEvent) => {
+  const handleDismiss = async (toast: ToastNotification, e: React.MouseEvent) => {
     e.stopPropagation();
 
     try {
       await api.patch('/api/notifications', {
-        notificationIds: [id],
+        notificationIds: [toast.data._id],
       });
     } catch (error) {
       console.error('[WorkReportToast] Failed to dismiss:', error);
     }
 
-    setToasts(prev => prev.filter(t => t.id !== id));
+    setToasts(prev => prev.filter(t => t.id !== toast.id));
   };
 
   if (!isAdmin || toasts.length === 0) return null;
@@ -147,7 +147,7 @@ export function WorkReportToast({ isAdmin = false }: WorkReportToastProps) {
               </p>
             </div>
             <button
-              onClick={(e) => handleDismiss(toast.id, e)}
+              onClick={(e) => handleDismiss(toast, e)}
               className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
               title="Cerrar"
               aria-label="Cerrar notificación"
