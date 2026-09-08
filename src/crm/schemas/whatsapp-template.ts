@@ -16,6 +16,11 @@ const whatsappTemplateVariableSchema = new Schema<IWhatsAppTemplateVariable>(
       type: String,
       required: false,
     },
+    section: {
+      type: String,
+      enum: ['header', 'body'],
+      default: 'body',
+    },
   },
   { _id: false }
 );

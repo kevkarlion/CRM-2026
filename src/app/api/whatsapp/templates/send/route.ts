@@ -39,6 +39,8 @@ export async function POST(request: NextRequest) {
       deletedAt: null,
     }).lean();
 
+    let isLead = false;
+
     // If not found as client, try as lead
     if (!client) {
       const lead = await LeadModel.findOne({
@@ -50,6 +52,8 @@ export async function POST(request: NextRequest) {
       if (!lead) {
         return NextResponse.json({ error: 'Client or Lead not found' }, { status: 404 });
       }
+
+      isLead = true;
 
       if (!lead.phone) {
         return NextResponse.json(
@@ -103,6 +107,14 @@ export async function POST(request: NextRequest) {
     // Normalize phone number (without the '9' for Argentine mobiles to fix delivery issues)
     const normalizedPhone = normalizePhoneForWhatsApp(client.phone);
 
+    // Build variableSections from template variable metadata
+    const variableSections: Record<number, 'header' | 'body'> = {};
+    if (template.variables?.length) {
+      for (const v of template.variables) {
+        variableSections[v.index] = v.section || 'body';
+      }
+    }
+
     // Send the template message
     const result = await whatsappService.sendTemplateMessage({
       tenantId,
@@ -110,6 +122,9 @@ export async function POST(request: NextRequest) {
       templateName: template.name,
       language: template.language,
       variables: resolvedVariables,
+      ...(Object.keys(variableSections).length > 0 && { variableSections }),
+      content: template.content,
+      ...(isLead ? { leadId: String(client._id) } : { clientId: String(client._id) }),
     });
 
     return NextResponse.json({

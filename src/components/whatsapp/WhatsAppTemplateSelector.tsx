@@ -8,6 +8,7 @@ interface WhatsAppTemplateVariable {
   index: number;
   field: string;
   defaultValue?: string;
+  section?: 'header' | 'body';
 }
 
 interface WhatsAppTemplate {
@@ -98,28 +99,29 @@ export function WhatsAppTemplateSelector({
   function renderPreview(): string {
     if (!selectedTemplate) return '';
 
-    // If we have the template content, show the full message with variables replaced
+    const resolve = (v: WhatsAppTemplateVariable) =>
+      variableValues[v.index] || (v.defaultValue || `[${v.field}]`);
+
+    const headerVars = selectedTemplate.variables.filter((v) => v.section === 'header');
+    const bodyVars = selectedTemplate.variables.filter((v) => v.section !== 'header');
+
+    // Header block: one line per header variable value (e.g. "Rolo")
+    const headerBlock = headerVars.map((v) => resolve(v)).join('\n');
+
+    // Body block: template content with all placeholders replaced (best effort),
+    // or a fallback listing body variables when there is no content.
+    let bodyBlock = '';
     if (selectedTemplate.content) {
-      let message = selectedTemplate.content;
-      // Replace {{1}}, {{2}}, etc. with actual values
+      bodyBlock = selectedTemplate.content;
       selectedTemplate.variables.forEach((v) => {
-        const value = variableValues[v.index] || `[${v.field}]`;
-        message = message.replace(new RegExp(`\\{\\{${v.index}\\}\\}`, 'g'), value);
+        bodyBlock = bodyBlock.replace(new RegExp(`\\{\\{\\s*${v.index}\\s*\\}\\}`, 'g'), resolve(v));
       });
-      return message;
+      bodyBlock = bodyBlock.trim();
+    } else if (bodyVars.length > 0) {
+      bodyBlock = bodyVars.map((v) => `${v.field}: ${resolve(v)}`).join('\n');
     }
 
-    // Fallback: show variable structure
-    let preview = `📋 Plantilla: ${selectedTemplate.name}\n`;
-    preview += `🌐 Idioma: ${selectedTemplate.language}\n\n`;
-    
-    preview += `📝 Variables que se enviarán:\n`;
-    selectedTemplate.variables.forEach((v) => {
-      const value = variableValues[v.index] || `[${v.field}]`;
-      preview += `  {{${v.index}}} → ${v.field}: ${value}\n`;
-    });
-
-    return preview;
+    return [headerBlock, bodyBlock].filter(Boolean).join('\n\n');
   }
 
   async function handleSend() {
@@ -223,6 +225,10 @@ export function WhatsAppTemplateSelector({
                     <div key={variable.index} className="mb-3">
                       <label className="block text-sm text-gray-600 mb-1">
                         {`{{${variable.index}}} → ${variable.field}`}
+                        {' '}
+                        <span className="inline-flex items-center ml-1 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-gray-100 text-gray-500 uppercase">
+                          {variable.section || 'body'}
+                        </span>
                         {variable.defaultValue && (
                           <span className="text-gray-400 ml-1">(default: {variable.defaultValue})</span>
                         )}

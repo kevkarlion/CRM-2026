@@ -6,6 +6,7 @@ export interface IWhatsAppTemplateVariable {
   index: number; // 1-based position in template
   field: string; // Client field path (e.g., "fullName", "phone")
   defaultValue?: string;
+  section?: 'header' | 'body'; // Which template component this variable belongs to (default: 'body')
 }
 
 export interface IWhatsAppTemplate extends Document {
@@ -51,6 +52,12 @@ export interface SendTemplateMessageParams {
   templateName: string;
   language?: string;
   variables: Record<number, string>; // { 1: "Juan", 2: "presupuesto" }
+  /** Maps variable index → template component section. Indices missing here default to 'body'. */
+  variableSections?: Record<number, 'header' | 'body'>;
+  /** Raw template content with {{1}}, {{2}} placeholders. When provided, used instead of buildTemplatePreview. */
+  content?: string;
+  leadId?: string;
+  clientId?: string;
 }
 
 export interface SendTemplateResult {

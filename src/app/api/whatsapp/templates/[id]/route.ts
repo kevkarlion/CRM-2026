@@ -61,10 +61,15 @@ export async function PUT(
       name: body.name,
       language: body.language,
       category: body.category,
+      content: body.content,
       variables: body.variables,
       isActive: body.isActive,
       updatedBy: new Types.ObjectId(body.userId || '000000000000000000000000'),
     };
+
+    // DEBUG: log incoming variables to verify 'section' reaches the backend
+    console.log('[Template PUT] body.variables:', JSON.stringify(body.variables));
+    console.log('[Template PUT] input.variables:', JSON.stringify(input.variables));
 
     // Remove undefined values
     Object.keys(input).forEach(key => {

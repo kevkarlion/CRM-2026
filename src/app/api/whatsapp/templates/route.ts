@@ -59,6 +59,7 @@ export async function POST(request: NextRequest) {
       name: body.name,
       language: body.language,
       category: body.category,
+      content: body.content,
       variables: body.variables || [],
       isActive: body.isActive !== false,
       createdBy: new Types.ObjectId(body.userId || '000000000000000000000000'),

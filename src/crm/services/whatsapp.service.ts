@@ -373,7 +373,7 @@ export class WhatsAppService {
       throw new Error('WHATSAPP_ACCESS_TOKEN o WHATSAPP_PHONE_NUMBER_ID no configurados');
     }
 
-    const { tenantId, to, templateName, language = 'es', variables } = params;
+    const { tenantId, to, templateName, language = 'es', variables, variableSections, content, leadId, clientId } = params;
     const normalizedTo = normalizePhoneForWhatsApp(to);
     
     console.log('[DEBUG] normalizePhoneForWhatsApp:', { input: to, output: normalizedTo });
@@ -388,21 +388,7 @@ export class WhatsAppService {
     });
 
     // Build the template payload according to Meta Graph API format
-    const components = [];
-    
-    // Add body variables if present
-    // Meta API expects: { "type": "text", "text": "value" }
-    const bodyVariables = Object.entries(variables).map(([, value]) => ({
-      type: 'text' as const,
-      text: value,
-    }));
-
-    if (bodyVariables.length > 0) {
-      components.push({
-        type: 'body' as const,
-        parameters: bodyVariables,
-      });
-    }
+    const components = this.buildTemplateComponents(variables, variableSections);
 
     const requestBody = {
       messaging_product: 'whatsapp',
@@ -442,11 +428,14 @@ export class WhatsAppService {
       errorMessage = metaResponse.error?.message || 'Error enviando template message';
       waMessageId = `failed_${Date.now()}`;
     } else {
-      waMessageId = metaResponse.messages?.[0]?.id || '';
+      // Never persist empty messageId — it breaks unique index on subsequent sends
+      waMessageId = metaResponse.messages?.[0]?.id || `noid_${Date.now()}`;
     }
 
-    // Build template preview content for the message record
-    const templatePreview = this.buildTemplatePreview(templateName, variables);
+    // Build the real message content: prefer raw template content with {{N}} replaced
+    const templateContent = content
+      ? this.renderTemplateContent(content, variables)
+      : this.buildTemplatePreview(templateName, variables);
 
     // Always save message, even if WhatsApp API failed
     const message = await this.saveMessage({
@@ -455,9 +444,11 @@ export class WhatsAppService {
       messageId: waMessageId,
       direction: 'outbound',
       type: 'text', // Templates are rendered as text in the message log
-      content: templatePreview,
+      content: templateContent,
       status: messageStatus,
       errorMessage,
+      ...(leadId ? { leadId: new Types.ObjectId(leadId) } : {}),
+      ...(clientId ? { clientId: new Types.ObjectId(clientId) } : {}),
     });
 
     return { message, metaResponse };
@@ -473,6 +464,49 @@ export class WhatsAppService {
       .join(' | ');
 
     return `[Template: ${templateName}] ${varValues}`;
+  }
+
+  /**
+   * Replace {{1}}, {{2}}, etc. placeholders in raw template content with resolved variable values.
+   * Missing variables leave the placeholder intact (best-effort).
+   */
+  private renderTemplateContent(rawContent: string, variables: Record<number, string>): string {
+    return rawContent.replace(/\{\{\s*(\d+)\s*\}\}/g, (_match, indexStr) => {
+      const idx = Number(indexStr);
+      return variables[idx] ?? `{{${indexStr}}}`;
+    });
+  }
+
+  /**
+   * Build Meta API components array separating header and body parameters.
+   * When variableSections is omitted, all variables go to body (backward-compatible).
+   */
+  private buildTemplateComponents(
+    variables: Record<number, string>,
+    variableSections?: Record<number, 'header' | 'body'>
+  ): Array<{ type: 'header' | 'body'; parameters: Array<{ type: 'text'; text: string }> }> {
+    const headerParams: Array<{ type: 'text'; text: string }> = [];
+    const bodyParams: Array<{ type: 'text'; text: string }> = [];
+
+    for (const [indexStr, value] of Object.entries(variables)) {
+      const index = Number(indexStr);
+      const section = variableSections?.[index] ?? 'body';
+      const param = { type: 'text' as const, text: value };
+      if (section === 'header') {
+        headerParams.push(param);
+      } else {
+        bodyParams.push(param);
+      }
+    }
+
+    const components: Array<{ type: 'header' | 'body'; parameters: Array<{ type: 'text'; text: string }> }> = [];
+    if (headerParams.length > 0) {
+      components.push({ type: 'header', parameters: headerParams });
+    }
+    if (bodyParams.length > 0) {
+      components.push({ type: 'body', parameters: bodyParams });
+    }
+    return components;
   }
 
   /**
@@ -504,9 +538,27 @@ export class WhatsAppService {
       const message = new WhatsAppMessageModel(input);
       await message.save();
       return message;
-    } catch (error) {
-      console.error('[WhatsApp] Error saving message:', error);
-      // Return mock message on error
+    } catch (error: any) {
+      // Enhanced logging: include key identifiers so duplicate-key (E11000) and other DB
+      // errors are diagnosable from logs without needing to reproduce.
+      console.error('[WhatsApp] Error saving message:', {
+        phone: input.phone,
+        direction: input.direction,
+        messageId: input.messageId,
+        leadId: input.leadId,
+        clientId: input.clientId,
+        errorCode: error?.code,
+        errorMessage: error?.message,
+        error,
+      });
+
+      // DECISION: We return a mock with _id and save() instead of rethrowing.
+      // Reason: processIncomingMessage (inbound flow) calls saveMessage first, then
+      // mutates message.leadId and calls message.save() on the result. Rethrowing
+      // would break that flow. The enhanced logging above makes silent failures
+      // visible in production. For outbound template sends, the route already returns
+      // the message._id to the caller, so the caller can detect the issue via absence
+      // of real DB records. A future improvement could add a 'persisted' flag.
       const mockMessage = {
         _id: new Types.ObjectId(),
         ...input,

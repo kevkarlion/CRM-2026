@@ -81,6 +81,8 @@ export class WhatsAppTemplateService {
       throw new TemplateNotFoundError(`Template not found: ${templateId}`);
     }
 
+    console.log('[Template Service] updatedTemplate.variables:', JSON.stringify(template.variables));
+
     return template.toObject();
   }
 

@@ -9,6 +9,7 @@ interface WhatsAppTemplateVariable {
   index: number;
   field: string;
   defaultValue?: string;
+  section?: 'header' | 'body';
 }
 
 interface WhatsAppTemplate {
@@ -490,6 +491,15 @@ export default function WhatsAppTemplatesAdminPage() {
                           placeholder="default"
                           disabled={submitting}
                         />
+                        <select
+                          value={variable.section || 'body'}
+                          onChange={(e) => updateVariable(variable.index, 'section', e.target.value)}
+                          className="w-full sm:w-24 rounded-lg border border-gray-200 px-3 py-2 text-sm focus:border-brand-500 focus:ring-1 focus:ring-brand-500 outline-none"
+                          disabled={submitting}
+                        >
+                          <option value="body">Body</option>
+                          <option value="header">Header</option>
+                        </select>
                         <button
                           type="button"
                           onClick={() => removeVariable(variable.index)}
