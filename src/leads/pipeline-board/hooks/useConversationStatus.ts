@@ -124,7 +124,7 @@ export function useConversationStatus(leadIds: string[], options: UseConversatio
 
       const result = await api.get<{ conversations: ConversationWithLead[] }>(
         '/api/crm/conversations',
-        { limit: '200' }
+        { limit: '1000' }
       );
 
       const map = new Map<string, ConversationStatus>();

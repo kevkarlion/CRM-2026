@@ -26,6 +26,11 @@ export const clientSchema = new Schema<IClient>(
     companyName: String,
     profileName: String,
     taxId: String,
+    ivaCondition: {
+      type: String,
+      enum: ['CF', 'RI', 'MON', 'EX'],
+      default: null,
+    },
     email: String,
     phone: String,
     address: String,

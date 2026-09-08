@@ -16,6 +16,9 @@ export type ClientOperationStatus =
   | 'visit_scheduled'          // Visita técnica programada
   | 'sale_confirmed';          // Venta confirmada
 
+/** Condición frente al IVA (según el sistema de facturación de origen). */
+export type IvaCondition = 'CF' | 'RI' | 'MON' | 'EX';
+
 export interface BlockHistoryEntry {
   reason: string;
   blockedAt: Date;
@@ -33,6 +36,7 @@ export interface IClient extends Document, IAuditFields {
   companyName?: string;
   profileName?: string;
   taxId?: string;
+  ivaCondition?: IvaCondition;
   email?: string;
   phone?: string;
   address?: string;
