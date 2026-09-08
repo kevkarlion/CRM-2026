@@ -260,33 +260,45 @@ export interface ProcessMessageResult {
 }
 
 export class WhatsAppService {
+  private cachedTenantId: string | null = null;
+
   /**
-   * Obtiene el tenant activo (el primero que encuentra)
-   * En producción, esto vendría de la configuración del número de WhatsApp
+   * Obtiene el tenant activo (el primero que encuentra).
+   * En producción, esto vendría de la configuración del número de WhatsApp.
+   * El resultado se cachea en memoria: el webhook es single-tenant y NO debe
+   * consultar Mongo por cada mensaje entrante (si la DB va lenta, un timeout
+   * aquí genera leads/conversaciones bajo un tenant equivocado).
    */
   async getActiveTenantId(): Promise<string> {
+    if (this.cachedTenantId) {
+      return this.cachedTenantId;
+    }
+
     try {
       // Ensure DB connection first
       await connectDB();
 
-      // Timeout de 3 segundos para evitar que se quede colgado
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout')), 3000)
+      // Timeout de 10 segundos para evitar que se quede colgado. Si la DB no
+      // responde, Lanzamos el error: NUNCA devolver un tenant fijo de fallback,
+      // porque el resto del flujo crearía leads/conversaciones huérfanos
+      // (bug real: se crearon leads basura bajo '000000000000000000000001').
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Timeout')), 10000)
       );
-      
+
       const tenantPromise = TenantModel.findOne({ deletedAt: null }).lean();
-      
-      const tenant = await Promise.race([tenantPromise, timeoutPromise]) as any;
-      
+
+      const tenant = (await Promise.race([tenantPromise, timeoutPromise])) as any;
+
       if (!tenant) {
         throw new Error('No hay tenants disponibles. Ejecuta el seed primero.');
       }
-      return String(tenant._id);
+
+      this.cachedTenantId = String(tenant._id);
+      return this.cachedTenantId;
     } catch (error) {
       console.error('Error getting tenant:', error);
-      // Fallback para desarrollo: usar un ID fijo si la DB no responde
-      // IMPORTANTE: Cambiar esto en producción
-      return '000000000000000000000001';
+      throw error;
     }
   }
 
