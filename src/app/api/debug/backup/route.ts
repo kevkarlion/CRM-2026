@@ -9,6 +9,8 @@ import { Types } from 'mongoose';
  * Header: x-tenant-id (requerido para autenticación)
  * Header: x-user-id (requerido)
  */
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   const tenantId = request.headers.get('x-tenant-id');
   const userId = request.headers.get('x-user-id');
