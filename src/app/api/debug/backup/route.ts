@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import mongoose from 'mongoose';
 import { connectDB } from '@/core/db';
-import { Types } from 'mongoose';
 
 /**
  * POST /api/debug/backup
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
 
   try {
     await connectDB();
-    const db = process.db;
+    const db = mongoose.connection.db;
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const backupFilename = `crm_backup_${timestamp}.json`;
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     for (const col of collections) {
       console.log(`[backup] Respaldando ${col}...`);
       const docs = await db.collection(col).find({ 
-        tenantId: new Types.ObjectId(tenantId) 
+        tenantId: new mongoose.Types.ObjectId(tenantId) 
       }).limit(10000).toArray();
       
       (backupData.data as Record<string, unknown>)[col] = docs;
