@@ -64,7 +64,7 @@ const navItems: NavItem[] = [
   { label: 'Técnicos', href: '/dashboard/technicians', icon: iconMap['Técnicos'], roles: ['Supervisor', 'Dispatcher'] },
   { label: 'Admin', href: '/dashboard/admin', icon: iconMap['Admin'], roles: ['Owner', 'Administrator'] },
   { label: 'Plantillas WhatsApp', href: '/admin/whatsapp-templates', icon: iconMap['Plantillas WhatsApp'], roles: ['Owner', 'Administrator'] },
-  { label: 'Auditoría', href: '/admin/audit-log', icon: iconMap['Auditoría'], roles: ['Owner', 'Administrator'] },
+  // { label: 'Auditoría', href: '/admin/audit-log', icon: iconMap['Auditoría'], roles: ['Owner', 'Administrator'] },
   { label: 'Leads', href: '/leads', icon: iconMap['Leads'], roles: ['Sales', 'Administrator', 'Owner', 'Supervisor'] },
   { label: 'Clientes', href: '/clients', icon: iconMap['Clientes'], roles: ['Owner', 'Administrator', 'Supervisor', 'Sales', 'Accounting'] },
   { label: 'Centro Operativo Comercial', href: '/quotes', icon: iconMap['Centro Operativo Comercial'], roles: ['Sales', 'Administrator', 'Owner', 'Supervisor'] },
