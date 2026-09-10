@@ -134,7 +134,7 @@ export async function GET(req: NextRequest) {
         $group: {
           _id: '$phone',
           lastInboundAt: { $first: '$createdAt' },
-          lastMessagePreview: { $first: { $substr: ['$content', 0, 50] } },
+          lastMessagePreview: { $first: { $substrCP: ['$content', 0, 50] } },
         },
       },
     ]);
