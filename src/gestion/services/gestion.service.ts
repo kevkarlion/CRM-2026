@@ -90,6 +90,11 @@ export class GestionService {
           clientId: data.clientId,
           name: gestion.name,
           source: gestion.source || 'unknown',
+          profileName: gestion.profileName,
+          companyName: gestion.companyName,
+          phone: gestion.phone,
+          email: gestion.email,
+          status: gestion.status,
         } as GestionCreatedPayload,
       });
     } catch (eventError) {
@@ -220,6 +225,14 @@ export class GestionService {
 
     if (!updatedGestion) return null;
 
+    const clientRef = updatedGestion.clientId as unknown as {
+      fullName?: string; companyName?: string; _bsontype?: string;
+    };
+    const clientName =
+      clientRef && !clientRef._bsontype
+        ? (clientRef.fullName || clientRef.companyName || 'Cliente asociado')
+        : 'Cliente asociado';
+
     await logActivity({
       tenantId,
       entityType: 'gestion',
@@ -227,6 +240,10 @@ export class GestionService {
       action: 'updated',
       actorId: userId,
       changes: { after: updateData as Record<string, unknown> },
+      metadata: {
+        name: updatedGestion.name,
+        clientName,
+      },
     });
 
     return updatedGestion as unknown as IGestion;
@@ -351,12 +368,24 @@ export class GestionService {
 
     if (!updatedGestion) return null;
 
+    const clientRef = updatedGestion.clientId as unknown as {
+      fullName?: string; companyName?: string; _bsontype?: string;
+    };
+    const clientName =
+      clientRef && !clientRef._bsontype
+        ? (clientRef.fullName || clientRef.companyName || 'Cliente asociado')
+        : 'Cliente asociado';
+
     await logActivity({
       tenantId,
       entityType: 'gestion',
       entityId: gestionId,
       action: 'deleted',
       actorId: userId,
+      metadata: {
+        name: updatedGestion.name,
+        clientName,
+      },
     });
 
     return updatedGestion as unknown as IGestion;

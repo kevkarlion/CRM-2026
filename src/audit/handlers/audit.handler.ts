@@ -45,6 +45,15 @@ export const auditHandler = {
       ...payload,
     };
 
+    // PII boundary: strip free-text/contact fields from the persisted metadata.
+    // Structured traceability (names, profileName, companyName, phone, status,
+    // numbers, titles, dates, totals, reasons, technician names) is kept, but
+    // email/notes/description are not persisted. Only the audit copy is touched;
+    // the event payload itself is left intact for timeline/other handlers.
+    delete metadata.email;
+    delete metadata.notes;
+    delete metadata.description;
+
     // Creation events must always carry an origin channel so the audit UI can
     // trace where the entity came from; fall back to 'unknown' when missing.
     if (event.type === 'LEAD_CREATED' || event.type === 'CLIENT_CREATED') {
@@ -76,11 +85,15 @@ function mapEventToAction(eventType: string): string {
     'CLIENT_CREATED': 'created',
     'CLIENT_STATUS_CHANGED': 'status_changed',
 
+    // Gestion
+    'GESTION_CREATED': 'created',
+    'GESTION_STATUS_CHANGED': 'status_changed',
+
     // Quote
     'QUOTE_CREATED': 'created',
-    'QUOTE_SENT': 'status_changed',
-    'QUOTE_APPROVED': 'status_changed',
-    'QUOTE_REJECTED': 'status_changed',
+    'QUOTE_SENT': 'sent',
+    'QUOTE_APPROVED': 'approved',
+    'QUOTE_REJECTED': 'rejected',
     'QUOTE_CONVERTED': 'status_changed',
 
     // Negotiation

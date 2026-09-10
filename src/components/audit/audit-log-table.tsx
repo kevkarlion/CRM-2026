@@ -12,6 +12,8 @@ interface AuditLogTableProps {
 
 const FIELD_LABELS: Record<string, string> = {
   fullName: 'Nombre completo',
+  name: 'Nombre',
+  profileName: 'Perfil',
   status: 'Estado',
   phone: 'Teléfono',
   email: 'Email',
@@ -28,6 +30,38 @@ const FIELD_LABELS: Record<string, string> = {
   timestamp: 'Fecha',
   actorId: 'Usuario',
   tenantId: 'Tenant',
+  number: 'N°',
+  version: 'Versión',
+  newVersion: 'Nueva versión',
+  title: 'Título',
+  total: 'Total',
+  validUntil: 'Válido hasta',
+  sentAt: 'Enviado el',
+  sentBy: 'Enviado por',
+  approvedAt: 'Aprobado el',
+  approvedBy: 'Aprobado por',
+  rejectedAt: 'Rechazado el',
+  wonAt: 'Ganado el',
+  convertedAt: 'Convertido el',
+  saleType: 'Tipo de venta',
+  workOrderNumber: 'N° OT',
+  workOrderTitle: 'OT',
+  clientName: 'Cliente',
+  leadName: 'Lead',
+  technicianName: 'Técnico',
+  category: 'Categoría',
+  priority: 'Prioridad',
+  reason: 'Motivo',
+  from: 'Desde',
+  to: 'Hasta',
+  fromStatus: 'Estado anterior',
+  toStatus: 'Estado nuevo',
+  previousStatus: 'Estado previo',
+  newStatus: 'Estado nuevo',
+  fieldsChanged: 'Campos modificados',
+  deletedBy: 'Eliminado por',
+  blockedBy: 'Bloqueado por',
+  versioned: 'Versionado',
 };
 
 function formatFieldLabel(key: string): string {
@@ -61,6 +95,8 @@ function formatTime(dateStr: string) {
   });
 }
 
+const METADATA_HIDDEN_KEYS = new Set(['eventType', 'leadId', 'clientId', 'entityId', 'id', 'timestamp', 'source']);
+
 function OriginBadge({ channel }: { channel: string | null }) {
   if (!channel) return null;
   return (
@@ -89,38 +125,72 @@ function ChangesDiffView({ entry }: { entry: AuditLogEntry }) {
   const after = entry.changes?.after || {};
   const allKeys = Array.from(new Set([...Object.keys(before), ...Object.keys(after)]));
 
-  if (allKeys.length === 0) {
-    return (
-      <div className="px-3 py-2 text-xs text-gray-500 italic">
-        Sin detalles de cambios disponibles
-      </div>
-    );
-  }
+  const metadataPairs = entry.metadata
+    ? Object.entries(entry.metadata).filter(([key, value]) => {
+        if (METADATA_HIDDEN_KEYS.has(key)) return false;
+        if (value === null || value === undefined || value === '') return false;
+        return true;
+      })
+    : [];
 
   return (
     <div className="px-3 py-2 space-y-1">
-      {allKeys.map((key) => {
-        const bVal = before[key];
-        const aVal = after[key];
-        const changed = formatValue(bVal) !== formatValue(aVal);
-        return (
-          <div
-            key={key}
-            className={`flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-3 py-1 px-2 rounded ${changed ? 'bg-amber-50/60' : ''}`}
-          >
-            <span className="sm:w-36 text-xs font-semibold text-gray-600 shrink-0">
-              {formatFieldLabel(key)}
-            </span>
-            <span className={`font-mono text-xs ${changed ? 'text-danger-700 line-through' : 'text-gray-500'}`}>
-              {formatValue(bVal)}
-            </span>
-            <span className="hidden sm:inline text-gray-400 text-xs">&rarr;</span>
-            <span className={`font-mono text-xs ${changed ? 'text-success-700 font-medium' : 'text-gray-500'}`}>
-              {formatValue(aVal)}
-            </span>
+      {metadataPairs.length > 0 && (
+        <div>
+          <div className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 px-2 pt-1">
+            Contexto
           </div>
-        );
-      })}
+          {metadataPairs.map(([key, value]) => (
+            <div key={key} className="flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-3 py-1 px-2 rounded">
+              <span className="sm:w-36 text-xs font-semibold text-gray-600 shrink-0">
+                {formatFieldLabel(key)}
+              </span>
+              <span className="font-mono text-xs text-gray-700 break-all">
+                {formatValue(value)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {allKeys.length > 0 && (
+        <div>
+          {metadataPairs.length > 0 && (
+            <div className="flex items-center gap-2 px-2 pt-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-gray-400">Cambios</span>
+              <span className="flex-1 h-px bg-gray-200" />
+            </div>
+          )}
+          {allKeys.map((key) => {
+            const bVal = before[key];
+            const aVal = after[key];
+            const changed = formatValue(bVal) !== formatValue(aVal);
+            return (
+              <div
+                key={key}
+                className={`flex flex-col sm:flex-row sm:items-start gap-1 sm:gap-3 py-1 px-2 rounded ${changed ? 'bg-amber-50/60' : ''}`}
+              >
+                <span className="sm:w-36 text-xs font-semibold text-gray-600 shrink-0">
+                  {formatFieldLabel(key)}
+                </span>
+                <span className={`font-mono text-xs ${changed ? 'text-danger-700 line-through' : 'text-gray-500'}`}>
+                  {formatValue(bVal)}
+                </span>
+                <span className="hidden sm:inline text-gray-400 text-xs">&rarr;</span>
+                <span className={`font-mono text-xs ${changed ? 'text-success-700 font-medium' : 'text-gray-500'}`}>
+                  {formatValue(aVal)}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {metadataPairs.length === 0 && allKeys.length === 0 && (
+        <div className="text-xs text-gray-500 italic">
+          Sin detalles de cambios disponibles
+        </div>
+      )}
     </div>
   );
 }

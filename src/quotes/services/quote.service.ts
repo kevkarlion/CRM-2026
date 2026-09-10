@@ -3,7 +3,7 @@ import QuoteModel from '../models/quote';
 import QuoteVersionModel from '../models/quote-version';
 import LeadModel from '@/leads/models/lead';
 import '@/core/models/user'; // Register User model for ref resolution
-import '@/crm/models/client'; // Register Client model for ref resolution
+import ClientModel from '@/crm/models/client';
 import { validateTransition, validateSendRequirements, validateApproveRequirements } from '../helpers/state-machine';
 import { getNextQuoteNumber } from '../helpers/counter';
 import { processItems, calculateSubtotal, calculateTotal } from '../helpers/calculator';
@@ -17,6 +17,48 @@ import type { IQuoteVersion } from '../types/quote-version';
 
 function parseDateOnly(value: string): Date {
   return new Date(value + 'T12:00:00.000Z');
+}
+
+/**
+ * Resolves the real display names for a quote's client and lead so audit
+ * metadata/events carry human-readable context instead of placeholders.
+ *
+ * Best-effort only: this must NEVER fail the business operation. It
+ * feature-detects the model lookups and returns {} on any failure.
+ */
+async function resolveQuotePartyNames(
+  quote: { clientId?: Types.ObjectId | string | null; leadId?: Types.ObjectId | string | null },
+  tenantId: string,
+): Promise<{ clientName?: string; leadName?: string }> {
+  if (!ClientModel?.findById || !LeadModel?.findById || !ClientModel?.findOne || !LeadModel?.findOne) {
+    return {};
+  }
+
+  try {
+    let clientName: string | undefined;
+    let leadName: string | undefined;
+
+    if (quote.clientId) {
+      const client = await ClientModel.findOne({ _id: quote.clientId, tenantId })
+        .select('fullName companyName profileName')
+        .lean()
+        .exec();
+      clientName = client?.fullName || client?.companyName || client?.profileName || undefined;
+    }
+
+    if (quote.leadId) {
+      const lead = await LeadModel.findOne({ _id: quote.leadId, tenantId })
+        .select('name')
+        .lean()
+        .exec();
+      leadName = lead?.name || undefined;
+    }
+
+    return { clientName, leadName };
+  } catch (error) {
+    console.error('[QuoteService] resolveQuotePartyNames failed:', error);
+    return {};
+  }
 }
 
 export class ConflictError extends Error {
@@ -139,23 +181,7 @@ export class QuoteService {
 
       await session.commitTransaction();
 
-      await logActivity({
-        tenantId,
-        entityType: 'quote',
-        entityId: String(quote._id),
-        action: 'created',
-        actorId: userId,
-        leadId: quote.leadId?.toString(),
-        clientId: quote.clientId?.toString(),
-        metadata: { 
-          number: quote.number, 
-          version: 1,
-          title: quote.title,
-          total: quote.total,
-          status: 'draft',
-          clientName: quote.clientId ? 'Cliente asociado' : (quote.leadId ? 'Lead asociado' : null),
-        },
-      });
+      const { clientName, leadName } = await resolveQuotePartyNames(quote, tenantId);
 
       // Publish QUOTE_CREATED event
       try {
@@ -177,6 +203,10 @@ export class QuoteService {
             title: data.title || '',
             description: data.description || null,
             notes: data.notes || null,
+            clientName,
+            leadName,
+            sentAt: quote.sentAt?.toISOString() ?? undefined,
+            sentBy: undefined,
           } as QuoteCreatedPayload,
         });
       } catch (eventError) {
@@ -433,7 +463,7 @@ export class QuoteService {
           entityId: quoteId,
           action: 'version_created',
           actorId: userId,
-          metadata: { newVersion: nextVersion, versioned: true },
+          metadata: { newVersion: nextVersion, versioned: true, number: quote.number, title: quote.title, version: nextVersion },
           changes: {
             before: { currentVersion: quote.currentVersion },
             after: { currentVersion: nextVersion },
@@ -577,6 +607,9 @@ export class QuoteService {
       }
     }
 
+    const { clientName, leadName } = await resolveQuotePartyNames(quote, tenantId);
+    const sentAt = new Date().toISOString();
+
     try {
       await eventBus.publish({
         type: DOMAIN_EVENTS.QUOTE_SENT,
@@ -594,29 +627,15 @@ export class QuoteService {
           title: quote.title,
           status: 'sent',
           validUntil: quote.validUntil?.toISOString() || null,
+          clientName,
+          leadName,
+          sentAt,
+          sentBy: userId,
         } as QuoteSentPayload,
       });
     } catch (eventError) {
       console.error('[QuoteService] Failed to publish QUOTE_SENT:', eventError);
     }
-
-    // Log activity for sent quote
-    await logActivity({
-      tenantId,
-      entityType: 'quote',
-      entityId: quoteId,
-      action: 'status_changed',
-      actorId: userId,
-      leadId: quote.leadId?.toString(),
-      clientId: quote.clientId?.toString(),
-      metadata: {
-        number: quote.number,
-        title: quote.title,
-        total: quote.total,
-        status: 'sent',
-        validUntil: quote.validUntil?.toISOString(),
-      },
-    });
 
     return updated as unknown as IQuote;
   }
@@ -679,6 +698,9 @@ export class QuoteService {
       throw new ConflictError('La cotización ya fue modificada por otro usuario');
     }
 
+    const { clientName } = await resolveQuotePartyNames(quote, tenantId);
+    const approvedAt = new Date().toISOString();
+
     try {
       await eventBus.publish({
         type: DOMAIN_EVENTS.QUOTE_APPROVED,
@@ -694,28 +716,14 @@ export class QuoteService {
           number: quote.number,
           total: quote.total,
           title: quote.title,
+          clientName,
+          approvedAt,
+          approvedBy: userId,
         } as QuoteApprovedPayload,
       });
     } catch (eventError) {
       console.error('[QuoteService] Failed to publish QUOTE_APPROVED:', eventError);
     }
-
-    // Log activity for approved quote
-    await logActivity({
-      tenantId,
-      entityType: 'quote',
-      entityId: quoteId,
-      action: 'approved',
-      actorId: userId,
-      leadId: quote.leadId?.toString(),
-      clientId: quote.clientId?.toString(),
-      metadata: {
-        number: quote.number,
-        title: quote.title,
-        total: quote.total,
-        status: 'approved',
-      },
-    });
 
     return updated as unknown as IQuote;
   }
@@ -779,6 +787,9 @@ export class QuoteService {
       throw new ConflictError('La cotización ya fue modificada por otro usuario');
     }
 
+    const { clientName } = await resolveQuotePartyNames(quote, tenantId);
+    const rejectedAt = new Date().toISOString();
+
     try {
       await eventBus.publish({
         type: DOMAIN_EVENTS.QUOTE_REJECTED,
@@ -793,30 +804,15 @@ export class QuoteService {
           number: quote.number,
           total: quote.total,
           title: quote.title,
+          status: 'rejected',
           reason: reason || undefined,
+          clientName,
+          rejectedAt,
         } as QuoteRejectedPayload,
       });
     } catch (eventError) {
       console.error('[QuoteService] Failed to publish QUOTE_REJECTED:', eventError);
     }
-
-    // Log activity for rejected quote
-    await logActivity({
-      tenantId,
-      entityType: 'quote',
-      entityId: quoteId,
-      action: 'rejected',
-      actorId: userId,
-      leadId: quote.leadId?.toString(),
-      clientId: quote.clientId?.toString(),
-      metadata: {
-        number: quote.number,
-        title: quote.title,
-        total: quote.total,
-        status: 'rejected',
-        reason: reason,
-      },
-    });
 
     return updated as unknown as IQuote;
   }
@@ -876,6 +872,11 @@ export class QuoteService {
       entityId: quoteId,
       action: 'status_changed',
       actorId: userId,
+      metadata: {
+        number: quote.number,
+        title: quote.title,
+        status: 'cancelled',
+      },
       changes: {
         before: { status: currentStatus },
         after: { status: 'cancelled' },
@@ -947,6 +948,11 @@ export class QuoteService {
       entityId: quoteId,
       action: 'status_changed',
       actorId: userId,
+      metadata: {
+        number: quote.number,
+        title: quote.title,
+        status: 'expired',
+      },
       changes: {
         before: { status: currentStatus },
         after: { status: 'expired' },
@@ -1007,6 +1013,11 @@ export class QuoteService {
       entityId: quoteId,
       action: 'deleted',
       actorId: userId,
+      metadata: {
+        number: quote.number,
+        title: quote.title,
+        deletedBy: userId,
+      },
     });
 
     return updated as unknown as IQuote;
@@ -1078,6 +1089,19 @@ export class QuoteService {
       throw new ValidationError('Cotización no encontrada en un estado válido para confirmar la venta');
     }
 
+    // Resolve the latest version BEFORE the status update so the same
+    // operation can bump currentVersion to the new snapshot version, keeping
+    // updateQuote's nextVersion computation collision-free.
+    const latestVersion = await QuoteVersionModel.findOne({
+      quoteId: new Types.ObjectId(quoteId),
+      tenantId: new Types.ObjectId(tenantId),
+    }).sort({ version: -1 }).exec();
+
+    // Never write a duplicate v1: snapshots continue the existing history.
+    // With no version history, skip the insert (and the version bump) rather
+    // than persisting an empty snapshot.
+    const nextVersion = latestVersion ? latestVersion.version + 1 : null;
+
     const updated = await QuoteModel.findOneAndUpdate(
       {
         _id: new Types.ObjectId(quoteId),
@@ -1093,6 +1117,7 @@ export class QuoteService {
           wonAt: new Date(),
           convertedAt: new Date(),
           updatedBy: new Types.ObjectId(userId),
+          ...(nextVersion !== null && { currentVersion: nextVersion }),
         },
       },
       { new: true },
@@ -1102,21 +1127,22 @@ export class QuoteService {
       throw new ConflictError('La cotización ya fue modificada por otro usuario');
     }
 
-    // Create a version record for the direct sale
-    await QuoteVersionModel.create([{
-      tenantId: new Types.ObjectId(tenantId),
-      quoteId: updated._id,
-      version: 1,
-      title: quote.title,
-      description: quote.description,
-      items: quote.items || [],
-      subtotal: quote.subtotal || 0,
-      discountAmount: quote.discountAmount || 0,
-      taxAmount: quote.taxAmount || 0,
-      total: quote.total || 0,
-      notes: quote.notes,
-      createdBy: new Types.ObjectId(userId),
-    }]);
+    if (nextVersion !== null) {
+      await QuoteVersionModel.create([{
+        tenantId: new Types.ObjectId(tenantId),
+        quoteId: updated._id,
+        version: nextVersion,
+        title: quote.title,
+        description: quote.description,
+        items: latestVersion?.items ?? [],
+        subtotal: quote.subtotal || 0,
+        discountAmount: quote.discountAmount || 0,
+        taxAmount: quote.taxAmount || 0,
+        total: quote.total || 0,
+        notes: quote.notes,
+        createdBy: new Types.ObjectId(userId),
+      }]);
+    }
 
     // Log activity
     await logActivity({
@@ -1132,6 +1158,9 @@ export class QuoteService {
         title: quote.title,
         total: quote.total,
         status: 'direct_sale',
+        wonAt: new Date().toISOString(),
+        convertedAt: new Date().toISOString(),
+        saleType: saleType || 'service',
       },
     });
 

@@ -1,5 +1,5 @@
 import { Schema } from 'mongoose';
-import { IActivityLog } from '../types/activity-log';
+import { ACTIVITY_ACTIONS, IActivityLog } from '../types/activity-log';
 
 export const activityLogSchema = new Schema<IActivityLog>({
   tenantId: { type: Schema.Types.ObjectId, ref: 'Tenant', required: true },
@@ -7,7 +7,7 @@ export const activityLogSchema = new Schema<IActivityLog>({
   entityId: { type: Schema.Types.ObjectId, required: true },
 action: {
     type: String,
-    enum: ['created', 'updated', 'deleted', 'assigned', 'unassigned', 'statusChanged', 'status_changed', 'rejected', 'converted', 'version_created', 'activated', 'paused', 'cancelled', 'expired', 'equipment_added', 'equipment_removed', 'work_order_generated', 'status.change', 'rescheduled', 'technician.assigned', 'technician.reassigned', 'technician.unassigned', 'checklist.created', 'checklist.completed', 'report.created', 'work_started', 'work_completed', 'work_report_created'],
+    enum: ACTIVITY_ACTIONS,
     required: true,
   },
   actorId: { type: Schema.Types.ObjectId, ref: 'User', required: true },

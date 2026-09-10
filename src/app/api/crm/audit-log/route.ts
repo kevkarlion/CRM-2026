@@ -14,7 +14,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
     const pageSize = Math.min(100, Math.max(1, parseInt(searchParams.get('pageSize') || '20', 10)));
-    const search = searchParams.get('search') || undefined;
+    let search = searchParams.get('search') || undefined;
+    if (search) search = search.slice(0, 100);
     const action = searchParams.get('action') || undefined;
     const entityType = searchParams.get('entityType') || undefined;
     const dateFrom = searchParams.get('dateFrom') || undefined;
@@ -28,7 +29,10 @@ export async function GET(request: NextRequest) {
     }
 
     if (entityType) {
-      query.entityType = entityType;
+      // Handler-driven rows store the aggregateType casing ('Quote', 'Lead', ...)
+      // while the UI filters with lowercase values; match both.
+      const capitalized = entityType.charAt(0).toUpperCase() + entityType.slice(1);
+      query.entityType = { $in: [entityType, capitalized] };
     }
 
     if (dateFrom || dateTo) {
@@ -43,15 +47,20 @@ export async function GET(request: NextRequest) {
     }
 
     if (search) {
-      // Search across: actor name/email, entityType, and entity names (Lead/Client)
-      const regex = { $regex: search, $options: 'i' } as const;
+      // Search across: actor name/email, entityType, and entity names (Lead/Client/Gestion/Quote/WorkOrder)
+      // Escape regex metacharacters so user input can't 500 or trigger ReDoS
+      const escaped = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = { $regex: escaped, $options: 'i' } as const;
 
       const UserModel = (await import('@/core/models/user')).default;
       const LeadModel = (await import('@/leads/models/lead')).default;
       const ClientModel = (await import('@/crm/models/client')).default;
+      const GestionModel = (await import('@/gestion/models/gestion')).default;
+      const QuoteModel = (await import('@/quotes/models/quote')).default;
+      const WorkOrderModel = (await import('@/operations/models/work-order')).default;
 
       // Parallel lookups for matching IDs across collections
-      const [matchingUsers, matchingLeads, matchingClients] = await Promise.all([
+      const [matchingUsers, matchingLeads, matchingClients, matchingGestions, matchingQuotes, matchingWorkOrders] = await Promise.all([
         UserModel.find({
           tenantId,
           $or: [
@@ -59,11 +68,11 @@ export async function GET(request: NextRequest) {
             { lastName: regex },
             { email: regex },
           ],
-        }).select('_id').lean(),
+        }).select('_id').limit(50).lean(),
         LeadModel.find({
           tenantId,
           name: regex,
-        }).select('_id').lean(),
+        }).select('_id').limit(50).lean(),
         ClientModel.find({
           tenantId,
           $or: [
@@ -71,18 +80,66 @@ export async function GET(request: NextRequest) {
             { companyName: regex },
             { profileName: regex },
           ],
-        }).select('_id').lean(),
+        }).select('_id').limit(50).lean(),
+        GestionModel.find({
+          tenantId,
+          $or: [
+            { name: regex },
+            { companyName: regex },
+          ],
+        }).select('_id').limit(50).lean(),
+        QuoteModel.find({
+          tenantId,
+          $or: [
+            { number: regex },
+            { title: regex },
+          ],
+        }).select('_id').limit(50).lean(),
+        WorkOrderModel.find({
+          tenantId,
+          $or: [
+            { workOrderNumber: regex },
+            { title: regex },
+          ],
+        }).select('_id').limit(50).lean(),
       ]);
 
       const userIds = matchingUsers.map((u: { _id: unknown }) => u._id);
       const leadIds = matchingLeads.map((l: { _id: unknown }) => l._id);
       const clientIds = matchingClients.map((c: { _id: unknown }) => c._id);
+      const gestionIds = matchingGestions.map((g: { _id: unknown }) => g._id);
+      const quoteIds = matchingQuotes.map((q: { _id: unknown }) => q._id);
+      const workOrderIds = matchingWorkOrders.map((w: { _id: unknown }) => w._id);
+
+      // Metadata keys that hold snapshot/historical names — the live entity may no longer match
+      const metadataRegex = [
+        'name',
+        'profileName',
+        'companyName',
+        'phone',
+        'email',
+        'number',
+        'workOrderNumber',
+        'title',
+        'clientName',
+        'leadName',
+        'technicianName',
+        'reason',
+        'workOrderTitle',
+        'category',
+        'priority',
+      ].map((key) => ({ [`metadata.${key}`]: regex }));
 
       query.$or = [
         { actorId: { $in: userIds } },
         { entityType: regex },
         { entityType: { $in: ['lead', 'Lead'] }, entityId: { $in: leadIds } },
         { entityType: { $in: ['client', 'Client'] }, entityId: { $in: clientIds } },
+        { entityType: { $in: ['gestion', 'Gestion'] }, entityId: { $in: gestionIds } },
+        { entityType: { $in: ['quote', 'Quote'] }, entityId: { $in: quoteIds } },
+        { entityType: { $in: ['workOrder', 'WorkOrder'] }, entityId: { $in: workOrderIds } },
+        // El nombre histórico vive en metadata (snapshot en el momento del log)
+        ...metadataRegex,
       ];
     }
 

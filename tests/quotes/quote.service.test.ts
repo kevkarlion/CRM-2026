@@ -14,6 +14,17 @@ const hoisted = vi.hoisted(() => {
   chain.sort.mockReturnValue(chain);
   chain.populate.mockReturnValue(chain);
 
+  // Dedicated chain for the resolveQuotePartyNames client lookup so the
+  // enrichment path never consumes the main flow's exec queue.
+  const clientExec = vi.fn();
+  const clientChain: any = {
+    select: vi.fn(),
+    lean: vi.fn(),
+    exec: clientExec,
+  };
+  clientChain.select.mockReturnValue(clientChain);
+  clientChain.lean.mockReturnValue(clientChain);
+
   const session = {
     startTransaction: vi.fn(),
     abortTransaction: vi.fn(),
@@ -23,6 +34,8 @@ const hoisted = vi.hoisted(() => {
 
   return {
     chain,
+    clientChain,
+    clientExec,
     session,
     mockStartSession: vi.fn().mockResolvedValue(session),
     mockQuoteCreate: vi.fn(),
@@ -40,6 +53,7 @@ const hoisted = vi.hoisted(() => {
     mockUpdateMany: vi.fn(),
     mockLeadFindOne: vi.fn(),
     mockLeadUpdateOne: vi.fn(),
+    mockClientFindOne: vi.fn(() => clientChain),
   };
 });
 
@@ -117,13 +131,19 @@ vi.mock('../../src/audit/activity-logger', () => ({
 vi.mock('../../src/leads/models/lead', () => ({
   default: {
     findOne: hoisted.mockLeadFindOne,
+    findById: hoisted.mockLeadFindOne,
     updateOne: hoisted.mockLeadUpdateOne,
   },
 }));
 
 vi.mock('../../src/core/models/user', () => ({}));
 
-vi.mock('../../src/crm/models/client', () => ({}));
+vi.mock('../../src/crm/models/client', () => ({
+  default: {
+    findOne: hoisted.mockClientFindOne,
+    findById: hoisted.mockClientFindOne,
+  },
+}));
 
 vi.mock('../../src/crm/helpers/cursor-pagination', () => ({
   cursorPage: hoisted.mockCursorPage,
@@ -213,6 +233,13 @@ describe('QuoteService', () => {
     hoisted.chain.populate.mockReturnValue(hoisted.chain);
     hoisted.mockTenantFindById.mockReturnValue(hoisted.chain);
     hoisted.mockLeadFindOne.mockReturnValue(hoisted.chain);
+    // Client enrichment lookup resolves a display name for the audit metadata
+    hoisted.clientExec.mockReset();
+    hoisted.clientExec.mockResolvedValue({
+      fullName: 'Cliente X',
+      companyName: 'Empresa X',
+      _id: 'client1',
+    });
   });
 
   describe('createQuote', () => {
@@ -239,7 +266,7 @@ describe('QuoteService', () => {
       expect(result.version).toBeDefined();
       expect(hoisted.mockStartSession).toHaveBeenCalled();
       expect(hoisted.session.commitTransaction).toHaveBeenCalled();
-      expect(hoisted.mockLogActivity).toHaveBeenCalled();
+      expect(hoisted.mockLogActivity).not.toHaveBeenCalled();
     });
 
     it('generates sequential number and passes it to create', async () => {
@@ -567,7 +594,8 @@ describe('QuoteService', () => {
       expect(result.status).toBe('sent');
       expect(hoisted.mockValidateTransition).toHaveBeenCalledWith('draft', 'sent');
       expect(hoisted.mockValidateSendRequirements).toHaveBeenCalled();
-      expect(hoisted.mockLogActivity).toHaveBeenCalled();
+      // sendQuote logs through the QUOTE_SENT event path only — no direct log
+      expect(hoisted.mockLogActivity).not.toHaveBeenCalled();
     });
 
     it('throws ConflictError on race condition', async () => {
@@ -836,6 +864,7 @@ describe('QuoteService', () => {
       const directDoc = makeQuote({ status: 'direct_sale', approvedAt: new Date(), wonAt: new Date(), convertedAt: new Date() });
       hoisted.chain.exec
         .mockResolvedValueOnce(draftDoc)
+        .mockResolvedValueOnce(makeVersion())
         .mockResolvedValueOnce(directDoc);
       hoisted.mockQuoteVersionCreate.mockResolvedValue([makeVersion()]);
 
@@ -851,6 +880,7 @@ describe('QuoteService', () => {
       const directDoc = makeQuote({ status: 'direct_sale' });
       hoisted.chain.exec
         .mockResolvedValueOnce(sentDoc)
+        .mockResolvedValueOnce(makeVersion())
         .mockResolvedValueOnce(directDoc);
       hoisted.mockQuoteVersionCreate.mockResolvedValue([makeVersion()]);
 
@@ -864,6 +894,7 @@ describe('QuoteService', () => {
       const directDoc = makeQuote({ status: 'direct_sale' });
       hoisted.chain.exec
         .mockResolvedValueOnce(approvedDoc)
+        .mockResolvedValueOnce(makeVersion())
         .mockResolvedValueOnce(directDoc);
       hoisted.mockQuoteVersionCreate.mockResolvedValue([makeVersion()]);
 

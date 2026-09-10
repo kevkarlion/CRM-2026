@@ -181,7 +181,7 @@ export class WorkOrderService {
             priority: workOrder.priority,
             scheduledDate: workOrder.scheduledDate,
             clientName: client.fullName || client.companyName || undefined,
-            address: location.address || undefined,
+            address: location?.address || undefined,
           } as WorkOrderCreatedPayload,
         });
       } catch (eventError) {
@@ -214,6 +214,9 @@ export class WorkOrderService {
       scheduledDateLt?: string;
       statusNin?: string[];
       workStatus?: string;
+      priority?: string;
+      leadId?: string;
+      search?: string;
       limit?: number;
       skip?: number;
     } = {},
@@ -328,10 +331,11 @@ export class WorkOrderService {
     }
     
     // Search by technician name (passed as separate filter from API route)
-    if ((filters as any).techSearch) {
-      query.$and = query.$and || [];
-      query.$and.push((filters as any).techSearch);
-    }
+if ((filters as any).techSearch) {
+        const andFilters = (query.$and as unknown[] | undefined) ?? [];
+        andFilters.push((filters as any).techSearch);
+        query.$and = andFilters;
+      }
 
     const total = await WorkOrderModel.countDocuments(query);
     
@@ -418,6 +422,9 @@ export class WorkOrderService {
         action: 'workStatus_changed',
         actorId: userId,
         metadata: {
+          workOrderNumber: updated.workOrderNumber,
+          title: updated.title,
+          clientName: updated.clientSnapshot?.name || undefined,
           fromStatus: oldWorkStatus,
           toStatus: newWorkStatus,
           fromLabel,
@@ -502,7 +509,7 @@ export class WorkOrderService {
         return null;
       }
 
-      const currentStatus = current.status as string;
+      const currentStatus = current.status as WorkOrderStatus;
 
       // Skip validation for legacy statuses - just allow the transition
       if (!CANONICAL_STATUSES.includes(currentStatus)) {
@@ -632,9 +639,10 @@ export class WorkOrderService {
       });
 
       // Sync scheduledDate from scheduledStart (single source of truth)
-      const syncedScheduledDate = typeof scheduleData.scheduledStart === 'string'
-        ? scheduleData.scheduledStart.slice(0, 10)
-        : scheduleData.scheduledStart.toISOString().slice(0, 10);
+      const scheduledStartVal = scheduleData.scheduledStart as unknown as Date | string;
+      const syncedScheduledDate = typeof scheduledStartVal === 'string'
+        ? scheduledStartVal.slice(0, 10)
+        : scheduledStartVal.toISOString().slice(0, 10);
 
       const updated = await WorkOrderModel.findOneAndUpdate(
         { _id: id, tenantId, status: currentStatus, version },
@@ -753,6 +761,10 @@ export class WorkOrderService {
       entityId: id,
       action: 'deleted',
       actorId: userId,
+      metadata: {
+        workOrderNumber: workOrder.workOrderNumber,
+        title: workOrder.title,
+      },
     });
 
     return true;

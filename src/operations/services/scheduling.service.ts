@@ -193,12 +193,16 @@ export class SchedulingService {
       },
     });
 
-    await logActivity({
+await logActivity({
       tenantId,
       entityType: 'workOrder',
       entityId: workOrderId,
       action: 'rescheduled',
       actorId: userId,
+      metadata: {
+        workOrderNumber: current.workOrderNumber,
+        title: current.title,
+      },
       changes: {
         before: before as Record<string, unknown>,
         after: newScheduleData as unknown as Record<string, unknown>,

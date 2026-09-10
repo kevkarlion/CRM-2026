@@ -153,6 +153,11 @@ export class LeadService {
           leadId: String(lead._id),
           name: lead.name,
           source: lead.source || 'unknown',
+          profileName: lead.profileName,
+          companyName: lead.companyName,
+          phone: lead.phone,
+          email: lead.email,
+          status: lead.status,
         } as LeadCreatedPayload,
       });
     } catch (eventError) {
@@ -295,6 +300,8 @@ export class LeadService {
             leadId: String(lead._id),
             clientId: String(clientId),
             source: lead.source,
+            leadName: lead.name,
+            clientName: lead.name,
           } as LeadConvertedPayload,
         });
       } catch (eventError) {
@@ -462,7 +469,11 @@ export class LeadService {
         action: 'updated',
         actorId: userId,
         changes: { before, after },
-        metadata: { fieldsChanged: Object.keys(after) },
+        metadata: {
+          fieldsChanged: Object.keys(after),
+          name: updatedLead.name,
+          phone: updatedLead.phone,
+        },
       });
     }
 
@@ -720,6 +731,8 @@ export class LeadService {
             leadId,
             clientId: String(client._id),
             source: lead.source,
+            leadName: lead.name,
+            clientName: client.fullName || client.companyName || undefined,
           } as LeadConvertedPayload,
         });
       } catch (eventError) {
@@ -895,6 +908,10 @@ export class LeadService {
       entityId: leadId,
       action: 'deleted',
       actorId: userId,
+      metadata: {
+        name: lead.name,
+        phone: lead.phone,
+      },
     });
 
     return updatedLead as unknown as ILead;

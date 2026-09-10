@@ -72,6 +72,8 @@ export interface LeadCreatedPayload {
   email?: string;
   phone?: string;
   companyName?: string;
+  profileName?: string;
+  status?: string;
 }
 
 export interface LeadStatusChangedPayload {
@@ -96,6 +98,8 @@ export interface GestionCreatedPayload {
   email?: string;
   phone?: string;
   companyName?: string;
+  profileName?: string;
+  status?: string;
 }
 
 export interface GestionStatusChangedPayload {
@@ -124,6 +128,10 @@ export interface QuoteCreatedPayload {
   title: string;
   description: string | null;
   notes: string | null;
+  clientName?: string;
+  leadName?: string;
+  sentAt?: string | null;
+  sentBy?: string;
 }
 
 export interface QuoteSentPayload {
@@ -135,6 +143,10 @@ export interface QuoteSentPayload {
   title?: string;
   status?: string;
   validUntil?: string | null;
+  clientName?: string;
+  leadName?: string;
+  sentAt?: string;
+  sentBy?: string;
 }
 
 export interface QuoteApprovedPayload {
@@ -144,6 +156,9 @@ export interface QuoteApprovedPayload {
   number?: string;
   total?: number;
   title?: string;
+  clientName?: string;
+  approvedAt?: string;
+  approvedBy?: string;
 }
 
 export interface QuoteRejectedPayload {
@@ -152,7 +167,10 @@ export interface QuoteRejectedPayload {
   number?: string;
   total?: number;
   title?: string;
+  status?: string;
   reason?: string;
+  clientName?: string;
+  rejectedAt?: string;
 }
 
 export interface QuoteConvertedPayload {
@@ -315,6 +333,8 @@ export interface ClientCreatedPayload {
   email?: string;
   phone?: string;
   source?: string;
+  companyName?: string;
+  profileName?: string;
 }
 
 export interface ClientStatusChangedPayload {

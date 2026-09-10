@@ -7,6 +7,13 @@ const hoisted = vi.hoisted(() => {
   chain.populate.mockReturnValue(chain);
   chain.sort.mockReturnValue(chain);
 
+  // Dedicated chain for the resolveQuotePartyNames client lookup so the
+  // enrichment path never consumes the main flow's exec queue.
+  const clientExec = vi.fn();
+  const clientChain: any = { select: vi.fn(), lean: vi.fn(), exec: clientExec };
+  clientChain.select.mockReturnValue(clientChain);
+  clientChain.lean.mockReturnValue(clientChain);
+
   const session = {
     startTransaction: vi.fn(),
     abortTransaction: vi.fn(),
@@ -16,6 +23,8 @@ const hoisted = vi.hoisted(() => {
 
   return {
     chain,
+    clientChain,
+    clientExec,
     session,
     mockStartSession: vi.fn().mockResolvedValue(session),
     mockQuoteCreate: vi.fn(),
@@ -32,6 +41,7 @@ const hoisted = vi.hoisted(() => {
     mockTenantFindById: vi.fn(),
     mockFindOneAndUpdate: vi.fn(() => chain),
     mockPublish: vi.fn().mockResolvedValue(undefined),
+    mockClientFindOne: vi.fn(() => clientChain),
   };
 });
 
@@ -120,13 +130,19 @@ vi.mock('@/core/models/tenant', () => ({
 vi.mock('@/leads/models/lead', () => ({
   default: {
     findOne: vi.fn(() => hoisted.chain),
+    findById: vi.fn(() => hoisted.chain),
     updateOne: vi.fn(),
   },
 }));
 
 vi.mock('@/core/models/user', () => ({}));
 
-vi.mock('@/crm/models/client', () => ({}));
+vi.mock('@/crm/models/client', () => ({
+  default: {
+    findOne: hoisted.mockClientFindOne,
+    findById: hoisted.mockClientFindOne,
+  },
+}));
 
 vi.mock('@/infrastructure/events/event-bus', () => ({
   eventBus: { publish: hoisted.mockPublish },
@@ -170,6 +186,13 @@ describe('QuoteService publishes clientId in payloads', () => {
     service = new QuoteService();
     vi.clearAllMocks();
     hoisted.chain.exec.mockReset();
+    // Client enrichment lookup resolves a display name for the payload metadata
+    hoisted.clientExec.mockReset();
+    hoisted.clientExec.mockResolvedValue({
+      fullName: 'Cliente X',
+      companyName: 'Empresa X',
+      _id: CLIENT_ID,
+    });
   });
 
   it('QUOTE_CREATED payload carries clientId for client-originated quotes', async () => {

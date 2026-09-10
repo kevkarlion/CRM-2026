@@ -244,6 +244,8 @@ export class ClientService {
           email: doc.email,
           phone: doc.phone,
           source: doc.source,
+          companyName: doc.companyName,
+          profileName: doc.profileName,
         } as ClientCreatedPayload,
       });
     } catch (eventError) {
@@ -313,7 +315,10 @@ export class ClientService {
           action: 'updated',
           actorId: userId,
           changes: { before, after },
-          metadata: { fieldsChanged: Object.keys(after) },
+          metadata: {
+            fieldsChanged: Object.keys(after),
+            clientName: updated.fullName || updated.companyName || updated.profileName || undefined,
+          },
         });
       }
     }
