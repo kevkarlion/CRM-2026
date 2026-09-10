@@ -421,6 +421,12 @@ export class LeadService {
       await assignmentService.assign(leadId, assignedTo, userId, tenantId);
     }
 
+    // Fetch original before update for audit diff
+    const originalLead = await LeadModel.findOne({
+      _id: new Types.ObjectId(leadId),
+      tenantId: new Types.ObjectId(tenantId),
+    }).lean();
+
     const updatedLead = await LeadModel.findOneAndUpdate(
       {
         _id: new Types.ObjectId(leadId),
@@ -435,14 +441,29 @@ export class LeadService {
 
     if (!updatedLead) return null;
 
-    await logActivity({
-      tenantId,
-      entityType: 'lead',
-      entityId: leadId,
-      action: 'updated',
-      actorId: userId,
-      changes: { after: updateData as Record<string, unknown> },
-    });
+    // Compute diff: only fields that actually changed
+    const before: Record<string, unknown> = {};
+    const after: Record<string, unknown> = {};
+    for (const key of Object.keys(updateData)) {
+      const oldVal = originalLead ? (originalLead as Record<string, unknown>)[key] : undefined;
+      const newVal = (updateData as Record<string, unknown>)[key];
+      if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+        before[key] = oldVal ?? null;
+        after[key] = newVal;
+      }
+    }
+
+    if (Object.keys(after).length > 0) {
+      await logActivity({
+        tenantId,
+        entityType: 'lead',
+        entityId: leadId,
+        action: 'updated',
+        actorId: userId,
+        changes: { before, after },
+        metadata: { fieldsChanged: Object.keys(after) },
+      });
+    }
 
     return updatedLead as unknown as ILead;
   }

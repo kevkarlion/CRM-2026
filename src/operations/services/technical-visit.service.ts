@@ -4,6 +4,7 @@ import type { ITechnicalVisit } from '../schemas/technical-visit';
 import { ValidationError } from '@/core/errors';
 import { eventBus } from '@/infrastructure/events/event-bus';
 import { DOMAIN_EVENTS, VisitCreatedPayload, VisitStatusChangedPayload, VisitCompletedPayload } from '@/infrastructure/events/event.types';
+import { logActivity } from '@/audit/activity-logger';
 
 export class TechnicalVisitService {
   async findByTenant(tenantId: string, filters: Record<string, unknown> = {}) {
@@ -110,11 +111,44 @@ export class TechnicalVisitService {
   }
 
   async update(id: string, data: Partial<ITechnicalVisit>, tenantId: string, userId: string): Promise<ITechnicalVisit | null> {
-    return TechnicalVisitModel.findOneAndUpdate(
+    const original = await TechnicalVisitModel.findOne({
+      _id: new Types.ObjectId(id),
+      tenantId: new Types.ObjectId(tenantId),
+    }).lean();
+
+    const visit = await TechnicalVisitModel.findOneAndUpdate(
       { _id: new Types.ObjectId(id), tenantId: new Types.ObjectId(tenantId) },
       { $set: { ...data, updatedBy: new Types.ObjectId(userId) } },
       { new: true }
     ).lean();
+
+    if (visit && original) {
+      // Compute diff: only fields that actually changed
+      const before: Record<string, unknown> = {};
+      const after: Record<string, unknown> = {};
+      for (const key of Object.keys(data)) {
+        const oldVal = (original as Record<string, unknown>)[key];
+        const newVal = (data as Record<string, unknown>)[key];
+        if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+          before[key] = oldVal ?? null;
+          after[key] = newVal;
+        }
+      }
+
+      if (Object.keys(after).length > 0) {
+        await logActivity({
+          tenantId,
+          entityType: 'technicalVisit',
+          entityId: id,
+          action: 'updated',
+          actorId: userId,
+          changes: { before, after },
+          metadata: { visitNumber: (visit as any).visitNumber, fieldsChanged: Object.keys(after) },
+        });
+      }
+    }
+
+    return visit;
   }
 
   async updateStatus(id: string, status: string, tenantId: string, userId: string): Promise<ITechnicalVisit | null> {
@@ -196,10 +230,27 @@ export class TechnicalVisitService {
   }
 
   async delete(id: string, tenantId: string): Promise<boolean> {
+    const visit = await TechnicalVisitModel.findOne({
+      _id: new Types.ObjectId(id),
+      tenantId: new Types.ObjectId(tenantId),
+    }).lean();
+
     const result = await TechnicalVisitModel.deleteOne({
       _id: new Types.ObjectId(id),
       tenantId: new Types.ObjectId(tenantId),
     });
+
+    if (result.deletedCount > 0 && visit) {
+      await logActivity({
+        tenantId,
+        entityType: 'technicalVisit',
+        entityId: id,
+        action: 'deleted',
+        actorId: 'system',
+        metadata: { visitNumber: (visit as any).visitNumber, deletedBy: 'system' },
+      });
+    }
+
     return result.deletedCount > 0;
   }
 
@@ -259,11 +310,28 @@ export class TechnicalVisitService {
       { $set: { status: 'assigned' } },
     );
 
-    return TechnicalVisitModel.findOneAndUpdate(
+    const updatedVisit = await TechnicalVisitModel.findOneAndUpdate(
       { _id: new Types.ObjectId(visitId), tenantId: new Types.ObjectId(tenantId) },
       { $set: { assignedTechnicianId: new Types.ObjectId(technicianId), updatedBy: new Types.ObjectId(userId) } },
       { new: true },
     ).populate('assignedTechnicianId', 'name email phone specialties').lean();
+
+    if (updatedVisit) {
+      await logActivity({
+        tenantId,
+        entityType: 'technicalVisit',
+        entityId: visitId,
+        action: 'technician.assigned',
+        actorId: userId,
+        metadata: {
+          visitNumber: (updatedVisit as any).visitNumber,
+          technicianName: (technician as any).name,
+          assignmentType: 'primary',
+        },
+      });
+    }
+
+    return updatedVisit;
   }
 
   async unassignTechnician(
@@ -271,6 +339,11 @@ export class TechnicalVisitService {
     tenantId: string,
     userId: string,
   ): Promise<ITechnicalVisit | null> {
+    const visitBeforeUnassign = await TechnicalVisitModel.findOne({
+      _id: new Types.ObjectId(visitId),
+      tenantId: new Types.ObjectId(tenantId),
+    }).populate('assignedTechnicianId', 'name').lean();
+
     // Downgrade status to 'confirmed' ONLY from 'assigned' — never touch advanced
     // statuses (in_progress, completed, cancelled, converted_to_work_order).
     await TechnicalVisitModel.updateOne(
@@ -282,11 +355,27 @@ export class TechnicalVisitService {
       { $set: { status: 'confirmed', updatedBy: new Types.ObjectId(userId) } },
     );
 
-    return TechnicalVisitModel.findOneAndUpdate(
+    const visit = await TechnicalVisitModel.findOneAndUpdate(
       { _id: new Types.ObjectId(visitId), tenantId: new Types.ObjectId(tenantId) },
       { $set: { assignedTechnicianId: null, updatedBy: new Types.ObjectId(userId) } },
       { new: true },
     ).populate('assignedTechnicianId', 'name email phone specialties').lean();
+
+    if (visit && visitBeforeUnassign) {
+      await logActivity({
+        tenantId,
+        entityType: 'technicalVisit',
+        entityId: visitId,
+        action: 'technician.unassigned',
+        actorId: userId,
+        metadata: {
+          visitNumber: (visit as any).visitNumber,
+          technicianName: (visitBeforeUnassign as any).assignedTechnicianId?.name || 'unknown',
+        },
+      });
+    }
+
+    return visit;
   }
 }
 

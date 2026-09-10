@@ -8,6 +8,7 @@ import { eventBus } from '@/infrastructure/events/event-bus';
 import { DOMAIN_EVENTS, ClientCreatedPayload, ClientStatusChangedPayload } from '@/infrastructure/events/event.types';
 import { normalizePhone } from '@/lib/phone';
 import LeadModel from '@/leads/models/lead';
+import { logActivity } from '@/audit/activity-logger';
 
 function clientDisplayName(client: { fullName?: string; companyName?: string }): string | undefined {
   return client.fullName || client.companyName || undefined;
@@ -277,14 +278,47 @@ export class ClientService {
   ): Promise<IClient | null> {
     const { status, blockHistory, ...safeData } = data as UpdateClientInput &
       Partial<Pick<IClient, 'status' | 'blockHistory'>>;
-    return ClientModel.findOneAndUpdate(
+
+    const original = await ClientModel.findOne({ _id: id, tenantId, deletedAt: null })
+      .lean()
+      .exec();
+
+    const updated = await ClientModel.findOneAndUpdate(
       { _id: id, tenantId, deletedAt: null },
       { $set: { ...safeData, updatedBy: userId } },
       { new: true }
     )
       .populate('blockHistory.blockedBy', 'firstName lastName email')
       .populate('blockHistory.unblockedBy', 'firstName lastName email')
-      .exec() as unknown as Promise<IClient | null>;
+      .exec() as unknown as IClient | null;
+
+    if (updated && original) {
+      // Compute diff: only fields that actually changed
+      const before: Record<string, unknown> = {};
+      const after: Record<string, unknown> = {};
+      for (const key of Object.keys(safeData)) {
+        const oldVal = (original as Record<string, unknown>)[key];
+        const newVal = (safeData as Record<string, unknown>)[key];
+        if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+          before[key] = oldVal ?? null;
+          after[key] = newVal;
+        }
+      }
+
+      if (Object.keys(after).length > 0) {
+        await logActivity({
+          tenantId,
+          entityType: 'client',
+          entityId: id,
+          action: 'updated',
+          actorId: userId,
+          changes: { before, after },
+          metadata: { fieldsChanged: Object.keys(after) },
+        });
+      }
+    }
+
+    return updated;
   }
 
   async blockClient(
@@ -409,6 +443,10 @@ export class ClientService {
   }
 
   async softDelete(id: string, tenantId: string, userId: string): Promise<void> {
+    const client = await ClientModel.findOne({ _id: id, tenantId, deletedAt: null })
+      .lean()
+      .exec();
+
     await ClientModel.updateOne(
       { _id: id, tenantId },
       { $set: { deletedAt: new Date(), deletedBy: userId } }
@@ -449,5 +487,19 @@ export class ClientService {
     );
     // Activity (append-only) and Attachment (immutable metadata) are NOT soft-deleted
     // Activity entries remain as historical record; Attachments remain for audit trail
+
+    if (client) {
+      await logActivity({
+        tenantId,
+        entityType: 'client',
+        entityId: id,
+        action: 'deleted',
+        actorId: userId,
+        metadata: {
+          clientName: client.fullName || client.companyName,
+          deletedBy: userId,
+        },
+      });
+    }
   }
 }

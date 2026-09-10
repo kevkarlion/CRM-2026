@@ -3,6 +3,7 @@ import WhatsAppMessageModel from '../models/whatsapp-message';
 import LeadModel from '../../leads/models/lead';
 import ClientModel from '../models/client';
 import ContactModel from '../models/contact';
+import { logActivity } from '../../audit/activity-logger';
 import TenantModel from '../../core/models/tenant';
 import { ClientServiceHistoryModel } from '@/clients';
 import GestionModel from '@/gestion/models/gestion';
@@ -671,6 +672,32 @@ export class WhatsAppService {
       });
 
       await newLead.save();
+
+      console.log('[WhatsApp] Lead created, attempting audit log:', {
+        tenantId,
+        leadId: newLead._id.toString(),
+        leadName,
+        phone: normalizedPhone,
+      });
+
+      try {
+        await logActivity({
+          tenantId,
+          entityType: 'lead',
+          entityId: newLead._id.toString(),
+          action: 'created',
+          actorId: 'whatsapp-bot',
+          metadata: {
+            source: 'whatsapp',
+            name: leadName,
+            phone: normalizedPhone,
+          },
+        });
+        console.log('[WhatsApp] Audit log created successfully for lead:', newLead._id.toString());
+      } catch (logError) {
+        console.error('[WhatsApp] Failed to create audit log:', logError);
+      }
+
       return { lead: newLead, isNew: true };
     }
 

@@ -3,6 +3,7 @@ import type { FilterQuery, Model } from 'mongoose';
 import LeadModel from '@/leads/models/lead';
 import ContactModel from '@/crm/models/contact';
 import ConversationModel from '../models/conversation';
+import { logActivity } from '@/audit/activity-logger';
 import WhatsAppMessageModel from '@/crm/models/whatsapp-message';
 import { BotMessageHandler } from './bot-message-handler';
 import { WhatsAppBotAdapter } from './whatsapp-adapter';
@@ -101,6 +102,7 @@ async function findOrCreateEntity(
   isNew: boolean 
 }> {
   const normalizedPhone = normalizePhone(phone);
+  console.log('[findOrCreateEntity] START - phone:', normalizedPhone, 'tenantId:', tenantId);
 
   try {
     // 1. First, search in contacts for a client (highest priority)
@@ -243,6 +245,30 @@ async function findOrCreateEntity(
       createdBy: 'whatsapp-bot',
       updatedBy: 'whatsapp-bot',
     });
+
+    console.log('[Webhook] Lead created, attempting audit log:', {
+      tenantId,
+      leadId: newLead._id.toString(),
+      name: pushName || `Lead WhatsApp ${normalizedPhone.slice(-4)}`,
+    });
+
+    try {
+      await logActivity({
+        tenantId,
+        entityType: 'lead',
+        entityId: newLead._id.toString(),
+        action: 'created',
+        actorId: 'whatsapp-bot',
+        metadata: {
+          source: 'whatsapp',
+          name: pushName || `Lead WhatsApp ${normalizedPhone.slice(-4)}`,
+          phone: normalizedPhone,
+        },
+      });
+      console.log('[Webhook] Audit log created successfully for lead:', newLead._id.toString());
+    } catch (logError) {
+      console.error('[Webhook] Failed to create audit log:', logError);
+    }
   } catch (error) {
     // Por qué existe este catch (carrera TOCTOU):
     // Vercel puede levantar DOS invocaciones serverless para DOS mensajes del mismo

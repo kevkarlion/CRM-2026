@@ -352,31 +352,30 @@ export class WorkOrderService {
     userId: string,
     version: number,
   ): Promise<IWorkOrder | null> {
+    // Fetch original document once: reused for workStatus validation, auto-transition, and audit logging
+    const original = await WorkOrderModel.findOne({ _id: id, tenantId, deletedAt: null })
+      .select('status workStatus version workOrderNumber title description priority category scheduledDate scheduledStart scheduledEnd')
+      .lean();
+
     // Validación canónica: no se puede cambiar workStatus si la OT está cerrada o cancelada
     const dataAny = data as any;
     const newWorkStatus = dataAny.workStatus;
     
     // Guardar estado actual antes del update para registrar actividad después
     let oldWorkStatus: string | null = null;
-    if (newWorkStatus !== undefined) {
-      const current = await WorkOrderModel.findOne({ _id: id, tenantId, deletedAt: null }).select('status workStatus').lean();
-      if (current) {
-        if (['closed', 'cancelled'].includes(current.status)) {
-          throw new ValidationError(`No se puede cambiar el estado de negocio cuando la orden está ${current.status === 'closed' ? 'cerrada' : 'cancelada'}`);
-        }
-        oldWorkStatus = current.workStatus || null;
+    if (newWorkStatus !== undefined && original) {
+      if (['closed', 'cancelled'].includes(original.status)) {
+        throw new ValidationError(`No se puede cambiar el estado de negocio cuando la orden está ${original.status === 'closed' ? 'cerrada' : 'cancelada'}`);
       }
+      oldWorkStatus = original.workStatus || null;
     }
 
     // Auto-transition: si se programa y está en "Borrador", pasar a "Programada"
     const isScheduling = !!(data.scheduledDate || data.scheduledStart || data.scheduledEnd);
     let autoStatus: string | undefined;
 
-    if (isScheduling) {
-      const current = await WorkOrderModel.findOne({ _id: id, tenantId, deletedAt: null }).select('status version').lean();
-      if (current && current.status === 'draft') {
-        autoStatus = 'scheduled';
-      }
+    if (isScheduling && original && original.status === 'draft') {
+      autoStatus = 'scheduled';
     }
 
     // Sync scheduledDate from scheduledStart (single source of truth)
@@ -440,6 +439,41 @@ export class WorkOrderService {
           toStatus: newWorkStatus,
         },
       });
+    }
+
+    // Audit log for non-status field changes
+    if (original) {
+      const skipFields = new Set(['workStatus', 'status', 'updatedBy', 'version']);
+      const before: Record<string, unknown> = {};
+      const after: Record<string, unknown> = {};
+
+      for (const key of Object.keys(data) as Array<keyof UpdateWorkOrderInput>) {
+        if (skipFields.has(key as string)) continue;
+        const newVal = (data as Record<string, unknown>)[key];
+        if (newVal === undefined) continue;
+        const oldVal = (original as Record<string, unknown>)[key];
+        const oldStr = JSON.stringify(oldVal);
+        const newStr = JSON.stringify(newVal);
+        if (oldStr !== newStr) {
+          before[key as string] = oldVal ?? null;
+          after[key as string] = newVal;
+        }
+      }
+
+      if (Object.keys(after).length > 0) {
+        await logActivity({
+          tenantId,
+          entityType: 'workOrder',
+          entityId: id,
+          action: 'updated',
+          actorId: userId,
+          changes: { before, after },
+          metadata: {
+            workOrderNumber: original.workOrderNumber,
+            fieldsChanged: Object.keys(after),
+          },
+        });
+      }
     }
 
     return updated;

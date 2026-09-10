@@ -2,6 +2,7 @@ import { Types } from 'mongoose';
 import DocumentModel, { IDocumentModel } from '../models/document';
 import { cloudinaryService, CloudinaryUploadResult } from '@/core/services/cloudinary.service';
 import { CreateDocumentInput, UpdateDocumentInput, DocumentType, DocumentSource } from '../types/document';
+import { logActivity } from '../../audit/activity-logger';
 
 export class DocumentService {
   /**
@@ -30,6 +31,22 @@ export class DocumentService {
       mediaId: input.mediaId,
       createdBy: input.createdBy ? new Types.ObjectId(input.createdBy) : undefined,
     });
+
+    if (input.createdBy) {
+      await logActivity({
+        tenantId: input.tenantId,
+        entityType: 'document',
+        entityId: document._id.toString(),
+        action: 'created',
+        actorId: input.createdBy,
+        metadata: {
+          documentTitle: document.title,
+          fileName: document.filename,
+          fileSize: document.fileSize,
+          mimeType: document.mimeType,
+        },
+      });
+    }
 
     return document;
   }
@@ -120,6 +137,21 @@ export class DocumentService {
 
     // Delete from DB
     await DocumentModel.deleteOne({ _id: id });
+
+    if (document.createdBy) {
+      await logActivity({
+        tenantId,
+        entityType: 'document',
+        entityId: id,
+        action: 'deleted',
+        actorId: document.createdBy.toString(),
+        metadata: {
+          documentTitle: document.title,
+          deletedBy: document.createdBy.toString(),
+        },
+      });
+    }
+
     return true;
   }
 

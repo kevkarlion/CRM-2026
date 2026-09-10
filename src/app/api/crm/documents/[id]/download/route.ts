@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { errorMessage } from '@/core/error-message';
 import { connectDB } from '@/core/db';
 import { documentService } from '@/documents/services/document.service';
+import { logActivity } from '@/audit/activity-logger';
 
 /**
  * GET /api/crm/documents/[id]/download
@@ -32,6 +33,21 @@ export async function GET(
     // Verify tenant matches
     if (document.tenantId.toString() !== tenantId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+    }
+
+    const userId = req.headers.get('x-user-id');
+    if (userId) {
+      await logActivity({
+        tenantId,
+        entityType: 'document',
+        entityId: id,
+        action: 'read',
+        actorId: userId,
+        metadata: {
+          documentTitle: document.title,
+          downloadedBy: userId,
+        },
+      });
     }
 
     // Build download URL with fl_attachment

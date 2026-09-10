@@ -8,22 +8,47 @@ import UserRoleModel from '@/core/models/user-role';
 import RoleModel from '@/core/models/role';
 import { buildDisplayName } from '@/lib/build-display-name';
 import { isMaintenanceMode, isMaintenanceBypassEmail } from '@/lib/maintenance';
+import { logActivity } from '@/audit/activity-logger';
 
 export async function POST(request: NextRequest) {
   try {
     await connectDB();
     const { email, password } = await request.json() as { email: string; password: string };
     if (!email || !password) {
+      await logActivity({
+        tenantId: 'system',
+        entityType: 'auth',
+        entityId: 'failed-login',
+        action: 'rejected',
+        actorId: 'system',
+        metadata: { email: email || 'unknown', reason: 'missing_credentials' },
+      });
       return NextResponse.json({ error: 'Email and password are required' }, { status: 400 });
     }
 
     const user = await UserModel.findOne({ email, deletedAt: null });
     if (!user) {
+      await logActivity({
+        tenantId: 'system',
+        entityType: 'auth',
+        entityId: 'failed-login',
+        action: 'rejected',
+        actorId: 'system',
+        metadata: { email, reason: 'invalid_credentials' },
+      });
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
     }
 
     const valid = await bcrypt.compare(password, user.passwordHash);
     if (!valid) {
+      await logActivity({
+        tenantId: user.tenantId.toString(),
+        entityType: 'auth',
+        entityId: 'failed-login',
+        action: 'rejected',
+        actorId: 'system',
+        metadata: { email, reason: 'invalid_credentials' },
+      });
       await UserModel.updateOne(
         { _id: user._id },
         { $inc: { failedLoginAttempts: 1 } },
@@ -32,11 +57,27 @@ export async function POST(request: NextRequest) {
     }
 
     if (user.status !== 'active') {
+      await logActivity({
+        tenantId: user.tenantId.toString(),
+        entityType: 'auth',
+        entityId: 'failed-login',
+        action: 'rejected',
+        actorId: 'system',
+        metadata: { email, reason: 'account_inactive' },
+      });
       return NextResponse.json({ error: 'Account is not active' }, { status: 403 });
     }
 
     // Check maintenance mode - only allow users with bypass during maintenance
     if (isMaintenanceMode() && !isMaintenanceBypassEmail(email)) {
+      await logActivity({
+        tenantId: user.tenantId.toString(),
+        entityType: 'auth',
+        entityId: 'failed-login',
+        action: 'rejected',
+        actorId: 'system',
+        metadata: { email, reason: 'maintenance_mode' },
+      });
       console.log(`[Login] Maintenance mode active - denying login for: ${email}`);
       return NextResponse.json(
         { error: 'Sistema en mantenimiento. Intente más tarde.' },
@@ -73,6 +114,15 @@ export async function POST(request: NextRequest) {
       },
       secret,
     );
+
+    await logActivity({
+      tenantId: user.tenantId.toString(),
+      entityType: 'auth',
+      entityId: user._id.toString(),
+      action: 'created',
+      actorId: user._id.toString(),
+      metadata: { email: user.email, loginMethod: 'password' },
+    });
 
     const response = NextResponse.json({
       token,
