@@ -11,7 +11,7 @@ export const leadSchema = new Schema<ILead>(
     email: { type: String, lowercase: true, trim: true },
     source: {
       type: String,
-      enum: ['whatsapp', 'call', 'form', 'referral', 'walk_in', 'other'] satisfies LeadSource[],
+      enum: ['whatsapp', 'call', 'form', 'referral', 'walk_in', 'other', 'manual'] satisfies LeadSource[],
       default: 'whatsapp',
     },
     status: {

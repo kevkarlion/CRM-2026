@@ -38,7 +38,7 @@ export const clientSchema = new Schema<IClient>(
     province: String,
     source: {
       type: String,
-      enum: ['whatsapp', 'call', 'form', 'referral', 'walk_in', 'other'],
+      enum: ['whatsapp', 'call', 'form', 'referral', 'walk_in', 'other', 'manual'],
     },
     notes: String,
     inheritNotes: { type: String, trim: true }, // Notas heredadas del lead (read-only, no editables)

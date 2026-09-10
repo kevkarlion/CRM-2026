@@ -40,16 +40,24 @@ export const auditHandler = {
       ? event.payload as Record<string, unknown>
       : {};
 
+    const metadata: Record<string, unknown> = {
+      eventType: event.type,
+      ...payload,
+    };
+
+    // Creation events must always carry an origin channel so the audit UI can
+    // trace where the entity came from; fall back to 'unknown' when missing.
+    if (event.type === 'LEAD_CREATED' || event.type === 'CLIENT_CREATED') {
+      metadata.source = (payload.source as string) || 'unknown';
+    }
+
     await activityLogService.create({
       tenantId: event.tenantId,
       entityType: event.aggregateType,
       entityId: event.aggregateId,
       action,
       actorId: event.userId,
-      metadata: {
-        eventType: event.type,
-        ...payload,
-      },
+      metadata,
     });
   },
 };
@@ -63,6 +71,10 @@ function mapEventToAction(eventType: string): string {
     'LEAD_CREATED': 'created',
     'LEAD_STATUS_CHANGED': 'status_changed',
     'LEAD_CONVERTED': 'converted',
+
+    // Client
+    'CLIENT_CREATED': 'created',
+    'CLIENT_STATUS_CHANGED': 'status_changed',
 
     // Quote
     'QUOTE_CREATED': 'created',

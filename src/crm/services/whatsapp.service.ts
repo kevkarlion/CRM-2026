@@ -681,7 +681,7 @@ export class WhatsAppService {
       });
 
       try {
-        await logActivity({
+        const logged = await logActivity({
           tenantId,
           entityType: 'lead',
           entityId: newLead._id.toString(),
@@ -693,7 +693,11 @@ export class WhatsAppService {
             phone: normalizedPhone,
           },
         });
-        console.log('[WhatsApp] Audit log created successfully for lead:', newLead._id.toString());
+        if (logged) {
+          console.log('[WhatsApp] Audit log created successfully for lead:', newLead._id.toString());
+        } else {
+          console.error('[WhatsApp] Audit log NOT persisted for lead:', newLead._id.toString());
+        }
       } catch (logError) {
         console.error('[WhatsApp] Failed to create audit log:', logError);
       }

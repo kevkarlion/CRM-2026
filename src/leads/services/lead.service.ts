@@ -294,6 +294,7 @@ export class LeadService {
           payload: {
             leadId: String(lead._id),
             clientId: String(clientId),
+            source: lead.source,
           } as LeadConvertedPayload,
         });
       } catch (eventError) {
@@ -718,6 +719,7 @@ export class LeadService {
           payload: {
             leadId,
             clientId: String(client._id),
+            source: lead.source,
           } as LeadConvertedPayload,
         });
       } catch (eventError) {

@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { api } from '@/lib/api-client';
 
 const SOURCE_OPTIONS = [
+  { value: 'manual', label: 'Manual' },
   { value: 'whatsapp', label: 'WhatsApp' },
   { value: 'call', label: 'Llamada' },
   { value: 'form', label: 'Formulario' },

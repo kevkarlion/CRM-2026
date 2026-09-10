@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronRight } from 'lucide-react';
 import type { AuditLogEntry } from './audit-log-types';
-import { ACTION_LABELS, ACTION_BADGE_VARIANT, ENTITY_TYPE_LABELS } from './audit-log-types';
+import { ACTION_LABELS, ACTION_BADGE_VARIANT, ENTITY_TYPE_LABELS, getOrigin } from './audit-log-types';
 
 interface AuditLogTableProps {
   entries: AuditLogEntry[];
@@ -59,6 +59,29 @@ function formatTime(dateStr: string) {
   return new Date(dateStr).toLocaleTimeString('es-CL', {
     hour: '2-digit', minute: '2-digit',
   });
+}
+
+function OriginBadge({ channel }: { channel: string | null }) {
+  if (!channel) return null;
+  return (
+    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-gray-100 text-gray-600">
+      {channel}
+    </span>
+  );
+}
+
+function BotBadge() {
+  return (
+    <span className="inline-flex items-center px-1.5 py-0.5 rounded-md text-[10px] font-medium bg-purple-50 text-purple-700">
+      🤖 Bot
+    </span>
+  );
+}
+
+function ActorName({ entry }: { entry: AuditLogEntry }) {
+  if (entry.actorName || entry.actorEmail) return entry.actorName || entry.actorEmail;
+  if (getOrigin(entry).isBot) return <BotBadge />;
+  return '—';
 }
 
 function ChangesDiffView({ entry }: { entry: AuditLogEntry }) {
@@ -117,7 +140,7 @@ function MobileCard({ entry, isExpanded, onToggle }: { entry: AuditLogEntry; isE
             {formatDate(entry.timestamp)} &middot; {formatTime(entry.timestamp)}
           </p>
           <p className="text-sm font-medium text-gray-900 mt-1 truncate">
-            {entry.actorName || entry.actorEmail || '—'}
+            <ActorName entry={entry} />
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
@@ -138,6 +161,7 @@ function MobileCard({ entry, isExpanded, onToggle }: { entry: AuditLogEntry; isE
           <span className="block text-sm font-medium text-gray-900 truncate">
             {entityLabel(entry.entityType)}
           </span>
+          <OriginBadge channel={getOrigin(entry).channel} />
         </div>
         <div className="bg-gray-50 rounded-lg px-3 py-2 min-w-0">
           <span className="block text-[10px] font-semibold uppercase tracking-wider text-gray-400">ID</span>
@@ -201,6 +225,7 @@ export function AuditLogTable({ entries, loading }: AuditLogTableProps) {
             {entries.map((entry, i) => {
               const isExpanded = expandedRows.has(entry._id);
               const badgeClass = ACTION_BADGE_VARIANT[entry.action] || 'bg-gray-100 text-gray-700';
+              const origin = getOrigin(entry);
               return [
                 <tr
                   key={entry._id}
@@ -212,10 +237,11 @@ export function AuditLogTable({ entries, loading }: AuditLogTableProps) {
                     <span className="block text-gray-400">{formatTime(entry.timestamp)}</span>
                   </td>
                   <td className="px-2 py-1.5 font-medium text-gray-900 align-middle">
-                    {entry.actorName || entry.actorEmail || '—'}
+                    <ActorName entry={entry} />
                   </td>
                   <td className="px-2 py-1.5 text-gray-600 align-middle">
-                    {entityLabel(entry.entityType)}
+                    <div>{entityLabel(entry.entityType)}</div>
+                    <OriginBadge channel={origin.channel} />
                   </td>
                   <td className="px-2 py-1.5 align-middle">
                     <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-xs font-medium ${badgeClass}`}>

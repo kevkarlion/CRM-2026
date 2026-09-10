@@ -20,6 +20,7 @@ const STATUS_OPTIONS = Object.entries(LEAD_STATUS_LABELS)
   .map(([value, label]) => ({ value, label }));
 
 const SOURCE_OPTIONS = [
+  { value: 'manual', label: 'Manual' },
   { value: 'whatsapp', label: 'WhatsApp' },
   { value: 'call', label: 'Llamada' },
   { value: 'form', label: 'Formulario' },
@@ -51,7 +52,7 @@ export default function NewLeadPage() {
     address: '',
     locality: '',
     province: '',
-    source: 'whatsapp',
+    source: 'manual',
     priority: '',
     customerType: 'residential',
     notes: '',

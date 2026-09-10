@@ -253,7 +253,7 @@ async function findOrCreateEntity(
     });
 
     try {
-      await logActivity({
+      const logged = await logActivity({
         tenantId,
         entityType: 'lead',
         entityId: newLead._id.toString(),
@@ -265,7 +265,11 @@ async function findOrCreateEntity(
           phone: normalizedPhone,
         },
       });
-      console.log('[Webhook] Audit log created successfully for lead:', newLead._id.toString());
+      if (logged) {
+        console.log('[Webhook] Audit log created successfully for lead:', newLead._id.toString());
+      } else {
+        console.error('[Webhook] Audit log NOT persisted for lead:', newLead._id.toString());
+      }
     } catch (logError) {
       console.error('[Webhook] Failed to create audit log:', logError);
     }

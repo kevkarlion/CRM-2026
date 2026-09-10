@@ -125,3 +125,32 @@ export const ENTITY_TYPE_LABELS: Record<string, string> = {
   pipeline: 'Pipeline',
   remito: 'Remito',
 };
+
+export const SOURCE_LABELS: Record<string, string> = {
+  whatsapp: 'WhatsApp',
+  call: 'Llamada',
+  form: 'Formulario',
+  referral: 'Referido',
+  walk_in: 'Presencial',
+  other: 'Otro',
+  manual: 'Manual',
+  instagram: 'Instagram',
+};
+
+const SYSTEM_ACTOR_ID = '000000000000000000000000';
+
+export interface AuditOrigin {
+  channel: string | null;
+  isBot: boolean;
+}
+
+/**
+ * Derive the origin of an audit entry: the channel (from metadata.source) and
+ * whether it was created by the system/bot rather than a manual user.
+ */
+export function getOrigin(entry: AuditLogEntry): AuditOrigin {
+  const source = entry.metadata?.source;
+  const channel = (typeof source === 'string' && SOURCE_LABELS[source]) || null;
+  const isBot = !entry.actorId || entry.actorId === SYSTEM_ACTOR_ID || entry.actorId === 'unknown';
+  return { channel, isBot };
+}

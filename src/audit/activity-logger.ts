@@ -34,7 +34,21 @@ export interface ActivityLogInput {
  *     actorId: user._id,
  *   });
  */
-export async function logActivity(input: ActivityLogInput): Promise<void> {
+/** System actor used when caller passes a non-ObjectId string (bot, 'system', 'failed-login'). */
+const SYSTEM_OBJECT_ID = new Types.ObjectId('000000000000000000000000');
+
+function normalizeObjectId(value: string | Types.ObjectId): Types.ObjectId {
+  if (typeof value === 'string' && /^[0-9a-fA-F]{24}$/.test(value)) {
+    return new Types.ObjectId(value);
+  }
+  return SYSTEM_OBJECT_ID;
+}
+
+/**
+ * Returns true if the ActivityLog entry was persisted, false if it failed.
+ * Timeline event failures are logged but do not affect the returned result.
+ */
+export async function logActivity(input: ActivityLogInput): Promise<boolean> {
   const tenantId = typeof input.tenantId === 'string' 
     ? input.tenantId 
     : input.tenantId.toString();
@@ -47,18 +61,24 @@ export async function logActivity(input: ActivityLogInput): Promise<void> {
     ? input.entityId 
     : input.entityId.toString();
 
+  const tenantIdObj = normalizeObjectId(input.tenantId);
+  const actorIdObj = normalizeObjectId(input.actorId);
+  const entityIdObj = normalizeObjectId(input.entityId);
+
+  let persisted = false;
   try {
     // Log to ActivityLog (basic logging)
     await ActivityLogModel.create({
-      tenantId: input.tenantId,
+      tenantId: tenantIdObj,
       entityType: input.entityType,
-      entityId: input.entityId,
+      entityId: entityIdObj,
       action: input.action,
-      actorId: input.actorId,
+      actorId: actorIdObj,
       changes: input.changes || undefined,
       metadata: input.metadata || undefined,
       timestamp: new Date(),
     });
+    persisted = true;
   } catch (error) {
     console.error('[ActivityLogger] Failed to persist activity:', error);
   }
@@ -70,14 +90,14 @@ export async function logActivity(input: ActivityLogInput): Promise<void> {
       const { color, icon } = getEventStyle(input.entityType, input.action);
       
       const timelineDoc: Record<string, unknown> = {
-        tenantId: new Types.ObjectId(tenantId),
+        tenantId: tenantIdObj,
         entityType: input.entityType,
-        entityId: new Types.ObjectId(entityId),
+        entityId: entityIdObj,
         eventType: `${input.entityType}.${input.action}`,
         title,
         icon,
         color,
-        performedBy: new Types.ObjectId(actorId),
+        performedBy: actorIdObj,
         metadata: input.metadata,
       };
 
@@ -98,6 +118,8 @@ export async function logActivity(input: ActivityLogInput): Promise<void> {
       console.error('[ActivityLogger] Failed to create timeline event:', timelineError);
     }
   }
+
+  return persisted;
 }
 
 function getEventTitle(entityType: string, action: string, metadata: Record<string, unknown>): string {

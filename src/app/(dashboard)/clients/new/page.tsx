@@ -18,6 +18,7 @@ const CUSTOMER_TYPE_OPTIONS = [
 ];
 
 const SOURCE_OPTIONS = [
+  { value: 'manual', label: 'Manual' },
   { value: 'whatsapp', label: 'WhatsApp' },
   { value: 'call', label: 'Llamada' },
   { value: 'form', label: 'Formulario' },
@@ -62,7 +63,7 @@ export default function NewClientPage() {
     locality: '',
     province: '',
     customerType: 'residential',
-    source: 'whatsapp',
+    source: 'manual',
     notes: '',
   });
 
