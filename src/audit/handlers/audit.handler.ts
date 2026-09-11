@@ -60,6 +60,19 @@ export const auditHandler = {
       metadata.source = (payload.source as string) || 'unknown';
     }
 
+    // Deduplication guard (audit unicity only — other handlers still receive
+    // both events): changeStatus('completed') publishes WORK_ORDER_STATUS_CHANGED
+    // and WORK_ORDER_COMPLETED for the same transition. Only the technician
+    // completion flow actually creates a WorkReport and carries workReportId;
+    // without it the WORK_ORDER_COMPLETED row would duplicate the
+    // 'status_changed' row already written for the same business action.
+    if (event.type === 'WORK_ORDER_COMPLETED' && !payload.workReportId) {
+      console.log(
+        `[AuditHandler] Skipping redundant WORK_ORDER_COMPLETED for ${event.aggregateId} (no workReportId: status_changed row already covers the transition)`,
+      );
+      return;
+    }
+
     await activityLogService.create({
       tenantId: event.tenantId,
       entityType: event.aggregateType,
@@ -68,6 +81,20 @@ export const auditHandler = {
       actorId: event.userId,
       metadata,
     });
+
+    // The completion flow also produces the distinct 'work_report_created' action
+    // on the WorkReport entity. Write it from the same event so every completion
+    // yields exactly one 'work_report_created' row (and one 'work_completed' row).
+    if (event.type === 'WORK_ORDER_COMPLETED' && payload.workReportId) {
+      await activityLogService.create({
+        tenantId: event.tenantId,
+        entityType: 'workReport',
+        entityId: String(payload.workReportId),
+        action: 'work_report_created',
+        actorId: event.userId,
+        metadata,
+      });
+    }
   },
 };
 
@@ -105,7 +132,8 @@ function mapEventToAction(eventType: string): string {
     // Operations
     'WORK_ORDER_CREATED': 'created',
     'WORK_ORDER_STATUS_CHANGED': 'status_changed',
-    'WORK_ORDER_COMPLETED': 'status_changed',
+    'WORK_ORDER_STARTED': 'work_started',
+    'WORK_ORDER_COMPLETED': 'work_completed',
     'WORK_ORDER_SELF_ASSIGNED': 'technician.assigned',
     'WORK_ORDER_TECHNICIAN_ASSIGNED': 'technician.assigned',
     'WORK_ORDER_TECHNICIAN_CHANGED': 'technician.reassigned',
@@ -116,6 +144,11 @@ function mapEventToAction(eventType: string): string {
 
     // Sale
     'SALE_CONFIRMED': 'status_changed',
+
+    // Resolution
+    'LEAD_RESOLVED': 'resolved',
+    'CLIENT_RESOLVED': 'resolved',
+    'RESOLVE_CONVERTED_LEAD': 'resolved',
   };
 
   return map[eventType] || 'updated';

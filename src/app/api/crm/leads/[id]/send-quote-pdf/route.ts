@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
 import LeadModel from '@/leads/models/lead';
 import { Types } from 'mongoose';
+import { eventBus } from '@/infrastructure/events/event-bus';
+import { DOMAIN_EVENTS } from '@/infrastructure/events/event.types';
 
 /**
  * POST /api/crm/leads/[id]/send-quote-pdf
@@ -14,6 +16,7 @@ export async function POST(
   try {
     const { id } = await params;
     const tenantId = req.headers.get('x-tenant-id');
+    const userId = req.headers.get('x-user-id');
     
     if (!tenantId) {
       return NextResponse.json({ error: 'x-tenant-id required' }, { status: 401 });
@@ -40,6 +43,7 @@ export async function POST(
     }
 
     // Actualizar estado a quote_sent
+    const previousStatus = lead.status;
     const updatedLead = await LeadModel.findByIdAndUpdate(
       id,
       { 
@@ -52,6 +56,25 @@ export async function POST(
     );
 
     console.log('[send-quote-pdf] Lead actualizado:', id, 'nuevo estado:', updatedLead?.status);
+
+    try {
+      await eventBus.publish({
+        type: DOMAIN_EVENTS.LEAD_STATUS_CHANGED,
+        aggregateId: String(lead._id),
+        aggregateType: 'Lead',
+        tenantId,
+        userId: userId || 'admin-action',
+        timestamp: new Date(),
+        payload: {
+          leadId: String(lead._id),
+          from: previousStatus,
+          to: 'quote_sent',
+          leadName: lead.name || lead.companyName || '',
+        },
+      });
+    } catch (eventError) {
+      console.error('[send-quote-pdf] Failed to publish LEAD_STATUS_CHANGED:', eventError);
+    }
 
     return NextResponse.json({ 
       success: true, 

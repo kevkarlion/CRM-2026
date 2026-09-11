@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { connectDB } from '@/core/db';
 import LeadModel from '@/leads/models/lead';
 import { Types } from 'mongoose';
+import { eventBus } from '@/infrastructure/events/event-bus';
+import { DOMAIN_EVENTS } from '@/infrastructure/events/event.types';
 
 /**
  * POST /api/crm/leads/[id]/confirm-sale-pdf
@@ -45,6 +47,7 @@ export async function POST(
 
     // Solo cambiar lead a won
     // La creación de cliente, gestión y OT se hace en "Resolver"
+    const previousStatus = lead.status;
     await LeadModel.findByIdAndUpdate(id, {
       $set: {
         status: 'won',
@@ -53,6 +56,25 @@ export async function POST(
     });
 
     console.log('[confirm-sale-pdf] Lead marcado como won:', id);
+
+    try {
+      await eventBus.publish({
+        type: DOMAIN_EVENTS.LEAD_STATUS_CHANGED,
+        aggregateId: String(lead._id),
+        aggregateType: 'Lead',
+        tenantId,
+        userId: userId || 'admin-action',
+        timestamp: new Date(),
+        payload: {
+          leadId: String(lead._id),
+          from: previousStatus,
+          to: 'won',
+          leadName: lead.name || lead.companyName || '',
+        },
+      });
+    } catch (eventError) {
+      console.error('[confirm-sale-pdf] Failed to publish LEAD_STATUS_CHANGED:', eventError);
+    }
 
     return NextResponse.json({ 
       success: true, 

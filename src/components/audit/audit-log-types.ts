@@ -10,7 +10,8 @@ export type AuditLogAction =
   | 'checklist.created' | 'checklist.completed' | 'report.created'
   | 'work_started' | 'work_completed' | 'work_report_created'
   | 'approved' | 'sent' | 'blocked' | 'unblocked'
-  | 'visit_started' | 'visit_completed';
+  | 'visit_started' | 'visit_completed'
+  | 'resolved';
 
 export interface AuditLogEntry {
   _id: string;
@@ -84,6 +85,7 @@ export const ACTION_LABELS: Record<string, string> = {
   unblocked: 'Desbloqueado',
   visit_started: 'Visita iniciada',
   visit_completed: 'Visita completada',
+  resolved: 'Resuelto',
 };
 
 export const ACTION_BADGE_VARIANT: Record<string, string> = {
@@ -120,6 +122,7 @@ export const ACTION_BADGE_VARIANT: Record<string, string> = {
   sent: 'bg-info-50 text-info-700',
   unblocked: 'bg-success-50 text-success-700',
   visit_completed: 'bg-success-50 text-success-700',
+  resolved: 'bg-success-50 text-success-700',
   blocked: 'bg-danger-50 text-danger-700',
   visit_started: 'bg-info-50 text-info-700',
 };

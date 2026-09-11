@@ -4,7 +4,6 @@ import { connectDB } from '@/core/db';
 import { WorkOrderModel } from '@/operations/models';
 import { TechnicianModel } from '@/operations/models/technician';
 import WorkOrderAssignmentModel from '@/operations/models/work-order-assignment';
-import { logActivity } from '@/audit/activity-logger';
 import { eventBus } from '@/infrastructure/events/event-bus';
 import { DOMAIN_EVENTS, WorkOrderStartedPayload } from '@/infrastructure/events/event.types';
 import mongoose from 'mongoose';
@@ -21,7 +20,7 @@ const TARGET_STATUS = 'in_progress';
  * - Changes status to 'in_progress'
  * - Sets startedAt and startedBy
  * - Sets technician.availability to 'busy'
- * - Logs 'work_started' activity
+ * - Publishes WORK_ORDER_STARTED (single audit row via audit handler)
  */
 export async function POST(
   request: NextRequest,
@@ -111,7 +110,13 @@ export async function POST(
       },
     });
 
-    // Publish WORK_ORDER_STARTED event for timeline
+    // Publish WORK_ORDER_STARTED event for timeline + audit
+    const techName = technician
+      ? `${(technician as any).firstName || ''} ${(technician as any).lastName || ''}`.trim()
+        || (technician as any).name
+        || 'Técnico'
+      : 'Técnico';
+
     console.log('[WorkOrder Start] Publishing WORK_ORDER_STARTED for:', workOrderId, 'tech:', (technician as any).name);
     try {
       await eventBus.publish({
@@ -124,36 +129,19 @@ export async function POST(
         payload: {
           workOrderId,
           number: workOrder.workOrderNumber,
+          workOrderNumber: workOrder.workOrderNumber,
+          title: workOrder.title,
+          previousStatus: workOrder.status,
+          newStatus: TARGET_STATUS,
           technicianId: technicianId.toString(),
-          technicianName: (technician as any).name || 'Técnico',
+          technicianName: techName,
+          scheduledDate: workOrder.scheduledDate,
+          priority: workOrder.priority,
         } as WorkOrderStartedPayload,
       });
     } catch (eventError) {
       console.error('[WorkOrder Start] Failed to publish event:', eventError);
     }
-
-    // Log activity
-    const techName = technician ? 
-      `${(technician as any).firstName || ''} ${(technician as any).lastName || ''}`.trim() || (technician as any).name || 'Técnico' 
-      : 'Técnico';
-    
-    await logActivity({
-      tenantId: new mongoose.Types.ObjectId(tenantId),
-      entityType: 'workOrder',
-      entityId: new mongoose.Types.ObjectId(workOrderId),
-      action: 'work_started',
-      actorId: new mongoose.Types.ObjectId(userId),
-      metadata: {
-        workOrderNumber: workOrder.workOrderNumber,
-        title: workOrder.title,
-        previousStatus: workOrder.status,
-        newStatus: TARGET_STATUS,
-        technicianId: technicianId.toString(),
-        technicianName: techName,
-        scheduledDate: workOrder.scheduledDate,
-        priority: workOrder.priority,
-      },
-    });
 
     return NextResponse.json({
       success: true,

@@ -367,6 +367,7 @@ export class SaleConfirmationService {
 
       // Publish SALE_CONFIRMED event
       try {
+        const isLeadFlow = entityType === 'lead' && lead;
         await eventBus.publish({
           type: DOMAIN_EVENTS.SALE_CONFIRMED,
           aggregateId: entityId,
@@ -384,6 +385,7 @@ export class SaleConfirmationService {
                 ? lead!.name
                 : SaleConfirmationService.entityName(entityType, lead, client),
             quotesCount: saleMode === 'quotes' ? quoteIds?.length || 0 : undefined,
+            ...(isLeadFlow ? { from: lead!.status, to: 'won' } : {}),
           } as SaleConfirmedPayload,
         });
       } catch (eventError) {

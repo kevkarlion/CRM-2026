@@ -9,7 +9,7 @@ import { getNextQuoteNumber } from '../helpers/counter';
 import { processItems, calculateSubtotal, calculateTotal } from '../helpers/calculator';
 import { logActivity } from '../../audit/activity-logger';
 import { eventBus } from '@/infrastructure/events/event-bus';
-import { DOMAIN_EVENTS, QuoteCreatedPayload, QuoteSentPayload, QuoteApprovedPayload, QuoteRejectedPayload } from '@/infrastructure/events/event.types';
+import { DOMAIN_EVENTS, QuoteCreatedPayload, QuoteSentPayload, QuoteApprovedPayload, QuoteRejectedPayload, LeadStatusChangedPayload } from '@/infrastructure/events/event.types';
 import { cursorPage } from '../../crm/helpers/cursor-pagination';
 import TenantModel from '../../core/models/tenant';
 import type { IQuote, QuoteStatus, CreateQuoteInput, UpdateQuoteInput } from '../types/quote';
@@ -594,6 +594,13 @@ export class QuoteService {
 
       // Only update lead if this is the first sent quote
       if (sentQuotesCount === 0) {
+        // Read the lead BEFORE the update so the audit trail records the real
+        // previous status (this publish is audit-only; the update stays as-is).
+        const leadBefore = await LeadModel.findOne({
+          _id: quote.leadId,
+          tenantId: new Types.ObjectId(tenantId),
+        }).lean();
+
         await LeadModel.updateOne(
           { _id: quote.leadId, tenantId: new Types.ObjectId(tenantId) },
           { 
@@ -604,6 +611,25 @@ export class QuoteService {
             } 
           }
         );
+
+        try {
+          await eventBus.publish({
+            type: DOMAIN_EVENTS.LEAD_STATUS_CHANGED,
+            aggregateId: quote.leadId.toString(),
+            aggregateType: 'Lead',
+            tenantId,
+            userId,
+            timestamp: new Date(),
+            payload: {
+              leadId: quote.leadId.toString(),
+              from: leadBefore?.status || 'contacted',
+              to: 'quote_sent',
+              leadName: leadBefore?.name || leadBefore?.companyName || '',
+            } as LeadStatusChangedPayload,
+          });
+        } catch (eventError) {
+          console.error('[QuoteService] Failed to publish LEAD_STATUS_CHANGED:', eventError);
+        }
       }
     }
 

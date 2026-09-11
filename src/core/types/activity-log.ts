@@ -13,7 +13,8 @@ export type ActivityAction =
   | 'checklist.created' | 'checklist.completed' | 'report.created'
   | 'work_started' | 'work_completed' | 'work_report_created'
   | 'workStatus_changed'
-  | 'visit_started' | 'visit_completed';
+  | 'visit_started' | 'visit_completed'
+  | 'resolved';
 
 /** All actions accepted at write time by the ActivityLog schema enum. */
 export const ACTIVITY_ACTIONS: ActivityAction[] = [
@@ -30,6 +31,7 @@ export const ACTIVITY_ACTIONS: ActivityAction[] = [
   'work_started', 'work_completed', 'work_report_created',
   'workStatus_changed',
   'visit_started', 'visit_completed',
+  'resolved',
 ];
 
 export interface IActivityLog extends Document {

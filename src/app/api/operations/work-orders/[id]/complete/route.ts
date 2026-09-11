@@ -5,7 +5,6 @@ import { WorkOrderModel } from '@/operations/models';
 import { TechnicianModel } from '@/operations/models/technician';
 import WorkOrderAssignmentModel from '@/operations/models/work-order-assignment';
 import { WorkReportService } from '@/operations/services/work-report.service';
-import { logActivity } from '@/audit/activity-logger';
 import { eventBus } from '@/infrastructure/events/event-bus';
 import { DOMAIN_EVENTS, WorkOrderCompletedPayload } from '@/infrastructure/events/event.types';
 import { broadcastWorkReportCompleted } from '@/lib/sse-broadcast';
@@ -41,7 +40,8 @@ interface WorkReportInput {
  * - Changes status to 'completed'
  * - Sets finishedAt and workReportId
  * - Sets technician.availability to 'available'
- * - Logs 'work_completed' and 'work_report_created' activities
+ * - Publishes WORK_ORDER_COMPLETED (single audit paths via audit handler:
+ *   'work_completed' on the work order, 'work_report_created' on the report)
  * - Rolls back on failure
  */
 export async function POST(
@@ -244,7 +244,7 @@ export async function POST(
       console.error('[WorkOrder Complete] Failed to create notification:', notifyError);
     }
 
-    // Publish WORK_ORDER_COMPLETED event for timeline
+    // Publish WORK_ORDER_COMPLETED event for timeline + audit
     try {
       await eventBus.publish({
         type: DOMAIN_EVENTS.WORK_ORDER_COMPLETED,
@@ -257,22 +257,6 @@ export async function POST(
           workOrderId: workOrderId.toString(),
           workReportId: workReport._id.toString(),
           number: workOrder.workOrderNumber,
-          technicianName: techName,
-        } as WorkOrderCompletedPayload,
-      });
-    } catch (eventError) {
-      console.error('[WorkOrder Complete] Failed to publish event:', eventError);
-    }
-
-    // Log activities (outside transaction - best effort)
-    try {
-      await logActivity({
-        tenantId: new mongoose.Types.ObjectId(tenantId),
-        entityType: 'workOrder',
-        entityId: new mongoose.Types.ObjectId(workOrderId),
-        action: 'work_completed',
-        actorId: new mongoose.Types.ObjectId(userId),
-        metadata: {
           workOrderNumber: workOrder.workOrderNumber,
           title: workOrder.title,
           previousStatus: 'in_progress',
@@ -280,27 +264,13 @@ export async function POST(
           technicianId: technicianId.toString(),
           technicianName: techName,
           result: body.result,
-          workReportId: workReport._id.toString(),
           duration,
           scheduledDate: workOrder.scheduledDate,
-          closedAt: new Date().toISOString(),
-        },
+          closedAt: now.toISOString(),
+        } as WorkOrderCompletedPayload,
       });
-
-      await logActivity({
-        tenantId: new mongoose.Types.ObjectId(tenantId),
-        entityType: 'workReport',
-        entityId: workReport._id,
-        action: 'work_report_created',
-        actorId: new mongoose.Types.ObjectId(userId),
-        metadata: {
-          workOrderId: workOrderId.toString(),
-          technicianId: technicianId.toString(),
-          result: body.result,
-        },
-      });
-    } catch (logError) {
-      console.error('[WorkOrder Complete] Failed to log activity:', logError);
+    } catch (eventError) {
+      console.error('[WorkOrder Complete] Failed to publish event:', eventError);
     }
 
     return NextResponse.json({

@@ -201,6 +201,8 @@ export async function POST(
           quotesCount: 1,
           documentId: documentId,
           documentTitle: document.title || document.filename,
+          from: lead?.status || '',
+          to: 'won',
         } as unknown as SaleConfirmedPayload,
       });
       console.log('[document-action] SALE_CONFIRMED published successfully');
