@@ -40,6 +40,17 @@ export const auditHandler = {
       ? event.payload as Record<string, unknown>
       : {};
 
+    // Trace the resolved/converted flow end-to-end (route -> event -> audit row)
+    if (event.type === 'LEAD_RESOLVED' || event.type === 'GESTION_CREATED') {
+      console.log(`[AUDIT-RESOLVE] ▶ auditHandler recibió ${event.type}`, {
+        aggregateType: event.aggregateType,
+        aggregateId: event.aggregateId,
+        tenantId: event.tenantId,
+        userId: event.userId,
+        payloadKeys: Object.keys(payload),
+      });
+    }
+
     const metadata: Record<string, unknown> = {
       eventType: event.type,
       ...payload,
@@ -81,6 +92,14 @@ export const auditHandler = {
       actorId: event.userId,
       metadata,
     });
+
+    if (event.type === 'LEAD_RESOLVED' || event.type === 'GESTION_CREATED') {
+      console.log(`[AUDIT-RESOLVE] ✅ Fila de audit creada para ${event.type}`, {
+        action,
+        entityId: event.aggregateId,
+        metadataKeys: Object.keys(metadata),
+      });
+    }
 
     // The completion flow also produces the distinct 'work_report_created' action
     // on the WorkReport entity. Write it from the same event so every completion

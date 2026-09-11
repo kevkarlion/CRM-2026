@@ -24,6 +24,14 @@ function isDebugRoutesEnabled(): boolean {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Trace document-action requests end-to-end (frontend -> middleware -> route)
+  if (/\/api\/crm\/leads\/[^/]+\/documents\/[^/]+\/action$/.test(pathname)) {
+    console.log(`[MW-DOC-ACTION] ▶ ${request.method} ${pathname}`, {
+      hasToken: !!request.cookies.get('token')?.value || !!request.headers.get('Authorization'),
+      url: request.url,
+    });
+  }
+
   // Debug/seed routes are blocked unless explicitly enabled (must come before PUBLIC_PATHS).
   if (shouldBlockDebugRoute(pathname, isDebugRoutesEnabled())) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });

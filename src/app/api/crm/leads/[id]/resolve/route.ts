@@ -44,6 +44,7 @@ export async function POST(
 
     // Buscar o crear cliente desde el lead
     let clientId = (lead as any).clientId || (lead as any).convertedToClient;
+    let clientCreated = false;
 
     if (!clientId) {
       console.log('[leads/resolve] ℹ️ No clientId found, searching/creating...');
@@ -98,6 +99,7 @@ export async function POST(
           updatedBy: new Types.ObjectId(userId),
         });
         clientId = String(newClient._id);
+        clientCreated = true;
         console.log('[leads/resolve] ✅ Created new client:', clientId, '| inheritNotes:', JSON.stringify(newClient.inheritNotes));
       }
 
@@ -116,19 +118,35 @@ export async function POST(
       leadId,
       clientId,
       resolvedBy: userId,
+      clientCreated,
     });
     
+    const resolvedPayload = {
+      leadId,
+      clientId: String(clientId),
+      resolvedBy: String(userId),
+      clientCreated,
+      leadName: lead.name || lead.companyName || 'Lead',
+      phone: lead.phone,
+      email: lead.email,
+      companyName: lead.companyName,
+      address: lead.address,
+      locality: lead.locality,
+      province: lead.province,
+      source: lead.source,
+      inquiryReason: (lead as any).inquiryReason,
+      priority: (lead as any).priority,
+      notes: (lead as any).adminNotes,
+    };
+    console.log('[RESOLVE-AUDIT] ▶ Payload enriquecido LEAD_RESOLVED:', resolvedPayload);
+
     await eventBus.publish({
       type: DOMAIN_EVENTS.LEAD_RESOLVED,
       tenantId,
       userId,
       aggregateType: 'lead',
       aggregateId: leadId,
-      payload: {
-        leadId,
-        clientId: String(clientId),
-        resolvedBy: String(userId),
-      },
+      payload: resolvedPayload,
     });
     
     console.log('[leads/resolve] ✅ Event published successfully');

@@ -724,7 +724,7 @@ export class QuoteService {
       throw new ConflictError('La cotización ya fue modificada por otro usuario');
     }
 
-    const { clientName } = await resolveQuotePartyNames(quote, tenantId);
+    const { clientName, leadName } = await resolveQuotePartyNames(quote, tenantId);
     const approvedAt = new Date().toISOString();
 
     try {
@@ -743,6 +743,7 @@ export class QuoteService {
           total: quote.total,
           title: quote.title,
           clientName,
+          leadName,
           approvedAt,
           approvedBy: userId,
         } as QuoteApprovedPayload,

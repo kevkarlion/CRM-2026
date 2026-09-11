@@ -35,6 +35,11 @@ const FIELD_LABELS: Record<string, string> = {
   newVersion: 'Nueva versión',
   title: 'Título',
   total: 'Total',
+  amount: 'Monto',
+  saleMode: 'Modo de venta',
+  quotesCount: 'Cant. presupuestos',
+  documentId: 'Doc ID',
+  documentTitle: 'Documento',
   validUntil: 'Válido hasta',
   sentAt: 'Enviado el',
   sentBy: 'Enviado por',
@@ -52,8 +57,13 @@ const FIELD_LABELS: Record<string, string> = {
   category: 'Categoría',
   priority: 'Prioridad',
   reason: 'Motivo',
-  from: 'Desde',
-  to: 'Hasta',
+  inquiryReason: 'Motivo de consulta',
+  from: 'Estado anterior',
+  to: 'Estado nuevo',
+  clientCreated: 'Lead convertido a cliente',
+  clientId: 'Cliente',
+  leadId: 'Lead ID',
+  gestionId: 'Gestión ID',
   fromStatus: 'Estado anterior',
   toStatus: 'Estado nuevo',
   previousStatus: 'Estado previo',
@@ -62,6 +72,53 @@ const FIELD_LABELS: Record<string, string> = {
   deletedBy: 'Eliminado por',
   blockedBy: 'Bloqueado por',
   versioned: 'Versionado',
+};
+
+/**
+ * Known enum values rendered in Spanish. Anything not listed falls back to the
+ * raw value (ids, numbers, free text) — safe to extend without side effects.
+ */
+const VALUE_LABELS: Record<string, string> = {
+  // Estados de leads / gestiones / quotes / OTs
+  contacted: 'Contactado',
+  qualified: 'Calificado',
+  converted: 'Convertido',
+  disqualified: 'Descartado',
+  resolved: 'Resuelto',
+  won: 'Ganado',
+  lost: 'Perdido',
+  closed: 'Cerrado',
+  active: 'Activo',
+  activeGestion: 'Gestión activa',
+  pending: 'Pendiente',
+  draft: 'Borrador',
+  sent: 'Enviado',
+  approved: 'Aprobado',
+  rejected: 'Rechazado',
+  // Modos / tipos de venta
+  direct: 'Venta directa',
+  product: 'Producto',
+  service: 'Servicio',
+  // Motivos de consulta (inquiryReason)
+  repair: 'Reparación',
+  installation: 'Instalación',
+  quote: 'Presupuesto',
+  maintenance: 'Mantenimiento',
+  emergency: 'Emergencia',
+  // Tipos de cliente
+  residential: 'Residencial',
+  enterprise: 'Empresa',
+  business: 'Comercio',
+  // Prioridades
+  normal: 'Normal',
+  high: 'Alta',
+  low: 'Baja',
+  urgent: 'Urgente',
+  // Fuentes
+  whatsapp: 'WhatsApp',
+  manual: 'Manual',
+  web: 'Web',
+  referral: 'Referido',
 };
 
 function formatFieldLabel(key: string): string {
@@ -76,7 +133,34 @@ function formatValue(value: unknown): string {
   if (value === null || value === undefined) return 'N/A';
   if (typeof value === 'boolean') return value ? 'Sí' : 'No';
   if (typeof value === 'object') return JSON.stringify(value);
+  if (typeof value === 'string' && isDateLike(value)) {
+    return formatDateTime(value);
+  }
+  if (typeof value === 'string' && VALUE_LABELS[value]) {
+    return VALUE_LABELS[value];
+  }
   return String(value);
+}
+
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
+const DATE_ONLY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+/** True for ISO timestamps or plain ISO dates — values that should render as friendly local dates. */
+function isDateLike(value: string): boolean {
+  if (ISO_DATE_PATTERN.test(value) || DATE_ONLY_PATTERN.test(value)) {
+    const d = new Date(value);
+    return !Number.isNaN(d.getTime());
+  }
+  return false;
+}
+
+function formatDateTime(dateStr: string): string {
+  const d = new Date(dateStr);
+  return `${d.toLocaleDateString('es-CL', {
+    day: '2-digit', month: '2-digit', year: '2-digit',
+  })} ${d.toLocaleTimeString('es-CL', {
+    hour: '2-digit', minute: '2-digit',
+  })}`;
 }
 
 function entityLabel(entityType: string): string {

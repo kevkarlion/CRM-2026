@@ -404,6 +404,32 @@ export const gestionSyncHandler = {
           updatedBy: resolvedBy,
         });
         console.log(`[GestionSync] LEAD_RESOLVED: First Gestion created: ${newGestion._id}`);
+
+        // Publish GESTION_CREATED so the audit trail records the new gestion
+        try {
+          const { eventBus } = await import('@/infrastructure/events/event-bus');
+          const { DOMAIN_EVENTS } = await import('@/infrastructure/events/event.types');
+          const gestionPayload = {
+            gestionId: String(newGestion._id),
+            clientId: finalClientId,
+            name: 'Nueva gestión',
+            source: lead.source || 'whatsapp',
+            status: 'contacted',
+          };
+          console.log('[RESOLVE-AUDIT] ▶ Publicando GESTION_CREATED:', gestionPayload);
+          await eventBus.publish({
+            type: DOMAIN_EVENTS.GESTION_CREATED,
+            aggregateId: String(newGestion._id),
+            aggregateType: 'Gestion',
+            tenantId,
+            userId: resolvedBy,
+            timestamp: new Date(),
+            payload: gestionPayload,
+          });
+          console.log('[RESOLVE-AUDIT] ✅ GESTION_CREATED publicado para audit:', String(newGestion._id));
+        } catch (publishError) {
+          console.error('[GestionSync] LEAD_RESOLVED: Failed to publish GESTION_CREATED:', publishError);
+        }
       }
     } catch (error) {
       console.error('[GestionSync] Error in onLeadResolved:', error);

@@ -23,11 +23,24 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string; docId: string }> },
 ) {
+  console.log('[document-action] ▶ POST action - ENTRY', {
+    url: request.url,
+    method: request.method,
+  });
   try {
     await connectDB();
     const { id: leadId, docId: documentId } = await params;
     const tenantId = request.headers.get('x-tenant-id');
     const userId = request.headers.get('x-user-id');
+
+    console.log('[document-action] ▶ Params', {
+      leadId,
+      documentId,
+      tenantId,
+      userId,
+      hasTenant: !!tenantId,
+      hasUser: !!userId,
+    });
 
     if (!tenantId || !userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -35,6 +48,7 @@ export async function POST(
 
     const body = await request.json() as DocumentActionBody;
     const { action, saleType } = body;
+    console.log('[document-action] ▶ Body', { action, saleType });
 
     if (!action || !['quote_sent', 'won'].includes(action)) {
       return NextResponse.json(
@@ -48,6 +62,15 @@ export async function POST(
       _id: new mongoose.Types.ObjectId(documentId),
       leadId: new mongoose.Types.ObjectId(leadId),
       tenantId: new mongoose.Types.ObjectId(tenantId),
+    });
+
+    console.log('[document-action] ▶ Document lookup', {
+      documentId,
+      leadId,
+      tenantId,
+      found: !!document,
+      docLeadId: document?.leadId?.toString(),
+      docTenantId: document?.tenantId?.toString(),
     });
 
     if (!document) {

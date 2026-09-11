@@ -387,6 +387,16 @@ export function LeadDocumentationTab({ leadId, leadStatus, leadPhone, onStatusCh
         actionBody.saleType = selectedSaleType;
       }
 
+      const actionUrl = `/api/crm/leads/${leadId}/documents/${docId}/action`;
+      console.log('[LeadDocumentationTab] ▶ handleConfirmAction dispatching:', {
+        action,
+        docId,
+        leadId,
+        saleType: actionBody.saleType,
+        url: actionUrl,
+        timestamp: new Date().toISOString(),
+      });
+
       const res = await api.post<{
         success: boolean;
         quoteId: string;
@@ -395,7 +405,15 @@ export function LeadDocumentationTab({ leadId, leadStatus, leadPhone, onStatusCh
         saleType?: string;
         client?: { _id: string };
         workOrder?: { _id: string; workOrderNumber: string; status: string };
-      }>(`/api/crm/leads/${leadId}/documents/${docId}/action`, actionBody);
+      }>(actionUrl, actionBody);
+
+      console.log('[LeadDocumentationTab] ✅ handleConfirmAction response:', {
+        action,
+        docId,
+        success: res.success,
+        newStatus: res.newStatus,
+        workOrderNumber: res.workOrder?.workOrderNumber,
+      });
 
       if (res.success) {
         // Reload quotes to get updated status

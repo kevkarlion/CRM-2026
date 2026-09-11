@@ -3,6 +3,27 @@ import { connectDB } from '@/core/db';
 import ActivityLogModel from '@/core/models/activity-log';
 import { errorMessage } from '@/core/error-message';
 
+/**
+ * Metadata keys that store a user ObjectId ("who did it"). Values for these
+ * keys are resolved to user names in the API response so the audit UI shows
+ * readable names instead of raw 24-hex IDs.
+ */
+const METADATA_USER_KEYS = [
+  'sentBy',
+  'approvedBy',
+  'rejectedBy',
+  'wonBy',
+  'convertedBy',
+  'createdBy',
+  'updatedBy',
+  'deletedBy',
+  'blockedBy',
+  'unblockedBy',
+  'assignedBy',
+  'unassignedBy',
+  'resolvedBy',
+];
+
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
@@ -172,6 +193,37 @@ export async function GET(request: NextRequest) {
         timestamp: doc.timestamp?.toISOString() ?? '',
       };
     });
+
+    // Resolve user ObjectIds embedded in metadata ("sentBy", "approvedBy", ...)
+    // so the audit UI shows names instead of raw IDs.
+    const userIdsInMetadata = entries.flatMap((e) =>
+      Object.entries((e.metadata as Record<string, unknown>) || {})
+        .filter(([key]) => METADATA_USER_KEYS.includes(key))
+        .map(([, value]) => (typeof value === 'string' && /^[0-9a-f]{24}$/i.test(value) ? value : ''))
+        .filter(Boolean),
+    );
+    const uniqueIds = Array.from(new Set(userIdsInMetadata));
+    let userMap: Record<string, string> = {};
+    if (uniqueIds.length > 0) {
+      const UserModel = (await import('@/core/models/user')).default;
+      const users = await UserModel.find({ _id: { $in: uniqueIds } })
+        .select('firstName lastName email')
+        .lean();
+      userMap = Object.fromEntries(
+        users.map((u: { _id: unknown; firstName?: string; lastName?: string; email?: string }) => [
+          String(u._id),
+          `${u.firstName || ''} ${u.lastName || ''}`.trim() || u.email || String(u._id),
+        ]),
+      );
+    }
+    for (const e of entries) {
+      if (!e.metadata) continue;
+      for (const [key, value] of Object.entries(e.metadata as Record<string, unknown>)) {
+        if (METADATA_USER_KEYS.includes(key) && typeof value === 'string' && userMap[value]) {
+          (e.metadata as Record<string, unknown>)[key] = userMap[value];
+        }
+      }
+    }
 
     return NextResponse.json({
       data: entries,

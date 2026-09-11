@@ -166,6 +166,7 @@ export interface QuoteApprovedPayload {
   total?: number;
   title?: string;
   clientName?: string;
+  leadName?: string;
   approvedAt?: string;
   approvedBy?: string;
 }
@@ -328,6 +329,18 @@ export interface LeadResolvedPayload {
   leadId: string;
   clientId: string;
   resolvedBy: string;
+  clientCreated?: boolean;
+  leadName?: string;
+  phone?: string;
+  email?: string;
+  companyName?: string;
+  address?: string;
+  locality?: string;
+  province?: string;
+  source?: string;
+  inquiryReason?: string;
+  priority?: string;
+  notes?: string;
 }
 
 export interface ClientResolvedPayload {
