@@ -34,7 +34,7 @@ export class WhatsAppBotAdapter {
           await this.sendMessage(action.content, phone, tenantId, leadId);
           break;
         case 'update_lead':
-          await this.updateLead(action.leadId, action.updates);
+          await this.updateLead(action.leadId, action.updates, tenantId);
           break;
         case 'update_client':
           await this.updateClient(action.clientId, action.updates);
@@ -85,7 +85,7 @@ export class WhatsAppBotAdapter {
   /**
    * Updates a lead with scoring and classification fields.
    */
-  async updateLead(leadId: string, updates: Partial<LeadUpdate>): Promise<void> {
+  async updateLead(leadId: string, updates: Partial<LeadUpdate>, tenantId: string): Promise<void> {
     try {
       const setFields: Record<string, unknown> = { updatedBy: 'whatsapp-bot' };
 
@@ -107,6 +107,50 @@ export class WhatsAppBotAdapter {
         { $set: setFields },
         { new: true }
       );
+
+      // Enriched audit trail: publish LEAD_CREATED with the full captured data plus
+      // LEAD_STATUS_CHANGED (new -> contacted). The bot flow completes in 'scored'
+      // (not 'summary'), so LeadFlowCompleted is never emitted there — this is the
+      // single convergence point that marks leads as contacted. Best-effort only.
+      if (setFields.status === 'contacted') {
+        try {
+          const completedLead = await LeadModel.findById(new Types.ObjectId(leadId)).lean();
+          if (completedLead) {
+            const { publishCompletedBotLeadAudit } = await import('@/audit/services/lead-audit-publisher');
+            console.log('[LEAD-AUDIT] Adapter updateLead -> publishing enriched audit', {
+              status: completedLead.status,
+              score: completedLead.score,
+              temperature: completedLead.temperature,
+              inquiryReason: completedLead.inquiryReason,
+              priority: completedLead.priority,
+            });
+            await publishCompletedBotLeadAudit(
+              {
+                leadId: String(completedLead._id),
+                name: completedLead.name,
+                source: completedLead.source,
+                profileName: completedLead.profileName,
+                companyName: completedLead.companyName,
+                phone: completedLead.phone,
+                status: completedLead.status,
+                score: completedLead.score,
+                temperature: completedLead.temperature,
+                address: completedLead.address,
+                notes: completedLead.notes,
+                inquiryReason: completedLead.inquiryReason,
+                qualificationStatus: completedLead.qualificationStatus,
+                priority: completedLead.priority,
+                locality: completedLead.locality,
+                province: completedLead.province,
+              },
+              tenantId,
+            );
+            console.log('[LEAD-AUDIT] Adapter enriched audit events published:', String(completedLead._id));
+          }
+        } catch (auditError) {
+          console.error('[LEAD-AUDIT] Adapter failed to publish enriched audit:', auditError);
+        }
+      }
     } catch (error) {
       console.error('[WhatsAppBotAdapter] Error updating lead:', error);
       throw error;
