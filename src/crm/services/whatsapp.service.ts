@@ -23,7 +23,7 @@ import { calculateClientScore } from '@/clients/services/client-score.service';
 import { normalizePhone, normalizePhoneForWhatsApp, phoneMatchQuery } from '@/lib/phone';
 import { eventBus } from '@/infrastructure/events/event-bus';
 import { DOMAIN_EVENTS } from '@/infrastructure/events/event.types';
-import { publishCompletedBotLeadAudit } from '@/audit/services/lead-audit-publisher';
+import { publishCompletedBotLeadAudit, BOT_ACTOR_ID } from '@/audit/services/lead-audit-publisher';
 
 // Conversation Engine imports
 import {
@@ -1421,7 +1421,7 @@ export class WhatsAppService {
             aggregateId: clientId,
             aggregateType: 'Client',
             tenantId,
-            userId: 'whatsapp-bot',
+            userId: BOT_ACTOR_ID,
             timestamp: new Date(),
             payload: {
               clientId,

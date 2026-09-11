@@ -1,8 +1,14 @@
 import { eventBus } from '@/infrastructure/events/event-bus';
 import { DOMAIN_EVENTS, LeadCreatedPayload, LeadStatusChangedPayload } from '@/infrastructure/events/event.types';
 
-/** Actor used by the WhatsApp bot when it publishes audit events. */
-export const BOT_ACTOR_ID = 'whatsapp-bot';
+/**
+ * Actor used by the WhatsApp bot when it publishes audit events.
+ *
+ * Must be a VALID 24-hex ObjectId because ActivityLogService.create() casts
+ * actorId with `new Types.ObjectId(...)`. Using the same value as the UI's
+ * SYSTEM_ACTOR_ID ('000...000') keeps the bot badge working in the audit table.
+ */
+export const BOT_ACTOR_ID = '000000000000000000000000';
 
 /**
  * Publishes enriched audit events when a WhatsApp bot flow completes.
