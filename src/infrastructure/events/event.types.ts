@@ -74,6 +74,15 @@ export interface LeadCreatedPayload {
   companyName?: string;
   profileName?: string;
   status?: string;
+  score?: number;
+  temperature?: string;
+  address?: string;
+  notes?: string;
+  inquiryReason?: string;
+  qualificationStatus?: string;
+  priority?: string;
+  locality?: string;
+  province?: string;
 }
 
 export interface LeadStatusChangedPayload {

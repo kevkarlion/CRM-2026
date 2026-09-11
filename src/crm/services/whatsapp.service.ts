@@ -3,7 +3,6 @@ import WhatsAppMessageModel from '../models/whatsapp-message';
 import LeadModel from '../../leads/models/lead';
 import ClientModel from '../models/client';
 import ContactModel from '../models/contact';
-import { logActivity } from '../../audit/activity-logger';
 import TenantModel from '../../core/models/tenant';
 import { ClientServiceHistoryModel } from '@/clients';
 import GestionModel from '@/gestion/models/gestion';
@@ -24,6 +23,7 @@ import { calculateClientScore } from '@/clients/services/client-score.service';
 import { normalizePhone, normalizePhoneForWhatsApp, phoneMatchQuery } from '@/lib/phone';
 import { eventBus } from '@/infrastructure/events/event-bus';
 import { DOMAIN_EVENTS } from '@/infrastructure/events/event.types';
+import { publishCompletedBotLeadAudit } from '@/audit/services/lead-audit-publisher';
 
 // Conversation Engine imports
 import {
@@ -673,34 +673,12 @@ export class WhatsAppService {
 
       await newLead.save();
 
-      console.log('[WhatsApp] Lead created, attempting audit log:', {
+      console.log('[WhatsApp] Lead created:', {
         tenantId,
         leadId: newLead._id.toString(),
         leadName,
         phone: normalizedPhone,
       });
-
-      try {
-        const logged = await logActivity({
-          tenantId,
-          entityType: 'lead',
-          entityId: newLead._id.toString(),
-          action: 'created',
-          actorId: 'whatsapp-bot',
-          metadata: {
-            source: 'whatsapp',
-            name: leadName,
-            phone: normalizedPhone,
-          },
-        });
-        if (logged) {
-          console.log('[WhatsApp] Audit log created successfully for lead:', newLead._id.toString());
-        } else {
-          console.error('[WhatsApp] Audit log NOT persisted for lead:', newLead._id.toString());
-        }
-      } catch (logError) {
-        console.error('[WhatsApp] Failed to create audit log:', logError);
-      }
 
       return { lead: newLead, isNew: true };
     }
@@ -967,6 +945,63 @@ export class WhatsAppService {
                 console.log('🎯 [SCORING] Guardando updateData:', JSON.stringify(updateData));
                 await LeadModel.findByIdAndUpdate(leadToUpdate._id, { $set: updateData });
                 console.log('[WhatsApp] ✅ Lead updated with all data');
+              }
+
+              // Enriched audit trail: when the bot flow completes and the lead actually
+              // transitions new -> contacted, publish LEAD_CREATED with the full captured
+              // data plus LEAD_STATUS_CHANGED. This replaces the minimal creation-time
+              // logActivity that only stored name/phone. Best-effort, never breaks the flow.
+              console.log('[LEAD-AUDIT] Checking enriched audit block', {
+                isFlowComplete,
+                leadStatusAtCheck: leadToUpdate?.status,
+                leadId: String(leadToUpdate?._id),
+              });
+              if (isFlowComplete && leadToUpdate?.status === 'new') {
+                console.log('[LEAD-AUDIT] Flow complete + status new -> will publish enriched audit');
+                try {
+                  const completedLead = await LeadModel.findById(leadToUpdate._id).lean();
+                  if (completedLead) {
+                    console.log('[LEAD-AUDIT] Loaded completed lead for publish:', {
+                      leadId: String(completedLead._id),
+                      status: completedLead.status,
+                      score: completedLead.score,
+                      temperature: completedLead.temperature,
+                      inquiryReason: completedLead.inquiryReason,
+                      priority: completedLead.priority,
+                    });
+                    await publishCompletedBotLeadAudit(
+                      {
+                        leadId: String(completedLead._id),
+                        name: completedLead.name,
+                        source: completedLead.source,
+                        profileName: completedLead.profileName,
+                        companyName: completedLead.companyName,
+                        phone: completedLead.phone,
+                        status: completedLead.status,
+                        score: completedLead.score,
+                        temperature: completedLead.temperature,
+                        address: completedLead.address,
+                        notes: completedLead.notes,
+                        inquiryReason: completedLead.inquiryReason,
+                        qualificationStatus: completedLead.qualificationStatus,
+                        priority: completedLead.priority,
+                        locality: completedLead.locality,
+                        province: completedLead.province,
+                      },
+                      tenantId,
+                    );
+                    console.log('[LEAD-AUDIT] Enriched audit events published for completed lead:', String(completedLead._id));
+                  } else {
+                    console.warn('[LEAD-AUDIT] Completed lead NOT FOUND after update, cannot publish:', String(leadToUpdate._id));
+                  }
+                } catch (auditError) {
+                  console.error('[LEAD-AUDIT] Failed to load lead for enriched audit events:', auditError);
+                }
+              } else {
+                console.log('[LEAD-AUDIT] Skipping enriched audit publish', {
+                  isFlowComplete,
+                  leadStatus: leadToUpdate?.status,
+                });
               }
             }
           } catch (error) {

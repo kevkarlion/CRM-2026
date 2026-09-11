@@ -3,7 +3,6 @@ import type { FilterQuery, Model } from 'mongoose';
 import LeadModel from '@/leads/models/lead';
 import ContactModel from '@/crm/models/contact';
 import ConversationModel from '../models/conversation';
-import { logActivity } from '@/audit/activity-logger';
 import WhatsAppMessageModel from '@/crm/models/whatsapp-message';
 import { BotMessageHandler } from './bot-message-handler';
 import { WhatsAppBotAdapter } from './whatsapp-adapter';
@@ -12,6 +11,7 @@ import type { ILead } from '@/leads/types/lead';
 import { calculateLeadScore } from '@/leads/services/lead-score.service';
 import { normalizePhone, phoneMatchQuery, samePhoneNumber } from '@/lib/phone';
 import { buildInboundMessageClaimDoc } from '@/crm/helpers/whatsapp-message-claim';
+import { publishCompletedBotLeadAudit } from '@/audit/services/lead-audit-publisher';
 
 export interface WebhookMessageInput {
   tenantId: string;
@@ -246,33 +246,14 @@ async function findOrCreateEntity(
       updatedBy: 'whatsapp-bot',
     });
 
-    console.log('[Webhook] Lead created, attempting audit log:', {
+    console.log('[Webhook] Lead created:', {
       tenantId,
       leadId: newLead._id.toString(),
       name: pushName || `Lead WhatsApp ${normalizedPhone.slice(-4)}`,
     });
-
-    try {
-      const logged = await logActivity({
-        tenantId,
-        entityType: 'lead',
-        entityId: newLead._id.toString(),
-        action: 'created',
-        actorId: 'whatsapp-bot',
-        metadata: {
-          source: 'whatsapp',
-          name: pushName || `Lead WhatsApp ${normalizedPhone.slice(-4)}`,
-          phone: normalizedPhone,
-        },
-      });
-      if (logged) {
-        console.log('[Webhook] Audit log created successfully for lead:', newLead._id.toString());
-      } else {
-        console.error('[Webhook] Audit log NOT persisted for lead:', newLead._id.toString());
-      }
-    } catch (logError) {
-      console.error('[Webhook] Failed to create audit log:', logError);
-    }
+    // NOTE: No direct logActivity here — the enriched LEAD_CREATED + LEAD_STATUS_CHANGED
+    // audit events are published when the bot flow completes (LeadFlowCompleted below),
+    // carrying the full captured data (score, temperature, inquiryReason, priority...).
   } catch (error) {
     // Por qué existe este catch (carrera TOCTOU):
     // Vercel puede levantar DOS invocaciones serverless para DOS mensajes del mismo
@@ -627,7 +608,7 @@ export async function processWhatsAppWebhookMessage(
 
         console.log('[WebhookIntegration] Marking lead as contacted (flow completed):', { score, temperature });
 
-        await LeadModel.findByIdAndUpdate(
+        const updatedLead = await LeadModel.findByIdAndUpdate(
           leadId,
           { 
             $set: { 
@@ -649,6 +630,44 @@ export async function processWhatsAppWebhookMessage(
           },
           { new: true }
         );
+
+        // Enriched audit trail: publish LEAD_CREATED with the full captured data plus
+        // LEAD_STATUS_CHANGED (new -> contacted). Best-effort, never breaks the flow.
+        const leadForAudit = updatedLead ?? lead;
+        try {
+          console.log('[LEAD-AUDIT] LeadFlowCompleted -> publishing enriched audit', {
+            leadId,
+            status: leadForAudit.status,
+            score: leadForAudit.score,
+            temperature: leadForAudit.temperature,
+            inquiryReason: leadForAudit.inquiryReason,
+            priority: leadForAudit.priority,
+          });
+          await publishCompletedBotLeadAudit(
+            {
+              leadId: String(leadForAudit._id),
+              name: leadForAudit.name,
+              source: leadForAudit.source,
+              profileName: leadForAudit.profileName,
+              companyName: leadForAudit.companyName,
+              phone: leadForAudit.phone,
+              status: leadForAudit.status,
+              score: leadForAudit.score,
+              temperature: leadForAudit.temperature,
+              address: leadForAudit.address,
+              notes: leadForAudit.notes,
+              inquiryReason: leadForAudit.inquiryReason,
+              qualificationStatus: leadForAudit.qualificationStatus,
+              priority: leadForAudit.priority,
+              locality: leadForAudit.locality,
+              province: leadForAudit.province,
+            },
+            tenantId,
+          );
+          console.log('[LEAD-AUDIT] Enriched audit events published for completed lead:', String(leadForAudit._id));
+        } catch (auditError) {
+          console.error('[LEAD-AUDIT] Failed to publish enriched audit for completed lead:', auditError);
+        }
       }
     } catch (error) {
       console.error('[WebhookIntegration] Error updating lead to contacted:', error);
